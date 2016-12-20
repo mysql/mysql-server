@@ -437,7 +437,9 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_latest_error_msg(),
     m_latest_error(0),
     m_data_node_neighbour(0),
-    m_multi_wait_group(0)
+    m_multi_wait_group(0),
+    m_application_addr(0),
+    m_application_port(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
@@ -901,6 +903,13 @@ Ndb_cluster_connection_impl::set_name(const char *name)
   ndb_mgm_set_name(h, name);
 }
 
+void
+Ndb_cluster_connection_impl::set_application_address(const char * addr, int port)
+{
+  m_application_addr = addr;
+  m_application_port = port;
+}
+
 int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 					       const ndb_mgm_configuration 
@@ -1210,6 +1219,11 @@ void Ndb_cluster_connection::set_name(const char *name)
   m_impl.set_name(name);
 }
 
+void Ndb_cluster_connection::set_application_address(const char * addr, int port)
+{
+  m_impl.set_application_address(addr, port);
+}
+
 int Ndb_cluster_connection_impl::connect(int no_retries,
                                          int retry_delay_in_seconds,
                                          int verbose)
@@ -1275,7 +1289,11 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       ndb_mgm_destroy_configuration(props);
       DBUG_RETURN(-1);
     }
-
+    NdbMgmHandle mgm_handle = m_config_retriever->get_mgmHandle();
+    const char * name = ndb_mgm_get_name(mgm_handle);
+    m_transporter_facade->theClusterMgr->setProcessInfo(name,
+                                                        m_application_addr,
+                                                        m_application_port);
     ndb_mgm_destroy_configuration(props);
     m_transporter_facade->connected();
     m_latest_error = 0;
