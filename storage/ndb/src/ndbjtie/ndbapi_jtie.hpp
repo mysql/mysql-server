@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -10199,6 +10199,22 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1name(JNIEnv * env, j
     gcall_mfv< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_char_cp_jutf8null, &Ndb_cluster_connection::set_name >(env, obj, p0);
 #else
     gcall_fv< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null, &NdbApiWrapper::Ndb_cluster_connection__set_name >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_application_port
+ * Signature: (I)V
+*/
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1application_1address(JNIEnv * env, jobject obj, jstring p0, jint p1)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1application_1port(JNIEnv *, jobject, jstring, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_char_cp_jutf8null, ttrait_int, &Ndb_cluster_connection::set_application_address >(env, obj, p0, p1);
+#else
+    gcall_fv< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null, ttrait_int, &NdbApiWrapper::Ndb_cluster_connection__set_application_address >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
