@@ -385,7 +385,7 @@ public:
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif
-
+  static const Uint32 BUFFER_SIZE = 128*1024;
 private:
   void
   twiddle_atribute(const AttributeDesc * const attr_desc,
