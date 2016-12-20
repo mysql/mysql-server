@@ -337,7 +337,7 @@ RestoreMetaData::readMetaTableList() {
   {
     // clear error insert
     m_error_insert = 0;
-    m_buffer_sz = 64*1024;
+    m_buffer_sz = BUFFER_SIZE;
   }
 #endif  
   return tabCount;
@@ -1335,7 +1335,7 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_path[0] = 0;
   m_fileName[0] = 0;
 
-  m_buffer_sz = 64*1024;
+  m_buffer_sz = BUFFER_SIZE;
   m_buffer = malloc(m_buffer_sz);
   m_buffer_ptr = m_buffer;
   m_buffer_data_left = 0;
