@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -3518,6 +3518,13 @@ struct NdbApiWrapper {
     ( Ndb_cluster_connection & obj, const char * p0 )
     {
         obj.set_name(p0);
+    }
+
+    static void
+    Ndb_cluster_connection__set_application_address
+    ( Ndb_cluster_connection & obj, const char * p0, int p1)
+    {
+        obj.set_application_address(p0, p1);
     }
 
     static int
