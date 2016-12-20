@@ -1022,7 +1022,6 @@ ORDER BY a;
 DROP TABLE t1;
 
 
---echo End of 5.0 tests
 -- echo #
 -- echo # Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take 
 -- echo # subselects into account
@@ -1126,6 +1125,8 @@ create table t1 (a int);
 insert into t1 values (10),(10),(10),(2),(3),(4),(5),(6),(7),(8),(9),(1),(10);
 --sorted_result
 select a from t1 where false UNION select a from t1 limit 8;
+--sorted_result
+(select a from t1 where false) UNION (select a from t1) limit 8;
 drop table t1;
 
 --echo #
@@ -1350,3 +1351,22 @@ UNION
 ;
 
 drop table t1;
+
+
+--echo #
+--echo # MDEV-10172: UNION query returns incorrect rows outside
+--echo # conditional evaluation
+--echo #
+
+create table t1 (d datetime not null primary key);
+insert into t1(d) values ('2016-06-01'),('2016-06-02'),('2016-06-03'),('2016-06-04');
+select * from
+(
+	select * from t1 where d between '2016-06-02' and '2016-06-05'
+	union
+	(select * from t1 where d < '2016-06-05' order by d desc limit 1)
+) onlyJun2toJun4
+order by d;
+drop table t1;
+
+--echo End of 5.0 tests

@@ -2871,7 +2871,7 @@ JOIN::exec()
                                     *curr_fields_list),
                                    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
   error= do_select(curr_join, curr_fields_list, NULL, procedure);
-  thd->limit_found_rows= curr_join->send_records;
+  thd->limit_found_rows= curr_join->send_records - curr_join->duplicate_rows;
 
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
@@ -16578,7 +16578,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     join->join_tab[join->top_join_tab_count - 1].next_select= end_select;
     join_tab=join->join_tab+join->const_tables;
   }
-  join->send_records=0;
+  join->duplicate_rows= join->send_records=0;
   if (join->table_count == join->const_tables)
   {
     /*
@@ -18089,7 +18089,12 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       int error;
       /* result < 0 if row was not accepted and should not be counted */
       if ((error= join->result->send_data(*join->fields)))
-        DBUG_RETURN(error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR);
+      {
+        if (error > 0)
+          DBUG_RETURN(NESTED_LOOP_ERROR);
+        // error < 0 => duplicate row
+        join->duplicate_rows++;
+      }
     }
     if (++join->send_records >= join->unit->select_limit_cnt &&
 	join->do_send_rows)
@@ -18205,7 +18210,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
               if (error < 0)
               {
                 /* Duplicate row, don't count */
-                join->send_records--;
+                join->duplicate_rows++;
                 error= 0;
               }
             }

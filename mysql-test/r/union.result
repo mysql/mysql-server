@@ -362,7 +362,7 @@ a
 2
 select found_rows();
 found_rows()
-6
+5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 100;
 a
 1
@@ -1169,12 +1169,9 @@ a	b
 select * from ((select * from t1 limit 1) union (select * from t1 limit 1)) a;
 a	b
 1	a
-2	b
 select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union (select * from t1 limit 1)) a;
 a	b
 1	a
-2	b
-3	c
 select * from ((((select * from t1))) union (select * from t1) union (select * from t1)) a;
 a	b
 1	a
@@ -1553,7 +1550,6 @@ NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
 Warnings:
 Note	1003	select NULL AS `a` from `test`.`t1` union select NULL AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
-End of 5.0 tests
 #
 # Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take 
 # subselects into account
@@ -1652,6 +1648,14 @@ DROP TABLE t1,t2;
 create table t1 (a int);
 insert into t1 values (10),(10),(10),(2),(3),(4),(5),(6),(7),(8),(9),(1),(10);
 select a from t1 where false UNION select a from t1 limit 8;
+a
+10
+2
+3
+4
+5
+6
+(select a from t1 where false) UNION (select a from t1) limit 8;
 a
 10
 2
@@ -1955,3 +1959,22 @@ cccc
 bbbb
 dddd
 drop table t1;
+#
+# MDEV-10172: UNION query returns incorrect rows outside
+# conditional evaluation
+#
+create table t1 (d datetime not null primary key);
+insert into t1(d) values ('2016-06-01'),('2016-06-02'),('2016-06-03'),('2016-06-04');
+select * from
+(
+select * from t1 where d between '2016-06-02' and '2016-06-05'
+	union
+(select * from t1 where d < '2016-06-05' order by d desc limit 1)
+) onlyJun2toJun4
+order by d;
+d
+2016-06-02 00:00:00
+2016-06-03 00:00:00
+2016-06-04 00:00:00
+drop table t1;
+End of 5.0 tests
