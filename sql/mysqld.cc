@@ -121,10 +121,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sysent.h>
 #endif
 #ifdef HAVE_PWD_H
-#include <pwd.h>				// For getpwent
-#endif
-#ifdef HAVE_GRP_H
-#include <grp.h>
+#include <pwd.h>				// For struct passwd
 #endif
 #include <my_net.h>
 
@@ -455,9 +452,7 @@ ulong opt_binlog_rows_event_max_size;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-#ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
-#endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint mysqld_extra_port;
 uint mysqld_port_timeout;
@@ -2001,59 +1996,18 @@ static void set_ports()
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__)
-  struct passwd *tmp_user_info;
-  uid_t user_id= geteuid();
+  myf flags= 0;
+  if (global_system_variables.log_warnings)
+    flags|= MY_WME;
+  if (!opt_bootstrap && !opt_help)
+    flags|= MY_FAE;
 
-  // Don't bother if we aren't superuser
-  if (user_id)
-  {
-    if (user)
-    {
-      /* Don't give a warning, if real user is same as given with --user */
-      /* purecov: begin tested */
-      tmp_user_info= getpwnam(user);
-      if ((!tmp_user_info || user_id != tmp_user_info->pw_uid) &&
-	  global_system_variables.log_warnings)
-        sql_print_warning(
-                    "One can only use the --user switch if running as root\n");
-      /* purecov: end */
-    }
-    return NULL;
-  }
-  if (!user)
-  {
-    if (!opt_bootstrap && !opt_help)
-    {
-      sql_print_error("Fatal error: Please consult the Knowledge Base "
-                      "to find out how to run mysqld as root!\n");
-      unireg_abort(1);
-    }
-    return NULL;
-  }
-  /* purecov: begin tested */
-  if (!strcmp(user,"root"))
-    return NULL;                        // Avoid problem with dynamic libraries
+  struct passwd *tmp_user_info= my_check_user(user, MYF(flags));
 
-  if (!(tmp_user_info= getpwnam(user)))
-  {
-    // Allow a numeric uid to be used
-    const char *pos;
-    for (pos= user; my_isdigit(mysqld_charset,*pos); pos++) ;
-    if (*pos)                                   // Not numeric id
-      goto err;
-    if (!(tmp_user_info= getpwuid(atoi(user))))
-      goto err;
-  }
+  if (!tmp_user_info && my_errno==EINVAL && (flags & MY_FAE))
+    unireg_abort(1);
 
   return tmp_user_info;
-  /* purecov: end */
-
-err:
-  sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-  unireg_abort(1);
-#endif
-  return NULL;
 }
 
 static inline void allow_coredumps()
@@ -2070,10 +2024,6 @@ static inline void allow_coredumps()
 
 static void set_user(const char *user, struct passwd *user_info_arg)
 {
-  /* purecov: begin tested */
-#if !defined(__WIN__)
-  DBUG_ASSERT(user_info_arg != 0);
-#ifdef HAVE_INITGROUPS
   /*
     We can get a SIGSEGV when calling initgroups() on some systems when NSS
     is configured to use LDAP and the server is statically linked.  We set
@@ -2081,22 +2031,11 @@ static void set_user(const char *user, struct passwd *user_info_arg)
     output a specific message to help the user resolve this problem.
   */
   calling_initgroups= 1;
-  initgroups((char*) user, user_info_arg->pw_gid);
+  int res= my_set_user(user, user_info_arg, MYF(MY_WME));
   calling_initgroups= 0;
-#endif
-  if (setgid(user_info_arg->pw_gid) == -1)
-  {
-    sql_perror("setgid");
+  if (res)
     unireg_abort(1);
-  }
-  if (setuid(user_info_arg->pw_uid) == -1)
-  {
-    sql_perror("setuid");
-    unireg_abort(1);
-  }
   allow_coredumps();
-#endif
-  /* purecov: end */
 }
 
 

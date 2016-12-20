@@ -34,7 +34,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				rijndael.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-                safemalloc.c my_new.cc
+                                safemalloc.c my_new.cc
 				my_atomic.c my_getncpus.c my_safehash.c my_chmod.c my_rnd.c
                                 my_uuid.c wqueue.c waiting_threads.c ma_dyncol.c
 				my_rdtsc.c my_context.c file_logger.c)
@@ -44,7 +44,7 @@ IF (WIN32)
 ENDIF()
 
 IF(UNIX)
- SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_addr_resolve.c)
+ SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_addr_resolve.c my_setuser.c)
 ENDIF()
 
 IF(HAVE_ALARM)

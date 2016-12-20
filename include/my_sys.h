@@ -602,8 +602,12 @@ extern void *my_memmem(const void *haystack, size_t haystacklen,
 
 #ifdef _WIN32
 extern int      my_access(const char *path, int amode);
+#define my_check_user(A,B) (NULL)
+#define my_set_user(A,B,C) (0)
 #else
 #define my_access access
+struct passwd *my_check_user(const char *user, myf MyFlags);
+int my_set_user(const char *user, struct passwd *user_info, myf MyFlags);
 #endif
 
 extern int check_if_legal_filename(const char *path);
