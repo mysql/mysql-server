@@ -7700,7 +7700,7 @@ innobase_update_foreign_try(
 				DBUG_RETURN(true);
 			}
 		}
-
+#ifdef INNODB_DD_TABLE
 		/* The fk->foreign_col_names[] uses renamed column
 		names, while the columns in ctx->old_table have not
 		been renamed yet. */
@@ -7716,8 +7716,9 @@ innobase_update_foreign_try(
 				 fk->id);
 			DBUG_RETURN(true);
 		}
+#endif /* INNODB_DD_TABLE */
 	}
-
+#ifdef INNODB_DD_TABLE
 	for (i = 0; i < ctx->num_to_drop_fk; i++) {
 		dict_foreign_t* fk = ctx->drop_fk[i];
 
@@ -7727,7 +7728,7 @@ innobase_update_foreign_try(
 			DBUG_RETURN(true);
 		}
 	}
-
+#endif /* INNODB_DD_TABLE */
 	DBUG_RETURN(false);
 }
 
@@ -7777,6 +7778,8 @@ innobase_update_foreign_cache(
 			dict_foreign_remove_from_cache(fk);
 		}
 	}
+#ifdef INNODB_DD_TABLE
+	/* NewDD TODO: Replace this with dd_table_load_fk(), etc. */
 
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
@@ -7834,7 +7837,7 @@ innobase_update_foreign_cache(
 
 		fk_tables.pop_front();
 	}
-
+#endif /* INNODB_DD_TABLE */
 	DBUG_RETURN(err);
 }
 
@@ -7945,14 +7948,14 @@ commit_try_rebuild(
 			DBUG_RETURN(true);
 		}
 	}
-
+#ifdef INNODB_DD_TABLE
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NAME)
 	    && innobase_rename_columns_try(ha_alter_info, ctx, old_table,
 					   trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-
+#endif /* INNODB_DD_TABLE */
 	DBUG_EXECUTE_IF("ib_ddl_crash_before_rename", DBUG_SUICIDE(););
 
 	/* The new table must inherit the flag from the
@@ -7961,7 +7964,7 @@ commit_try_rebuild(
 		rebuilt_table->ibd_file_missing = true;
 		rebuilt_table->flags2 |= DICT_TF2_DISCARDED;
 	}
-
+#ifdef INNODB_DD_TABLE
 	/* We can now rename the old table as a temporary table,
 	rename the new temporary table as the old table and drop the
 	old table. First, we only do this in the data dictionary
@@ -7971,7 +7974,7 @@ commit_try_rebuild(
 
 	error = row_merge_rename_tables_dict(
 		user_table, rebuilt_table, ctx->tmp_name, trx);
-
+#endif /* INNODB_DD_TABLE */
 	/* We must be still holding a table handle. */
 	DBUG_ASSERT(user_table->get_ref_count() >= 1);
 
@@ -8139,7 +8142,7 @@ commit_try_norebuild(
 	if (innobase_update_foreign_try(ctx, trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-
+#ifdef INNODB_DD_TABLE
 	dberr_t	error;
 
 	/* We altered the table in place. Mark the indexes as committed. */
@@ -8209,13 +8212,11 @@ commit_try_norebuild(
 		DBUG_RETURN(true);
 	}
 
-#ifdef INNODB_DD_TABLE
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::RENAME_INDEX)
 	    && rename_indexes_in_data_dictionary(ctx, ha_alter_info, trx)) {
 		DBUG_RETURN(true);
 	}
-#endif /* INNODB_DD_TABLE */
 
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
@@ -8232,7 +8233,7 @@ commit_try_norebuild(
 		    ctx->old_table, trx)) {
 		DBUG_RETURN(true);
 	}
-
+#endif /* INNODB_DD_TABLE */
 	DBUG_RETURN(false);
 }
 
