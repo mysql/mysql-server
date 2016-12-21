@@ -7100,4 +7100,15 @@ group by round((select 1 from t1 limit 1));
 round((select 1 from t1 limit 1))
 1
 drop table t1;
+#
+# MDEV-10386 Assertion `fixed == 1' failed in virtual String* Item_func_conv_charset::val_str(String*)
+#
+CREATE TABLE t1 (f1 CHAR(3) CHARACTER SET utf8 NULL, f2 CHAR(3) CHARACTER SET latin1 NULL);
+INSERT INTO t1 VALUES ('foo','bar');
+SELECT * FROM t1 WHERE f2 >= SOME ( SELECT f1 FROM t1 );
+f1	f2
+SELECT * FROM t1 WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+f1	f2
+foo	bar
+DROP TABLE t1;
 set @optimizer_switch_for_subselect_test=null;

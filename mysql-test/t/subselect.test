@@ -5988,3 +5988,13 @@ from t1
 group by round((select 1 from t1 limit 1));
 
 drop table t1;
+
+--echo #
+--echo # MDEV-10386 Assertion `fixed == 1' failed in virtual String* Item_func_conv_charset::val_str(String*)
+--echo #
+
+CREATE TABLE t1 (f1 CHAR(3) CHARACTER SET utf8 NULL, f2 CHAR(3) CHARACTER SET latin1 NULL);
+INSERT INTO t1 VALUES ('foo','bar');
+SELECT * FROM t1 WHERE f2 >= SOME ( SELECT f1 FROM t1 );
+SELECT * FROM t1 WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+DROP TABLE t1;
