@@ -3212,7 +3212,7 @@ private:
     return this;
   }
 
-  bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
+  bool set_value(THD*, sp_rcontext*, Item **it) override;
 
   void set_out_param_info(Send_field *info) override;
 
@@ -4289,7 +4289,7 @@ public:
   }
 
   bool fix_fields(THD *, Item **) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
     Item *item= Item_ref::get_tmp_table_item(thd);
@@ -5537,7 +5537,7 @@ public:
     DBUG_ASSERT(0);
     return true;
   }
-  bool join_types(THD *thd, Item *);
+  bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);

@@ -3696,7 +3696,7 @@ class Field_blob :public Field_longstr {
   type_conversion_status store_to_mem(const char *from, size_t length,
                                       const CHARSET_INFO *cs,
                                       size_t max_length,
-                                      Blob_mem_storage *blob_storage);
+                                      Blob_mem_storage*);
 protected:
   /**
     The number of bytes used to represent the length of the blob.

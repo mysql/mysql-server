@@ -1615,7 +1615,7 @@ class Item_func_bit_two_param: public Item_func_bit
 protected:
   bool binary_result_requires_binary_second_arg() const { return true; }
   template<class Char_func, class Int_func>
-  String * eval_str_op(String *str, Char_func char_func, Int_func int_func);
+  String * eval_str_op(String*, Char_func char_func, Int_func int_func);
   template<class Int_func> longlong eval_int_op(Int_func int_func);
 public:
   Item_func_bit_two_param(const POS &pos, Item *a, Item *b)
