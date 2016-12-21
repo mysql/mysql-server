@@ -750,13 +750,11 @@ bool update_view_status(THD *thd, const char *schema_name,
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::View *old_view= nullptr;
   dd::View *new_view= nullptr;
-  if (client->acquire(schema_name, view_name, &old_view) ||
-      client->acquire_for_modification(schema_name, view_name,
+  if (client->acquire_for_modification(schema_name, view_name,
                                        &new_view))
     return true;
-  if (old_view == nullptr)
+  if (new_view == nullptr)
     return false;
 
   // Update view error status.

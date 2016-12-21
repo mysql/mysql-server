@@ -2313,10 +2313,8 @@ bool add_foreign_keys_and_triggers(THD *thd,
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-  const dd::Table *old_table= nullptr;
   dd::Table *new_table= nullptr;
-  if (client->acquire(schema_name, table_name, &old_table) ||
-      client->acquire_for_modification(schema_name, table_name, &new_table))
+  if (client->acquire_for_modification(schema_name, table_name, &new_table))
     DBUG_RETURN(true);
 
   if (fk_keys > 0 &&
@@ -2445,7 +2443,6 @@ bool rename_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
-  const T *from_tab= NULL;
   const T *to_tab= NULL;
   T *new_tab = nullptr;
 
@@ -2458,8 +2455,6 @@ bool rename_table(THD *thd,
       thd->dd_client()->acquire(from_schema_name, &from_sch) ||
       thd->dd_client()->acquire(to_schema_name, &to_sch) ||
       thd->dd_client()->acquire(to_schema_name, to_table_name, &to_tab) ||
-      thd->dd_client()->acquire(from_schema_name, from_table_name,
-                                &from_tab) ||
       thd->dd_client()->acquire_for_modification(from_schema_name, from_table_name,
                                                  &new_tab))
   {
@@ -2480,7 +2475,7 @@ bool rename_table(THD *thd,
     return true;
   }
 
-  if (!from_tab)
+  if (!new_tab)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_table_name);
     return true;
@@ -2719,15 +2714,13 @@ bool update_keys_disabled(THD *thd,
   }
 
   // Get 'from' table object
-  const dd::Table *old_tab_obj= nullptr;
   dd::Table *new_tab_obj= nullptr;
-  if (client->acquire(schema_name, table_name, &old_tab_obj) ||
-      client->acquire_for_modification(schema_name, table_name, &new_tab_obj))
+  if (client->acquire_for_modification(schema_name, table_name, &new_tab_obj))
   {
     return true;
   }
 
-  if (!old_tab_obj)
+  if (!new_tab_obj)
   {
     return true;
   }
@@ -2810,7 +2803,6 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
   dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch= nullptr;
-  const dd::Table *old_table_def= nullptr;
   dd::Table *new_table_def= nullptr;
 
   // There should be an exclusive metadata lock on the table
@@ -2819,8 +2811,6 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 
   if (mdl_locker.ensure_locked(share->db.str) ||
       thd->dd_client()->acquire(share->db.str, &sch) ||
-      thd->dd_client()->acquire(share->db.str, share->table_name.str,
-                                &old_table_def) ||
       thd->dd_client()->acquire_for_modification(share->db.str,
                                                  share->table_name.str,
                                                  &new_table_def))
@@ -2833,7 +2823,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
     return true;
   }
 
-  if (!old_table_def)
+  if (!new_table_def)
   {
     DBUG_ASSERT(0);
     my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
@@ -2867,8 +2857,6 @@ bool move_triggers(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
   const dd::Schema *from_sch= nullptr;
   const dd::Schema *to_sch= nullptr;
-  const dd::Table *old_from_tab= nullptr;
-  const dd::Table *old_to_tab= nullptr;
   dd::Table *new_from_tab= nullptr;
   dd::Table *new_to_tab= nullptr;
 
@@ -2877,8 +2865,6 @@ bool move_triggers(THD *thd,
       to_mdl_locker.ensure_locked(to_schema_name) ||
       client->acquire(from_schema_name, &from_sch) ||
       client->acquire(to_schema_name, &to_sch) ||
-      client->acquire(to_schema_name, to_name, &old_to_tab) ||
-      client->acquire(from_schema_name, from_name, &old_from_tab) ||
       client->acquire_for_modification(to_schema_name, to_name, &new_to_tab) ||
       client->acquire_for_modification(from_schema_name, from_name,
                                        &new_from_tab))
@@ -2900,13 +2886,13 @@ bool move_triggers(THD *thd,
     return true;
   }
 
-  if (old_from_tab == nullptr)
+  if (new_from_tab == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_name);
     return true;
   }
 
-  if (old_to_tab == nullptr)
+  if (new_to_tab == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), to_schema_name, to_name);
     return true;

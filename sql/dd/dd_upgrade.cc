@@ -2687,16 +2687,14 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
                                        char *event_db_name,
                                        char *event_name)
 {
-  const dd::Event *event= nullptr;
   dd::Event *new_event= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (thd->dd_client()->acquire(event_db_name, event_name, &event) ||
-      thd->dd_client()->acquire_for_modification(event_db_name,
+  if (thd->dd_client()->acquire_for_modification(event_db_name,
                                                  event_name,
                                                  &new_event))
     return true;
-  if (event == nullptr)
+  if (new_event == nullptr)
     return true;
 
   if (!table->field[ET_FIELD_LAST_EXECUTED]->is_null())

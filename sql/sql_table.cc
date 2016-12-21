@@ -8257,11 +8257,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     dd::Schema_MDL_locker mdl_locker(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *new_dd_tab= nullptr;
     dd::Table *altered_table_def= nullptr;
     if (mdl_locker.ensure_locked(alter_ctx->new_db) ||
-        thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
-                                  &new_dd_tab) ||
         thd->dd_client()->acquire_for_modification(alter_ctx->new_db, alter_ctx->tmp_name,
                                   &altered_table_def))
       goto cleanup;
