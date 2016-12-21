@@ -1521,10 +1521,7 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
     }
   }
 
-#ifndef EMBEDDED_LIBRARY
   error|= migrate_events_to_dd(thd);
-#endif
-
   error|= migrate_routines_to_dd(thd);
 
   if (error)

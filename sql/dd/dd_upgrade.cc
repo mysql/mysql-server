@@ -2354,7 +2354,6 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Column definitions for 5.7 mysql.event table (5.7.13 and up).
 */
@@ -3025,7 +3024,6 @@ err:
   free_root(&records_mem_root, MYF(0));
   return true;
 }
-#endif  // !EMBEDDED_LIBRARY
 
 
 /**

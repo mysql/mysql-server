@@ -499,12 +499,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 
 
 /* few defines to have less ifdef's in the code below */
-#ifdef EMBEDDED_LIBRARY
-#undef HAVE_OPENSSL
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-#define initialized 0
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-#endif /* EMBEDDED_LIBRARY */
 #ifndef HAVE_OPENSSL
 #define ssl_acceptor_fd 0
 #define sslaccept(A,B,C) 1
@@ -1191,8 +1185,6 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 }
 
 
-#ifndef EMBEDDED_LIBRARY
-
 /** Get a string according to the protocol of the underlying buffer. */
 typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
 
@@ -1397,14 +1389,12 @@ char *get_41_lenc_string(char **buffer,
   *buffer+= *string_length + 1;
   return str;
 }
-#endif /* EMBEDDED LIBRARY */
 
 
 /* the packet format is described in send_client_reply_packet() */
 static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
                                             uchar **buff, size_t pkt_len)
 {
-#ifndef EMBEDDED_LIBRARY
   Protocol_classic *protocol = mpvio->protocol;
   char *end;
   bool packet_has_required_size= false;
@@ -1756,9 +1746,6 @@ skip_to_ssl:
 
   *buff= (uchar *) passwd;
   return passwd_len;
-#else
-  return 0;
-#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -1958,14 +1945,12 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
 
   if (auth_plugin_name.str == native_password_plugin_name.str)
     plugin= native_password_plugin;
-#ifndef EMBEDDED_LIBRARY
   else
   {
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin= true;
   }
-#endif /* EMBEDDED_LIBRARY */
 
 
   mpvio->plugin= plugin;
@@ -2019,11 +2004,11 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip= sctx_host_or_ip.str;
   mpvio->auth_info.host_or_ip_length= sctx_host_or_ip.length;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   if (thd->get_protocol()->get_ssl())
     mpvio->vio_is_encrypted= 1;
   else
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
     mpvio->vio_is_encrypted= 0;
   mpvio->status= MPVIO_EXT::FAILURE;
   mpvio->mem_root= thd->mem_root;
@@ -2569,14 +2554,12 @@ acl_authenticate(THD *thd, enum_server_command command)
   if (command == COM_CONNECT &&
       !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
   {
-#ifndef EMBEDDED_LIBRARY
     if (!Connection_handler_manager::get_instance()->valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
-#endif // !EMBEDDED_LIBRARY
   }
 
   /*

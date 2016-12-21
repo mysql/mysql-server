@@ -160,7 +160,6 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     return false;
   }
-#ifndef EMBEDDED_LIBRARY
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
     vio->viodelete	=vio_delete_shared_memory;
@@ -178,7 +177,6 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     return false;
   }
-#endif /* !EMBEDDED_LIBRARY */
 #endif /* _WIN32 */
 #ifdef HAVE_OPENSSL
   if (type == VIO_TYPE_SSL)
@@ -386,7 +384,6 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_RETURN(vio);
 }
 
-#ifndef EMBEDDED_LIBRARY
 Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_server_wrote, HANDLE event_server_read,
                                 HANDLE event_client_wrote, HANDLE event_client_read,
@@ -413,7 +410,6 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   }
   DBUG_RETURN(vio);
 }
-#endif
 #endif
 
 

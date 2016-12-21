@@ -3945,13 +3945,9 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   if (!acl_cache_lock.lock(false))
     return (NO_ACCESS);
 
-#ifdef EMBEDDED_LIBRARY
-  grant_table= NULL;
-#else
   grant_table= table_hash_search(sctx->host().str,
                                  sctx->ip().str, db, sctx->priv_user().str,
                                  table->table_name, 0);
-#endif /* EMBEDDED_LIBRARY */
   table->grant.grant_table=grant_table; // Remember for column test
   table->grant.version=grant_version;
   if (grant_table)

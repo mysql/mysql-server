@@ -24,7 +24,7 @@
 #include "my_psi_config.h"
 
 #if defined(HAVE_PSI_THREAD_INTERFACE) && defined(MYSQL_SERVER) && \
-    !defined(EMBEDDED_LIBRARY) && !defined(MYSQL_DYNAMIC_PLUGIN) && \
+    !defined(MYSQL_DYNAMIC_PLUGIN) && \
     defined(__cplusplus)
 
 #include <sys/types.h>

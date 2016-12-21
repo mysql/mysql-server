@@ -834,7 +834,6 @@ bool check_global_access(THD *thd, ulong want_access);
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
 
-#ifndef EMBEDDED_LIBRARY
 typedef enum ssl_artifacts_status
 {
   SSL_ARTIFACTS_NOT_FOUND= 0,
@@ -844,7 +843,6 @@ typedef enum ssl_artifacts_status
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
-#endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;

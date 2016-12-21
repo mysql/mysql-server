@@ -97,7 +97,6 @@ bool load_db_schema_collation(uint *collation_id, const LEX_STRING *db_opt_path)
 */
 bool migrate_schema_to_dd(THD *thd, const char *dbname);
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Migrate all events from mysql.event to mysql.events table.
 
@@ -107,7 +106,6 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname);
   @retval true   ON FAILURE
 */
 bool migrate_events_to_dd(THD *thd);
-#endif
 
 /**
   Migrate all SP/SF from mysql.proc to mysql.routines dd table.
