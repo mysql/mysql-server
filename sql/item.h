@@ -712,7 +712,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM, FIELD_BIT_ITEM};
+             VIEW_FIXER_ITEM, FIELD_BIT_ITEM, NULL_RESULT_ITEM };
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -3053,6 +3053,7 @@ public:
   enum_field_types field_type() const override { return fld_type; }
   Item_result result_type() const override { return res_type; }
   bool check_gcol_func_processor(uchar *) override { return true; }
+  enum Type type() const { return NULL_RESULT_ITEM; }
 };
 
 /// Placeholder ('?') of prepared statement.

@@ -27,6 +27,7 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "item.h"           // Item_result_field
+#include "item_func.h"      // Item_int_func
 #include "json_dom.h"       // Json_wrapper
 #include "m_ctype.h"
 #include "m_string.h"
@@ -1755,6 +1756,27 @@ public:
     context= reinterpret_cast<Name_resolution_context *>(cntx);
     return false;
   }
+};
+
+/**
+  Class for implementation of the GROUPING function. The GROUPING
+  function distinguishes super-aggregate rows from regular grouped
+  rows. GROUP BY extensions such as ROLLUP and CUBE produce
+  super-aggregate rows where the set of all values is represented
+  by null. Using the GROUPING function, you can distinguish a null
+  representing the set of all values in a super-aggregate row from
+  a NULL in a regular row.
+*/
+class Item_func_grouping: public Item_int_func
+{
+public:
+  Item_func_grouping(const POS &pos, PT_item_list *a): Item_int_func(pos,a) {}
+  const char * func_name() const override { return "grouping"; }
+  enum Functype functype() const override { return GROUPING_FUNC; }
+  longlong val_int() override;
+  bool aggregate_check_group(uchar *arg) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  void cleanup() override;
 };
 
 #endif /* ITEM_SUM_INCLUDED */

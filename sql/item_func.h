@@ -105,7 +105,7 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC };
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const override { return FUNC_ITEM; }

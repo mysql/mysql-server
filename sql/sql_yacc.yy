@@ -1145,7 +1145,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SKIP_SYM                      /* MYSQL */
 %token  LOCKED_SYM                    /* MYSQL */
 %token  NOWAIT_SYM                    /* MYSQL */
-
+%token  GROUPING_SYM                  /* SQL-2011-R */
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
   simple "UNIQUE" and "KEY" attributes:
@@ -1246,7 +1246,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <item>
         literal insert_ident temporal_literal
-        simple_ident expr opt_expr opt_else sum_expr in_sum_expr
+        simple_ident expr opt_expr opt_else
+        set_function_specification sum_expr
+        in_sum_expr grouping_operation
         variable variable_aux bool_pri
         predicate bit_expr
         table_wild simple_expr udf_expr
@@ -9331,7 +9333,7 @@ simple_expr:
         | literal
         | param_marker { $$= $1; }
         | variable
-        | sum_expr
+        | set_function_specification
         | simple_expr OR_OR_SYM simple_expr
           {
             $$= NEW_PTN Item_func_concat(@$, $1, $3);
@@ -9873,6 +9875,11 @@ udf_expr:
           }
         ;
 
+set_function_specification:
+          sum_expr
+        | grouping_operation
+        ;
+
 sum_expr:
           AVG_SYM '(' in_sum_expr ')'
           {
@@ -9965,6 +9972,13 @@ sum_expr:
           ')'
           {
             $$= NEW_PTN Item_func_group_concat(@$, $3, $4, $5, $6);
+          }
+        ;
+
+grouping_operation:
+          GROUPING_SYM '(' expr_list ')'
+          {
+            $$= NEW_PTN Item_func_grouping(@$, $3);
           }
         ;
 

@@ -267,6 +267,7 @@ static const SYMBOL symbols[] = {
   { SYM("GRANT",                    GRANT)},
   { SYM("GRANTS",                   GRANTS)},
   { SYM("GROUP",                    GROUP_SYM)},
+  { SYM("GROUPING",                 GROUPING_SYM)},
   { SYM("HANDLER",                  HANDLER_SYM)},
   { SYM("HASH",                     HASH_SYM)},
   { SYM("HAVING",                   HAVING)},

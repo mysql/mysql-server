@@ -3102,10 +3102,14 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
     remove_base_options(SELECT_DISTINCT);
   }
 
-  // Remove GROUP BY if there are no aggregate functions and no HAVING clause
+  /*
+    Remove GROUP BY if there are no aggregate functions, no HAVING clause and
+    no ROLLUP.
+  */
 
   if ((possible_changes & REMOVE_GROUP) &&
-      group_list.elements && !agg_func_used() && !having_cond())
+      group_list.elements && !agg_func_used() && !having_cond() &&
+      olap == UNSPECIFIED_OLAP_TYPE)
   {
     changelog|= REMOVE_GROUP;
     for (ORDER *g= group_list.first; g != NULL; g= g->next)
@@ -3557,7 +3561,10 @@ bool SELECT_LEX::setup_group(THD *thd)
     if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
                            fields_list, all_fields, true))
       return true;
-    if ((*group->item)->with_sum_func)
+
+    Item *item= *group->item;
+    if (item->with_sum_func || (item->type() == Item::FUNC_ITEM &&
+         (down_cast<Item_func*>(item)->functype() == Item_func::GROUPING_FUNC)))
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
       return true;
@@ -3577,13 +3584,21 @@ bool SELECT_LEX::setup_group(THD *thd)
   The function replaces occurrences of group by fields in expr
   by ref objects for these fields unless they are under aggregate
   functions.
-  The function also corrects value of the the maybe_null attribute
+  The function also corrects value of the maybe_null attribute
   for the items of all subexpressions containing group by fields.
+  Along with this, it also checks if expressions in the GROUPING
+  function are present in GROUP BY. This cannot be pushed to
+  Item_func_grouping::fix_fields as GROUP BY expressions get
+  resolved at the end. And it cannot be checked later in
+  Item_func_grouping::aggregate_check_group as we replace
+  all occurrences of GROUP BY expressions with ref items.
+  As a result, we cannot compare the objects for equality.
 
   @b EXAMPLES
     @code
       SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
-      SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
+      SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP
+      SELECT a+1, GROUPING(a) FROM t1 GROUP BY a WITH ROLLUP;
   @endcode
 
   @b IMPLEMENTATION
@@ -3611,15 +3626,24 @@ bool SELECT_LEX::setup_group(THD *thd)
 bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 {
   bool arg_changed= false;
+  const bool is_grouping_func= expr->functype() == Item_func::GROUPING_FUNC;
+
   for (uint i= 0; i < expr->arg_count; i++)
   {
     Item **arg= expr->arguments() + i;
     Item *const item= *arg;
-    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+    Item *const real_item= item->real_item();
+    bool found_in_group= false;
+    /*
+      Arguments to GROUPING function must be present in the GROUP BY list.
+      Check that they are.
+    */
+    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM ||
+        is_grouping_func)
     {
       for (ORDER *group= group_list.first; group; group= group->next)
       {
-        if (item->eq(*group->item, 0))
+        if (real_item->eq((*group->item)->real_item(), 0))
         {
           Item *new_item;
           if (!(new_item= new Item_ref(&context, group->item, 0,
@@ -3628,7 +3652,15 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 
           expr->replace_argument(thd, arg, new_item);
           arg_changed= true;
+          found_in_group= true;
+          break;
         }
+      }
+
+      if (is_grouping_func && !found_in_group)
+      {
+        my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i+1));
+        return true;
       }
     }
     else if (item->type() == Item::FUNC_ITEM)

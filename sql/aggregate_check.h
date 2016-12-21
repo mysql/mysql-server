@@ -707,6 +707,7 @@ private:
   friend bool Item_func_any_value::aggregate_check_group(uchar *arg);
   friend bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg);
   friend bool Item_ident::is_column_not_in_fd(uchar *arg);
+  friend bool Item_func_grouping::aggregate_check_group(uchar *arg);
 
   FORBID_COPY_CTOR_AND_ASSIGN_OP(Group_check);
 };

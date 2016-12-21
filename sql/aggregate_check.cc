@@ -680,7 +680,9 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
  */
 bool Group_check::is_in_fd(Item *item)
 {
-  if (item->type() == Item::SUM_FUNC_ITEM)
+  if (item->type() == Item::SUM_FUNC_ITEM ||
+      (item->type() == Item_func::FUNC_ITEM &&
+       (((Item_func*)item)->functype() == Item_func::GROUPING_FUNC)))
   {
     /*
       If all group expressions are FD on the source, this set function also is
