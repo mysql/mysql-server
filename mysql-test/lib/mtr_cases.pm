@@ -1088,21 +1088,30 @@ sub collect_one_test_case {
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs 'include/not_parallel.inc' include file when 'run-non-parallel-tests' option is set";
-    return $tinfo
+    return $tinfo;
   }
 
-  if ( $tinfo->{'big_test'} and ! $::opt_big_test )
+  # Normal tests shouldn't run with only-big-test option
+  if ($::opt_only_big_test and !$tinfo->{'big_test'})
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'big-test' option";
-    return $tinfo
+    $tinfo->{'comment'}= "Not a big test";
+    return $tinfo;
+  }
+
+  # Check for big test
+  if ($tinfo->{'big_test'} and !($::opt_big_test or $::opt_only_big_test))
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test needs 'big-test' or 'only-big-test' option";
+    return $tinfo;
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs debug binaries";
-    return $tinfo
+    return $tinfo;
   }
 
   if ( $tinfo->{'ndb_test'} )
