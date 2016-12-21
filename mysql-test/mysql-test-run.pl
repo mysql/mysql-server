@@ -219,7 +219,7 @@ sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
 our $opt_force;
-our $opt_mem= $ENV{'MTR_MEM'};
+our $opt_mem= $ENV{'MTR_MEM'}  ? 1 : 0;
 our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
@@ -1482,10 +1482,11 @@ sub command_line_setup {
       if $opt_tmpdir;
 
     # Search through list of locations that are known
-    # to be "fast disks" to find a suitable location
-    # Use --mem=<dir> as first location to look.
-    my @tmpfs_locations= ($opt_mem, "/dev/shm", "/tmp");
+    # to be "fast disks" to find a suitable location/
+    my @tmpfs_locations= ($opt_mem, "/run/shm", "/dev/shm", "/tmp");
 
+    # Use $ENV{'MTR_MEM'} as first location to look (if defined)
+    unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
     foreach my $fs (@tmpfs_locations)
     {
       if ( -d $fs )
@@ -7202,7 +7203,7 @@ Options to control directories to use
   mem                   Run testsuite in "memory" using tmpfs or ramdisk
                         Attempts to find a suitable location
                         using a builtin list of standard locations
-                        for tmpfs (/dev/shm)
+                        for tmpfs (/run/shm, /dev/shm)
                         The option can also be set using environment
                         variable MTR_MEM=[DIR]
   clean-vardir          Clean vardir if tests were successful and if
