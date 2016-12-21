@@ -580,10 +580,13 @@ static bool update_view_metadata(THD *thd,
 
     /*
        Open views and update views metadata.
-       Note: DDL operations extended to update view columns are not automic.
-             There is a possibility of things going out of sync in fatal error
-             or crash scenarios. Making these operations automic or aligned with
-             WL7743 goals is handled as part of WL9446.
+
+       Note that these updates will be done atomically with the main part of
+       DDL statement only if main part DDL statement itself is atomic (i.e.
+       storage engine involved supports atomic DDL).
+       Otherwise, there is a possibility of things going out of sync in fatal
+       error or crash scenarios. We will consider handling this case atomically
+       as part of WL#9446.
     */
     if (open_views_and_update_metadata(thd, &views, commit_dd_changes,
                                        uncommitted_tables))

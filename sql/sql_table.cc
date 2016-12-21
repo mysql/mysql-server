@@ -3614,8 +3614,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                      table->db, table->table_name,
                                      MDL_EXCLUSIVE));
 
-      // QQ: should we invalidate TDC here too, just in case?
-
       thd->add_to_binlog_accessed_dbs(table->db);
 
       if (!drop_database && gtid_and_table_groups_state != GTID_MANY_TABLE_GROUPS)

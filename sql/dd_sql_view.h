@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <vector>
+#include "prealloced_array.h"
 
 class THD;
 struct TABLE_LIST;
@@ -33,7 +33,7 @@ class Uncommitted_tables_guard
 {
 public:
   Uncommitted_tables_guard(THD *thd)
-    : m_thd(thd)
+    : m_thd(thd), m_uncommitted_tables(PSI_INSTRUMENT_ME)
   { }
   ~Uncommitted_tables_guard();
 
@@ -44,7 +44,7 @@ public:
 
 private:
   THD *m_thd;
-  std::vector<TABLE_LIST*> m_uncommitted_tables;
+  Prealloced_array<TABLE_LIST*, 1> m_uncommitted_tables;
 };
 
 
