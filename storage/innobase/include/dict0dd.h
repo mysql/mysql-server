@@ -456,7 +456,6 @@ dd_set_hidden_unique_index(
         const char*             name,
         const dd::Column*       column);
 
-#ifdef UNIV_DEBUG
 /** Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
 @param[in]      thd             MySQL thread handle
@@ -473,7 +472,6 @@ create_table_check_doc_id_col(
 	THD*		thd,   
 	const TABLE*	form,  
 	ulint*		doc_id_col);
-#endif /* UNIV_DEBUG */
 
 /** Return a display name for the row format
 @param[in]      row_format      Row Format
