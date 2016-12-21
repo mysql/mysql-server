@@ -144,11 +144,7 @@ public:
   }
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
-#ifdef EMBEDDED_LIBRARY
-  virtual void begin_dataset() {}
-#else
   void begin_dataset() {}
-#endif
 
   /// @returns Pointer to count of rows retained by this result.
   virtual const ha_rows *row_count() const      /* purecov: inspected */

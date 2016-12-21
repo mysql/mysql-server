@@ -1417,7 +1417,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   char *buf= 0;
   const char *error= 0;
   Log_event *res=  0;
-#if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+#if !defined(MYSQL_SERVER)
   ulong log_max_allowed_packet;
   mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
                    &log_max_allowed_packet);
@@ -7496,7 +7496,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
    Load_query_generator is used to generate the LOAD DATA statement for binlog
 ******************************************************************************/
 
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+#if defined(MYSQL_SERVER)
 Load_query_generator::Load_query_generator(THD *thd_arg, const sql_exchange *ex,
                                            const char *db_arg,
                                            const char *table_name_arg,

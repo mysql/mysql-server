@@ -794,11 +794,10 @@ void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 //
 //////////////////////////////////////////////////////////
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Interface for MySQL Server, plugins and storage engines to report
   when they are going to sleep/stall.
-  
+
   SYNOPSIS
   thd_wait_begin()
   thd                     Thread object
@@ -833,19 +832,6 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
   MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                  thd_wait_end, (thd));
 }
-#else
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-
-extern "C" void thd_wait_end(MYSQL_THD thd)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-#endif
 
 
 //////////////////////////////////////////////////////////
@@ -854,7 +840,6 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
 //
 //////////////////////////////////////////////////////////
 
-#ifndef EMBEDDED_LIBRARY
 /**
    Interface for Engine to report row lock conflict.
    The caller should guarantee thd_wait_for does not be freed, when it is
@@ -871,11 +856,3 @@ void thd_report_row_lock_wait(THD* self, THD *wait_for)
 
   DBUG_VOID_RETURN;
 }
-#else
-extern "C"
-void thd_report_row_lock_wait(THD* self, THD *thd_wait_for)
-{
-  return;
-}
-#endif
-

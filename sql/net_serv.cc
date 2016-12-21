@@ -24,15 +24,8 @@
   Read packets are reallocated dynamicly when reading big packets.
   Each logical packet has the following pre-info:
   3 byte length & 1 byte package-number.
-
-  This file needs to be written in C as it's used by the libmysql client as a
-  C file.
 */
 
-/*
-  HFTODO this must be hidden if we don't want client capabilities in 
-  embedded library
- */
 #include <string.h>
 #include <sys/types.h>
 #include <violite.h>
@@ -50,12 +43,6 @@
 
 using std::min;
 using std::max;
-
-#ifdef EMBEDDED_LIBRARY
-#undef MYSQL_SERVER
-#undef MYSQL_CLIENT
-#define MYSQL_CLIENT
-#endif /*EMBEDDED_LIBRARY */
 
 #ifndef MYSQL_CLIENT
 #include "psi_memory_key.h"
@@ -200,10 +187,8 @@ void net_clear(NET *net,
 {
   DBUG_ENTER("net_clear");
 
-#if !defined(EMBEDDED_LIBRARY)
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
   DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
-#endif
 
   /* Ready for new command */
   net->pkt_nr= net->compress_pkt_nr= 0;

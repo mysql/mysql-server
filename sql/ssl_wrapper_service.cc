@@ -31,8 +31,6 @@ using namespace yaSSL;
 #endif // defined(HAVE_YASSL)
 #include "mysql/service_ssl_wrapper.h"  // IWYU pragma: keep
 
-#ifndef EMBEDDED_LIBRARY
-
 namespace ssl_wrappe_service
 {
 
@@ -330,5 +328,3 @@ void ssl_wrapper_thread_cleanup()
 }
 
 } /* extern "C" */
-
-#endif // EMBEDDED_LIBRARY

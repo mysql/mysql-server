@@ -3749,20 +3749,13 @@ innodb_init_params()
 	ulong		num_pll_degree;
 
 	/* First calculate the default path for innodb_data_home_dir etc.,
-	in case the user has not given any value.
+	in case the user has not given any value. */
 
-	Note that when using the embedded server, the datadirectory is not
-	necessarily the current directory of this program. */
-
-	if (mysqld_embedded) {
-		default_path = mysql_real_data_home;
-	} else {
-		/* It's better to use current lib, to keep paths short */
-		current_dir[0] = FN_CURLIB;
-		current_dir[1] = FN_LIBCHAR;
-		current_dir[2] = 0;
-		default_path = current_dir;
-	}
+	/* It's better to use current lib, to keep paths short */
+	current_dir[0] = FN_CURLIB;
+	current_dir[1] = FN_LIBCHAR;
+	current_dir[2] = 0;
+	default_path = current_dir;
 	ut_a(default_path);
 	fil_path_to_mysql_datadir = default_path;
 	folder_mysql_datadir = default_path;
@@ -3932,7 +3925,7 @@ innodb_init_params()
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
-	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
+	srv_print_verbose_log = 1;
 
 	/* Round up fts_sort_pll_degree to nearest power of 2 number */
 	for (num_pll_degree = 1;
@@ -11769,7 +11762,7 @@ create_table_info_t::parse_table_name(
 	1. <database_name>/<table_name>: for normal table creation
 	2. full path: for temp table creation, or DATA DIRECTORY.
 
-	When srv_file_per_table is on and mysqld_embedded is off,
+	When srv_file_per_table is on,
 	check for full path pattern, i.e.
 	X:\dir\...,		X is a driver letter, or
 	\\dir1\dir2\...,	UNC path
@@ -11777,7 +11770,6 @@ create_table_info_t::parse_table_name(
 	table. Currently InnoDB does not support symbolic link on Windows. */
 
 	if (m_innodb_file_per_table
-	    && !mysqld_embedded
 	    && !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
 		if ((name[1] == ':')

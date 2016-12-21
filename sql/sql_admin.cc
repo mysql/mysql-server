@@ -1292,11 +1292,7 @@ bool Sql_cmd_shutdown::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_shutdown::execute");
   bool res= TRUE;
-#ifndef EMBEDDED_LIBRARY
   res= !shutdown(thd, SHUTDOWN_DEFAULT);
-#else
-  my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-#endif
 
   DBUG_RETURN(res);
 }

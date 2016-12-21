@@ -3157,9 +3157,6 @@ public:
   void reset();
   /*
     Assign placeholder value from bind data.
-    Note, that 'len' has different semantics in embedded library (as we
-    don't need to check that packet is not broken there). See
-    sql_prepare.cc for details.
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 

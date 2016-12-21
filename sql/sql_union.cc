@@ -308,13 +308,6 @@ public:
     */
     DBUG_ASSERT(false); /* purecov: inspected */
   }
-#ifdef EMBEDDED_LIBRARY
-  void begin_dataset() override
-  {
-    // Only called for sp_cursor::Select_fetch_into_spvars
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
-#endif
 };
 
 

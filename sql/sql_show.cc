@@ -135,11 +135,9 @@
 #include "trigger_def.h"
 #include "tztime.h"                         // Time_zone
 
-#ifndef EMBEDDED_LIBRARY
 #include "event_data_objects.h"             // Event_timed
 #include "event_parse_data.h"               // Event_parse_data
 #include "events.h"                         // Events
-#endif
 
 #include "partition_info.h"                 // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
@@ -147,9 +145,7 @@
 namespace dd {
 class Abstract_table;
 }  // namespace dd
-#ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
-#endif
 
 #include <algorithm>
 #include <functional>
@@ -480,9 +476,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
   {"Drop role", "Server Admin", "To drop roles"},
-#ifndef EMBEDDED_LIBRARY
   {"Event","Server Admin","To create, alter, drop and execute events"},
-#endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
@@ -2162,7 +2156,6 @@ public:
 
 static const char *thread_state_info(THD *tmp)
 {
-#ifndef EMBEDDED_LIBRARY
   if (tmp->get_protocol()->get_rw_status())
   {
     if (tmp->get_protocol()->get_rw_status() == 2)
@@ -2173,7 +2166,6 @@ static const char *thread_state_info(THD *tmp)
       return "Receiving from client";
   }
   else
-#endif
   {
     Mutex_lock lock(&tmp->LOCK_current_cond);
     if (tmp->proc_info)
@@ -2279,7 +2271,6 @@ public:
     {
       const char *query_str= inspect_thd->query().str;
       size_t query_length= inspect_thd->query().length;
-#ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2292,7 +2283,6 @@ public:
         query_length= buf.length();
       }
       /* No else. We need fall-through */
-#endif
       if (query_str)
       {
         const size_t width= min<size_t>(m_max_query_length, query_length);
@@ -2484,7 +2474,6 @@ public:
     {
       const char *query_str= inspect_thd->query().str;
       size_t query_length= inspect_thd->query().length;
-#ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2497,7 +2486,6 @@ public:
         query_length= buf.length();
       }
       /* No else. We need fall-through */
-#endif
       if (query_str)
       {
         const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
@@ -6217,7 +6205,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Loads an event from the Data Dictionary and copies it's data to a row of
   I_S.EVENTS
@@ -6393,7 +6380,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table,
 
   DBUG_RETURN(0);
 }
-#endif
+
 
 static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
@@ -7914,13 +7901,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-#ifndef EMBEDDED_LIBRARY
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
-#else // for alignment with enum_schema_tables
-  {"EVENTS", events_fields_info, create_schema_table,
-   0, make_old_format, 0, -1, -1, 0, 0},
-#endif
   {"FILES", files_fields_info, create_schema_table,
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,

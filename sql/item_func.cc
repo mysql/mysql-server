@@ -8492,7 +8492,6 @@ Item *get_system_var(Parse_context *pc,
   Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
                                                                component_name,
                                                                NULL, 0);
-#ifndef EMBEDDED_LIBRARY
   if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
   {
     String str;
@@ -8520,7 +8519,6 @@ Item *get_system_var(Parse_context *pc,
         return 0;
       }
   }
-#endif
 
   return item;
 }

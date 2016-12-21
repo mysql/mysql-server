@@ -280,7 +280,7 @@ bool Item_func_sha::resolve_type(THD *)
 String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
 
@@ -363,7 +363,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     "sha2", "--with-ssl");
   null_value= TRUE;
   return (String *) NULL;
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
 }
 
 
@@ -372,7 +372,7 @@ bool Item_func_sha2::resolve_type(THD *thd)
   maybe_null= true;
   max_length= 0;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   longlong sha_variant;
   if (args[1]->const_item())
   {
@@ -421,7 +421,7 @@ bool Item_func_sha2::resolve_type(THD *thd)
     ER_FEATURE_DISABLED,
     ER_THD(thd, ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
 
   return false;
 }
@@ -883,7 +883,7 @@ bool Item_func_concat::resolve_type(THD *)
 String *Item_func_des_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -972,7 +972,7 @@ error:
                       ER_FEATURE_DISABLED,
                       ER_THD(current_thd, ER_FEATURE_DISABLED),
                       "des_encrypt", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
   null_value=1;
   return 0;
 }
@@ -981,7 +981,7 @@ error:
 String *Item_func_des_decrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -1053,7 +1053,7 @@ wrong_key:
                       ER_FEATURE_DISABLED,
                       ER_THD(current_thd, ER_FEATURE_DISABLED),
                       "des_decrypt", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
   null_value=1;
   return 0;
 }

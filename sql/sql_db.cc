@@ -524,9 +524,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   /* Lock all tables and stored routines about to be dropped. */
   if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
-#ifndef EMBEDDED_LIBRARY
       || Events::lock_schema_events(thd, db.str)
-#endif
       || lock_db_routines(thd, db.str)
       || lock_trigger_names(thd, tables))
     DBUG_RETURN(true);
@@ -572,9 +570,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     thd->clear_error(); /* @todo Do not ignore errors */
     tmp_disable_binlog(thd);
     query_cache.invalidate(thd, db.str);
-#ifndef EMBEDDED_LIBRARY
     error= Events::drop_schema_events(thd, db.str);
-#endif
     error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
     reenable_binlog(thd);
 

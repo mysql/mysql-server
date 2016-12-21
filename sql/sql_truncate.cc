@@ -503,12 +503,10 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
     if (hton_can_recreate)
     {
-#ifndef EMBEDDED_LIBRARY
       if (mysql_audit_table_access_notify(thd, table_ref))
       {
         DBUG_RETURN(true);
       }
-#endif /* !EMBEDDED_LIBRARY */
      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.

@@ -877,7 +877,6 @@ int set_var::check(THD *thd)
   }
   int ret= var->check(thd, this) ? -1 : 0;
 
-#ifndef EMBEDDED_LIBRARY
   if (!ret && (type == OPT_GLOBAL || type == OPT_PERSIST))
   {
     ret= mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
@@ -885,7 +884,6 @@ int set_var::check(THD *thd)
                             value->item_name.ptr(),
                             value->item_name.length());
   }
-#endif
 
   DBUG_RETURN(ret);
 }

@@ -303,8 +303,6 @@ private:
   @warning The class is not designed to be inherited from.
  */
 
-#ifndef EMBEDDED_LIBRARY
-
 class Thd_backup_and_restore
 {
 public:
@@ -408,7 +406,6 @@ private:
   my_thread_t m_new_thd_old_real_id;
 };
 
-#endif /* !EMBEDDED_LIBRARY */
 
 /**
   Caches for non-transactional and transactional data before writing
@@ -2864,7 +2861,6 @@ bool stmt_cannot_safely_rollback(const THD* thd)
   return thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT);
 }
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Execute a PURGE BINARY LOGS TO @<log@> command.
 
@@ -2916,7 +2912,7 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time)
                              mysql_bin_log.purge_logs_before_date(purge_time,
                                                                   false));
 }
-#endif /* EMBEDDED_LIBRARY */
+
 
 /*
   Helper function to get the error code of the query to be binlogged.
@@ -8608,9 +8604,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       COMMIT_ERROR at this moment.
     */
     DBUG_ASSERT(head->commit_error != THD::CE_COMMIT_ERROR);
-#ifndef EMBEDDED_LIBRARY
     Thd_backup_and_restore switch_thd(thd, head);
-#endif /* !EMBEDDED_LIBRARY */
     bool all= head->get_transaction()->m_flags.real_commit;
     if (head->get_transaction()->m_flags.commit_low)
     {
@@ -8668,9 +8662,7 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
               if and be the only after_commit invocation left in the
               code.
       */
-#ifndef EMBEDDED_LIBRARY
       Thd_backup_and_restore switch_thd(thd, head);
-#endif /* !EMBEDDED_LIBRARY */
       bool all= head->get_transaction()->m_flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
       /*

@@ -2355,7 +2355,7 @@ private:
 #endif
 };
 
-#if  defined MYSQL_SERVER && !defined EMBEDDED_LIBRARY
+#if  defined MYSQL_SERVER
 class Load_query_generator
 {
 public:
