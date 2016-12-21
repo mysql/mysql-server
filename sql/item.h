@@ -3053,7 +3053,7 @@ public:
   enum_field_types field_type() const override { return fld_type; }
   Item_result result_type() const override { return res_type; }
   bool check_gcol_func_processor(uchar *) override { return true; }
-  enum Type type() const { return NULL_RESULT_ITEM; }
+  enum Type type() const override { return NULL_RESULT_ITEM; }
 };
 
 /// Placeholder ('?') of prepared statement.
