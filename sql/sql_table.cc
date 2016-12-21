@@ -3242,19 +3242,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           as table is already gone in SE. But this should be really rare situation
           (OOM, out of disk space, bugs). Also user can fix it by running DROP TABLE
           IF EXISTS on the same table again.
-
-          WL7743/TODO/QQ: Should we write incident to binary log in this case?
-                          After all replication might be broken after that...
         */
         error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                         table_def, true);
-
-        /*
-          QQ: Perhaps we should avoid updating referencing view info if
-              we failed to remove table from DD? OTOH view will be broken
-              in any case since table was removed from SE...
-        */
-        error|= update_referencing_views_metadata(thd, table, true, nullptr);
+                                         table_def, true) ||
+               update_referencing_views_metadata(thd, table, true, nullptr);
       }
 
       /* Invalidate even if we failed fully delete the table. */
@@ -3423,7 +3414,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             and call post-DDL hooks within this function.
           */
           trans_rollback_stmt(thd);
-          // QQ: Should we play safe and rollback the whole txn?
+          // Full rollback in case we have THD::transaction_rollback_request.
+          trans_rollback(thd);
           for (handlerton *hton : *post_ddl_htons)
             hton->post_ddl(thd);
         }
@@ -4031,7 +4023,8 @@ err_with_rollback:
       and call post-DDL hooks within this function.
     */
     trans_rollback_stmt(thd);
-    // QQ: Should we play safe and rollback the whole txn?
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     for (handlerton *hton : *post_ddl_htons)
          hton->post_ddl(thd);
   }
@@ -4068,7 +4061,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                               db, table_name, "", flags);
 
 
-  const dd::Table *table_def= 0;
+  const dd::Table *table_def= nullptr;
   if (thd->dd_client()->acquire<dd::Table>(db, table_name, &table_def))
     DBUG_RETURN(true);
 
@@ -7137,8 +7130,11 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
     if (result)
+    {
       trans_rollback_stmt(thd);
-    // QQ should we play safe and rollback txn as well?
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
 
     /*
       In case of CREATE TABLE post-DDL hook is mostly relevant for case
@@ -7290,10 +7286,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   if (!(flags & NO_TARGET_CHECK))
   {
-    /*
-      Check if target name is already occupied. Use uncommitted read, so this
-      call can be used by atomic ALTER TABLE implementation.
-    */
+    // Check if target name is already occupied.
     const dd::Abstract_table *conf_tab= NULL;
     if (thd->dd_client()->acquire(new_db, new_name, &conf_tab))
     {
@@ -7323,11 +7316,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     DBUG_RETURN(true);
   }
 
-  /*
-    Get original dd::Table object (also emits error if it doesn't exist).
-    Use uncommitted read, so this call can be used by atomic multi-table
-    RENAME TABLE and atomic ALTER TABLE implementations.
-  */
+  // Get original dd::Table object (also emits error if it doesn't exist).
   if (thd->dd_client()->acquire<dd::Table>(old_db, old_name,
                                           &from_table_def) ||
       thd->dd_client()->acquire_for_modification<dd::Table>(old_db,
@@ -7402,42 +7391,42 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                  error, my_strerror(errbuf, sizeof(errbuf), error));
       }
     }
+    delete file;
+    DBUG_RETURN(true);
   }
-  else
+
+  /*
+    Note that before WL#7743 we have renamed table in the data-dictionary
+    before renaming it in storage engine. However with WL#7743 engines
+    supporting atomic DDL are allowed to update dd::Table object describing
+    new version of table in handler::rename_table(). Hence it should saved
+    after this call.
+    So to avoid extra calls to DD layer and to keep code simple the
+    renaming of table in the DD was moved past rename in SE for all SEs.
+    From crash-safety point of view order doesn't matter for engines
+    supporting atomic DDL. And for engines which can't do atomic DDL in
+    either case there are scenarios in which DD and SE get out of sync.
+  */
+  if (dd::rename_table(thd, to_table_def, (flags & FN_TO_IS_TMP),
+                       !(flags & NO_DD_COMMIT)))
   {
     /*
-      Note that before WL#7743 we have renamed table in the data-dictionary
-      before renaming it in storage engine. However with WL#7743 engines
-      supporting atomic DDL are allowed to update dd::Table object describing
-      new version of table in handler::rename_table(). Hence it should saved
-      after this call.
-      So to avoid extra calls to DD layer and to keep code simple the
-      renaming of table in the DD was moved past rename in SE for all SEs.
-      From crash-safety point of view order doesn't matter for engines
-      supporting atomic DDL. And for engines which can't do atomic DDL in
-      either case there are scenarios in which DD and SE get out of sync.
-    */
-    if (dd::rename_table(thd, to_table_def, (flags & FN_TO_IS_TMP),
-                         !(flags & NO_DD_COMMIT)))
-    {
-      /*
-        In cases when we are executing atomic DDL it is responsibility of the
-        caller to revert the changes to SE by rolling back transaction.
+      In cases when we are executing atomic DDL it is responsibility of the
+      caller to revert the changes to SE by rolling back transaction.
 
-        If storage engine supports atomic DDL but commit was requested by the
-        caller the above call to dd::rename_table() will roll back transaction
-        on failure and thus revert change to SE.
-      */
-      if (!(flags & NO_HA_TABLE)
+      If storage engine supports atomic DDL but commit was requested by the
+      caller the above call to dd::rename_table() will roll back transaction
+      on failure and thus revert change to SE.
+    */
+    if (!(flags & NO_HA_TABLE)
 #ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-          && !(flags & NO_DD_COMMIT)
+        && !(flags & NO_DD_COMMIT)
 #endif
-         )
-        (void) file->ha_rename_table(to_base, from_base, to_table_def,
-                                     const_cast<dd::Table*>(from_table_def));
-      delete file;
-      DBUG_RETURN(true);
-    }
+       )
+      (void) file->ha_rename_table(to_base, from_base, to_table_def,
+                                   const_cast<dd::Table*>(from_table_def));
+    delete file;
+    DBUG_RETURN(true);
   }
   delete file;
 
@@ -7446,16 +7435,13 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     Remove the old table share from the pfs table share array. The new table
     share will be created when the renamed table is first accessed.
   */
-  if (likely(error == 0))
-  {
-    my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
-    PSI_TABLE_CALL(drop_table_share)
-      (temp_table, old_db, static_cast<int>(strlen(old_db)),
-       old_name, static_cast<int>(strlen(old_name)));
-  }
+  my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
+  PSI_TABLE_CALL(drop_table_share)
+    (temp_table, old_db, static_cast<int>(strlen(old_db)),
+     old_name, static_cast<int>(strlen(old_name)));
 #endif
 
-  DBUG_RETURN(error != 0);
+  DBUG_RETURN(false);
 }
 
 /*
@@ -7646,7 +7632,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        // FIXME ?
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         bool new_table= FALSE; // Whether newly created table is open.
 
@@ -7768,7 +7753,8 @@ err:
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     trans_rollback_stmt(thd);
-    // QQ: should we play safe and rollback txn as well?
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
 
     if (post_ddl_ht)
       post_ddl_ht->post_ddl(thd);
@@ -9167,7 +9153,6 @@ static bool mysql_inplace_alter_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
-  bool keep_altered_table= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
@@ -9317,78 +9302,79 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  const dd::Table *old_table_def= nullptr;
-  if (thd->dd_client()->acquire<dd::Table>(table->s->db.str,
-                                           table->s->table_name.str,
-                                           &old_table_def))
-    goto cleanup;
+    const dd::Table *old_table_def= nullptr;
+    if (thd->dd_client()->acquire<dd::Table>(table->s->db.str,
+                                             table->s->table_name.str,
+                                             &old_table_def))
+      goto cleanup;
 
-  dd::Table *altered_table_def= nullptr;
-  if (thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
-                          alter_ctx->tmp_name, &altered_table_def))
-    goto cleanup;
+    dd::Table *altered_table_def= nullptr;
+    if (thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
+                                                   alter_ctx->tmp_name,
+                                                   &altered_table_def))
+      goto cleanup;
 
-  /*
-    We want warnings/errors about data truncation emitted when
-    values of virtual columns are evaluated in INPLACE algorithm.
-  */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields= 0L;
+    /*
+      We want warnings/errors about data truncation emitted when
+      values of virtual columns are evaluated in INPLACE algorithm.
+    */
+    thd->count_cuted_fields= CHECK_FIELD_WARN;
+    thd->cuted_fields= 0L;
 
-  if (table->file->ha_prepare_inplace_alter_table(altered_table,
-                                                  ha_alter_info,
-                                                  old_table_def,
-                                                  altered_table_def))
-  {
-    goto rollback;
-  }
-
-  /*
-    Downgrade the lock if storage engine has told us that exclusive lock was
-    necessary only for prepare phase (unless we are not under LOCK TABLES) and
-    user has not explicitly requested exclusive lock.
-  */
-  if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
-       inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE) &&
-      !(thd->locked_tables_mode == LTM_LOCK_TABLES ||
-        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
-      (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE))
-  {
-    /* If storage engine or user requested shared lock downgrade to SNW. */
-    if (inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
-        alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED)
-      table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_WRITE);
-    else
+    if (table->file->ha_prepare_inplace_alter_table(altered_table,
+                                                    ha_alter_info,
+                                                    old_table_def,
+                                                    altered_table_def))
     {
-      DBUG_ASSERT(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
-      table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+      goto rollback;
     }
-  }
 
-  DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
-  THD_STAGE_INFO(thd, stage_alter_inplace);
+    /*
+      Downgrade the lock if storage engine has told us that exclusive lock was
+      necessary only for prepare phase (unless we are not under LOCK TABLES) and
+      user has not explicitly requested exclusive lock.
+    */
+    if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+         inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE) &&
+        !(thd->locked_tables_mode == LTM_LOCK_TABLES ||
+          thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
+        (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE))
+    {
+      /* If storage engine or user requested shared lock downgrade to SNW. */
+      if (inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+          alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED)
+        table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_WRITE);
+      else
+      {
+        DBUG_ASSERT(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
+        table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+      }
+    }
 
-  if (table->file->ha_inplace_alter_table(altered_table,
-                                          ha_alter_info,
-                                          old_table_def,
-                                          altered_table_def))
-  {
-    goto rollback;
-  }
+    DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
+    THD_STAGE_INFO(thd, stage_alter_inplace);
 
-  // Upgrade to EXCLUSIVE before commit.
-  if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
-    goto rollback;
+    if (table->file->ha_inplace_alter_table(altered_table,
+                                            ha_alter_info,
+                                            old_table_def,
+                                            altered_table_def))
+    {
+      goto rollback;
+    }
 
-  /*
-    If we are killed after this point, we should ignore and continue.
-    We have mostly completed the operation at this point, there should
-    be no long waits left.
-  */
+    // Upgrade to EXCLUSIVE before commit.
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+      goto rollback;
 
-  DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
+    /*
+      If we are killed after this point, we should ignore and continue.
+      We have mostly completed the operation at this point, there should
+      be no long waits left.
+    */
+
+    DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
       table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
                                                  false,
@@ -9399,91 +9385,104 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup;
     });
 
-  DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
-  THD_STAGE_INFO(thd, stage_alter_inplace_commit);
+    DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
+    THD_STAGE_INFO(thd, stage_alter_inplace_commit);
 
-  /*
-    Acquire SRO locks on parent tables to prevent concurrent DML on them to
-    perform cascading actions. These actions require acquring InnoDB locks,
-    which might otherwise create deadlock with locks acquired by
-    ha_innobase::commit_inplace_alter_table(). This deadlock can be
-    be resolved by aborting expensive ALTER TABLE statement, which
-    we would like to avoid.
-
-    Note that we ignore FOREIGN_KEY_CHECKS=0 setting completely here since
-    we need to avoid deadlock even if user is ready to sacrifice some
-    consistency and set FOREIGN_KEY_CHECKS=0.
-
-    It is possible that acquisition of locks on parent tables will result
-    in MDL deadlocks. But since deadlocks involving two or more DDL
-    statements should be rare, it is unlikely that our ALTER TABLE will
-    be aborted due to such deadlock.
-  */
-  if (lock_fk_dependent_tables(thd, table))
-    goto rollback;
-
-  if (table->file->ha_commit_inplace_alter_table(altered_table,
-                                                 ha_alter_info,
-                                                 true, old_table_def,
-                                                 altered_table_def))
-  {
-    goto rollback;
-  }
-
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-
-  close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
-  table_list->table= table= NULL;
-  close_temporary_table(thd, altered_table, true, false);
-
-  /*
-    Replace table definition in the data-dictionary.
-
-    Note that any error after this point is really awkward for storage engines
-    which don't support atomic DDL. Changes to table in SE are already committed
-    and can't be rolled back. Failure to update data-dictionary or binary log
-    will create inconsistency between them and SE. Since we can't do much in this
-    situation we simply return error and hope that old table definition is
-    compatible enough with a new one.
-    We keep '#sql...' table description in DD to give user a chance to sort-out
-    things manually.
-
-    QQ: Should we really do this? OTOH any attempt to delete this description can
-        fail too...
-
-    For engines supporting atomic DDL error is business-as-usual situation.
-    Rollback of statement which happens on error should revert changes to
-    table in SE as well.
-  */
-  keep_altered_table= true;
-
-  //
-  // QQ: Perhaps move to separate helper function e.g. dd::replace_table()
-  //     after solving problem with system tables.
-  //
-  altered_table_def->set_schema_id(old_table_def->schema_id());
-  altered_table_def->set_name(alter_ctx->alias);
-  altered_table_def->set_hidden(false);
-
-  if (thd->dd_client()->drop(old_table_def))
-    goto cleanup2;
-
-  if (thd->dd_client()->update(altered_table_def))
-    goto cleanup2;
-
-  if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-  {
     /*
-      Persist changes to data-dictionary for storage engines which don't
-      support atomic DDL. Such SEs can't rollback in-place changes if error
-      or crash happens after this point, so we are better to have
-      data-dictionary in sync with SE.
-    */
-    Disable_gtid_state_update_guard disabler(thd);
+      Acquire SRO locks on parent tables to prevent concurrent DML on them to
+      perform cascading actions. These actions require acquring InnoDB locks,
+      which might otherwise create deadlock with locks acquired by
+      ha_innobase::commit_inplace_alter_table(). This deadlock can be
+      be resolved by aborting expensive ALTER TABLE statement, which
+      we would like to avoid.
 
-    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      Note that we ignore FOREIGN_KEY_CHECKS=0 setting completely here since
+      we need to avoid deadlock even if user is ready to sacrifice some
+      consistency and set FOREIGN_KEY_CHECKS=0.
+
+      It is possible that acquisition of locks on parent tables will result
+      in MDL deadlocks. But since deadlocks involving two or more DDL
+      statements should be rare, it is unlikely that our ALTER TABLE will
+      be aborted due to such deadlock.
+    */
+    if (lock_fk_dependent_tables(thd, table))
+      goto rollback;
+
+    if (table->file->ha_commit_inplace_alter_table(altered_table,
+                                                   ha_alter_info,
+                                                   true, old_table_def,
+                                                   altered_table_def))
+    {
+      goto rollback;
+    }
+
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
+    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    table_list->table= table= NULL;
+    close_temporary_table(thd, altered_table, true, false);
+
+    /*
+      Replace table definition in the data-dictionary.
+
+      Note that any error after this point is really awkward for storage engines
+      which don't support atomic DDL. Changes to table in SE are already committed
+      and can't be rolled back. Failure to update data-dictionary or binary log
+      will create inconsistency between them and SE. Since we can't do much in this
+      situation we simply return error and hope that old table definition is
+      compatible enough with a new one.
+
+      For engines supporting atomic DDL error is business-as-usual situation.
+      Rollback of statement which happens on error should revert changes to
+      table in SE as well.
+    */
+
+    //
+    // QQ: Perhaps move to separate helper function e.g. dd::replace_table()
+    //     after solving problem with system tables.
+    //
+    altered_table_def->set_schema_id(old_table_def->schema_id());
+    altered_table_def->set_name(alter_ctx->alias);
+    altered_table_def->set_hidden(false);
+
+    if (thd->dd_client()->drop(old_table_def))
       goto cleanup2;
-  }
+
+    if (thd->dd_client()->update(altered_table_def))
+      goto cleanup2;
+
+
+    /*
+      Transfer pre-existing foreign keys and triggers to the new table
+      definition. Since fk and trigger names have to be unique per schema,
+      we cannot create them while both the old and the temp version of the
+      table definition exist.
+
+      Do this atomically with deletion of old table definition and replacing
+      it with a new one.
+    */
+    if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
+        dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
+                                          alter_ctx->new_alias,
+                                          alter_ctx->fk_info,
+                                          alter_ctx->fk_count,
+                                          &alter_ctx->trg_info,
+                                          false))
+      goto cleanup2;
+
+    if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+    {
+      /*
+        Persist changes to data-dictionary for storage engines which don't
+        support atomic DDL. Such SEs can't rollback in-place changes if error
+        or crash happens after this point, so we are better to have
+        data-dictionary in sync with SE.
+      */
+      Disable_gtid_state_update_guard disabler(thd);
+
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+        goto cleanup2;
+    }
 
   }
 
@@ -9523,7 +9522,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     /*
       Remove TABLE and TABLE_SHARE for from the TDC as we might have to
-      add triggers and foreign keys later.
+      rename table later.
     */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                      alter_ctx->db, alter_ctx->table_name, false);
@@ -9546,24 +9545,6 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup2;
     }
   }
-
-  /*
-    Transfer pre-existing foreign keys and triggers to the new table.
-    Since fk and trigger names have to be unique per schema, we cannot
-    create them while both the old and the temp version of the
-    table exist.
-
-    QQ: Perhaps make it part of atomic definition replacement?
-  */
-  if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
-      dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
-                                        alter_ctx->new_alias,
-                                        alter_ctx->fk_info,
-                                        alter_ctx->fk_count,
-                                        &alter_ctx->trg_info,
-                                        !(db_type->flags &
-                                          HTON_SUPPORTS_ATOMIC_DDL)))
-    goto cleanup2;
 
   THD_STAGE_INFO(thd, stage_end);
 
@@ -9698,10 +9679,12 @@ cleanup2:
   }
 
   if (
-#ifdef NEEDS_WL7141_TREE
-      !(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+#ifdef WORKAROUND_NEEDS_WL7141_TREE
+      !(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)
+#else
+      true
 #endif
-      !keep_altered_table)
+     )
   {
     (void) dd::drop_table<dd::Table>(thd, alter_ctx->new_db,
                                      alter_ctx->tmp_name, true);
@@ -11959,12 +11942,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                                  &tab_obj))
           goto err_new_table_cleanup;
 
-        if (!tab_obj)
-        {
-          my_error(ER_NO_SUCH_TABLE, MYF(0), alter_ctx.new_db,
-                                             alter_ctx.tmp_name);
-          goto err_new_table_cleanup;
-        }
+        DBUG_ASSERT(tab_obj);
 
         /*
           We need to revert changes to data-dictionary but
@@ -12257,8 +12235,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
     {
-      // QQ: Should we rollback failed statement for consistency with
-      //      non-temporary case.
+      /*
+        We can't revert replacement of old table version with a new one
+        at this point. So, if possible, commit the statement to avoid
+        new table version being emptied by statement rollback.
+      */
+      if (!thd->transaction_rollback_request)
+      {
+        (void) trans_commit_stmt(thd);
+        (void) trans_commit_implicit(thd);
+      }
       DBUG_RETURN(true);
     }
 
@@ -12429,10 +12415,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                             alter_ctx.tmp_name, FN_IS_TMP);
 
       // Restore the backup of the original table to its original name.
-      // In lieu of wl#7785, if the operation fails, we need to retry it
-      // to avoid leaving the dictionary inconsistent.
+      // If the operation fails, we need to retry it to avoid leaving
+      // the dictionary inconsistent.
       //
-      // WL7743/TODO: think about how this situation can be handled?
+      // This hack might become unnecessary once InnoDB stops acquiring
+      // gap locks on DD tables (which might cause deadlocks).
       uint retries= 20;
       while (retries-- &&
              mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,

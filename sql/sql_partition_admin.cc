@@ -757,7 +757,8 @@ bool Sql_cmd_alter_table_exchange_partition::
             reporting an error. Do this before we downgrade metadata locks.
           */
           (void) trans_rollback_stmt(thd);
-          // QQ Should we rollback txn as well?
+          // Full rollback in case we have THD::transaction_rollback_request.
+          (void) trans_rollback(thd);
           /*
             Call SE post DDL hook. This handles both rollback and commit cases.
           */
@@ -1012,8 +1013,11 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
   if (error)
+  {
     trans_rollback_stmt(thd);
-  // QQ: Should we also rollback txn for consistency here?
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
 
   if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
     hton->post_ddl(thd);
