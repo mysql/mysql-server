@@ -931,8 +931,10 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab)
     If this is an index merge, the primary key columns may be required
     for positioning in a later stage, even though they are not in the
     read_set here. Allocate space for them in case they are needed.
+    Also allocate space for them for dynamic ranges, because they can
+    switch to index merge for a subsequent scan.
   */
-  if (qep_tab->type() == JT_INDEX_MERGE &&
+  if ((qep_tab->type() == JT_INDEX_MERGE || qep_tab->dynamic_range()) &&
       !table->s->is_missing_primary_key() &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
