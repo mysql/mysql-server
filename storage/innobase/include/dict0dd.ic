@@ -396,3 +396,25 @@ get_row_format_name(enum row_type row_format)
         }
         return("ROW_FORMAT");
 }
+
+/** Acquire a metadata lock.
+@param[in,out]	thd	current thread
+@param[out]	mdl	metadata lock
+@param[in]	db	schema name
+@param[in]	table	table name
+@retval false if acquired
+@retval true if failed (my_error() will have been called) */
+UNIV_INLINE
+bool
+dd_mdl_acquire(
+	THD*		thd,
+	MDL_ticket**	mdl,
+	const char*	db,
+	char*		table)
+{
+        bool	ret = false;
+
+        ret = dd::acquire_shared_table_mdl(thd, db, table, false, mdl);
+
+        return(ret);
+}

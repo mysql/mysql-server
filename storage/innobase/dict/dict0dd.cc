@@ -43,44 +43,6 @@ Data dictionary interface */
 #include <bitset>
 
 
-/** Acquire a metadata lock.
-@param[in,out]	thd	current thread
-@param[out]	mdl	metadata lock
-@param[in]	db	schema name
-@param[in]	table	table name
-@retval	false if acquired
-@retval	true if failed (my_error() will have been called) */
-bool
-dd_mdl_acquire(
-	THD*			thd,
-	MDL_ticket**		mdl,
-	const char*		db,
-	char*			table)
-{
-	bool	ret = false;
-
-	/* If InnoDB acquires MDL lock on partition table, it always
-	acquires on its parent table name */
-	char*   is_part = NULL;
-#ifdef _WIN32
-                is_part = strstr(table, "?p?");
-#else
-                is_part = strstr(table, "?P?");
-#endif /* _WIN32 */
-
-	if (is_part) {
-		*is_part ='\0';
-	}
-
-	ret = dd::acquire_shared_table_mdl(thd, db, table, false, mdl);
-
-	if (is_part) {
-		*is_part = '?';
-	}
-
-	return(ret);
-}
-
 #ifdef UNIV_DEBUG
 
 /** Verify a metadata lock.
@@ -1256,7 +1218,7 @@ dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc)
 @retval		HA_ERR_TOO_BIG_ROW if the record is too long */
 static MY_ATTRIBUTE((warn_unused_result))
 int
-create_index_metadata(
+dd_fill_one_dict_index(
 	dict_table_t*		table,
 	bool			strict,
 	const TABLE_SHARE*	form,
@@ -1543,7 +1505,7 @@ dd_copy_from_table_share(
 @return 0 if successful, otherwise error number */
 inline
 int
-create_key_metadata(
+dd_fill_dict_index(
 	const dd::Table&	dd_table,
         const TABLE*		m_form,
 	dict_table_t*		m_table,
@@ -1573,15 +1535,16 @@ create_key_metadata(
 	} else {
 		/* In InnoDB, the clustered index must always be
 		created first. */
-		error = create_index_metadata(m_table, strict, m_form->s,
-					      m_form->s->primary_key);
+		error = dd_fill_one_dict_index(
+			m_table, strict, m_form->s, m_form->s->primary_key);
 		if (error != 0) {
 			goto dd_error;
 		}
 	}
 
 	for (uint i = !m_form->s->primary_key; i < m_form->s->keys; i++) {
-		error = create_index_metadata(m_table, strict, m_form->s, i);
+		error = dd_fill_one_dict_index(
+			m_table, strict, m_form->s, i);
 		if (error != 0) {
 			goto dd_error;
 		}
@@ -1769,7 +1732,8 @@ dd_subpart_name(const dd::Partition* part)
         return(part->parent() ? part->name().c_str() : nullptr);
 }
 
-/** Create the internal InnoDB table definition, without any indexes.
+/** Instantiate in-memory InnoDB table metadata (dict_table_t),
+without any indexes.
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_part		Global Data Dictionary metadata,
 				or NULL for internal temporary table
@@ -1781,7 +1745,7 @@ dd_subpart_name(const dd::Partition* part)
 template<typename Table>
 inline
 dict_table_t*
-create_table_metadata(
+dd_fill_dict_table(
 	const Table*		dd_part,
         const TABLE*            m_form,
 	const char*		norm_name,
@@ -1957,10 +1921,6 @@ create_table_metadata(
 		    >= dict_sys_t::NUM_HARD_CODED_TABLES);
 	if (is_temp) {
 		m_table->flags2 |= DICT_TF2_TEMPORARY;
-	}
-
-	if (false /* TODO intrinsic */) {
-		m_table->flags2 |= DICT_TF2_INTRINSIC;
 	}
 
 	m_table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
@@ -2418,14 +2378,15 @@ dd_open_table_one(
 	const bool	strict = false;
 	bool		first_index = true;
 
-	dict_table_t* m_table = create_table_metadata(
+	/* Create dict_table_t for the table */
+	dict_table_t* m_table = dd_fill_dict_table(
 		dd_table, table, norm_name,
 		NULL, zip_allowed, strict, thd, skip_mdl, implicit);
 
+	/* Create dict_index_t for the table */
 	mutex_enter(&dict_sys->mutex);
-
 	int	ret;
-	ret = create_key_metadata(
+	ret = dd_fill_dict_index(
 		dd_table->table(), table, m_table, NULL, zip_allowed,
 		strict, thd, skip_mdl);
 
@@ -2588,7 +2549,9 @@ dd_open_table(
 				    ib_table, dd_table, skip_mdl, thd,
 				    fk_list);
 
-	if (m_table != NULL) {
+	/* If there is foreign table references to this table, we will
+	try to open them */
+	if (m_table != NULL && !fk_list.empty()) {
 		dd::cache::Dictionary_client*	client
 			= dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser

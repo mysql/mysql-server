@@ -58,10 +58,6 @@ static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[]= "InnoDB";
 
-/** InnoDB private key strings for dd::Tablespace.
-@see dd_space_keys */
-//extern const char* const	dd_space_key_strings[DD_SPACE__LAST];
-
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
 	/** Auto-increment counter */
@@ -101,8 +97,6 @@ const char* const dd_table_key_strings[DD_TABLE__LAST] = {
         "data_directory",
         "version"
 };
-/** InnoDB private key strings for dd::Table. @see dd_table_keys */
-//extern const char* const	dd_table_key_strings[DD_TABLE__LAST];
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
 enum dd_index_keys {
@@ -115,8 +109,6 @@ enum dd_index_keys {
 	/** Sentinel */
 	DD_INDEX__LAST
 };
-
-
 
 /** InnoDB private key strings for dd::Index or dd::Partition_index.
 @see dd_index_keys */
@@ -172,7 +164,6 @@ dd_first_index(const dd::Partition* partition)
         return(dd_first<dd::Partition,dd::Partition_index>(partition));
 }
 
-#if 1 // WL#7743/runtime TODO: implement dd::Partition::is_stored()
 /** Determine if a partition is materialized.
 @param[in]      part            partition
 @return whether the partition is materialized */
@@ -182,7 +173,6 @@ inline bool dd_part_is_stored(
         return(part->table().subpartition_type() == dd::Table::ST_NONE
                || part->level() == 1);
 }
-#endif
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]      table   non-partitioned table
@@ -219,6 +209,7 @@ dd_set_autoinc(
 @param[in]	table	table name
 @retval false if acquired, or trylock timed out
 @retval true if failed (my_error() will have been called) */
+UNIV_INLINE
 bool
 dd_mdl_acquire(
 	THD*			thd,
