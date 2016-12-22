@@ -1,5 +1,5 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2015, MariaDB
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2969,8 +2969,12 @@ bool subselect_union_engine::is_executed() const
 
 bool subselect_union_engine::no_rows()
 {
+  bool rows_present= false;
+
   /* Check if we got any rows when reading UNION result from temp. table: */
-  return test(!unit->fake_select_lex->join->send_records);
+  if (unit->fake_select_lex->join)
+    rows_present= test(!unit->fake_select_lex->join->send_records);
+  return rows_present;
 }
 
 
@@ -6105,4 +6109,3 @@ end:
 void subselect_table_scan_engine::cleanup()
 {
 }
-

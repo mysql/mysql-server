@@ -1389,8 +1389,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
-  if (!(buffer=(uchar*) my_malloc(buff_length+1,MYF(MY_WME))))
-    error= true; /* purecov: inspected */
+  if (!(buffer=(uchar*) my_malloc(buff_length+1,MYF(0))))
+    error=1; /* purecov: inspected */
   else
   {
     end_of_buff=buffer+buff_length;
@@ -1581,50 +1581,37 @@ int READ_INFO::read_field()
 	}
       }
 #ifdef USE_MB
-        uint ml= my_mbcharlen(read_charset, chr);
-        if (ml == 0)
-        {
-          *to= '\0';
-          my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-                   read_charset->csname, buffer);
-          error= true;
-          return 1;
-        }
+      if (my_mbcharlen(read_charset, chr) > 1 &&
+          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+      {
+        uchar* p= to;
+        int ml, i;
+        *to++ = chr;
 
-        if (ml > 1 &&
-            to + ml <= end_of_buff)
-        {
-          uchar* p= to;
-          *to++ = chr;
+        ml= my_mbcharlen(read_charset, chr);
 
-          for (uint i= 1; i < ml; i++)
+        for (i= 1; i < ml; i++)
+        {
+          chr= GET;
+          if (chr == my_b_EOF)
           {
-            chr= GET;
-            if (chr == my_b_EOF)
-            {
-              /*
-                Need to back up the bytes already ready from illformed
-                multi-byte char 
-              */
-              to-= i;
-              goto found_eof;
-            }
-            *to++ = chr;
+            /*
+             Need to back up the bytes already ready from illformed
+             multi-byte char
+            */
+            to-= i;
+            goto found_eof;
           }
-          if (my_ismbchar(read_charset,
+          *to++ = chr;
+        }
+        if (my_ismbchar(read_charset,
                         (const char *)p,
                         (const char *)to))
-            continue;
-          for (uint i= 0; i < ml; i++)
-            PUSH(*--to);
-          chr= GET;
-        }
-        else if (ml > 1)
-        {
-          // Buffer is too small, exit while loop, and reallocate.
-          PUSH(chr);
-          break;
-        }
+          continue;
+        for (i= 0; i < ml; i++)
+          PUSH(*--to);
+        chr= GET;
+      }
 #endif
       *to++ = (uchar) chr;
     }
@@ -1868,15 +1855,7 @@ int READ_INFO::read_value(int delim, String *val)
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
 #ifdef USE_MB
-    uint ml= my_mbcharlen(read_charset, chr);
-    if (ml == 0)
-    {
-      chr= my_b_EOF;
-      val->length(0);
-      return chr;
-    }
-
-    if (ml > 1)
+    if (my_mbcharlen(read_charset, chr) > 1)
     {
       DBUG_PRINT("read_xml",("multi byte"));
       int i, ml= my_mbcharlen(read_charset, chr);
