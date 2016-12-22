@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2007, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2008, 2014, SkySQL Ab.
+   Copyright (c) 2008, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -821,6 +821,7 @@ void update_global_user_stats(THD *thd, bool create_user, time_t now)
 
 bool thd_init_client_charset(THD *thd, uint cs_number)
 {
+  SV *gv=&global_system_variables;
   CHARSET_INFO *cs;
   /*
    Use server character set and collation if
@@ -831,16 +832,13 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
   */
   if (!opt_character_set_client_handshake ||
       !(cs= get_charset(cs_number, MYF(0))) ||
-      !my_strcasecmp(&my_charset_latin1,
-                     global_system_variables.character_set_client->name,
+      !my_strcasecmp(&my_charset_latin1, gv->character_set_client->name,
                      cs->name))
   {
-    thd->variables.character_set_client=
-      global_system_variables.character_set_client;
-    thd->variables.collation_connection=
-      global_system_variables.collation_connection;
-    thd->variables.character_set_results=
-      global_system_variables.character_set_results;
+    DBUG_ASSERT(is_supported_parser_charset(gv->character_set_client));
+    thd->variables.character_set_client= gv->character_set_client;
+    thd->variables.collation_connection= gv->collation_connection;
+    thd->variables.character_set_results= gv->character_set_results;
   }
   else
   {

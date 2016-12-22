@@ -31,6 +31,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
+#include "sql_parse.h"
 #include "sys_vars.h"
 
 #include "events.h"
@@ -445,7 +446,7 @@ static bool check_cs_client(sys_var *self, THD *thd, set_var *var)
     return true;
 
   // Currently, UCS-2 cannot be used as a client character set
-  if (((CHARSET_INFO *)(var->save_result.ptr))->mbminlen > 1)
+  if (!is_supported_parser_charset((CHARSET_INFO *)(var->save_result.ptr)))
     return true;
 
   return false;
