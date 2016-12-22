@@ -271,7 +271,6 @@ bool Table_trigger_dispatcher::create_trigger(
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (lex->definer && !is_acl_user(thd, lex->definer->host.str,
                                    lex->definer->user.str))
   {
@@ -285,7 +284,6 @@ bool Table_trigger_dispatcher::create_trigger(
     if (thd->get_stmt_da()->is_error())
       return true;
   }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   /*
     Check if all references to fields in OLD/NEW-rows in this trigger are valid.

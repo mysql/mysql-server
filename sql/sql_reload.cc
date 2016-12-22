@@ -81,7 +81,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
     THD *tmp_thd= 0;
@@ -141,7 +140,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       thd= 0;
     }
   }
-#endif
+
   if (options & REFRESH_LOG)
   {
     /*

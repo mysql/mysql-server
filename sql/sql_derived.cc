@@ -27,7 +27,7 @@
 #include "item.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "opt_trace.h"                        // opt_trace_disable_etc
 #include "query_options.h"
@@ -401,7 +401,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     // The underlying tables of a derived table are all readonly:
     for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
       sl->set_tables_readonly();
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     A derived table is transparent with respect to privilege checking.
     This setting means that privilege checks ignore the derived table
@@ -410,7 +409,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     delete or insert.
   */
     set_privileges(SELECT_ACL);
-#endif
   }
 
   thd->lex->allow_sum_func= allow_sum_func_saved;
@@ -550,12 +548,10 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (referencing_view)
     table->grant= grant;
   else
     table->grant.privilege= SELECT_ACL;
-#endif
 
   // Table is "nullable" if inner table of an outer_join
   if (is_inner_table_of_outer_join())

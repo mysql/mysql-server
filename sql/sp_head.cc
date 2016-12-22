@@ -2469,7 +2469,6 @@ bool sp_head::execute_trigger(THD *thd,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
   LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
@@ -2521,7 +2520,6 @@ bool sp_head::execute_trigger(THD *thd,
     - connected user != definer: then in sp_head::execute(), when checking the
     security context we will disable tracing.
   */
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
@@ -2565,9 +2563,7 @@ bool sp_head::execute_trigger(THD *thd,
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_security_ctx.restore_security_context(thd, save_ctx);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   delete trigger_runtime_ctx;
   call_arena.free_items();
@@ -2714,14 +2710,12 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   thd->sp_runtime_ctx= func_runtime_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx;
   if (set_security_ctx(thd, &save_security_ctx))
   {
     err_status= TRUE;
     goto err_with_cleanup;
   }
-#endif
 
   if (need_binlog_call)
   {
@@ -2805,9 +2799,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_security_ctx.restore_security_context(thd, save_security_ctx);
-#endif
 
 err_with_cleanup:
   delete func_runtime_ctx;
@@ -2990,11 +2982,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
   thd->sp_runtime_ctx= proc_runtime_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= 0;
   if (!err_status)
     err_status= set_security_ctx(thd, &save_security_ctx);
-#endif
 
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
@@ -3065,10 +3055,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_security_ctx)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
-#endif
 
   if (!sp_runtime_ctx_saved)
     delete parent_sp_runtime_ctx;
@@ -3602,7 +3590,6 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 {
   *save_ctx= NULL;
@@ -3634,7 +3621,6 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 
   return false;
 }
-#endif // ! NO_EMBEDDED_ACCESS_CHECKS
 
 
 ///////////////////////////////////////////////////////////////////////////

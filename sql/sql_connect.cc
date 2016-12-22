@@ -107,7 +107,6 @@ using std::max;
   Get structure for logging connection data for the current user
 */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static HASH hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,
@@ -350,33 +349,8 @@ end:
   mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
-#else
 
-int check_for_max_user_connections(THD *thd, const USER_CONN *uc)
-{
-  return 0;
-}
 
-void decrease_user_connections(USER_CONN *uc)
-{
-  return;
-}
-
-void release_user_connection(THD *thd)
-{
-  const USER_CONN *uc= thd->get_user_connect();
-  DBUG_ENTER("release_user_connection");
-
-  if (uc)
-  {
-    thd->set_user_connect(NULL);
-  }
-
-  DBUG_VOID_RETURN;
-}
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check for maximum allowable user connections, if the mysqld server is
   started with corresponding variable that is greater then 0.
@@ -395,32 +369,26 @@ static void free_user(void *arg)
   struct user_conn *uc= pointer_cast<user_conn*>(arg);
   my_free(uc);
 }
-#endif
 
 
 void init_max_user_conn(void)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void)
     my_hash_init(&hash_user_connections,system_charset_info,max_connections,
                  0, get_key_conn,
                  free_user, 0,
                  key_memory_user_conn);
-#endif
 }
 
 
 void free_max_user_conn(void)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   my_hash_free(&hash_user_connections);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
 void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   mysql_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT
   {
@@ -456,7 +424,6 @@ void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
     }
   }
   mysql_mutex_unlock(&LOCK_user_conn);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 

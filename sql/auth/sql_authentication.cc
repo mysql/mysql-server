@@ -735,9 +735,6 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
 
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-
 /* Return true if there is no users that can match the given host */
 
 bool acl_check_host(THD *thd, const char *host, const char *ip)
@@ -1059,9 +1056,6 @@ bool rsa_auth_status()
 }
 
 
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-
 /* the packet format is described in send_change_user_packet() */
 static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
                                          size_t packet_length)
@@ -1145,7 +1139,6 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     DBUG_RETURN(0);
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (find_mpvio_user(thd, mpvio))
   {
     DBUG_RETURN(1);
@@ -1179,7 +1172,6 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   mpvio->cached_client_reply.pkt_len= passwd_len;
   mpvio->cached_client_reply.plugin= client_plugin;
   mpvio->status= MPVIO_EXT::RESTART;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   DBUG_RETURN (0);
 }
@@ -2042,7 +2034,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 /**
   Calculate the timestamp difference for password expiry
 
@@ -2100,7 +2092,6 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                   });
   return password_time_expired;
 }
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 /**
@@ -2337,7 +2328,6 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   if (initialized) // if not --skip-grant-tables
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     bool is_proxy_user= FALSE;
     bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
@@ -2402,12 +2392,10 @@ acl_authenticate(THD *thd, enum_server_command command)
                           " identity %s", auth_user, acl_user->user));
       acl_cache_lock.unlock();
     }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Assign default role */
     {
       List_of_auth_id_refs default_roles;
@@ -2429,7 +2417,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_cache_lock.unlock();
     }
     sctx->checkout_access_maps();
-#endif
+
     if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
     {
       mysql_mutex_lock(&LOCK_offline_mode);
@@ -2443,7 +2431,6 @@ acl_authenticate(THD *thd, enum_server_command command)
       }
     }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       OK. Let's check the SSL. Historically it was checked after the password,
       as an additional layer, not instead of the password
@@ -2527,7 +2514,6 @@ acl_authenticate(THD *thd, enum_server_command command)
     */
     sctx->set_password_expired(mpvio.acl_user->password_expired ||
                                password_time_expired);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else
     sctx->skip_grants();
@@ -2796,10 +2782,6 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)
     DBUG_RETURN(CR_AUTH_HANDSHAKE);
   DBUG_PRINT("info", ("reply read : pkt_len=%d", pkt_len));
-
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  DBUG_RETURN(CR_OK);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   DBUG_EXECUTE_IF("native_password_bad_reply",
                   {

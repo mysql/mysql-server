@@ -296,7 +296,6 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   return FALSE;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /**
   @brief CREATE VIEW privileges pre-check.
@@ -411,16 +410,6 @@ err:
   DBUG_RETURN(res || thd->is_error());
 }
 
-#else
-
-bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
-                          enum_view_create_mode mode)
-{
-  return FALSE;
-}
-
-#endif
-
 
 /**
   @brief Creating/altering VIEW procedure
@@ -445,9 +434,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   TABLE_LIST *tables= lex->query_tables;
   TABLE_LIST *tbl;
   SELECT_LEX *const select_lex= lex->select_lex;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   SELECT_LEX *sl;
-#endif
   SELECT_LEX_UNIT *const unit= lex->unit;
   bool res= false;
   bool exists= false;
@@ -543,7 +530,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       goto err;
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     check definer of view:
       - same as current user
@@ -576,7 +562,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       }
     }
   }
-#endif
+
   /*
     check that tables are not temporary  and this VIEW do not used in query
     (it is possible with ALTERing VIEW).
@@ -661,7 +647,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Compare/check grants on view with grants of underlying tables
   */
@@ -720,7 +705,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       goto err;
     }
   }
-#endif
 
   res= mysql_register_view(thd, view, mode);
 
@@ -1695,10 +1679,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     // roles (ie the default roles)
     security_ctx= view_ref->view_sctx;
     security_ctx->init();
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     DBUG_PRINT("info",("Allocated suid view. Active roles: %lu",
       (ulong)view_ref->view_sctx->get_active_roles()->size()));
-#endif
     thd->m_view_ctx_list.push_back(view_ref->view_sctx);
   }
   else

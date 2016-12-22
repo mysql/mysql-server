@@ -5011,7 +5011,6 @@ void TABLE_LIST::set_want_privilege(ulong want_privilege)
   @retval TRUE Error
 */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool TABLE_LIST::prepare_view_security_context(THD *thd)
 {
   DBUG_ENTER("TABLE_LIST::prepare_view_securety_context");
@@ -5061,7 +5060,6 @@ bool TABLE_LIST::prepare_view_security_context(THD *thd)
   }
   DBUG_RETURN(FALSE);
 }
-#endif
 
 
 /**
@@ -5071,7 +5069,6 @@ bool TABLE_LIST::prepare_view_security_context(THD *thd)
 
 */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 {
   Security_context *sctx;
@@ -5098,7 +5095,6 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
   }
   DBUG_RETURN(sctx);
 }
-#endif
 
 
 /**
@@ -5115,7 +5111,6 @@ bool TABLE_LIST::prepare_security(THD *thd)
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
   DBUG_ENTER("TABLE_LIST::prepare_security");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_context();
 
   DBUG_ASSERT(!prelocking_placeholder);
@@ -5150,10 +5145,6 @@ bool TABLE_LIST::prepare_security(THD *thd)
       tbl->table->grant= grant;
   }
   thd->set_security_context(save_security_ctx);
-#else
-  while ((tbl= tb++))
-    tbl->grant.privilege= ~NO_ACCESS;
-#endif
   DBUG_RETURN(FALSE);
 }
 
@@ -6599,7 +6590,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   /*
     Is this table part of a SECURITY DEFINER VIEW?
   */
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!prelocking_placeholder && view && view_suid && view_sctx)
   {
     /*
@@ -6612,7 +6602,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
     prepare_view_security_context(thd);
     thd->m_view_ctx_list.push_back(view_sctx);
   }
-#endif
 }
 
 

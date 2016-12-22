@@ -1504,9 +1504,7 @@ static bool log_command(THD *thd, enum_server_command command)
   if (what_to_log & (1L << (uint) command))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
          && (thd->security_context()->check_access(SUPER_ACL))
-#endif
        )
     {
       /* No logging */

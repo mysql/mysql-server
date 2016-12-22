@@ -216,7 +216,7 @@ void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
   }
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 extern bool initialized;
 
 /*
@@ -1924,7 +1924,3 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   DBUG_RETURN(result);
 }
-
-
-#endif
-

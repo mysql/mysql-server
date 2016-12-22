@@ -763,8 +763,6 @@ bool Sql_cmd_dml::execute_inner(THD *thd)
 */
 static bool check_locking_clause_access(THD *thd, Global_tables_list tables)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
   for (TABLE_LIST *table_ref : tables)
     if (table_ref->lock_descriptor().action != THR_DEFAULT)
     {
@@ -793,8 +791,6 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables)
         return true;
       }
     }
-
-#endif
 
   return false;
 }

@@ -40,7 +40,6 @@
 #include "sql_user_table.h"
 
 class THD;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool trans_commit_stmt(THD *thd);
 void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt);
 extern Granted_roles_graph *g_granted_roles;
@@ -399,5 +398,3 @@ bool roles_init_from_tables(THD *thd)
   close_all_role_tables(thd);
   DBUG_RETURN(false);
 }
-#endif
-

@@ -1761,10 +1761,8 @@ static void clean_up(bool print_message)
 #endif
   my_tz_free();
   servers_free(1);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
-#endif
   query_cache.destroy(NULL);
   hostname_cache_free();
   range_optimizer_free();
@@ -1859,9 +1857,7 @@ static void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    shutdown_acl_cache();
-#endif
+  shutdown_acl_cache();
 
   log_syslog_exit();
 

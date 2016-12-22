@@ -825,13 +825,11 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!(thd->security_context()->check_access(SUPER_ACL)))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
     return true;
   }
-#endif
   return false;
 }
 
@@ -5991,7 +5989,6 @@ static Sys_var_mybool Sys_disconnect_on_expired_password(
        READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS 
 static Sys_var_mybool Sys_validate_user_plugins(
        "validate_user_plugins",
        "Turns on additional validation of authentication plugins assigned "
@@ -5999,7 +5996,6 @@ static Sys_var_mybool Sys_validate_user_plugins(
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(validate_user_plugins),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
-#endif
 
 static Sys_var_enum Sys_block_encryption_mode(
   "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",

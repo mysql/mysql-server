@@ -163,12 +163,10 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     lex->insert_table_leaf= table_list;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     Field_iterator_table_ref field_it;
     field_it.set(table_list);
     if (check_grant_all_columns(thd, INSERT_ACL, &field_it))
       return true;
-#endif
   }
   else
   {
@@ -1223,9 +1221,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
   if (duplicates == DUP_UPDATE)
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     table_list->set_want_privilege(UPDATE_ACL);
-#endif
     // Setup the columns to be updated
     if (setup_fields(thd, Ref_item_array(), update_field_list, UPDATE_ACL,
                      NULL, false, true))
@@ -1234,9 +1230,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     if (check_valid_table_refs(table_list, update_field_list, map))
       DBUG_RETURN(true);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     table_list->set_want_privilege(SELECT_ACL);
-#endif
   }
 
   if (table_list->is_merged())

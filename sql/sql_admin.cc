@@ -1337,7 +1337,6 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
 bool Sql_cmd_create_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_set_create_role::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // TODO: Execution-time processing of the CREATE ROLE statement
   if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
@@ -1382,7 +1381,6 @@ bool Sql_cmd_create_role::execute(THD *thd)
     my_ok(thd);
     DBUG_RETURN(false);
   }
-#endif
   DBUG_RETURN(true);
 }
 
@@ -1390,14 +1388,12 @@ bool Sql_cmd_create_role::execute(THD *thd)
 bool Sql_cmd_drop_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_drop_role::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
   if (mysql_drop_user(thd, const_cast<List<LEX_USER > &>(*roles),
                       ignore_errors))
     DBUG_RETURN(true);
   my_ok(thd);
-#endif
   DBUG_RETURN(false);
 }
 
@@ -1405,7 +1401,6 @@ bool Sql_cmd_set_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_set_role::execute");
   int ret= 0;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   switch (role_type)
   {
     case ROLE_NONE:
@@ -1421,7 +1416,6 @@ bool Sql_cmd_set_role::execute(THD *thd)
       ret= mysql_set_active_role(thd, role_list);
     break;
   }
-#endif
   DBUG_RETURN(ret != 0);
 }
 
@@ -1429,7 +1423,6 @@ bool Sql_cmd_set_role::execute(THD *thd)
 bool Sql_cmd_grant_roles::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_grant_roles::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
   while(LEX_USER *role= it++)
   {
@@ -1440,16 +1433,12 @@ bool Sql_cmd_grant_roles::execute(THD *thd)
     }
   }
   DBUG_RETURN(mysql_grant_role(thd, users, roles, this->with_admin_option));
-#else
-  DBUG_RETURN(false);
-#endif
 }
 
 
 bool Sql_cmd_revoke_roles::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_revoke_roles::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
   while(LEX_USER *role= it++)
   {
@@ -1460,9 +1449,6 @@ bool Sql_cmd_revoke_roles::execute(THD *thd)
     }
   }
   DBUG_RETURN(mysql_revoke_role(thd, users, roles));
-#else
-  DBUG_RETURN(false);
-#endif
 }
 
 
@@ -1470,7 +1456,6 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
   bool ret= false;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   {
     List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
     List_iterator<LEX_USER > it(*tmp_users);
@@ -1550,7 +1535,6 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
   }
   if (!ret)
     my_ok(thd);
-#endif
   DBUG_RETURN(ret);
 }
 
@@ -1558,7 +1542,6 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 bool Sql_cmd_show_privileges::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_show_privileges::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (for_user == 0 || for_user->user.str == 0)
   {
 	  /* SHOW PRIVILEGE FOR CURRENT_USER */
@@ -1606,8 +1589,4 @@ bool Sql_cmd_show_privileges::execute(THD *thd)
   LEX_USER *tmp_user= const_cast<LEX_USER *>(for_user);
   tmp_user= get_current_user(thd, tmp_user);
   DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
-#else
-  my_ok(thd);
-  DBUG_RETURN(false);
-#endif
 }

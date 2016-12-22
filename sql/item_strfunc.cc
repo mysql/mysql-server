@@ -82,9 +82,7 @@
 #include "val_int_compare.h"         // Integer_value
 #include "zconf.h"
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_show.h"  // grant_types
-#endif
 
 #include <atomic>
 #include <cmath>                     // std::isfinite
@@ -1782,16 +1780,11 @@ void Item_func_roles_graphml::print(String *str, enum_query_type)
 bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
 {
   Item_str_func::fix_fields(thd, ref);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->security_context()->check_access(SUPER_ACL, false))
     roles_graphml(thd, &m_str);
   else
     m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                               "<graphml />"), system_charset_info);
-#else
-  m_str.set(STRING_WITH_LEN("Not supported in embedded mode"),
-            system_charset_info);
-#endif
   return false;  
 }
 
@@ -2369,7 +2362,6 @@ bool Item_func_current_role::fix_fields(THD *thd, Item **ref)
 
 String *Item_func_current_role::val_str(String* str)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   THD *thd= current_thd;
   Security_context *ctx= thd->security_context();
   /*
@@ -2402,9 +2394,6 @@ String *Item_func_current_role::val_str(String* str)
     m_active_role.append("@");
     append_identifier(thd, &m_active_role, it->second.str, it->second.length);
   }
-#else
-  m_active_role.set_ascii("NONE", 4);
-#endif
   if (str != 0)
   {
     str->copy(m_active_role);
@@ -2431,12 +2420,8 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
     return TRUE;
 
   Security_context *ctx=
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
                          (context->security_ctx
                           ? context->security_ctx : thd->security_context());
-#else
-                         thd->security_context();
-#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
   return init(ctx->priv_user().str, ctx->priv_host().str);
 }
 
@@ -4307,9 +4292,7 @@ String *Item_load_file::val_str(String *str)
   DBUG_ENTER("load_file");
 
   if (!(file_name= args[0]->val_str(str))
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       || !(current_thd->security_context()->check_access(FILE_ACL))
-#endif
       )
     goto err;
 
@@ -5065,7 +5048,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
   // Retrieve required values to form column type string.
   //
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read schema_name, table_name, field_name
   String schema_name;
   String *schema_name_ptr;
@@ -5112,7 +5094,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
     else
       oss << "select";
   }
-#endif
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 

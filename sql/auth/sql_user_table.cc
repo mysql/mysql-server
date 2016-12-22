@@ -719,7 +719,6 @@ void commit_and_close_mysql_tables(THD *thd)
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern bool initialized;
 
 /*
@@ -3044,5 +3043,3 @@ bool check_acl_tables(TABLE_LIST *tables, bool report_error)
 
   return invalid_table_found;
 }
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */

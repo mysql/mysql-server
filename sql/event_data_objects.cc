@@ -1178,9 +1178,7 @@ bool
 Event_job_data::execute(THD *thd, bool drop)
 {
   String sp_sql;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context event_sctx, *save_sctx= NULL;
-#endif
   List<Item> empty_item_list;
   bool ret= true;
   sql_digest_state *parent_digest= thd->m_digest;
@@ -1210,7 +1208,6 @@ Event_job_data::execute(THD *thd, bool drop)
 
   lex_start(thd);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (event_sctx.change_security_context(thd,
                                          m_definer_user, m_definer_host,
                                          &m_schema_name, &save_sctx))
@@ -1222,7 +1219,6 @@ Event_job_data::execute(THD *thd, bool drop)
                     m_event_name.str);
     goto end;
   }
-#endif
 
   if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, 0, 0))
   {
@@ -1350,10 +1346,8 @@ end:
       thd->security_context()->set_master_access(saved_master_access);
     }
   }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_sctx)
     event_sctx.restore_security_context(thd, save_sctx);
-#endif
   thd->lex->unit->cleanup(true);
   thd->end_statement();
   thd->cleanup_after_query();

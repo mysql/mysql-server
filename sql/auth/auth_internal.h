@@ -17,14 +17,13 @@
 #ifndef AUTH_INTERNAL_INCLUDED
 #define AUTH_INTERNAL_INCLUDED
 
-#include "my_global.h"                  /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_global.h"
 #include "violite.h"                    /* SSL_type */
 #include "mysql_time.h"                 /* MYSQL_TIME */
 #include "partitioned_rwlock.h"
 #include "auth_common.h"
 #include "table.h"                      /* LEX_ALTER */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
@@ -82,8 +81,6 @@ std::string create_authid_str_from(const Auth_id_ref &user);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 Auth_id_ref create_authid_from(const ACL_USER *user);
 
-#endif
-
 /* sql_authentication */
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);
@@ -98,9 +95,6 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 ulong get_sort(uint count,...);
 bool assert_acl_cache_read_lock(THD *thd);
 bool assert_acl_cache_write_lock(THD *thd);
-
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*sql_authentication */
 bool rsa_auth_status();
@@ -325,7 +319,5 @@ bool set_and_validate_user_attributes(THD *thd,
                                       ulong &what_to_set,
                                       bool is_privileged_user,
                                       bool is_role);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
 bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
 #endif /* AUTH_INTERNAL_INCLUDED */
