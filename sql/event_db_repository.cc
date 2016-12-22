@@ -17,6 +17,7 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_base.h"                           // close_thread_tables
+#include "sql_parse.h"
 #include "event_db_repository.h"
 #include "key.h"                                // key_copy
 #include "sql_db.h"                        // get_default_db_collation
@@ -702,19 +703,17 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   restore_record(table, s->default_values);     // Get default values for fields
 
-  if (system_charset_info->cset->
-        numchars(system_charset_info, parse_data->dbname.str,
-                 parse_data->dbname.str + parse_data->dbname.length) >
-      table->field[ET_FIELD_DB]->char_length())
+  if (check_string_char_length(&parse_data->dbname, 0,
+                               table->field[ET_FIELD_DB]->char_length(),
+                               system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->dbname.str);
     goto end;
   }
 
-  if (system_charset_info->cset->
-        numchars(system_charset_info, parse_data->name.str,
-                 parse_data->name.str + parse_data->name.length) >
-      table->field[ET_FIELD_NAME]->char_length())
+  if (check_string_char_length(&parse_data->name, 0,
+                               table->field[ET_FIELD_NAME]->char_length(),
+                               system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->name.str);
     goto end;

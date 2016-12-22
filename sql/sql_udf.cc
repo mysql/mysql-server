@@ -455,12 +455,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
-                               system_charset_info, 1))
-  {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
+  if (check_ident_length(&udf->name))
     DBUG_RETURN(1);
-  }
 
   /* 
     Turn off row binlogging of this statement and use statement-based 

@@ -4329,11 +4329,8 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_TRIGGER:
     {
-      if (lex->spname->m_name.length > NAME_LEN)
-      {
-        my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      if (check_ident_length(&lex->spname->m_name))
         goto error;
-      }
 
       if (show_create_trigger(thd, lex->spname))
         goto error; /* Error has been already logged. */
@@ -6019,12 +6016,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   LEX  *lex= thd->lex;
   DBUG_ENTER("add_field_to_list");
 
-  if (check_string_char_length(field_name, "", NAME_CHAR_LEN,
-                               system_charset_info, 1))
-  {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), field_name->str); /* purecov: inspected */
+  if (check_ident_length(field_name))
     DBUG_RETURN(1);				/* purecov: inspected */
-  }
+
   if (type_modifier & PRI_KEY_FLAG)
   {
     Key *key;
@@ -7685,6 +7679,17 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), err.ptr(), err_msg, max_char_length);
   }
   return TRUE;
+}
+
+
+bool check_ident_length(LEX_STRING *ident)
+{
+  if (check_string_char_length(ident, 0, NAME_CHAR_LEN, system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
+    return 1;
+  }
+  return 0;
 }
 
 
