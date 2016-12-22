@@ -398,3 +398,16 @@ DROP TABLE t1,t2,t3;
 
 set optimizer_switch=@subselect2_test_tmp;
 
+#
+# Bug #23303485 : HANDLE_FATAL_SIGNAL (SIG=11) IN SUBSELECT_UNION_ENGINE::NO_ROWS
+#
+create table t1 (a int);
+create table t2 (a int);
+create table t3(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t2 select a from t1;
+insert into t3 select a from t1;
+--error ER_SUBQUERY_NO_1_ROW
+select null in (select a from t1 where a < out3.a union select a from t2 where
+  (select a from t3) +1 < out3.a+1) from t3 out3;
+drop table t1, t2, t3;
