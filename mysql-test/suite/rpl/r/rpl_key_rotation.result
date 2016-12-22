@@ -98,6 +98,7 @@ PLUGIN_NAME	keyring_file
 PLUGIN_VERSION	1.0
 PLUGIN_STATUS	ACTIVE
 include/start_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t4;
 c1	c2
 1	rpltest
