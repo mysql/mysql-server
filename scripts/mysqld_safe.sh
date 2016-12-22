@@ -790,14 +790,23 @@ then
   fi
   if [ ! -h "$pid_file" ]; then
       rm -f "$pid_file"
-  fi
-  if test -f "$pid_file"
-  then
-    log_error "Fatal error: Can't remove the pid file:
-$pid_file
-Please remove it manually and start $0 again;
+      if test -f "$pid_file"; then
+        log_error "Fatal error: Can't remove the pid file:
+$pid_file.
+Please remove the file manually and start $0 again;
 mysqld daemon not started"
-    exit 1
+        exit 1
+      fi
+  fi
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+      rm -f "$safe_mysql_unix_port"
+      if test -f "$safe_mysql_unix_port"; then
+        log_error "Fatal error: Can't remove the socket file:
+$safe_mysql_unix_port.
+Please remove the file manually and start $0 again;
+mysqld daemon not started"
+        exit 1
+      fi
   fi
 fi
 
@@ -841,14 +850,6 @@ have_sleep=1
 
 while true
 do
-  # Some extra safety
-  if [ ! -h "$safe_mysql_unix_port" ]; then
-    rm -f "$safe_mysql_unix_port"
-  fi
-  if [ ! -h "$pid_file" ]; then
-    rm -f "$pid_file"
-  fi
-
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
@@ -884,6 +885,13 @@ do
   if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
     break
+  else                                  # self's mysqld crashed or other's mysqld running
+    PID=`cat "$pid_file"`
+    if @CHECK_PID@
+    then                                # true when above pid belongs to a running mysqld process
+      log_error "A mysqld process with pid=$PID is already running. Aborting!!"
+      exit 1
+    fi
   fi
 
 
@@ -940,6 +948,12 @@ do
       fi
       I=`expr $I + 1`
     done
+  fi
+  if [ ! -h "$pid_file" ]; then
+    rm -f "$pid_file"
+  fi
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+   rm -f "$safe_mysql_unix_port"
   fi
   log_notice "mysqld restarted"
 done
