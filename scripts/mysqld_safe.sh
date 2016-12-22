@@ -558,34 +558,6 @@ else
 fi
 plugin_dir="${plugin_dir}${PLUGIN_VARIANT}"
 
-# A pid file is created for the mysqld_safe process. This file protects the
-# server instance resources during race conditions.
-safe_pid="$DATADIR/mysqld_safe.pid"
-if test -f $safe_pid
-then
-  PID=`cat "$safe_pid"`
-  if @CHECK_PID@
-  then
-    if @FIND_PROC@
-    then
-      log_error "A mysqld_safe process already exists"
-      exit 1
-    fi
-  fi
-  if [ ! -h "$safe_pid" ]; then
-    rm -f "$safe_pid"
-  fi
-  if test -f "$safe_pid"
-  then
-    log_error "Fatal error: Can't remove the mysqld_safe pid file"
-    exit 1
-  fi
-fi
-
-# Insert pid proerply into the pid file.
-ps -e | grep  [m]ysqld_safe | awk '{print $1}' | sed -n 1p > $safe_pid
-# End of mysqld_safe pid(safe_pid) check.
-
 # Determine what logging facility to use
 
 # Ensure that 'logger' exists, if it's requested
@@ -595,9 +567,6 @@ then
   if [ $? -ne 0 ]
   then
     log_error "--syslog requested, but no 'logger' program found.  Please ensure that 'logger' is in your PATH, or do not specify the --syslog option to mysqld_safe."
-    if [ ! -h "$safe_pid" ]; then
-      rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-    fi
     exit 1
   fi
 fi
@@ -735,9 +704,6 @@ does not exist or is not executable. Please cd to the mysql installation
 directory and restart this script from there as follows:
 ./bin/mysqld_safe&
 See http://dev.mysql.com/doc/mysql/en/mysqld-safe.html for more information"
-  if [ ! -h "$safe_pid" ]; then
-    rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-  fi
   exit 1
 fi
 
@@ -831,25 +797,38 @@ then
     if @FIND_PROC@
     then    # The pid contains a mysqld process
       log_error "A mysqld process already exists"
-      if [ ! -h "$safe_pid" ]; then
-        rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-      fi
       exit 1
     fi
   fi
   if [ ! -h "$pid_file" ]; then
       rm -f "$pid_file"
-  fi
-  if test -f "$pid_file"
-  then
-    log_error "Fatal error: Can't remove the pid file:
-$pid_file
-Please remove it manually and start $0 again;
+      if test -f "$pid_file"; then
+        log_error "Fatal error: Can't remove the pid file:
+$pid_file.
+Please remove the file manually and start $0 again;
 mysqld daemon not started"
-    if [ ! -h "$safe_pid" ]; then
-      rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-    fi
-    exit 1
+        exit 1
+      fi
+  fi
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+      rm -f "$safe_mysql_unix_port"
+      if test -f "$safe_mysql_unix_port"; then
+        log_error "Fatal error: Can't remove the socket file:
+$safe_mysql_unix_port.
+Please remove the file manually and start $0 again;
+mysqld daemon not started"
+        exit 1
+      fi
+  fi
+  if [ ! -h "$pid_file.shutdown" ]; then
+      rm -f "$pid_file.shutdown"
+      if test -f "$pid_file.shutdown"; then
+        log_error "Fatal error: Can't remove the shutdown file:
+$pid_file.shutdown.
+Please remove the file manually and start $0 again;
+mysqld daemon not started"
+        exit 1
+      fi
   fi
 fi
 
@@ -893,17 +872,6 @@ have_sleep=1
 
 while true
 do
-  # Some extra safety
-  if [ ! -h "$safe_mysql_unix_port" ]; then
-    rm -f "$safe_mysql_unix_port"
-  fi
-  if [ ! -h "$pid_file" ]; then
-    rm -f "$pid_file"
-  fi
-  if [ ! -h "$pid_file.shutdown" ]; then
-     rm -f  "$pid_file.shutdown"
-  fi
-
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
@@ -939,11 +907,21 @@ do
   if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
     break
+  else                                  # self's mysqld crashed or other's mysqld running
+    PID=`cat "$pid_file"`
+    if @CHECK_PID@
+    then                                # true when above pid belongs to a running mysqld process
+      log_error "A mysqld process with pid=$PID is already running. Aborting!!"
+      exit 1
+    fi
   fi
 
   if test -f "$pid_file.shutdown"	# created to signal that it must stop
   then
     log_notice "$pid_file.shutdown present. The server will not restart."
+    if [ ! -h "$pid_file.shutdown" ]; then
+      rm -f "$pid_file.shutdown"
+    fi
     break
   fi
 
@@ -1002,15 +980,16 @@ do
       I=`expr $I + 1`
     done
   fi
+  if [ ! -h "$pid_file" ]; then
+    rm -f "$pid_file"
+  fi
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+    rm -f "$safe_mysql_unix_port"
+  fi
+  if [ ! -h "$pid_file.shutdown" ]; then
+    rm -f "$pid_file.shutdown"
+  fi
   log_notice "mysqld restarted"
 done
 
-if [ ! -h "$pid_file.shutdown" ]; then
-  rm -f "$pid_file.shutdown"
-fi
-
 log_notice "mysqld from pid file $pid_file ended"
-
-if [ ! -h "$safe_pid" ]; then
-  rm -f "$safe_pid"                       # Some Extra Safety. File is deleted
-fi                                        # once the mysqld process ends.
