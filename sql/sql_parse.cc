@@ -962,7 +962,6 @@ void cleanup_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-#ifndef EMBEDDED_LIBRARY
 
 /**
   Read one command from connection and execute it (query or simple command).
@@ -1101,7 +1100,6 @@ out:
   DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
-#endif  /* EMBEDDED_LIBRARY */
 
 
 /**
@@ -1283,9 +1281,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       ulong master_access= thd->security_context()->master_access();
       thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
       error= TRUE;
-#ifndef EMBEDDED_LIBRARY
       kill_mysql();
-#endif
     }
   }
   thd->set_query_id(next_query_id());
@@ -1334,14 +1330,12 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     goto done;
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_audit_notify(thd,
                          AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START),
                          command, command_name[command].str))
   {
     goto done;
   }
-#endif /* !EMBEDDED_LIBRARY */
 
   switch (command) {
   case COM_INIT_DB:
@@ -1391,10 +1385,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     Security_context save_security_ctx(*(thd->security_context()));
 
     auth_rc= acl_authenticate(thd, COM_CHANGE_USER);
-#ifndef EMBEDDED_LIBRARY
     auth_rc|= mysql_audit_notify(thd,
                              AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER));
-#endif
     if (auth_rc)
     {
       *thd->security_context()= save_security_ctx;
@@ -1530,13 +1522,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->send_statement_status();
       query_cache.end_of_result(thd);
 
-#ifndef EMBEDDED_LIBRARY
       mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
                          thd->get_stmt_da()->is_error() ?
                          thd->get_stmt_da()->mysql_errno() : 0,
                          command_name[command].str,
                          command_name[command].length);
-#endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
@@ -1712,7 +1702,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     thd->get_stmt_da()->disable_status();       // Don't send anything back
     error=TRUE;					// End server
     break;
-#ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP_GTID:
     // TODO: access of protocol_classic should be removed
     error=
@@ -1727,7 +1716,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         (char*)thd->get_protocol_classic()->get_raw_packet(),
         thd->get_protocol_classic()->get_packet_length());
     break;
-#endif
   case COM_REFRESH:
   {
     int not_used;
@@ -1808,16 +1796,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                         table_cache_manager.cached_tables(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
-#ifdef EMBEDDED_LIBRARY
-    /* Store the buffer in permanent memory */
-    my_ok(thd, 0, 0, buff);
-#else
     // TODO: access of protocol_classic should be removed.
     // should be rewritten using store functions
     thd->get_protocol_classic()->write((uchar*) buff, length);
     thd->get_protocol()->flush();
     thd->get_stmt_da()->disable_status();
-#endif
     break;
   }
   case COM_PING:
@@ -1902,7 +1885,6 @@ done:
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
   query_cache.end_of_result(thd);
 
-#ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed)
     mysql_audit_notify(thd,
                        AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
@@ -1917,7 +1899,6 @@ done:
      execution of the command at thie point. */
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
                      command_name[command].str);
-#endif
 
   log_slow_statement(thd);
 
@@ -1955,7 +1936,7 @@ done:
     false                When user has insufficient privilege or unsupported shutdown level
 
 */
-#ifndef EMBEDDED_LIBRARY
+
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level)
 {
   DBUG_ENTER("shutdown");
@@ -1983,7 +1964,7 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level)
   error:
   DBUG_RETURN(res);
 }
-#endif
+
 
 /**
   Create a TABLE_LIST object for an INFORMATION_SCHEMA table.
@@ -2652,7 +2633,6 @@ mysql_execute_command(THD *thd, bool first_level)
   if (gtid_pre_statement_post_implicit_commit_checks(thd))
     DBUG_RETURN(-1);
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_audit_notify(thd, first_level ?
                               MYSQL_AUDIT_QUERY_START :
                               MYSQL_AUDIT_QUERY_NESTED_START,
@@ -2662,7 +2642,6 @@ mysql_execute_command(THD *thd, bool first_level)
   {
     DBUG_RETURN(1);
   }
-#endif /* !EMBEDDED_LIBRARY */
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION)
@@ -2756,10 +2735,6 @@ mysql_execute_command(THD *thd, bool first_level)
     break;
   }
   case SQLCOM_SHOW_EVENTS:
-#ifdef EMBEDDED_LIBRARY
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
-    break;
-#endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_DATABASES:
@@ -2817,7 +2792,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res= mysqld_help(thd,lex->help_arg);
     break;
 
-#ifndef EMBEDDED_LIBRARY
   case SQLCOM_PURGE:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -2852,7 +2826,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = purge_master_logs_before_date(thd, purge_time);
     break;
   }
-#endif
   case SQLCOM_SHOW_WARNS:
   {
     res= mysqld_show_warnings(thd, (ulong)
@@ -3166,7 +3139,6 @@ mysql_execute_command(THD *thd, bool first_level)
       goto error;
     break;
   }
-#ifndef EMBEDDED_LIBRARY
   case SQLCOM_SHOW_BINLOGS:
     {
       if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
@@ -3174,7 +3146,6 @@ mysql_execute_command(THD *thd, bool first_level)
       res = show_binlogs(thd);
       break;
     }
-#endif /* EMBEDDED_LIBRARY */
   case SQLCOM_SHOW_CREATE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     {
@@ -3602,7 +3573,6 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
-  #ifndef EMBEDDED_LIBRARY
   do
   {
     DBUG_ASSERT(lex->event_parse_data);
@@ -3673,10 +3643,6 @@ mysql_execute_command(THD *thd, bool first_level)
         my_ok(thd);
     break;
   }
-#else
-    my_error(ER_NOT_SUPPORTED_YET,MYF(0),"embedded server");
-    break;
-#endif
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd, INSERT_ACL, "mysql", NULL, NULL, 1, 0))
@@ -4405,11 +4371,7 @@ mysql_execute_command(THD *thd, bool first_level)
     break;
   case SQLCOM_BINLOG_BASE64_EVENT:
   {
-#ifndef EMBEDDED_LIBRARY
     mysql_client_binlog_statement(thd);
-#else /* EMBEDDED_LIBRARY */
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "embedded");
-#endif /* EMBEDDED_LIBRARY */
     break;
   }
   case SQLCOM_EXPLAIN_OTHER:
@@ -4557,9 +4519,7 @@ mysql_execute_command(THD *thd, bool first_level)
   }
 #endif
   default:
-#ifndef EMBEDDED_LIBRARY
     DBUG_ASSERT(0);                             /* Impossible */
-#endif
     my_ok(thd);
     break;
   }
@@ -4591,13 +4551,11 @@ finish:
 
   if (! thd->in_sub_stmt)
   {
-#ifndef EMBEDDED_LIBRARY
     mysql_audit_notify(thd,
                        first_level ? MYSQL_AUDIT_QUERY_STATUS_END :
                                      MYSQL_AUDIT_QUERY_NESTED_STATUS_END,
                        first_level ? "MYSQL_AUDIT_QUERY_STATUS_END" :
                                      "MYSQL_AUDIT_QUERY_NESTED_STATUS_END");
-#endif /* !EMBEDDED_LIBRARY */
 
     /* report error issued during command execution */
     if (thd->killed)

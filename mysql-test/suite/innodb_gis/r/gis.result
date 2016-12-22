@@ -458,6 +458,8 @@ Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_pointfr
 SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
 ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))
 101
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 explain extended SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -1211,71 +1213,107 @@ ST_PolyFromText(
 (59 18,67 18,67 13,59 13,59 18)
 )',
 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Road Segments
 INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2,
 ST_LineFromText(
 'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4,
 ST_LineFromText(
 'LINESTRING( 44 31, 56 34, 70 38 )' ,101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2,
 ST_LineFromText(
 'LINESTRING( 70 38, 72 48 )' ,101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4,
 ST_LineFromText(
 'LINESTRING( 70 38, 84 42 )' ,101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL,
 1,
 ST_LineFromText(
 'LINESTRING( 28 26, 28 0 )',101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # DividedRoutes
 INSERT INTO divided_routes VALUES(119, 'Route 75', 4,
 ST_MLineFromText(
 'MULTILINESTRING((10 48,10 21,10 0),
 (16 0,16 23,16 48))', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Forests
 INSERT INTO forests VALUES(109, 'Green Forest',
 ST_MPolyFromText(
 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),
 (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))',
 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Bridges
 INSERT INTO bridges VALUES(110, 'Cam Bridge', ST_PointFromText(
 'POINT( 44 31 )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Streams
 INSERT INTO streams VALUES(111, 'Cam Stream',
 ST_LineFromText(
 'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO streams VALUES(112, NULL,
 ST_LineFromText(
 'LINESTRING( 76 0, 78 4, 73 9 )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Buildings
 INSERT INTO buildings VALUES(113, '123 Main Street',
 ST_PointFromText(
 'POINT( 52 30 )', 101),
 ST_PolyFromText(
 'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO buildings VALUES(114, '215 Main Street',
 ST_PointFromText(
 'POINT( 64 33 )', 101),
 ST_PolyFromText(
 'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Ponds
 INSERT INTO ponds VALUES(120, NULL, 'Stock Pond',
 ST_MPolyFromText(
 'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ),
 ( ( 26 44, 26 40, 28 42, 26 44) ) )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Named Places
 INSERT INTO named_places VALUES(117, 'Ashton',
 ST_PolyFromText(
 'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 INSERT INTO named_places VALUES(118, 'Goose Island',
 ST_PolyFromText(
 'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Map Neatlines
 INSERT INTO map_neatlines VALUES(115,
 ST_PolyFromText(
 'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101));
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 #
 # C.3.3.3 Geometry types and functions schema test queries
 
@@ -1455,6 +1493,7 @@ ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 1
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_equals will be done in SRID 0.
 # Conformance Item T38
 SELECT ST_Disjoint(centerlines, boundary)

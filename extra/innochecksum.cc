@@ -1765,7 +1765,7 @@ int main(
 			}
 
 			if (ferror(fil_in)) {
-				fprintf(stderr, "Error reading " ULINTPF " bytes",
+				fprintf(stderr, "Error reading %u bytes",
 					page_size.physical());
 				perror(" ");
 
@@ -1774,7 +1774,7 @@ int main(
 
 			if (bytes != page_size.physical()) {
 				fprintf(stderr, "Error: bytes read (%lu) "
-					"doesn't match page size (" ULINTPF ")\n",
+					"doesn't match page size (%u)\n",
 					bytes, page_size.physical());
 				DBUG_RETURN(1);
 			}

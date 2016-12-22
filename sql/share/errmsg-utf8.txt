@@ -7923,6 +7923,12 @@ ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
 ER_SWITCH_TMP_ENGINE
   eng "'%s' requires @@internal_tmp_disk_storage_engine=InnoDB"
 
+ER_INVALID_NO_OF_ARGS
+  eng "Too many arguments for function %s: %lu; maximum allowed is %s."
+
+ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+  eng "Argument #%u of GROUPING function is not in GROUP BY"
+
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
 

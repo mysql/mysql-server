@@ -9679,13 +9679,13 @@ bool start_slave(THD* thd,
   if (connection_param->user ||
       connection_param->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
     if (!thd->get_protocol()->get_ssl())
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
 #endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if !defined(HAVE_OPENSSL)
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_PLAIN_TEXT,
                  ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
@@ -10349,13 +10349,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 
   if (lex_mi->user || lex_mi->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
     if (!thd->get_protocol()->get_ssl())
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
 #endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if !defined(HAVE_OPENSSL)
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_PLAIN_TEXT,
                  ER_THD(thd, ER_INSECURE_PLAIN_TEXT));

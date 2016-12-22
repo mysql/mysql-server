@@ -195,7 +195,6 @@ static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
 #define export /* not static */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#ifndef EMBEDDED_LIBRARY
 
 #define PFS_TRAILING_PROPERTIES \
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
@@ -698,7 +697,6 @@ static Sys_var_long Sys_pfs_error_size(
        DEFAULT(PFS_MAX_SERVER_ERRORS),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -752,12 +750,10 @@ static Sys_var_uint Sys_default_password_lifetime(
        VALID_RANGE(0, UINT_MAX16), DEFAULT(0), BLOCK_SIZE(1),
        &Plock_default_password_lifetime);
 
-#ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
-#endif
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1639,7 +1635,6 @@ static Sys_var_ulong Sys_delayed_queue_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-#ifndef EMBEDDED_LIBRARY
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
 static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -1695,7 +1690,6 @@ static Sys_var_enum Sys_event_scheduler(
        event_scheduler_names, DEFAULT(Events::EVENTS_OFF),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
-#endif
 
 static Sys_var_ulong Sys_expire_logs_days(
        "expire_logs_days",
@@ -2990,8 +2984,6 @@ static bool check_read_only(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if !defined(EMBEDDED_LIBRARY)
-
 static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var)
 {
 
@@ -3019,7 +3011,6 @@ static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var
 #endif
 }
 
-#endif
 
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3152,8 +3143,6 @@ static bool fix_super_read_only(sys_var *self, THD *thd, enum_var_type type)
     DBUG_RETURN(result);
 }
 
-#if !defined(EMBEDDED_LIBRARY)
-
 static Sys_var_mybool Sys_require_secure_transport(
   "require_secure_transport",
   "When this option is enabled, connections attempted using insecure "
@@ -3164,8 +3153,6 @@ static Sys_var_mybool Sys_require_secure_transport(
   DEFAULT(FALSE),
   NO_MUTEX_GUARD, NOT_IN_BINLOG,
   ON_CHECK(check_require_secure_transport), ON_UPDATE(0));
-
-#endif
 
 /**
   The read_only boolean is always equal to the opt_readonly boolean except
@@ -3263,7 +3250,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static Sys_var_mybool Sys_shared_memory(
        "shared_memory", "Enable the shared memory",
        READ_ONLY GLOBAL_VAR(opt_enable_shared_memory), CMD_LINE(OPT_ARG),
@@ -3344,7 +3331,6 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
-#ifndef EMBEDDED_LIBRARY
 static const char *thread_handling_names[]=
 {
   "one-thread-per-connection", "no-threads", "loaded-dynamically",
@@ -3356,7 +3342,6 @@ static Sys_var_enum Sys_thread_handling(
        "one-thread-per-connection, no-threads, loaded-dynamically"
        , READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
        CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
-#endif // !EMBEDDED_LIBRARY
 
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3454,11 +3439,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
-#ifndef EMBEDDED_LIBRARY
        CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
-#else
-       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR));
-#endif
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4224,10 +4205,8 @@ static Sys_var_ulong Sys_max_execution_time(
        SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
-#else
-#define SSL_OPT(X) NO_CMD_LINE
 #endif
 
 /*
@@ -4399,14 +4378,12 @@ static Sys_var_ulong Sys_table_cache_instances(
        */
        sys_var::PARSE_EARLY);
 
-#ifndef EMBEDDED_LIBRARY
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
        GLOBAL_VAR(Per_thread_connection_handler::max_blocked_pthreads),
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
-#endif // !EMBEDDED_LIBRARY
 
 /**
   Can't change the 'next' tx_isolation if we are already in a
@@ -5086,7 +5063,6 @@ static Sys_var_charptr Sys_hostname(
        READ_ONLY GLOBAL_VAR(glob_hostname_ptr), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(glob_hostname));
 
-#ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_repl_report_host(
        "report_host",
        "Hostname or IP of the slave to be reported to the master during "
@@ -5121,7 +5097,6 @@ static Sys_var_uint Sys_repl_report_port(
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
-#endif
 
 static Sys_var_mybool Sys_keep_files_on_create(
        "keep_files_on_create",
@@ -5773,19 +5748,15 @@ static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
   longlong val= (longlong) var->save_result.ulonglong_value;
   bool rli_fake= false;
 
-#ifndef EMBEDDED_LIBRARY
   rli_fake= thd->rli_fake ? true : false;
-#endif
 
   if (rli_fake)
   {
     if (!val)
     {
-#ifndef EMBEDDED_LIBRARY
       thd->rli_fake->end_info();
       delete thd->rli_fake;
       thd->rli_fake= NULL;
-#endif
     }
     else if (previous_val && val)
       goto ineffective;

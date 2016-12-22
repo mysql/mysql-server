@@ -1780,7 +1780,7 @@ class in_row final : public in_vector
   // Sort pointers, rather than objects.
   Mem_root_array<cmp_item_row*> base_pointers;
 public:
-  in_row(THD *thd, uint elements, Item *);
+  in_row(THD *thd, uint elements);
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
   friend bool Item_func_in::resolve_type(THD *thd);

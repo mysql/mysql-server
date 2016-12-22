@@ -954,7 +954,7 @@ private:
     return true;
   }
 
-  bool raise_error(THD *thd, int error)
+  bool raise_error(int error)
   {
     my_error(error, MYF(0));
     return true;
@@ -1000,7 +1000,7 @@ class PT_query_expression_body : public Parse_tree_node
 {
 public:
   virtual bool is_union() const = 0;
-  virtual void set_containing_qe(PT_query_expression *qe) {}
+  virtual void set_containing_qe(PT_query_expression*) {}
   virtual bool has_into_clause() const = 0;
 };
 

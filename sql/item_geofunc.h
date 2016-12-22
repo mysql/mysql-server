@@ -275,6 +275,10 @@ public:
                                Functype functype)
     :Item_geometry_func(pos, a, srid), m_functype(functype)
   {}
+  Item_func_geometry_from_text(const POS &pos, Item *a, Item *srid,
+                               Item *option, Functype functype)
+    :Item_geometry_func(pos, a, srid, option), m_functype(functype)
+  {}
 
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override;

@@ -2549,7 +2549,6 @@ bool rename_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
-  const T *from_tab= NULL;
   const T *to_tab= NULL;
   T *new_tab = nullptr;
 
@@ -2563,8 +2562,6 @@ bool rename_table(THD *thd,
       thd->dd_client()->acquire(from_schema_name, &from_sch) ||
       thd->dd_client()->acquire(to_schema_name, &to_sch) ||
       thd->dd_client()->acquire(to_schema_name, to_table_name, &to_tab) ||
-      thd->dd_client()->acquire(from_schema_name, from_table_name,
-                                &from_tab) ||
       thd->dd_client()->acquire_for_modification(from_schema_name, from_table_name,
                                                  &new_tab))
   {

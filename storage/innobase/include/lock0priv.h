@@ -959,7 +959,7 @@ static const ulint      lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 Gets the type of a lock.
 @return LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
-ulint
+uint32_t
 lock_get_type_low(
 /*==============*/
 	const lock_t*	lock);	/*!< in: lock */

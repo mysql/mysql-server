@@ -56,12 +56,12 @@ protected:
 public:
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
-  virtual void apply_type_flags(ulong *type_flags) const {}
-  virtual void apply_alter_info_flags(uint *flags) const {}
-  virtual void apply_comment(LEX_STRING *comment) const {}
-  virtual void apply_default_value(Item **value) const {}
-  virtual void apply_on_update_value(Item **value) const {}
-  virtual bool apply_collation(const CHARSET_INFO **cs) const { return false; }
+  virtual void apply_type_flags(ulong*) const {}
+  virtual void apply_alter_info_flags(uint*) const {}
+  virtual void apply_comment(LEX_STRING*) const {}
+  virtual void apply_default_value(Item**) const {}
+  virtual void apply_on_update_value(Item**) const {}
+  virtual bool apply_collation(const CHARSET_INFO**) const { return false; }
 };
 
 

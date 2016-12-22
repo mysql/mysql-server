@@ -21,7 +21,7 @@ def	performance_schema	data_locks	OBJECT_INSTANCE_BEGIN	11	NULL	NO	bigint	NULL	N
 def	performance_schema	data_locks	LOCK_TYPE	12	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
 def	performance_schema	data_locks	LOCK_MODE	13	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
 def	performance_schema	data_locks	LOCK_STATUS	14	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
-def	performance_schema	data_locks	LOCK_DATA	15	NULL	YES	varchar	8192	32768	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(8192)			select,insert,update,references		
+def	performance_schema	data_locks	LOCK_DATA	15	NULL	YES	varchar	8192	32768	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(8192)			select,insert,update,references		
 def	performance_schema	data_lock_waits	ENGINE	1	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
 def	performance_schema	data_lock_waits	REQUESTING_ENGINE_LOCK_ID	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references		
 def	performance_schema	data_lock_waits	REQUESTING_ENGINE_TRANSACTION_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		

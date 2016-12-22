@@ -148,7 +148,7 @@ BtrContext::check_redolog_normal()
 @return code as returned by the zlib. */
 int
 zInserter::write_first_page(
-	ulint			blob_j,
+	size_t			blob_j,
 	big_rec_field_t&	field)
 {
 	buf_block_t*	rec_block	= m_ctx->block();
@@ -227,7 +227,7 @@ zInserter::update_length_in_blobref(big_rec_field_t& field)
 @param[in]	blob_j	the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t
-zInserter::write_one_blob(ulint blob_j)
+zInserter::write_one_blob(size_t blob_j)
 {
 	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
 	big_rec_field_t&	field = vec->fields[blob_j];
@@ -263,13 +263,13 @@ zInserter::write_one_blob(ulint blob_j)
 int
 zInserter::write_into_single_page()
 {
-	const ulint in_before = m_stream.avail_in;
+	const uint in_before = m_stream.avail_in;
 
 	mtr_t*	const	mtr = &m_blob_mtr;
 
 	/* Space available in compressed page to carry blob data */
 	const page_size_t page_size = m_ctx->page_size();
-        const ulint payload_size_zip = page_size.physical() - FIL_PAGE_DATA;
+	const uint payload_size_zip = page_size.physical() - FIL_PAGE_DATA;
 
 	page_t*	blob_page = buf_block_get_frame(m_cur_blob_block);
 
@@ -342,7 +342,7 @@ with an increasing nth_blob_page to completely write a BLOB.
 @return code as returned by the zlib. */
 int
 zInserter::write_single_blob_page(
-	int			blob_j,
+	size_t			blob_j,
 	big_rec_field_t&	field,
 	ulint			nth_blob_page)
 {
@@ -853,7 +853,7 @@ Inserter::write()
 @param[in]	blob_j	the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t
-Inserter::write_one_blob(ulint blob_j)
+Inserter::write_one_blob(size_t blob_j)
 {
 	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
 	big_rec_field_t&	field = vec->fields[blob_j];
@@ -900,7 +900,7 @@ Inserter::set_page_next()
 @return DB_SUCCESS on success. */
 dberr_t
 Inserter::write_first_page(
-	ulint			blob_j,
+	size_t			blob_j,
 	big_rec_field_t&	field)
 {
 	buf_block_t*	rec_block	= m_ctx->block();
@@ -945,7 +945,7 @@ with an increasing nth_blob_page to completely write a BLOB.
 @return DB_SUCCESS or DB_FAIL. */
 dberr_t
 Inserter::write_single_blob_page(
-	int			blob_j,
+	size_t			blob_j,
 	big_rec_field_t&	field,
 	ulint			nth_blob_page)
 {
@@ -1345,8 +1345,8 @@ btr_copy_externally_stored_field_func(
 #endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
-	ulint	extern_len;
-	byte*	buf;
+	uint32_t	extern_len;
+	byte*		buf;
 
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
@@ -1653,7 +1653,7 @@ CompressedInserter::write()
 @param[in]	blob_j	the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t
-CompressedInserter::write_one_blob(ulint blob_j)
+CompressedInserter::write_one_blob(size_t blob_j)
 {
 	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
 	big_rec_field_t&	field = vec->fields[blob_j];
@@ -1662,7 +1662,7 @@ CompressedInserter::write_one_blob(ulint blob_j)
 
 	m_bytes_written = 0;
 
-	m_fitblk.setInputBuffer(field.ptr(), field.len);
+	m_fitblk.setInputBuffer(field.ptr(), static_cast<uint>(field.len));
 
 	int err = write_first_page(blob_j, field);
 	ut_a(err == Z_OK || err == Z_STREAM_END);
@@ -1695,7 +1695,7 @@ with an increasing nth_blob_page to completely write a BLOB.
 @return code as returned by the zlib. */
 int
 CompressedInserter::write_single_blob_page(
-	int			blob_j,
+	size_t			blob_j,
 	big_rec_field_t&	field,
 	ulint			nth_blob_page)
 {
@@ -1811,7 +1811,7 @@ CompressedInserter::write_into_single_page(
 @return code as returned by the zlib. */
 int
 CompressedInserter::write_first_page(
-	ulint			blob_j,
+	size_t			blob_j,
 	big_rec_field_t&	field)
 {
 	DBUG_ENTER("CompressedInserter::write_first_page");
@@ -1951,7 +1951,7 @@ CompressedReader::fetch()
 	}
 
 	m_unfit.init();
-	m_unfit.setOutput(m_rctx.m_buf, m_rctx.m_len);
+	m_unfit.setOutput(m_rctx.m_buf, static_cast<uint>(m_rctx.m_len));
 
 	while (m_unfit.m_total_out < m_rctx.m_len) {
 

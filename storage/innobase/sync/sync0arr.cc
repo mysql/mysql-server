@@ -491,10 +491,10 @@ sync_array_cell_print(
 	type = cell->request_type;
 
 	fprintf(file,
-		"--Thread %lu has waited at %s line %lu"
+		"--Thread " UINT64PF " has waited at %s line " ULINTPF
 		" for %.2f seconds the semaphore:\n",
-		(ulong) cell->thread_id,
-		innobase_basename(cell->file), (ulong) cell->line,
+		(uint64_t)(cell->thread_id),
+		innobase_basename(cell->file), cell->line,
 		difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
@@ -571,9 +571,9 @@ sync_array_cell_print(
 		if (writer != RW_LOCK_NOT_LOCKED) {
 
 			fprintf(file,
-				"a writer (thread id %lu) has"
+				"a writer (thread id " UINT64PF ") has"
 				" reserved it in mode %s",
-				(ulong) rwlock->writer_thread,
+				(uint64_t)(rwlock->writer_thread),
 				writer == RW_LOCK_X ? " exclusive\n"
 				: writer == RW_LOCK_SX ? " SX\n"
 				: " wait exclusive\n");

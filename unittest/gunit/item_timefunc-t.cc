@@ -54,7 +54,7 @@ protected:
 TEST_F(ItemTimeFuncTest, dateAddInterval)
 {
   Item_int *arg0= new Item_int(20130122145221LL); // 2013-01-22 14:52:21
-  Item_decimal *arg1= new Item_decimal(0.1234567, 8, 7);
+  Item_decimal *arg1= new Item_decimal(0.1234567);
   Item *item= 
     new Item_date_add_interval(POS(),
                                arg0, arg1, INTERVAL_SECOND_MICROSECOND, false);

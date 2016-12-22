@@ -211,7 +211,6 @@ static enum_field_types get_normalized_field_type(Item *arg)
 bool get_json_string(Item *arg_item,
                      String *value,
                      String *utf8_res,
-                     const char *func_name,
                      const char **safep,
                      size_t *safe_length)
 {
@@ -1146,7 +1145,7 @@ static uint opaque_index(enum_field_types field_type)
   }
 }
 
-String *Item_func_json_type::val_str(String *str)
+String *Item_func_json_type::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -1185,7 +1184,7 @@ String *Item_func_json_type::val_str(String *str)
 }
 
 
-String *Item_json_func::val_str(String *str)
+String *Item_json_func::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   Json_wrapper wr;
@@ -1205,7 +1204,7 @@ String *Item_json_func::val_str(String *str)
 }
 
 
-bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t)
 {
   Json_wrapper wr;
   if (val_json(&wr))
@@ -2812,7 +2811,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
       const char *safep;         // contents of key_item, possibly converted
       size_t safe_length;        // length of safep
 
-      if (get_json_string(key_item, &tmp_key_value, &utf8_res, func_name(),
+      if (get_json_string(key_item, &tmp_key_value, &utf8_res,
                            &safep, &safe_length))
       {
         my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));

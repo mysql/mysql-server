@@ -1127,7 +1127,10 @@ ST_GEOMFROMTEXT(
                   
 1
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
 Warning	3519	There's no spatial reference system with SRID 10. Calculations in function mbrcontains will be done in SRID 0.
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
@@ -1184,7 +1187,10 @@ ST_GEOMFROMTEXT(
                   
 1
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
 Warning	3519	There's no spatial reference system with SRID 10. Calculations in function mbrcontains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_UNION(

@@ -5734,9 +5734,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool some_routine_modifies_data= FALSE;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
-#ifndef EMBEDDED_LIBRARY
   bool audit_notified= false;
-#endif /* !EMBEDDED_LIBRARY */
 
 restart:
   /*
@@ -5875,7 +5873,6 @@ restart:
     /*
       Iterate through set of tables and generate table access audit events.
     */
-#ifndef EMBEDDED_LIBRARY
     if (!audit_notified && mysql_audit_table_access_notify(thd, *start))
     {
       error= true;
@@ -5889,7 +5886,6 @@ restart:
       stored procedures.
     */
     audit_notified= true;
-#endif /* !EMBEDDED_LIBRARY */
 
     /*
       If we are not already in prelocked mode and extended table list is

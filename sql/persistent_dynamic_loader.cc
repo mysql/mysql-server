@@ -126,11 +126,9 @@ static bool open_component_table(
 
   tables.init_one_table("mysql", 5, "component", 9, "component", lock_type);
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_persistent_dynamic_loader_imp::initialized() && !opt_noacl &&
       check_one_table_access(thd, acl_to_check, &tables))
     return true;
-#endif
 
   if (!(*table= open_ltable(thd, &tables, lock_type, MYSQL_LOCK_IGNORE_TIMEOUT)))
   {

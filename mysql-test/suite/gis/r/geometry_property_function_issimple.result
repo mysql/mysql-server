@@ -465,11 +465,13 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star,123456789));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star,123456789))
 1
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 123456789. Calculations in function st_issimple will be done in SRID 0.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
 1
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_issimple will be done in SRID 0.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
@@ -585,6 +587,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 18000000));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 18000000))
 1
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 18000000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 18000000. Calculations in function st_issimple will be done in SRID 0.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,

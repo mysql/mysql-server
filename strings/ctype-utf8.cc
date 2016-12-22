@@ -5846,7 +5846,7 @@ size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 extern "C" {
 static size_t
-my_well_formed_len_utf8(const CHARSET_INFO *cs, const char *b, const char *e,
+my_well_formed_len_utf8(const CHARSET_INFO*, const char *b, const char *e,
                         size_t pos, int *error)
 {
   const char *b_start= b;
@@ -5866,7 +5866,7 @@ my_well_formed_len_utf8(const CHARSET_INFO *cs, const char *b, const char *e,
   return (size_t) (b - b_start);
 }
 
-static uint my_ismbchar_utf8(const CHARSET_INFO *cs,const char *b,
+static uint my_ismbchar_utf8(const CHARSET_INFO*, const char *b,
                              const char *e)
 {
   int  res= my_valid_mbcharlen_utf8mb3((const uchar*)b, (const uchar*)e);
@@ -8220,7 +8220,7 @@ MY_CHARSET_HANDLER my_charset_utf8mb4_handler=
 CHARSET_INFO my_charset_utf8mb4_general_ci=
 {
   45,0,0,              /* number       */
-  MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT,  /* state  */
+  MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT,  /* state  */
   MY_UTF8MB4,         /* cs name      */
   MY_UTF8MB4_GENERAL_CI,/* name       */
   "UTF-8 Unicode",    /* comment      */

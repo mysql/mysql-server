@@ -113,7 +113,7 @@ public:
 
 	/** Retrieve the physical page size (on-disk).
 	@return physical page size in bytes */
-	inline ulint physical() const
+	inline uint physical() const
 	{
 		ut_ad(m_physical > 0);
 
@@ -122,7 +122,7 @@ public:
 
 	/** Retrieve the logical page size (in-memory).
 	@return logical page size in bytes */
-	inline ulint logical() const
+	inline uint logical() const
 	{
 		ut_ad(m_logical > 0);
 		return(m_logical);

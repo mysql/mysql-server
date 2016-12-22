@@ -129,11 +129,11 @@ private:
 class View_metadata_updater_error_handler final : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     bool retval= true;
 

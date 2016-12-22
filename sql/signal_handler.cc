@@ -125,9 +125,7 @@ extern "C" void handle_fatal_signal(int sig)
                         Connection_handler_manager::max_used_connections);
 
   uint max_threads= 1;
-#ifndef EMBEDDED_LIBRARY
   max_threads= Connection_handler_manager::max_threads;
-#endif
   my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
   my_safe_printf_stderr("thread_count=%u\n",

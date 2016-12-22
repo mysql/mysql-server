@@ -627,7 +627,7 @@ print_record_lock_id(
 	snprintf(
 		lock_id,
 		lock_id_size,
-		TRX_ID_FMT ":" SPACE_ID_PF ":" PAGE_NO_PF ":" "%lu",
+		TRX_ID_FMT ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF,
 		lock_get_trx_id(lock),
 		lock_rec_get_space_id(lock),
 		lock_rec_get_page_no(lock),

@@ -85,7 +85,7 @@
 using std::min;
 using std::max;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 /*
   Without SSL the handshake consists of one packet. This packet
   has both client capabilites and scrambled password.
@@ -101,7 +101,7 @@ using std::max;
 #define MIN_HANDSHAKE_SIZE      2
 #else
 #define MIN_HANDSHAKE_SIZE      6
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 
 /*
   Get structure for logging connection data for the current user
@@ -522,7 +522,6 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Perform handshake, authorize client and update thd ACL variables.
 
@@ -854,11 +853,6 @@ static void prepare_new_connection_state(THD* thd)
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
 
-  /*
-    Much of this is duplicated in create_embedded_thd() for the
-    embedded server library.
-    TODO: refactor this to avoid code duplication there
-  */
   thd->proc_info= 0;
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
@@ -963,5 +957,3 @@ bool thd_connection_alive(THD *thd)
     return true;
   return false;
 }
-
-#endif /* EMBEDDED_LIBRARY */

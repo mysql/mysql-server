@@ -931,25 +931,6 @@ public:
   */
   static const char * const DEFAULT_WHERE;
 
-#ifdef EMBEDDED_LIBRARY
-  struct st_mysql  *mysql;
-  unsigned long	 client_stmt_id;
-  unsigned long  client_param_count;
-  struct st_mysql_bind *client_params;
-  char *extra_data;
-  ulong extra_length;
-  struct st_mysql_data *cur_data;
-  struct st_mysql_data *first_data;
-  struct st_mysql_data **data_tail;
-  void clear_data_list();
-  struct st_mysql_data *alloc_new_dataset();
-  /*
-    In embedded server it points to the statement that is processed
-    in the current query. We store some results directly in statement
-    fields then.
-  */
-  struct st_mysql_stmt *current_stmt;
-#endif
   /*
     'first_query_cache_block' should be accessed only via query cache
     functions and methods to maintain proper locking.
@@ -2412,19 +2393,17 @@ public:
 
   partition_info *work_part_info;
 
-#ifndef EMBEDDED_LIBRARY
   /**
     Array of active audit plugins which have been used by this THD.
     This list is later iterated to invoke release_thd() on those
     plugins.
   */
-  Prealloced_array<plugin_ref, 2> audit_class_plugins;
+  Plugin_array audit_class_plugins;
   /**
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
   Prealloced_array<unsigned long, 11> audit_class_mask;
-#endif
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Debug Sync facility. See debug_sync.cc. */
@@ -2793,7 +2772,6 @@ public:
     DBUG_RETURN(false);
   }
 
-#ifndef EMBEDDED_LIBRARY
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -2811,9 +2789,6 @@ public:
     else
       return get_protocol()->connection_alive();
   }
-#else
-  virtual bool is_connected() { return true; }
-#endif
   /**
     Mark the current error as fatal. Warning: this does not
     set any error, it sets a property of the error, so must be

@@ -1907,8 +1907,7 @@ private:
                                                   bool count_spaces);
 protected:
   type_conversion_status
-    check_string_copy_error(const char *original_string,
-                            const char *well_formed_error_pos,
+    check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
                             const char *from_end_pos,
                             const char *end,
@@ -3697,7 +3696,7 @@ class Field_blob :public Field_longstr {
   type_conversion_status store_to_mem(const char *from, size_t length,
                                       const CHARSET_INFO *cs,
                                       size_t max_length,
-                                      Blob_mem_storage *blob_storage);
+                                      Blob_mem_storage*);
 protected:
   /**
     The number of bytes used to represent the length of the blob.

@@ -1004,7 +1004,7 @@ longlong Item_datetime_func::val_date_temporal()
 }
 
 
-bool Item_date_literal::eq(const Item *item, bool binary_cmp) const
+bool Item_date_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
@@ -1021,7 +1021,7 @@ void Item_date_literal::print(String *str, enum_query_type)
 }
 
 
-bool Item_datetime_literal::eq(const Item *item, bool binary_cmp) const
+bool Item_datetime_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
@@ -1038,7 +1038,7 @@ void Item_datetime_literal::print(String *str, enum_query_type)
 }
 
 
-bool Item_time_literal::eq(const Item *item, bool binary_cmp) const
+bool Item_time_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
@@ -1094,8 +1094,7 @@ longlong Item_func_to_days::val_int()
 }
 
 
-longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
-                                                bool *incl_endp)
+longlong Item_func_to_seconds::val_int_endpoint(bool, bool*)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
@@ -1601,7 +1600,7 @@ enum_monotonicity_info Item_func_unix_timestamp::get_monotonicity_info() const
 }
 
 
-longlong Item_func_unix_timestamp::val_int_endpoint(bool left_endp, bool *incl_endp)
+longlong Item_func_unix_timestamp::val_int_endpoint(bool, bool*)
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ASSERT(arg_count == 1 &&
@@ -2020,7 +2019,7 @@ Time_zone *Item_func_now_utc::time_zone()
 
 
 type_conversion_status
-Item_func_now::save_in_field_inner(Field *to, bool no_conversions)
+Item_func_now::save_in_field_inner(Field *to, bool)
 {
   to->set_notnull();
   return to->store_time(cached_time.get_TIME_ptr(), decimals);
@@ -2433,7 +2432,7 @@ bool Item_date_add_interval::resolve_type(THD *)
 
 /* Here arg[1] is a Item_interval object */
 bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
-                                               my_time_flags_t fuzzy_date)
+                                               my_time_flags_t)
 {
   Interval interval;
 
@@ -2754,7 +2753,7 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
     for dates between 0000-01-01 and 0099-12-31
 */
 
-bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
+bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t)
 {
   DBUG_ASSERT(fixed == 1);
   long daynr=  (long) args[1]->val_int();

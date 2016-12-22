@@ -712,7 +712,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM, FIELD_BIT_ITEM};
+             VIEW_FIXER_ITEM, FIELD_BIT_ITEM, NULL_RESULT_ITEM };
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -3053,6 +3053,7 @@ public:
   enum_field_types field_type() const override { return fld_type; }
   Item_result result_type() const override { return res_type; }
   bool check_gcol_func_processor(uchar *) override { return true; }
+  enum Type type() const override { return NULL_RESULT_ITEM; }
 };
 
 /// Placeholder ('?') of prepared statement.
@@ -3156,9 +3157,6 @@ public:
   void reset();
   /*
     Assign placeholder value from bind data.
-    Note, that 'len' has different semantics in embedded library (as we
-    don't need to check that packet is not broken there). See
-    sql_prepare.cc for details.
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
@@ -3211,7 +3209,7 @@ private:
     return this;
   }
 
-  bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
+  bool set_value(THD*, sp_rcontext*, Item **it) override;
 
   void set_out_param_info(Send_field *info) override;
 
@@ -3445,7 +3443,7 @@ public:
                const my_decimal *val_arg, uint decimal_par, uint length);
   Item_decimal(my_decimal *value_par);
   Item_decimal(longlong val, bool unsig);
-  Item_decimal(double val, int precision, int scale);
+  Item_decimal(double val);
   Item_decimal(const uchar *bin, int precision, int scale);
 
   enum Type type() const override { return DECIMAL_ITEM; }
@@ -4288,7 +4286,7 @@ public:
   }
 
   bool fix_fields(THD *, Item **) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
     Item *item= Item_ref::get_tmp_table_item(thd);
@@ -5536,7 +5534,7 @@ public:
     DBUG_ASSERT(0);
     return true;
   }
-  bool join_types(THD *thd, Item *);
+  bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);

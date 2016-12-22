@@ -723,10 +723,8 @@ retry:
   if (res)
     goto err;
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_audit_table_access_notify(thd, hash_tables))
     goto err;
-#endif /* !EMBEDDED_LIBRARY */
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that

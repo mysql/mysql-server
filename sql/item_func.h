@@ -105,7 +105,7 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC };
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const override { return FUNC_ITEM; }
@@ -1615,7 +1615,7 @@ class Item_func_bit_two_param: public Item_func_bit
 protected:
   bool binary_result_requires_binary_second_arg() const { return true; }
   template<class Char_func, class Int_func>
-  String * eval_str_op(String *str, Char_func char_func, Int_func int_func);
+  String * eval_str_op(String*, Char_func char_func, Int_func int_func);
   template<class Int_func> longlong eval_int_op(Int_func int_func);
 public:
   Item_func_bit_two_param(const POS &pos, Item *a, Item *b)

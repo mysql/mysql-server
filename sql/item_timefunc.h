@@ -91,7 +91,7 @@ public:
   Item_func_to_days(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "to_days"; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     fix_char_length(6);
     maybe_null= true;
@@ -191,7 +191,7 @@ public:
   }
   const char *func_name() const override { return "month"; }
   enum Item_result result_type() const override { return INT_RESULT; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     fix_char_length(2);
     maybe_null= true;
@@ -227,7 +227,7 @@ public:
   Item_func_dayofyear(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "dayofyear"; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     fix_char_length(3);
     maybe_null= true;
@@ -247,7 +247,7 @@ public:
   Item_func_hour(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "hour"; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     fix_char_length(2); /* 0..23 */
     maybe_null= true;
@@ -307,7 +307,7 @@ public:
   Item_func_second(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "second"; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     fix_char_length(2); /* 0..59 */
     maybe_null= true;
@@ -679,7 +679,7 @@ public:
 class Item_date_func : public Item_temporal_func
 {
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  type_conversion_status save_in_field_inner(Field *field, bool)
     override
   {
     return save_date_in_field(field);
@@ -738,7 +738,7 @@ public:
 class Item_datetime_func :public Item_temporal_func
 {
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  type_conversion_status save_in_field_inner(Field *field, bool)
     override
   {
     return save_date_in_field(field);
@@ -801,7 +801,7 @@ public:
 class Item_time_func :public Item_temporal_func
 {
 protected:
-  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  type_conversion_status save_in_field_inner(Field *field, bool)
     override
   {
     return save_time_in_field(field);
@@ -831,7 +831,7 @@ public:
     return val_int_from_time();
   }
   longlong val_time_temporal() override;
-  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override
+  bool get_date(MYSQL_TIME *res, my_time_flags_t) override
   {
     return get_date_from_time(res);
   }
@@ -1179,7 +1179,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.get_time(ltime);
   }
-  String *val_str(String *str) override
+  String *val_str(String*) override
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
@@ -1235,12 +1235,12 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_packed();
   }
-  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override
+  bool get_date(MYSQL_TIME *res, my_time_flags_t) override
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.get_time(res);
   }
-  String *val_str(String *str) override
+  String *val_str(String*) override
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
@@ -1297,12 +1297,12 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_packed();
   }
-  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override
+  bool get_date(MYSQL_TIME *res, my_time_flags_t) override
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.get_time(res);
   }
-  String *val_str(String *str) override
+  String *val_str(String*) override
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);

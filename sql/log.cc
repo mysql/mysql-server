@@ -753,10 +753,7 @@ bool File_query_log::open()
   {
     char *end;
     size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
-#ifdef EMBEDDED_LIBRARY
-                        "embedded library\n",
-                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif defined(_WIN32)
+#if defined(_WIN32)
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port
@@ -1524,11 +1521,9 @@ static bool log_command(THD *thd, enum_server_command command)
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length)
 {
-#ifndef EMBEDDED_LIBRARY
   /* Send a general log message to the audit API. */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
-#endif
 
   /*
     Do we want to log this kind of command?
@@ -1575,11 +1570,9 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
       !opt_general_log ||
       !(*general_log_handler_list))
   {
-#ifndef EMBEDDED_LIBRARY
     /* Send a general log message to the audit API. */
     mysql_audit_general_log(thd, command_name[(uint) command].str,
                             command_name[(uint) command].length);
-#endif
     return false;
   }
 
@@ -2092,10 +2085,8 @@ bool open_error_log(const char *filename)
     errors= 0;
     if (!my_freopen(filename, "a", stderr))
       errors++;
-#ifndef EMBEDDED_LIBRARY
     if (!my_freopen(filename, "a", stdout))
       errors++;
-#endif
   }
   while (retries-- && errors);
 
@@ -2141,7 +2132,6 @@ bool reopen_error_log()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 static void print_buffer_to_file(enum loglevel level, const char *buffer,
                                  size_t length)
 {
@@ -2227,7 +2217,6 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
   DBUG_VOID_RETURN;
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 void sql_print_error(const char *format, ...)

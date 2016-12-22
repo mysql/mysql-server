@@ -1029,10 +1029,8 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 /**
   Retrieves correct TIME value from the given item.
 
-  @param thd                  thread handle
   @param [in,out] item_arg    item to retrieve TIME value from
   @param [in,out] cache_arg   pointer to place to store the cache item to
-  @param warn_item            unused
   @param [out] is_null        TRUE <=> the item_arg is null
 
   DESCRIPTION
@@ -1050,8 +1048,8 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 */
 
 static longlong
-get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null)
+get_time_value(THD*, Item ***item_arg, Item **cache_arg,
+               Item*, bool *is_null)
 {
   longlong value;
   Item *item= **item_arg;
@@ -1422,10 +1420,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
   SYNOPSIS
     get_year_value()
-    thd                 thread handle
     item_arg   [in/out] item to retrieve YEAR value from
-    cache_arg  [in/out] pointer to place to store the caching item to
-    warn_item  [in]     item for issuing the conversion warning
     is_null    [out]    TRUE <=> the item_arg is null
 
   DESCRIPTION
@@ -1439,8 +1434,8 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 */
 
 static longlong
-get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null)
+get_year_value(THD*, Item ***item_arg, Item**,
+               Item*, bool *is_null)
 {
   longlong value= 0;
   Item *item= **item_arg;
@@ -2126,7 +2121,7 @@ longlong Item_func_truth::val_int()
 }
 
 
-bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
+bool Item_in_optimizer::fix_left(THD *thd, Item**)
 {
   /*
     Refresh this pointer as left_expr may have been substituted
@@ -2464,7 +2459,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer,
 }
 
 
-void Item_in_optimizer::replace_argument(THD *thd, Item **oldpp, Item *newp)
+void Item_in_optimizer::replace_argument(THD *thd, Item**, Item *newp)
 {
   // Maintain the invariant described in this class's comment
   Item_in_subselect *ss= down_cast<Item_in_subselect *>(args[1]);
@@ -3515,7 +3510,7 @@ void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
 }
 
 
-bool Item_func_if::resolve_type(THD *thd)
+bool Item_func_if::resolve_type(THD*)
 {
   maybe_null= args[1]->maybe_null || args[2]->maybe_null;
   cached_field_type= aggregate_type(make_array(args + 1, 2));
@@ -3753,7 +3748,7 @@ Item_func_nullif::is_null()
            failed
 */
 
-Item *Item_func_case::find_item(String *str)
+Item *Item_func_case::find_item(String*)
 {
   uint value_added_map= 0;
 
@@ -4569,7 +4564,7 @@ bool in_string::compare_elems(uint pos1, uint pos2) const
 }
 
 
-in_row::in_row(THD *thd, uint elements, Item * item)
+in_row::in_row(THD *thd, uint elements)
   : in_vector(elements),
     base_objects(thd->mem_root, elements),
     base_pointers(thd->mem_root, elements)
@@ -5325,7 +5320,7 @@ bool Item_func_in::resolve_type(THD *thd)
       cmp_item_row *cmp= 0;
       if (bisection_possible)
       {
-        if (!(array= new (thd->mem_root) in_row(thd, arg_count-1, 0)))
+        if (!(array= new (thd->mem_root) in_row(thd, arg_count-1)))
           return true;
         cmp= &((in_row*)array)->tmp;
       }
@@ -5683,7 +5678,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 
 
 bool
-Item_cond::fix_fields(THD *thd, Item **ref)
+Item_cond::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
@@ -6543,7 +6538,7 @@ int Item_func_regex::regcomp(bool send_error)
 
 
 bool
-Item_func_regex::fix_fields(THD *thd, Item **ref)
+Item_func_regex::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0);
 
@@ -7286,7 +7281,7 @@ bool Item_equal::update_const(THD *thd)
   return false;
 }
 
-bool Item_equal::fix_fields(THD *thd, Item **ref)
+bool Item_equal::fix_fields(THD *thd, Item**)
 {
   List_iterator_fast<Item_field> li(fields);
   Item *item;

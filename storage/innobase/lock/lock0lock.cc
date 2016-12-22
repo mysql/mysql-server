@@ -6364,7 +6364,7 @@ lock_release_autoinc_locks(
 Gets the type of a lock. Non-inline version for using outside of the
 lock module.
 @return LOCK_TABLE or LOCK_REC */
-ulint
+uint32_t
 lock_get_type(
 /*==========*/
 	const lock_t*	lock)	/*!< in: lock */

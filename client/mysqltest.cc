@@ -396,7 +396,7 @@ enum enum_commands {
   Q_LET,		    Q_ECHO,
   Q_WHILE,	    Q_END_BLOCK,
   Q_SYSTEM,	    Q_RESULT,
-  Q_REQUIRE,	    Q_SAVE_MASTER_POS,
+  Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
   Q_ERROR,
@@ -457,7 +457,6 @@ const char *command_names[]=
   "end",
   "system",
   "result",
-  "require",
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
@@ -9317,9 +9316,9 @@ static void get_command_type(struct st_command* command)
     else
     {
       /* -- "comment" that didn't contain a mysqltest command */
-      die("Found line beginning with --  that didn't contain "\
+      die("Found line '%s' beginning with -- that didn't contain "\
           "a valid mysqltest command, check your syntax or "\
-          "use # if you intended to write a comment");
+          "use # if you intended to write a comment", command->query);
     }
   }
   DBUG_VOID_RETURN;
@@ -9983,8 +9982,6 @@ int main(int argc, char **argv)
 	command_executed++;
         command->last_argument= command->end;
 	break;
-      case Q_REQUIRE:
-        die("'require' command  is deprecated.");
       case Q_ERROR:
         do_get_errcodes(command);
 	break;

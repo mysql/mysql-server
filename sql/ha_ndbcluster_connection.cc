@@ -153,11 +153,7 @@ ndbcluster_connect(int (*connect_callback)(void),
                    uint recv_thread_activation_threshold,
                    uint data_node_neighbour)
 {
-#ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
-#else
-  const char mysqld_name[]= "libmysqld";
-#endif
   int res;
   DBUG_ENTER("ndbcluster_connect");
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",

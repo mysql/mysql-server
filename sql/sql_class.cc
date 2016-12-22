@@ -381,9 +381,6 @@ THD::THD(bool enable_plugins)
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
-#ifdef EMBEDDED_LIBRARY
-   mysql(NULL),
-#endif
    first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
@@ -430,11 +427,9 @@ THD::THD(bool enable_plugins)
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
    work_part_info(NULL),
-#ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
    audit_class_mask(PSI_NOT_INSTRUMENTED),
-#endif
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -501,10 +496,8 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
-#ifndef EMBEDDED_LIBRARY
   mysql_audit_init_thd(this);
   net.vio=0;
-#endif
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -1095,13 +1088,11 @@ void THD::release_resources()
   mysql_mutex_lock(&LOCK_query_plan);
 
   /* Close connection */
-#ifndef EMBEDDED_LIBRARY
   if (is_classic_protocol() && get_protocol_classic()->get_vio())
   {
     vio_delete(get_protocol_classic()->get_vio());
     get_protocol_classic()->end_net();
   }
-#endif
 
   /* modification plan for UPDATE/DELETE should be freed. */
   DBUG_ASSERT(query_plan.get_modification_plan() == NULL);
@@ -1133,7 +1124,6 @@ void THD::release_resources()
   if (timer_cache)
     thd_timer_destroy(timer_cache);
 
-#ifndef EMBEDDED_LIBRARY
   if (rli_fake)
   {
     rli_fake->end_info();
@@ -1141,7 +1131,6 @@ void THD::release_resources()
     rli_fake= NULL;
   }
   mysql_audit_free_thd(this);
-#endif
 
   if (current_thd == this)
     restore_globals();
@@ -1182,7 +1171,6 @@ THD::~THD()
   dbug_sentry= THD_SENTRY_GONE;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
   if (variables.gtid_next_list.gtid_set != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -1195,7 +1183,6 @@ THD::~THD()
   }
   if (rli_slave)
     rli_slave->cleanup_after_session();
-#endif
 
   free_root(&main_mem_root, MYF(0));
 
@@ -1498,7 +1485,6 @@ void THD::cleanup_after_query()
     rand_used= 0;
     binlog_accessed_db_names= NULL;
 
-#ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
       is_update_query() is needed to ignore SET statements:
@@ -1510,7 +1496,6 @@ void THD::cleanup_after_query()
     */
     if ((rli_slave || rli_fake) && is_update_query(lex->sql_command))
       auto_inc_intervals_forced.empty();
-#endif
   }
 
   /*
@@ -1556,10 +1541,8 @@ void THD::cleanup_after_query()
   {
     lex->mi.repl_ignore_server_ids.clear();
   }
-#ifndef EMBEDDED_LIBRARY
   if (rli_slave)
     rli_slave->cleanup_after_query();
-#endif
   // Set the default "cute" mode for the execution environment:
   count_cuted_fields= CHECK_FIELD_IGNORE;
 }
@@ -1769,25 +1752,19 @@ int THD::send_explain_fields(Query_result *result)
 
 enum_vio_type THD::get_vio_type()
 {
-#ifndef EMBEDDED_LIBRARY
   DBUG_ENTER("shutdown_active_vio");
   DBUG_RETURN(get_protocol()->connection_type());
-#else
-  return NO_VIO_TYPE;
-#endif
 }
 
 void THD::shutdown_active_vio()
 {
   DBUG_ENTER("shutdown_active_vio");
   mysql_mutex_assert_owner(&LOCK_thd_data);
-#ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
     vio_shutdown(active_vio);
     active_vio = 0;
   }
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -2210,7 +2187,6 @@ void THD::end_attachable_transaction()
 void THD::reset_sub_statement_state(Sub_statement_state *backup,
                                     uint new_state)
 {
-#ifndef EMBEDDED_LIBRARY
   /* BUG#33029, if we are replicating from a buggy master, reset
      auto_inc_intervals_forced to prevent substatement
      (triggers/functions) from using erroneous INSERT_ID value
@@ -2220,8 +2196,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
     auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
   }
-#endif
-  
+
+
   backup->option_bits=     variables.option_bits;
   backup->count_cuted_fields= count_cuted_fields;
   backup->in_sub_stmt=     in_sub_stmt;
@@ -2264,7 +2240,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
   DBUG_ENTER("THD::restore_sub_statement_state");
-#ifndef EMBEDDED_LIBRARY
   /* BUG#33029, if we are replicating from a buggy master, restore
      auto_inc_intervals_forced so that the top statement can use the
      INSERT_ID value set before this statement.
@@ -2274,7 +2249,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
     DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
   }
-#endif
 
   /*
     To save resources we want to release savepoints which were created
@@ -2769,16 +2743,10 @@ bool THD::send_result_metadata(List<Item> *list, uint flags)
           variables.character_set_results))
     goto err;
 
-#ifdef EMBEDDED_LIBRARY                  // bootstrap file handling
-    if(!mysql)
-      DBUG_RETURN(false);
-#endif
-
   while ((item= it++))
   {
     Send_field field;
     item->make_field(&field);
-#ifndef EMBEDDED_LIBRARY
     m_protocol->start_row();
     if (m_protocol->send_field_metadata(&field,
             item->charset_for_protocol()))
@@ -2787,12 +2755,6 @@ bool THD::send_result_metadata(List<Item> *list, uint flags)
       item->send(m_protocol, &tmp);
     if (m_protocol->end_row())
       DBUG_RETURN(true);
-#else
-      if(m_protocol->send_field_metadata(&field, item->charset_for_protocol()))
-        goto err;
-      if (flags & Protocol::SEND_DEFAULTS)
-        get_protocol_classic()->send_string_metadata(item->val_str(&tmp));
-#endif
   }
 
   DBUG_RETURN(m_protocol->end_result_metadata());

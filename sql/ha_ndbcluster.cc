@@ -15955,12 +15955,8 @@ int ha_ndbcluster::write_ndb_file(const char *name) const
   DBUG_ENTER("write_ndb_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
-#ifndef EMBEDDED_LIBRARY
   (void)strxnmov(path, FN_REFLEN-1, 
                  mysql_data_home,"/",name,ha_ndb_ext,NullS);
-#else
-  (void)strxnmov(path, FN_REFLEN-1, name,ha_ndb_ext, NullS);
-#endif
 
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {

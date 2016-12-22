@@ -784,7 +784,6 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
   @param[in]  arg_item    An argument Item
   @param[out] value       Where to materialize the arg_item's string value
   @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
-  @param[in]  func_name   Name of the user-invoked JSON_ function
   @param[out] safep       String pointer after any relevant conversion
   @param[out] safe_length Corresponding string length
 
@@ -793,7 +792,6 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 bool get_json_string(Item *arg_item,
                      String *value,
                      String *utf8_res,
-                     const char *func_name,
                      const char **safep,
                      size_t *safe_length);
 
