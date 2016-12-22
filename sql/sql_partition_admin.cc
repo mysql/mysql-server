@@ -22,7 +22,6 @@
 #include "auth_acls.h"
 #include "auth_common.h"                    // check_access
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
 #include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
@@ -646,7 +645,8 @@ bool Sql_cmd_alter_table_exchange_partition::
   }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  dd::Table *part_table_def, *swap_table_def= nullptr;
+  dd::Table *part_table_def= nullptr;
+  dd::Table *swap_table_def= nullptr;
 
   if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
                           table_list->table_name, &part_table_def) ||
@@ -654,23 +654,8 @@ bool Sql_cmd_alter_table_exchange_partition::
                           swap_table_list->table_name, &swap_table_def))
     DBUG_RETURN(true);
 
-  if (!part_table_def)
-  {
-    /* Impossible since table was successfully opened above. */
-    DBUG_ASSERT(0);
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
-             table_list->table_name);
-    DBUG_RETURN(true);
-  }
-
-  if (!swap_table_def)
-  {
-    /* Impossible since table was successfully opened above. */
-    DBUG_ASSERT(0);
-    my_error(ER_NO_SUCH_TABLE, MYF(0), swap_table_list->db,
-             swap_table_list->table_name);
-    DBUG_RETURN(true);
-  }
+  /* Tables were successfully opened above. */
+  DBUG_ASSERT(part_table_def != nullptr && swap_table_def != nullptr);
 
   int ha_error= part_handler->exchange_partition(part_file_name,
                                                  swap_file_name,
@@ -686,8 +671,10 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   if (ha_error == HA_ERR_WRONG_COMMAND)
   {
-    // WL7743/TODO Non-native partitioning. Legacy code to be removed
-    // once partitioning handler is removed.
+    /*
+      TODO: Legacy code to be removed once InnoDB supports exchange of
+            partitions using Partition_handler::exchange_partition API.
+    */
     DEBUG_SYNC(thd, "swap_partition_before_rename");
 
     close_all_tables_for_name(thd, swap_table->s, false, NULL);
@@ -787,9 +774,6 @@ bool Sql_cmd_alter_table_exchange_partition::
         Close TABLE instances which were marked as old earlier and reopen
         tables. Ignore the fact that the statement might fail due to binlog
         write failure.
-
-        WL7743/TODO/QQ: Should we revert exchange like old code did in this
-                        case (might be a bit complicated!).
       */
       close_all_tables_for_name(thd, swap_table->s, false, NULL);
       close_all_tables_for_name(thd, part_table->s, false, NULL);
@@ -937,15 +921,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
                           first_table->table_name, &table_def))
     DBUG_RETURN(true);
 
-  if (!table_def)
-  {
-    /* Impossible since table was successfully opened above. */
-    DBUG_ASSERT(0);
-    my_error(ER_NO_SUCH_TABLE, MYF(0), first_table->db,
-             first_table->table_name);
-    DBUG_RETURN(true);
-  }
-
+  /* Table was successfully opened above. */
+  DBUG_ASSERT(table_def != nullptr);
 
   /*
     Under locked table modes this might still not be an exclusive
