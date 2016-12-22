@@ -1411,7 +1411,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       if (!(error= (int) read_to_buffer(from_file, buffpek,
                                         rec_length)))
       {
-        queue_remove(&queue,0);
+        (void) queue_remove_top(&queue);
         reuse_freed_buff(&queue, buffpek, rec_length);
       }
       else if (error == -1)

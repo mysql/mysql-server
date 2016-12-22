@@ -171,6 +171,37 @@ WHERE ( tb.b != ta.b OR tb.a = ta.a )
   AND ( tb.b = ta.c OR tb.b = ta.b );
 
 DROP TABLE t1;
-
 set optimizer_switch= @optimizer_switch_save;
 
+--echo #
+--echo # MDEV-10927: Crash When Using sort_union Optimization
+--echo #
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_merge_sort_intersection=on';
+SET SESSION sort_buffer_size = 1024;
+
+create table t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col1 int(11) NOT NULL,
+col2 int(11) NOT NULL,
+col3 int(11) NOT NULL,
+key2 int(11) NOT NULL,
+col4 int(11) NOT NULL,
+key1 int(11) NOT NULL,
+PRIMARY KEY (pk),
+KEY key1 (key1),
+KEY key2 (key2)
+) ENGINE=InnoDB AUTO_INCREMENT=12860259 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
+
+create table t2(a int);
+insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t3(a int);
+insert into t3 select A.a + B.a* 10 + C.a * 100 + D.a*1000 from t2 A, t2 B, t2 C, t2 D;
+
+insert into t1 (key1, key2, col1,col2,col3,col4)
+select  a,a, a,a,a,a from t3;
+SELECT sum(col1) FROM t1 FORCE INDEX (key1,key2) WHERE  (key1 between 10 and 8191+10) or (key2= 5);
+drop table t1,t2,t3;
+set optimizer_switch=@tmp_optimizer_switch;
