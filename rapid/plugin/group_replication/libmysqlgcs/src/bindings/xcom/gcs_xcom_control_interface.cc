@@ -227,7 +227,7 @@ void Gcs_xcom_control::init_me()
     m_xcom_proxy->new_node_address(m_node_list_me.node_list_len, &addr);
   uuid= &m_node_list_me.node_list_val[0].uuid;
 
-  uuid->data.data_len= sizeof(m_local_member_id_hash);
+  uuid->data.data_len= static_cast<u_int>(sizeof(m_local_member_id_hash));
   uuid->data.data_val= (char *) calloc(1, uuid->data.data_len);
   memcpy(uuid->data.data_val, &m_local_member_id_hash, uuid->data.data_len);
  }
@@ -1176,7 +1176,7 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
     }
   }
 
-  MYSQL_GCS_DEBUG_EXECUTE(
+  MYSQL_GCS_TRACE_EXECUTE(
     unsigned int node_no= xcom_nodes->get_node_no();
     for(it= alive_members.begin(); it != alive_members.end(); it++)
       MYSQL_GCS_LOG_TRACE(
@@ -1271,7 +1271,7 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
       << " Resetting state exchange. My node_id is "
       << xcom_nodes->get_node_no()
     )
-    MYSQL_GCS_DEBUG_EXECUTE(
+    MYSQL_GCS_TRACE_EXECUTE(
       for(it= left_members.begin(); it != left_members.end(); it++)
         MYSQL_GCS_LOG_TRACE(
           "(My node_id is " << xcom_nodes->get_node_no() << ") Node " <<

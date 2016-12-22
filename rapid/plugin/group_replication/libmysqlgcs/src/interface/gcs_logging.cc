@@ -239,7 +239,7 @@ void Gcs_ext_logger_impl::log_event(gcs_log_level_t level, const char *message)
   // Get and increment write index
   m_write_index_mutex->lock();
   int current_write_index= m_write_index++;
-  int index= current_write_index & BUF_MASK;
+  unsigned int index= current_write_index & BUF_MASK;
   m_write_index_mutex->unlock();
 
   while(!m_buffer[index].get_logged())
@@ -265,10 +265,10 @@ void Gcs_ext_logger_impl::log_event(gcs_log_level_t level, const char *message)
 void Gcs_ext_logger_impl::consume_events()
 {
   int cycles= 0;
-  int index= 0;
+  unsigned int index= 0;
   int current_max_read_index;
   struct timespec ts;
-  long wait_ms= 500;
+  unsigned long wait_ms= 500;
 
   m_max_read_index_mutex->lock();
   current_max_read_index= m_max_read_index;

@@ -604,7 +604,7 @@ private:
   };
 public:
   explicit Gcs_xcom_proxy_impl();
-  Gcs_xcom_proxy_impl(int wt);
+  Gcs_xcom_proxy_impl(unsigned int wt);
   virtual ~Gcs_xcom_proxy_impl();
 
   node_address *new_node_address(unsigned int n, char *names[]);
@@ -672,7 +672,7 @@ private:
     Maximum waiting time used by timed_waits in xcom_wait_ready and
     xcom_wait_for_xcom_comms_status_change.
   */
-  int m_wait_time;
+  unsigned int m_wait_time;
 
   /* A list of local XCom connections. */
   Xcom_handler **m_xcom_handlers;

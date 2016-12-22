@@ -19,7 +19,7 @@
 
 Gcs_xcom_view_identifier::
 Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
-                         int monotonic_part_arg)
+                         uint32_t monotonic_part_arg)
   :fixed_part(0), monotonic_part(0), representation()
 {
   init(fixed_part_arg, monotonic_part_arg);
@@ -27,7 +27,7 @@ Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
 
 
 void Gcs_xcom_view_identifier::
-init(uint64_t fixed_part_arg, int monotonic_part_arg)
+init(uint64_t fixed_part_arg, uint32_t monotonic_part_arg)
 {
   fixed_part=     fixed_part_arg;
   monotonic_part= monotonic_part_arg;
