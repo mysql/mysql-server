@@ -1442,7 +1442,7 @@ btr_search_drop(dict_table_t* table)
                 ulint                   ref_count       = 0;
                 const dict_index_t**    end             = indexes;
 
-                for (dict_index_t* index = table->first_index_low();
+                for (dict_index_t* index = table->first_index();
                      index != NULL; index = index->next()) {
                         if (ulint n_refs = index->search_info->ref_count) {
                                 ut_ad(!index->disable_ahi);

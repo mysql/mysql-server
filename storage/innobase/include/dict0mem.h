@@ -1974,7 +1974,6 @@ public:
 	{
 		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 		const dict_index_t* first = UT_LIST_GET_FIRST(indexes);
-		ut_ad(first->is_clustered());
 		return(first);
 	}
 	/** @return the clustered index */
@@ -1984,17 +1983,6 @@ public:
 			const_cast<const dict_table_t*>(this)
 			->first_index()));
 	}
-
-	/** Get the first index in a special case when it might not
-        exist or not be a clustered index. This can be the case
-        in alter_table.
-        @return the first index
-        @retval NULL    if none exists */
-        dict_index_t* first_index_low()
-        {
-                ut_ad(magic_n == DICT_TABLE_MAGIC_N); 
-                return(UT_LIST_GET_FIRST(indexes));
-        }
 
 	/** Check whether the table is corrupted.
 	@return true if the table is corrupted, otherwise false */
