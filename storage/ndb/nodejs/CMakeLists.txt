@@ -112,6 +112,7 @@ if(WIN32)
 else()
   set(ADAPTER_REQUIRED_LIBS ndbclient_static)
   add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
+  remove_definitions(-Werror=undef)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x")
 endif()
 
