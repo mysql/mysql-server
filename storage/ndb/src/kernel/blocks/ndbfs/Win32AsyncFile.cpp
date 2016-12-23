@@ -128,7 +128,7 @@ void Win32AsyncFile::openReq(Request* request)
   {
     LARGE_INTEGER size;
     BOOL ret_code = GetFileSizeEx(hFile, &size);
-    if (ret_code)
+    if (!ret_code)
     {
       request->error = GetLastError();
       (void)CloseHandle(hFile);
