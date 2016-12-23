@@ -1419,6 +1419,93 @@ btr_search_drop_page_hash_when_freed(
 	mtr_commit(&mtr);
 }
 
+/** Drop any adaptive hash index entries for a table.
+@param[in,out]	table	to drop indexes of this table */
+void
+btr_search_drop(dict_table_t* table)
+{
+        const ulint     len = UT_LIST_GET_LEN(table->indexes);
+        if (len == 0) {
+                return;
+        }
+
+        const dict_index_t**    indexes = static_cast<const dict_index_t**>(
+                mem_heap_alloc(table->heap, len * sizeof *indexes));
+        static constexpr unsigned DROP_BATCH = 1024;
+        page_id_t* drop =
+		new 
+		(mem_heap_alloc(table->heap, sizeof(page_id_t[DROP_BATCH])))
+                page_id_t[DROP_BATCH];
+	const page_size_t	page_size(dict_table_page_size(table));
+
+        for (;;) {
+                ulint                   ref_count       = 0;
+                const dict_index_t**    end             = indexes;
+
+                for (dict_index_t* index = table->first_index_low();
+                     index != NULL; index = index->next()) {
+                        if (ulint n_refs = index->search_info->ref_count) {
+                                ut_ad(!index->disable_ahi);
+                                ut_ad(index->is_committed());
+                                ref_count += n_refs;
+                                ut_ad(indexes + len > end);
+                                *end++ = index;
+                        }
+                }
+
+                ut_ad((indexes == end) == (ref_count == 0));
+
+                if (ref_count == 0) {
+                        return;
+                }
+
+                for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+                        unsigned n_drop = 0;
+
+                        buf_pool_t*     buf_pool = buf_pool_from_array(i);
+                        mutex_enter(&buf_pool->LRU_list_mutex);
+                        const buf_page_t* prev;
+
+                        for (const buf_page_t* bpage
+                                     = UT_LIST_GET_LAST(buf_pool->LRU);
+                             bpage != nullptr; bpage = prev) {
+                                prev = UT_LIST_GET_PREV(LRU, bpage);
+
+                                ut_a(buf_page_in_file(bpage));
+
+                                if (buf_page_get_state(bpage)
+                                    != BUF_BLOCK_FILE_PAGE
+                                    || bpage->io_fix != BUF_IO_NONE
+                                    || bpage->buf_fix_count > 0) {
+                                        continue;
+                                }
+
+                                const dict_index_t* index
+                                        = reinterpret_cast<const buf_block_t*>(
+                                                bpage)->index;
+                                if (index == nullptr) {
+                                        continue;
+                                }
+
+                                if (std::search_n(indexes, end, 1, index)
+                                    != end) {
+                                        drop[n_drop].copy_from(bpage->id);
+                                        if (++n_drop == DROP_BATCH) {
+                                                break;
+                                        }
+                                }
+                        }
+
+                        mutex_exit(&buf_pool->LRU_list_mutex);
+
+                        for (unsigned i = 0; i < n_drop; i++) {
+                                btr_search_drop_page_hash_when_freed(
+					drop[i], page_size);
+                        }
+                }
+        }
+}
+
 /** Build a hash index on a page with the given parameters. If the page already
 has a hash index with different parameters, the old hash index is removed.
 If index is non-NULL, this function checks if n_fields and n_bytes are
