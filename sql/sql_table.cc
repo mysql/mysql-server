@@ -3769,6 +3769,12 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists_a,
     DBUG_EXECUTE_IF("sleep_before_no_locks_delete_table",
                     my_sleep(100000););
 
+    DBUG_EXECUTE_IF("rm_table_no_locks_abort_before_atomic_tables",
+                    {
+                      my_error(ER_UNKNOWN_ERROR, MYF(0));
+                      goto err_with_rollback;
+                    });
+
     for (TABLE_LIST *table : drop_ctx.base_atomic_tables)
     {
       if (drop_base_table(thd, drop_ctx,
