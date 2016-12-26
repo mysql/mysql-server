@@ -351,5 +351,25 @@ eval DROP  TABLE `$temp_table_backup_name`;
 --disable_connect_log
 DROP SCHEMA test_i_s;
 SET @@lock_wait_timeout= @lock_wait_timeout_saved;
+
+--echo #
+--echo # Additional coverage for WL#7743 "New data dictionary: changes
+--echo # to DDL-related parts of SE API".
+--echo #
+--echo # Killed ALTER TABLE on temporary table sometimes led to assertion
+--echo # failure on connection close.
+--enable_connect_log
+--connect (con1, localhost, root,,)
+create temporary table t1 (i int) engine=innodb;
+set debug= "+d,mysql_lock_tables_kill_query";
+--error ER_QUERY_INTERRUPTED
+alter table t1 add index (i);
+set debug= "-d,mysql_lock_tables_kill_query";
+--echo # The below disconnect should drop temporary table automagically.
+--disconnect con1
+--source include/wait_until_disconnected.inc
+connection default;
+--disable_connect_log
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

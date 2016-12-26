@@ -12261,10 +12261,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
 
-    // It's now safe to take the table level lock.
-    if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
-      goto err_new_table_cleanup;
-
     /* Open the table since we need to copy the data. */
     if (table->s->tmp_table != NO_TMP_TABLE)
     {
@@ -12293,6 +12289,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       Note: In case of MERGE table, we do not attach children. We do not
       copy data for MERGE tables. Only the children have data.
     */
+
+    // It's now safe to take the table level lock.
+    if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
+      goto err_new_table_cleanup;
   }
 
   /*
