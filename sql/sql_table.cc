@@ -9570,6 +9570,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
     table_list->table= table= NULL;
+    reopen_tables= true;
     close_temporary_table(thd, altered_table, true, false);
 
     /*
@@ -9821,8 +9822,9 @@ cleanup2:
   */
   if (reopen_tables)
   {
-    /* Close the only table instance which is still around. */
-    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    /* Close the only table instance which might be still around. */
+    if (table)
+      close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
     if (thd->locked_tables_list.reopen_tables(thd))
       thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
     /* QQ; do something about metadata locks ? */
