@@ -435,7 +435,7 @@ dict_build_tablespace(
 		return(err);
 	}
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 	/* Update SYS_TABLESPACES and SYS_DATAFILES */
 	err = dict_replace_tablespace_and_filepath(
 		tablespace->space_id(), tablespace->name(),

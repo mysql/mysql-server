@@ -3782,7 +3782,7 @@ prepare_inplace_drop_virtual(
 
 	return(false);
 }
-
+#ifdef INNODB_NO_NEW_DD
 /** Insert a new record to INNODB SYS_VIRTUAL
 @param[in] table	InnoDB table
 @param[in] pos		virtual column column no
@@ -4192,7 +4192,7 @@ innobase_drop_virtual_try(
 
 	return(false);
 }
-
+#endif /* INNODB_NO_NEW_DD */
 /** Adjust the create index column number from "New table" to
 "old InnoDB table" while we are doing dropping virtual column. Since we do
 not create separate new table for the dropping/adding virtual columns.
@@ -5463,7 +5463,7 @@ innobase_check_foreign_key_index(
 
 	return(false);
 }
-
+#ifdef INNODB_NO_NEW_DD
 /**
 Rename a given index in the InnoDB data dictionary.
 
@@ -5571,7 +5571,7 @@ rename_indexes_in_data_dictionary(
 
 	DBUG_RETURN(false);
 }
-
+#endif /* INNODB_NO_DD_TABLE */
 /**
 Rename a given index in the InnoDB data dictionary cache.
 
@@ -7090,7 +7090,7 @@ innobase_rename_column_try(
 	if (new_clustered) {
 		goto rename_foreign;
 	}
-
+#ifdef INNODB_NO_NEW_DD
 	info = pars_info_create();
 
 	pars_info_add_ull_literal(info, "tableid", user_table->id);
@@ -7163,7 +7163,7 @@ err_exit:
 			}
 		}
 	}
-
+#endif /* INNODB_NO_NEW_DD */
 rename_foreign:
 	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
 
@@ -7260,6 +7260,13 @@ rename_foreign:
 
 	trx->op_info = "";
 	DBUG_RETURN(false);
+#ifndef INNODB_NO_NEW_DD
+err_exit:
+	my_error_innodb(error, table_name, 0);
+	trx->error_state = DB_SUCCESS;
+	trx->op_info = "";
+	DBUG_RETURN(true);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Rename columns in the data dictionary tables.
@@ -7328,7 +7335,7 @@ processed_field:
 
 	return(false);
 }
-
+#ifdef INNODB_NO_NEW_DD
 /** Enlarge a column in the data dictionary tables.
 @param user_table InnoDB table that was being altered
 @param trx data dictionary transaction
@@ -7481,7 +7488,7 @@ innobase_enlarge_columns_try(
 
 	return(false);
 }
-
+#endif /* INNODB_NO_NEW_DD */
 /** Rename or enlarge columns in the data dictionary cache
 as part of commit_cache_norebuild().
 @param ha_alter_info Data used during in-place alter.
@@ -7685,7 +7692,8 @@ innobase_update_foreign_try(
 				 fk->id);
 			DBUG_RETURN(true);
 		}
-
+	/* NewDD TODO: Remove this too, once we don't depend on SYS_FOREIGN */
+//#ifdef INNODB_NO_NEW_DD
 		if (!fk->foreign_index) {
 			fk->foreign_index = dict_foreign_find_index(
 				ctx->new_table, ctx->col_names,
@@ -7716,8 +7724,10 @@ innobase_update_foreign_try(
 				 fk->id);
 			DBUG_RETURN(true);
 		}
+//#endif /* INNODB_NO_NEW_DD */
 	}
-
+	/* NewDD TODO: Remove this too, once we don't depend on SYS_FOREIGN */
+//#ifdef INNODB_NO_NEW_DD
 	for (i = 0; i < ctx->num_to_drop_fk; i++) {
 		dict_foreign_t* fk = ctx->drop_fk[i];
 
@@ -7727,7 +7737,7 @@ innobase_update_foreign_try(
 			DBUG_RETURN(true);
 		}
 	}
-
+//#endif /* INNODB_NO_NEW_DD */
 	DBUG_RETURN(false);
 }
 
@@ -7777,7 +7787,8 @@ innobase_update_foreign_cache(
 			dict_foreign_remove_from_cache(fk);
 		}
 	}
-
+	/* NewDD TODO: Replace this with dd_table_load_fk(), etc. */
+//#ifdef INNODB_NO_NEW_DD
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
@@ -7834,7 +7845,7 @@ innobase_update_foreign_cache(
 
 		fk_tables.pop_front();
 	}
-
+//#endif /* INNODB_NO_NEW_DD */
 	DBUG_RETURN(err);
 }
 
@@ -7887,7 +7898,7 @@ commit_try_rebuild(
 		DBUG_RETURN(true);
 	}
 
-	dberr_t	error;
+	dberr_t	error = DB_SUCCESS;
 
 	/* Clear the to_be_dropped flag in the data dictionary cache
 	of user_table. */
@@ -7945,14 +7956,15 @@ commit_try_rebuild(
 			DBUG_RETURN(true);
 		}
 	}
-
+	/* NewDD TODO: Disable this once we don't depend on SYS_FOREIGN* */
+//#ifdef INNODB_NO_NEW_DD
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NAME)
 	    && innobase_rename_columns_try(ha_alter_info, ctx, old_table,
 					   trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-
+//#endif /* INNODB_NO_NEW_DD */
 	DBUG_EXECUTE_IF("ib_ddl_crash_before_rename", DBUG_SUICIDE(););
 
 	/* The new table must inherit the flag from the
@@ -7961,7 +7973,7 @@ commit_try_rebuild(
 		rebuilt_table->ibd_file_missing = true;
 		rebuilt_table->flags2 |= DICT_TF2_DISCARDED;
 	}
-
+#ifdef INNODB_NO_NEW_DD
 	/* We can now rename the old table as a temporary table,
 	rename the new temporary table as the old table and drop the
 	old table. First, we only do this in the data dictionary
@@ -7971,7 +7983,7 @@ commit_try_rebuild(
 
 	error = row_merge_rename_tables_dict(
 		user_table, rebuilt_table, ctx->tmp_name, trx);
-
+#endif /* INNODB_NO_NEW_DD */
 	/* We must be still holding a table handle. */
 	DBUG_ASSERT(user_table->get_ref_count() >= 1);
 
@@ -8139,7 +8151,7 @@ commit_try_norebuild(
 	if (innobase_update_foreign_try(ctx, trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-
+#ifdef INNODB_NO_NEW_DD
 	dberr_t	error;
 
 	/* We altered the table in place. Mark the indexes as committed. */
@@ -8194,14 +8206,14 @@ commit_try_norebuild(
 			DBUG_RETURN(true);
 		}
 	}
-
+#endif /* INNODB_NO_NEW_DD */
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NAME)
 	    && innobase_rename_columns_try(ha_alter_info, ctx, old_table,
 					   trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-
+#ifdef INNODB_NO_NEW_DD
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)
 	    && innobase_enlarge_columns_try(ha_alter_info, old_table,
@@ -8209,13 +8221,11 @@ commit_try_norebuild(
 		DBUG_RETURN(true);
 	}
 
-#ifdef INNODB_DD_TABLE
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::RENAME_INDEX)
 	    && rename_indexes_in_data_dictionary(ctx, ha_alter_info, trx)) {
 		DBUG_RETURN(true);
 	}
-#endif /* INNODB_DD_TABLE */
 
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
@@ -8232,7 +8242,7 @@ commit_try_norebuild(
 		    ctx->old_table, trx)) {
 		DBUG_RETURN(true);
 	}
-
+#endif /* INNODB_NO_NEW_DD */
 	DBUG_RETURN(false);
 }
 
@@ -8326,9 +8336,9 @@ commit_cache_norebuild(
 
 		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 		row_merge_drop_indexes_dict(trx, ctx->new_table->id);
-#endif /* INNODB_DD_TABLE */
+#endif /* INNODB_NO_NEW_DD */
 
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 			dict_index_t*	index = ctx->drop_index[i];
@@ -8824,8 +8834,9 @@ ha_innobase::commit_inplace_alter_table_impl(
 			trx_rollback_for_mysql(trx);
 		} else {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+#ifdef INNODB_NO_NEW_DD
 			ut_ad(trx_is_rseg_updated(trx));
-
+#endif /* INNODB_NO_NEW_DD */
 			if (mtr.get_log()->size() > 0) {
 				ut_ad(*mtr.get_log()->front()->begin()
 				      == MLOG_FILE_RENAME2);

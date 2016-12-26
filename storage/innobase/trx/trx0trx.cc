@@ -2121,8 +2121,9 @@ trx_commit_low(
 	assert_trx_nonlocking_or_in_list(trx);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 	ut_ad(!mtr || mtr->is_active());
+#ifdef INNODB_NO_NEW_DD
 	ut_ad(!mtr == !(trx_is_rseg_updated(trx)));
-
+#endif /* INNODB_NO_NEW_DD */
 	/* undo_no is non-zero if we're doing the final commit. */
 	if (trx->fts_trx != NULL && trx->undo_no != 0) {
 		dberr_t	error;

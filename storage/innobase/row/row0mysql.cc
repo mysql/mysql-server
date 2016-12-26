@@ -2983,7 +2983,9 @@ row_create_table_for_mysql(
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
+#ifdef INNODB_NO_NEW_DD
 	tab_node_t*	node;
+#endif /* INNODB_NO_NEW_DD */
 	mem_heap_t*	heap;
 	que_thr_t*	thr = NULL;
 	dberr_t		err;
@@ -3031,7 +3033,7 @@ row_create_table_for_mysql(
 
 	heap = mem_heap_create(512);
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 	table->skip_step = true;
 
 	node = tab_create_graph_create(table, heap);
@@ -3046,7 +3048,7 @@ row_create_table_for_mysql(
 	err = trx->error_state;
 
 	table->skip_step = false;
-#endif /* INNODB_DD_TABLE */
+#endif /* INNODB_NO_NEW_DD */
 
 	if (err == DB_SUCCESS) {
 		heap = mem_heap_create(512);
@@ -3061,7 +3063,7 @@ row_create_table_for_mysql(
 
 		ut_ad(dict_table_is_file_per_table(table));
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
 		file-per-table tablespace was created. */
 		char*	path;
@@ -3184,9 +3186,11 @@ row_create_index_for_mysql(
 					large. */
 	dict_table_t*	handler)	/*!< in/out: table handler. */
 {
+#ifdef INNODB_NO_NEW_DD
 	ind_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
+#endif /* INNODB_NO_NEW_DD */
 	dberr_t		err;
 	ulint		i;
 	ulint		len;
@@ -3275,7 +3279,7 @@ row_create_index_for_mysql(
 			goto error_handling;
 		}
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 		index->skip_step = true;
 
 		/* Note that the space id where we store the index is
@@ -3299,7 +3303,7 @@ row_create_index_for_mysql(
 		que_graph_free((que_t*) que_node_get_parent(thr));
 
 		index->skip_step = false;
-#endif /* INNODB_DD_TABLE */
+#endif /* INNODB_NO_NEW_DD */
 	} else {
 		dict_build_index_def(table, index, trx);
 #ifdef UNIV_DEBUG
@@ -4601,7 +4605,6 @@ row_drop_table_for_mysql(
 	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
 	if (!table->is_temporary()) {
-#ifdef INNODB_DD_TABLE
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -4659,7 +4662,7 @@ row_drop_table_for_mysql(
 		} else {
 			err = DB_SUCCESS;
 		}
-
+#ifdef INNODB_NO_NEW_DD
 		if (err == DB_SUCCESS) {
 			info = pars_info_create();
 			pars_info_add_str_literal(info, "table_name", name);
@@ -4723,7 +4726,7 @@ row_drop_table_for_mysql(
 				, FALSE, trx);
 		}
 
-#endif /* INNODB_DD_TABLE */
+#endif /* INNODB_NO_NEW_DD */
 		/* Note: do not need to write ddl log when
 		dict_table_is_file_per_table(table)) is true.
 		We have to drop index tree because of adaptive
@@ -5288,7 +5291,7 @@ row_rename_table_for_mysql(
 		goto funct_exit;
 	}
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data from system tables. */
 
@@ -5337,7 +5340,10 @@ row_rename_table_for_mysql(
 	if (err != DB_SUCCESS) {
 		goto end;
 	}
+#endif /* INNODB_NO_NEW_DD */
 
+	/* NewDD TODO: This should be disabled too. Currently we still
+	depend on INNODB_SYS_FOREIGN* */
 	if (!new_is_tmp) {
 		/* Rename all constraints. */
 		char	new_table_name[MAX_TABLE_NAME_LEN] = "";
@@ -5464,7 +5470,6 @@ row_rename_table_for_mysql(
 			}
 		}
 	}
-#endif /* INNODB_DD_TABLE */
 
 	if (dict_table_has_fts_index(table)
 	    && !dict_tables_have_same_db(old_name, new_name)) {
@@ -5473,8 +5478,9 @@ row_rename_table_for_mysql(
 			aux_fts_rename = true;
 		}
 	}
-
+#ifdef INNODB_NO_NEW_DD
 end:
+#endif /* INNODB_NO_NEW_DD */
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
 			ib::error() << "Possible reasons:";

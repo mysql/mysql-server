@@ -670,4 +670,7 @@ myisam/sp_defs.h. We only support 2 dimension data */
 /** Hard-coded data dictionary entry */
 # define INNODB_DD_TABLE(name, n_indexes) { name, n_indexes }
 
+/** NewDD TODO: Remove this in WL#9535 */
+#define INNODB_NO_NEW_DD
+
 #endif

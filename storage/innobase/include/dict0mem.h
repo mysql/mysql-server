@@ -1070,11 +1070,11 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
-#ifdef INNODB_DD_TABLE
+//#ifdef INNODB_NO_NEW_DD
 	bool		skip_step;/*!< Skip certain steps in
 				dict_create_index_step(), will be removed
 				in wl#9535 */
-#endif /* INNNODB_DD_TABLE */
+//#endif /* INNNODB_DD_TABLE */
 
 	/** Determine if the index has been committed to the
 	data dictionary.
@@ -1963,11 +1963,11 @@ public:
 	/** remove the dict_table_t from cache after DDL operation */
 	bool					discard_after_ddl;
 
-#ifdef INNODB_DD_TABLE
+//#ifdef INNODB_NO_NEW_DD
 	/** Skip certain step in dict_create_table_step()
 	Note: will be removed in wl#9535 */
 	bool					skip_step;
-#endif /* INNODB_DD_TABLE */
+//#endif /* INNODB_NO_NEW_DD */
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const

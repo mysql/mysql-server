@@ -115,7 +115,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_free(heap);
 	}
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 	if (node->table->id == DICT_INDEXES_ID) {
 
 		ut_ad(!online);

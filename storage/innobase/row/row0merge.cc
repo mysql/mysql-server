@@ -3386,7 +3386,7 @@ row_merge_lock_table(
 
 	return(lock_table_for_trx(table, trx, mode));
 }
-
+#ifdef INNODB_NO_NEW_DD
 /*********************************************************************//**
 Drop an index that was created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
@@ -3430,7 +3430,7 @@ row_merge_drop_index_dict(
 
 	trx->op_info = "";
 }
-
+#endif /* INNODB_NO_NEW_DD */
 /*********************************************************************//**
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
@@ -3623,7 +3623,7 @@ row_merge_drop_indexes(
 				data dictionary and free it from
 				the tablespace, but keep the object
 				in the data dictionary cache. */
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 				row_merge_drop_index_dict(trx, index->id);
 #endif
 
@@ -3642,9 +3642,9 @@ row_merge_drop_indexes(
 		return;
 	}
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 	row_merge_drop_indexes_dict(trx, table->id);
-#endif /* INNODB_DD_TABLE */
+#endif /* INNODB_NO_NEW_DD */
 
 	/* Invalidate all row_prebuilt_t::ins_graph that are referring
 	to this table. That is, force row_get_prebuilt_insert_row() to
@@ -4100,7 +4100,7 @@ row_merge_rename_tables_dict(
 
 	return(err);
 }
-
+#ifdef INNODB_NO_NEW_DD
 /** Create and execute a query graph for creating an index.
 @param[in,out]	trx	trx
 @param[in,out]	table	table
@@ -4143,7 +4143,7 @@ row_merge_create_index_graph(
 
 	DBUG_RETURN(err);
 }
-
+#endif /* INNODB_NO_NEW_DD */
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
 @param[in,out]	table		the index is on this table
@@ -4232,7 +4232,7 @@ row_merge_create_index(
 		DBUG_RETURN(NULL);
 	}
 
-#ifdef INNODB_DD_TABLE
+#ifdef INNODB_NO_NEW_DD
 	index->skip_step = true;
 
 	/* Adjust field name for newly added virtual columns. */
@@ -4256,7 +4256,7 @@ row_merge_create_index(
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(NULL);
 	}
-#endif /* INNODB_DD_TABLE */
+#endif /* INNODB_NO_NEW_DD */
 
 	index->parser = index_def->parser;
 	index->is_ngram = index_def->is_ngram;
