@@ -4170,6 +4170,14 @@ print_table_data_xml(MYSQL_RES *result)
 }
 
 
+static void print_blob_as_hex(FILE *output_file, const char *str, ulong len)
+{
+    const char *ptr= str, *end= ptr + len;
+    for (; ptr < end ; ptr++)
+      fprintf(output_file, "%02X", *((uchar *)ptr));
+}
+
+
 static void
 print_table_data_vertically(MYSQL_RES *result)
 {
@@ -4203,8 +4211,19 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
-        tee_putc('\n', PAGER);
+        if ((field->type == MYSQL_TYPE_BLOB)
+           || ((field->type == MYSQL_TYPE_VAR_STRING) && (field->charsetnr == 63))
+           || ((field->type == MYSQL_TYPE_STRING) && (field->charsetnr == 63)))
+        {
+          tee_fprintf(PAGER, "0x");
+          print_blob_as_hex(PAGER, cur[off], lengths[off]);
+          tee_putc('\n', PAGER);
+        }
+        else
+        {
+          tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
+          tee_putc('\n', PAGER);
+        }
       }
       else
         tee_fprintf(PAGER, "NULL\n");
