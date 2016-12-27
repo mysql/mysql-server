@@ -5485,6 +5485,8 @@ row_rename_table_for_mysql(
 			}
 		}
 	}
+#else
+	err = DB_SUCCESS;
 #endif /* INNODB_NO_NEW_DD */
 
 	if (dict_table_has_fts_index(table)
@@ -5548,6 +5550,7 @@ end:
 			innobase_rename_vc_templ(table);
 		}
 
+#ifdef INNODB_NO_NEW_DD
 		/* We only want to switch off some of the type checking in
 		an ALTER TABLE...ALGORITHM=COPY, not in a RENAME. */
 		dict_names_t	fk_tables;
@@ -5580,7 +5583,7 @@ end:
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 		}
-
+#endif /* INNODB_NO_NEW_DD */
 		/* Check whether virtual column or stored column affects
 		the foreign key constraint of the table. */
 
@@ -5601,11 +5604,13 @@ end:
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
+#ifdef INNODB_NO_NEW_DD
 		while (!fk_tables.empty()) {
 			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}
+#endif
 	}
 
 funct_exit:

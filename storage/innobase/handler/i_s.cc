@@ -5894,6 +5894,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Populate information_schema.innodb_sys_tables table with information
 from SYS_TABLES.
@@ -5958,6 +5959,7 @@ i_s_dict_fill_sys_tables(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to go through each record in SYS_TABLES table, and fill the
 information_schema.innodb_sys_tables table with related table information
@@ -5970,6 +5972,7 @@ i_s_sys_tables_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -6029,6 +6032,9 @@ i_s_sys_tables_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /*******************************************************************//**
@@ -6193,6 +6199,7 @@ static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /** Populate information_schema.innodb_sys_tablestats table with information
 from SYS_TABLES.
 @param[in]	thd		thread ID
@@ -6259,6 +6266,7 @@ i_s_dict_fill_sys_tablestats(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
 Function to go through each record in SYS_TABLES table, and fill the
@@ -6273,6 +6281,7 @@ i_s_sys_tables_fill_table_stats(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -6346,6 +6355,9 @@ i_s_sys_tables_fill_table_stats(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /*******************************************************************//**
@@ -6501,6 +6513,7 @@ static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to populate the information_schema.innodb_sys_indexes table with
 collected index information
@@ -6546,6 +6559,7 @@ i_s_dict_fill_sys_indexes(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to go through each record in SYS_INDEXES table, and fill the
 information_schema.innodb_sys_indexes table with related index information
@@ -6558,6 +6572,7 @@ i_s_sys_indexes_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t		pcur;
 	const rec_t*		rec;
 	mem_heap_t*		heap;
@@ -6613,6 +6628,9 @@ i_s_sys_indexes_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_indexes
@@ -6749,6 +6767,7 @@ static ST_FIELD_INFO	innodb_sys_columns_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to populate the information_schema.innodb_sys_columns with
 related column information
@@ -6793,6 +6812,7 @@ i_s_dict_fill_sys_columns(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to fill information_schema.innodb_sys_columns with information
 collected by scanning SYS_COLUMNS table.
@@ -6805,6 +6825,7 @@ i_s_sys_columns_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	const char*	col_name;
@@ -6862,6 +6883,9 @@ i_s_sys_columns_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_columns
@@ -6971,6 +6995,7 @@ static ST_FIELD_INFO	innodb_sys_virtual_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /** Function to populate the information_schema.innodb_sys_virtual with
 related information
 param[in]	thd		thread
@@ -7004,6 +7029,7 @@ i_s_dict_fill_sys_virtual(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Function to fill information_schema.innodb_sys_virtual with information
 collected by scanning SYS_VIRTUAL table.
@@ -7018,6 +7044,7 @@ i_s_sys_virtual_fill_table(
 	TABLE_LIST*	tables,
 	Item*		)
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	ulint		pos;
@@ -7073,6 +7100,9 @@ i_s_sys_virtual_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_virtual
@@ -7181,6 +7211,7 @@ static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill information_schema.innodb_sys_fields with information
 collected by scanning SYS_FIELDS table.
@@ -7211,6 +7242,7 @@ i_s_dict_fill_sys_fields(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to go through each record in SYS_FIELDS table, and fill the
 information_schema.innodb_sys_fields table with related index field
@@ -7224,6 +7256,7 @@ i_s_sys_fields_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -7285,6 +7318,9 @@ i_s_sys_fields_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_fields
@@ -7412,6 +7448,7 @@ static ST_FIELD_INFO	innodb_sys_foreign_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill information_schema.innodb_sys_foreign with information
 collected by scanning SYS_FOREIGN table.
@@ -7446,6 +7483,7 @@ i_s_dict_fill_sys_foreign(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.innodb_sys_foreign table. Loop
@@ -7460,6 +7498,7 @@ i_s_sys_foreign_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -7512,6 +7551,9 @@ i_s_sys_foreign_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /*******************************************************************//**
@@ -7631,6 +7673,7 @@ static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill information_schema.innodb_sys_foreign_cols with information
 collected by scanning SYS_FOREIGN_COLS table.
@@ -7665,6 +7708,7 @@ i_s_dict_fill_sys_foreign_cols(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.innodb_sys_foreign_cols table. Loop
 through each record in SYS_FOREIGN_COLS, and extract the foreign key column
@@ -7678,6 +7722,8 @@ i_s_sys_foreign_cols_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
+
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -7733,6 +7779,9 @@ i_s_sys_foreign_cols_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols
@@ -7906,6 +7955,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES with information
 collected by scanning SYS_TABLESPACESS table.
@@ -7920,6 +7970,7 @@ i_s_dict_fill_sys_tablespaces(
 	ulint		flags,		/*!< in: tablespace flags */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
+
 	Field**		fields;
 	ulint		atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
 	bool		is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
@@ -8033,6 +8084,7 @@ i_s_dict_fill_sys_tablespaces(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES table.
@@ -8047,6 +8099,7 @@ i_s_sys_tablespaces_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -8101,6 +8154,9 @@ i_s_sys_tablespaces_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES

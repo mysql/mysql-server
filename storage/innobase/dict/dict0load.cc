@@ -64,6 +64,7 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_VIRTUAL"
 };
 
+#ifdef INNODB_NO_NEW_DD
 /** Loads a table definition and also all its index definitions.
 
 Loads those foreign key constraints whose referenced table is already in
@@ -89,6 +90,7 @@ dict_load_table_one(
 	bool			cached,
 	dict_err_ignore_t	ignore_err,
 	dict_names_t&		fk_tables);
+#endif /* INNODB_NO_NEW_DD */
 
 /** Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
@@ -854,6 +856,7 @@ dict_process_sys_virtual_rec(
 	return(err_msg);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Loads SYS_VIRTUAL info for one virtual column
 @param[in,out]	table		table
 @param[in]	nth_v_col	virtual column sequence num
@@ -966,6 +969,7 @@ dict_load_virtual(
 		dict_load_virtual_one_col(table, i, v_col, heap);
 	}
 }
+#endif /* INNODB_NO_NEW_DD */
 /** Error message for a delete-marked record in dict_load_field_low() */
 static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 
@@ -2067,6 +2071,7 @@ dict_check_sys_tables(
 	DBUG_RETURN(max_space_id);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 Loads definitions for table columns. */
 static
@@ -2179,6 +2184,7 @@ next_rec:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /********************************************************************//**
 Loads definitions for index fields.
@@ -2699,19 +2705,22 @@ dict_load_table(
 	bool		cached,
 	dict_err_ignore_t ignore_err)
 {
+#ifdef INNODB_NO_NEW_DD
 	dict_names_t			fk_list;
-	dict_table_t*			result;
 	dict_names_t::iterator		i;
 	table_name_t			table_name;
+#endif /* INNODB_NO_NEW_DD */
+	dict_table_t*			result;
 
 	DBUG_ENTER("dict_load_table");
 	DBUG_PRINT("dict_load_table", ("loading table: '%s'", name));
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	table_name.m_name = const_cast<char*>(name);
-
 	result = dict_table_check_if_in_cache_low(name);
+
+#ifdef INNODB_NO_NEW_DD
+	table_name.m_name = const_cast<char*>(name);
 
 	if (!result) {
 		result = dict_load_table_one(table_name, cached, ignore_err,
@@ -2731,6 +2740,7 @@ dict_load_table(
 			fk_list.pop_front();
 		}
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	DBUG_RETURN(result);
 }
@@ -2852,6 +2862,7 @@ dict_load_tablespace(
 	ut_free(filepath);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Loads a table definition and also all its index definitions.
 
 Loads those foreign key constraints whose referenced table is already in
@@ -3112,6 +3123,7 @@ func_exit:
 
 	DBUG_RETURN(table);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /***********************************************************************//**
 Loads a table object based on the table id.
@@ -3230,6 +3242,7 @@ dict_load_sys_table(
 	mem_heap_free(heap);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 Loads foreign key constraint col names (also for the referenced table).
 Members that must be set (and valid) in foreign:
@@ -3717,3 +3730,4 @@ load_next_index:
 
 	DBUG_RETURN(DB_SUCCESS);
 }
+#endif /* INNODB_NO_NEW_DD */

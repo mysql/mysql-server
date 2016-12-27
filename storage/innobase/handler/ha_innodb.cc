@@ -16950,6 +16950,7 @@ ha_innobase::truncate(dd::Table *table_def)
 			dd_set_autoinc(table_def->se_private_data(), 0);
 		}
 
+#ifdef INNODB_NO_NEW_DD
 		dict_names_t	fk_tables;
 
 		mutex_enter(&dict_sys->mutex);
@@ -16969,6 +16970,7 @@ ha_innobase::truncate(dd::Table *table_def)
 				"Truncate table '%s' failed to load some"
 				" foreign key constraints.", name);
 		}
+#endif /* INNODB_NO_NEW_DD */
 	}
 
 	ut_free(name);
