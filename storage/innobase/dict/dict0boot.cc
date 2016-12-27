@@ -188,7 +188,9 @@ dict_hdr_create(
 {
 	buf_block_t*	block;
 	dict_hdr_t*	dict_header;
+#ifdef INNODB_NO_NEW_DD
 	ulint		root_page_no;
+#endif /* INNODB_NO_NEW_DD */
 
 	ut_ad(mtr);
 
@@ -219,6 +221,7 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_MIX_ID_LOW,
 			 DICT_HDR_FIRST_ID, MLOG_4BYTES, mtr);
 
+#ifdef INNODB_NO_NEW_DD
 	/* Create the B-tree roots for the clustered indexes of the basic
 	system tables */
 
@@ -278,6 +281,7 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_FIELDS, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
+#endif /* INNODB_NO_NEW_DD */
 
 	return(TRUE);
 }
@@ -512,12 +516,14 @@ dict_boot(void)
 
 		err = DB_ERROR;
 	} else {
+#ifdef INNODB_NO_NEW_DD
 		/* Load definitions of other indexes on system tables */
 
 		dict_load_sys_table(dict_sys->sys_tables);
 		dict_load_sys_table(dict_sys->sys_columns);
 		dict_load_sys_table(dict_sys->sys_indexes);
 		dict_load_sys_table(dict_sys->sys_fields);
+#endif /* INNODB_NO_NEW_DD */
 	}
 
 	mutex_exit(&dict_sys->mutex);
@@ -525,6 +531,7 @@ dict_boot(void)
 	return(err);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*****************************************************************//**
 Inserts the basic system table data into themselves in the database
 creation. */
@@ -535,6 +542,7 @@ dict_insert_initial_data(void)
 {
 	/* Does nothing yet */
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*****************************************************************//**
 Creates and initializes the data dictionary at the server bootstrap.
@@ -554,9 +562,11 @@ dict_create(void)
 
 	dberr_t	err = dict_boot();
 
+#ifdef INNODB_NO_NEW_DD
 	if (err == DB_SUCCESS) {
 		dict_insert_initial_data();
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	return(err);
 }

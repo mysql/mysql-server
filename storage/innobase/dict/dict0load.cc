@@ -1606,11 +1606,13 @@ dict_replace_tablespace_and_filepath(
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
+#ifdef INNODB_NO_NEW_DD
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
 	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_replace_tablespace_in_dictionary(
 		space_id, name, fsp_flags, filepath, trx, false);
+#endif /* INNODB_NO_NEW_DD */
 
 	trx_commit_for_mysql(trx);
 	trx->dict_operation_lock_mode = 0;

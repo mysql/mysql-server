@@ -46,6 +46,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "dict0stats.h"
 
+#ifdef INNODB_NO_NEW_DD
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
 in the SYS_TABLES system table.
@@ -373,6 +374,7 @@ dict_build_table_def_step(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]	table	dict table object
@@ -444,7 +446,7 @@ dict_build_tablespace(
 		os_file_delete(innodb_data_file_key, datafile->filepath());
 		return(err);
 	}
-#endif
+#endif /* INNODB_NO_NEW_DD */
 
 	mtr_start(&mtr);
 	mtr.set_named_space(space);
@@ -593,6 +595,7 @@ dict_build_tablespace_for_table(
 	return(DB_SUCCESS);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /***************************************************************//**
 Builds a column definition to insert. */
 static
@@ -923,6 +926,7 @@ dict_build_index_def_step(
 
 	return(DB_SUCCESS);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /***************************************************************//**
 Builds an index definition without updating SYSTEM TABLES.
@@ -966,6 +970,7 @@ dict_build_index_def(
 	index->trx_id = trx->id;
 }
 
+#ifdef INNODB_NO_NEW_DD
 /***************************************************************//**
 Builds a field definition row to insert. */
 static
@@ -1062,6 +1067,7 @@ dict_create_index_tree_step(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
@@ -1123,6 +1129,7 @@ dict_create_index_tree_in_mem(
 	return(err);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Drop the index tree associated with a row in SYS_INDEXES table.
 @param[in,out]	rec	SYS_INDEXES record
 @param[in,out]	pcur	persistent cursor on rec
@@ -1186,6 +1193,7 @@ dict_drop_index_tree(
 
 	return(true);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Drop an index tree
 @param[in]	index		dict index
@@ -1326,6 +1334,7 @@ ind_create_graph_create(
 	return(node);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return query thread to run next or NULL */
@@ -2047,6 +2056,7 @@ dict_create_add_foreign_to_dictionary(
 
 	DBUG_RETURN(error);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Check whether a column is in an index by the column name
 @param[in]	col_name	column name for the column to be checked
@@ -2238,6 +2248,7 @@ dict_foreigns_has_this_col(
 	return(false);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Adds the given set of foreign key objects to the dictionary tables
 in the database. This function does not modify the dictionary cache. The
 caller must ensure that all foreign key objects contain a valid constraint
@@ -2535,6 +2546,7 @@ dict_delete_tablespace_and_datafiles(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID

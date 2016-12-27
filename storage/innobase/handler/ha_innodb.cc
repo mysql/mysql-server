@@ -14707,6 +14707,7 @@ innobase_parse_hint_from_comment(
 		}
 	}
 
+#ifdef INNODB_NO_NEW_DD
 	/* update SYS_INDEX table */
 	if (!table->is_temporary()) {
 		for (uint i = 0; i < table_share->keys; i++) {
@@ -14745,6 +14746,7 @@ innobase_parse_hint_from_comment(
 			}
 		}
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	for (uint i = 0; i < table_share->keys; i++) {
 		is_found[i] = false;
@@ -16495,7 +16497,7 @@ ha_innobase::get_se_private_data(
 {
 	static uint	n_tables = 0;
 	/* TODO: Once SYS_* tables have been removed, no need for 18 here */
-	static uint	n_indexes = 18;
+	static uint	n_indexes = DICT_HDR_FIRST_ID + 1;
 	static uint	n_pages = 3;
 
 #ifdef UNIV_DEBUG
@@ -16526,7 +16528,7 @@ ha_innobase::get_se_private_data(
 	DBUG_ASSERT(dd_table->name() == data.name);
 
 	/* TODO: Once SYS_* tables have been removed, no need for 16 here */
-	dd_table->set_se_private_id(16 + n_tables++);
+	dd_table->set_se_private_id(DICT_HDR_FIRST_ID + 1 + n_tables++);
 	dd_table->set_tablespace_id(dict_sys_t::dd_space_id);
 
 	for (dd::Index *i : *dd_table->indexes()) {
@@ -17502,6 +17504,7 @@ innobase_drop_tablespace(
 	trx_start_if_not_started(trx, true);
 	row_mysql_lock_data_dictionary(trx);
 
+#ifdef INNODB_NO_NEW_DD
 	/* Update SYS_TABLESPACES and SYS_DATAFILES */
 	err = dict_delete_tablespace_and_datafiles(space_id, trx);
 	if (err != DB_SUCCESS) {
@@ -17510,6 +17513,7 @@ innobase_drop_tablespace(
 			<< "`, Space ID " << space_id;
 		goto have_error;
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	/* Delete the physical files, fil_space_t & fil_node_t entries. */
 	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
@@ -17524,7 +17528,9 @@ innobase_drop_tablespace(
 		ib::error() << "Unable to delete the tablespace `"
 			<< dd_space->name()
 			<< "`, Space ID " << space_id;
+#ifdef INNODB_NO_NEW_DD
 have_error:
+#endif /* INNODB_NO_NEW_DD */
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
 	}

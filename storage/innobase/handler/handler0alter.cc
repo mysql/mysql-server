@@ -7003,6 +7003,7 @@ func_exit:
 	DBUG_RETURN(fail);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Drop a FOREIGN KEY constraint from the data dictionary tables.
 @param trx data dictionary transaction
 @param table_name Table name in MySQL
@@ -7053,6 +7054,7 @@ innobase_drop_foreign_try(
 
 	DBUG_RETURN(false);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Rename a column in the data dictionary tables.
 @param[in]	user_table	InnoDB table that was being altered
@@ -7692,8 +7694,7 @@ innobase_update_foreign_try(
 				 fk->id);
 			DBUG_RETURN(true);
 		}
-	/* NewDD TODO: Remove this too, once we don't depend on SYS_FOREIGN */
-//#ifdef INNODB_NO_NEW_DD
+#ifdef INNODB_NO_NEW_DD
 		if (!fk->foreign_index) {
 			fk->foreign_index = dict_foreign_find_index(
 				ctx->new_table, ctx->col_names,
@@ -7724,10 +7725,9 @@ innobase_update_foreign_try(
 				 fk->id);
 			DBUG_RETURN(true);
 		}
-//#endif /* INNODB_NO_NEW_DD */
+#endif /* INNODB_NO_NEW_DD */
 	}
-	/* NewDD TODO: Remove this too, once we don't depend on SYS_FOREIGN */
-//#ifdef INNODB_NO_NEW_DD
+#ifdef INNODB_NO_NEW_DD
 	for (i = 0; i < ctx->num_to_drop_fk; i++) {
 		dict_foreign_t* fk = ctx->drop_fk[i];
 
@@ -7737,7 +7737,7 @@ innobase_update_foreign_try(
 			DBUG_RETURN(true);
 		}
 	}
-//#endif /* INNODB_NO_NEW_DD */
+#endif /* INNODB_NO_NEW_DD */
 	DBUG_RETURN(false);
 }
 
@@ -7787,8 +7787,8 @@ innobase_update_foreign_cache(
 			dict_foreign_remove_from_cache(fk);
 		}
 	}
-	/* NewDD TODO: Replace this with dd_table_load_fk(), etc. */
-//#ifdef INNODB_NO_NEW_DD
+
+#ifdef INNODB_NO_NEW_DD
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
@@ -7845,7 +7845,7 @@ innobase_update_foreign_cache(
 
 		fk_tables.pop_front();
 	}
-//#endif /* INNODB_NO_NEW_DD */
+#endif /* INNODB_NO_NEW_DD */
 	DBUG_RETURN(err);
 }
 
@@ -7956,15 +7956,14 @@ commit_try_rebuild(
 			DBUG_RETURN(true);
 		}
 	}
-	/* NewDD TODO: Disable this once we don't depend on SYS_FOREIGN* */
-//#ifdef INNODB_NO_NEW_DD
+#ifdef INNODB_NO_NEW_DD
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NAME)
 	    && innobase_rename_columns_try(ha_alter_info, ctx, old_table,
 					   trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-//#endif /* INNODB_NO_NEW_DD */
+#endif /* INNODB_NO_NEW_DD */
 	DBUG_EXECUTE_IF("ib_ddl_crash_before_rename", DBUG_SUICIDE(););
 
 	/* The new table must inherit the flag from the

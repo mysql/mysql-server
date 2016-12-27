@@ -3437,7 +3437,7 @@ row_table_add_foreign_constraints(
 			err = DB_DUPLICATE_KEY;);
 
 	DEBUG_SYNC_C("table_add_foreign_constraints");
-#ifndef NEW_DD_FK
+#ifdef INNODB_NO_NEW_DD
 	/* Check like this shouldn't be done for table that doesn't
 	have foreign keys but code still continues to run with void action.
 	Disable it for intrinsic table at-least */
@@ -3453,7 +3453,7 @@ row_table_add_foreign_constraints(
 			fk_tables.pop_front();
 		}
 	}
-#endif /* NEW_DD_FK */
+#endif /* INNODB_NO_NEW_DD */
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 
@@ -4199,7 +4199,9 @@ row_drop_table_from_cache(
 	trx_t*		trx)
 {
 	dberr_t	err = DB_SUCCESS;
+#ifdef INNODB_NO_NEW_DD
 	bool	is_temp = table->is_temporary();
+#endif /* INNODB_NO_NEW_DD */
 
 	/* Remove the pointer to this table object from the list
 	of modified tables by the transaction because the object
@@ -4226,6 +4228,7 @@ row_drop_table_from_cache(
 		table = NULL;
 	}
 
+#ifdef INNODB_NO_NEW_DD
 	if (!is_temp
 	    && dict_load_table(tablename, true,
 			       DICT_ERR_IGNORE_NONE) != NULL) {
@@ -4234,6 +4237,7 @@ row_drop_table_from_cache(
 			<< " from the dictionary cache!";
 		err = DB_ERROR;
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	return(err);
 }
@@ -4302,7 +4306,9 @@ row_drop_table_for_mysql(
 	char*		filepath		= NULL;
 	char*		tablename		= NULL;
 	bool		locked_dictionary	= false;
+#ifdef INNODB_NO_NEW_DD
 	pars_info_t*	info			= NULL;
+#endif /* INNODB_NO_NEW_DD */
 	mem_heap_t*	heap			= NULL;
 	bool		is_intrinsic_temp_table	= false;
 	THD*		thd = trx->mysql_thd;
@@ -4605,6 +4611,7 @@ row_drop_table_for_mysql(
 	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
 	if (!table->is_temporary()) {
+#ifdef INNODB_NO_NEW_DD
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -4662,7 +4669,6 @@ row_drop_table_for_mysql(
 		} else {
 			err = DB_SUCCESS;
 		}
-#ifdef INNODB_NO_NEW_DD
 		if (err == DB_SUCCESS) {
 			info = pars_info_create();
 			pars_info_add_str_literal(info, "table_name", name);
@@ -4916,6 +4922,7 @@ funct_exit:
 	DBUG_RETURN(err);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*******************************************************************//**
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
@@ -4975,6 +4982,7 @@ drop_all_foreign_keys_in_db(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -4987,12 +4995,15 @@ row_drop_database_for_mysql(
 	trx_t*		trx,
 	ulint*		found)
 {
+        return(DB_SUCCESS);
+
+#ifdef INNODB_NO_NEW_DD
 	dict_table_t*	table;
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
 	THD*		thd = current_thd;
-
+        
 	ut_ad(found != NULL);
 
 	DBUG_ENTER("row_drop_database_for_mysql");
@@ -5127,6 +5138,7 @@ loop:
 	trx->op_info = "";
 
 	DBUG_RETURN(err);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /*********************************************************************//**
@@ -5144,6 +5156,7 @@ row_is_mysql_tmp_table_name(
 	/* return(strstr(name, "/@0023sql") != NULL); */
 }
 
+#ifdef INNODB_NO_NEW_DD
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
@@ -5199,6 +5212,7 @@ row_delete_constraint(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*********************************************************************//**
 Renames a table for MySQL.
@@ -5217,7 +5231,9 @@ row_rename_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
+#ifdef INNODB_NO_NEW_DD
 	pars_info_t*	info			= NULL;
+#endif /* INNODB_NO_NEW_DD */
 	int		retry;
 	bool		aux_fts_rename		= false;
 
@@ -5340,7 +5356,6 @@ row_rename_table_for_mysql(
 	if (err != DB_SUCCESS) {
 		goto end;
 	}
-#endif /* INNODB_NO_NEW_DD */
 
 	/* NewDD TODO: This should be disabled too. Currently we still
 	depend on INNODB_SYS_FOREIGN* */
@@ -5470,6 +5485,7 @@ row_rename_table_for_mysql(
 			}
 		}
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	if (dict_table_has_fts_index(table)
 	    && !dict_tables_have_same_db(old_name, new_name)) {

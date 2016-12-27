@@ -1053,9 +1053,13 @@ que_thr_step(
 	} else if (type == QUE_NODE_ROLLBACK) {
 		thr = trx_rollback_step(thr);
 	} else if (type == QUE_NODE_CREATE_TABLE) {
+#ifdef INNODB_NO_NEW_DD
 		thr = dict_create_table_step(thr);
+#endif /* INNODB_NO_NEW_DD */
 	} else if (type == QUE_NODE_CREATE_INDEX) {
+#ifdef INNODB_NO_NEW_DD
 		thr = dict_create_index_step(thr);
+#endif /* INNODB_NO_NEW_DD */
 	} else {
 		ut_error;
 	}

@@ -3430,7 +3430,6 @@ row_merge_drop_index_dict(
 
 	trx->op_info = "";
 }
-#endif /* INNODB_NO_NEW_DD */
 /*********************************************************************//**
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
@@ -3504,6 +3503,7 @@ row_merge_drop_indexes_dict(
 
 	trx->op_info = "";
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*********************************************************************//**
 Drop indexes that were created before an error occurred.
@@ -3699,6 +3699,7 @@ row_merge_drop_indexes(
 	ut_d(dict_table_check_for_dup_indexes(table, CHECK_ALL_COMPLETE));
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*********************************************************************//**
 Drop all partially created indexes during crash recovery. */
 void
@@ -3760,6 +3761,7 @@ row_merge_drop_temp_indexes(void)
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_background(trx);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 
 /** Create temporary merge files in the given paramater path, and if
@@ -3854,6 +3856,7 @@ row_merge_file_destroy(
 	}
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
@@ -3958,6 +3961,7 @@ row_merge_rename_index_to_drop(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*********************************************************************//**
 Provide a new pathname for a table that is being renamed if it belongs to
@@ -3985,6 +3989,7 @@ row_make_new_pathname(
 	return(new_path);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
@@ -4100,7 +4105,7 @@ row_merge_rename_tables_dict(
 
 	return(err);
 }
-#ifdef INNODB_NO_NEW_DD
+
 /** Create and execute a query graph for creating an index.
 @param[in,out]	trx	trx
 @param[in,out]	table	table
@@ -4144,6 +4149,7 @@ row_merge_create_index_graph(
 	DBUG_RETURN(err);
 }
 #endif /* INNODB_NO_NEW_DD */
+
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
 @param[in,out]	table		the index is on this table

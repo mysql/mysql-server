@@ -4590,6 +4590,7 @@ loop:
 			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
+#ifdef INNODB_NO_NEW_DD
 		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
@@ -4598,6 +4599,7 @@ loop:
 			local_fk_set, table, trx);
 
 		if (error == DB_SUCCESS) {
+#endif /* INNODB_NO_NEW_DD */
 
 			table->foreign_set.insert(local_fk_set.begin(),
 						  local_fk_set.end());
@@ -4606,8 +4608,12 @@ loop:
 				      dict_foreign_add_to_referenced_table());
 			local_fk_set.clear();
 			dict_mem_table_fill_foreign_vcol_set(table);
+#ifdef INNODB_NO_NEW_DD
 		}
 		return(error);
+#else
+                return(DB_SUCCESS);
+#endif /* INNODB_NO_NEW_DD */
 	}
 
 	start_of_latest_foreign = ptr;
