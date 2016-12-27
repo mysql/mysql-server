@@ -1463,10 +1463,10 @@ btr_search_drop(dict_index_t* index)
 					continue;
 				}
 
-				const dict_index_t* index =
+				const dict_index_t* found_index =
 					reinterpret_cast<const buf_block_t*>(
 						bpage)->index;
-				if (index != NULL) {
+				if (found_index == index) {
 					drop[n_drop].copy_from(bpage->id);
 					if (++n_drop == DROP_BATCH) {
 						break;
