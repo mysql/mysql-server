@@ -191,3 +191,7 @@ have_query_cache_disabled.inc
 not_sparc_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
+# few test cannot run on Solaris discover
+not_discover.inc
+# test fails on Linux gcov
+have_numa.inc

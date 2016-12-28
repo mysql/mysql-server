@@ -1,4 +1,5 @@
 --source include/linux.inc
+--source include/have_numa.inc
 --source include/have_innodb.inc
 --source include/have_64bit.inc
 
