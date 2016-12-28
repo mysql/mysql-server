@@ -2195,7 +2195,7 @@ func_exit_committed:
 	}
 
 	/** It allows to create tuple with virtual column information. */
-	dtuple_t*	entry	= row_build_index_entry(
+	dtuple_t*	entry	= row_build_index_entry_low(
 		row, NULL, index, heap, ROW_BUILD_FOR_INSERT);
 	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
