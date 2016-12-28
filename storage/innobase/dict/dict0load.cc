@@ -50,6 +50,7 @@ Created 4/24/1996 Heikki Tuuri
 #include <stack>
 #include <set>
 
+#ifdef INNODB_NO_NEW_DD
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
 static const char* SYSTEM_TABLE_NAME[] = {
@@ -64,7 +65,6 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_VIRTUAL"
 };
 
-#ifdef INNODB_NO_NEW_DD
 /** Loads a table definition and also all its index definitions.
 
 Loads those foreign key constraints whose referenced table is already in
@@ -243,6 +243,7 @@ dict_getnext_system_low(
 	return(rec);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 This function opens a system table, and returns the first record.
 @return first record of the system table */
@@ -271,6 +272,7 @@ dict_startscan_system(
 
 	return(rec);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
@@ -1708,6 +1710,7 @@ err_len:
 	return(NULL);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Read and return the contents of a SYS_TABLESPACES record.
 @param[in]	rec	A record of SYS_TABLESPACES
 @param[out]	id	Pointer to the space_id for this table
@@ -1837,6 +1840,7 @@ dict_check_sys_tablespaces(
 
 	DBUG_RETURN(max_space_id);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
 @param[in]	rec		A record of SYS_TABLES
@@ -1920,6 +1924,7 @@ dict_sys_tables_rec_read(
 	return(true);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Load and check each non-predefined tablespace mentioned in SYS_TABLES.
 Search SYS_TABLES and check each tablespace mentioned that has not
 already been added to the fil_system.  If it is valid, add it to the
@@ -2070,6 +2075,7 @@ dict_check_sys_tables(
 
 	DBUG_RETURN(max_space_id);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 #ifdef INNODB_NO_NEW_DD
 /********************************************************************//**

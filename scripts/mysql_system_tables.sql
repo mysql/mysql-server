@@ -4408,3 +4408,60 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SHOW_STATIS
     COLUMN_ORDINAL_POSITION
   FROM information_schema.STATISTICS_BASE);
 
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_TABLES
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_tables AS
+  (SELECT
+    tbl.se_private_id AS `TABLE_ID`,
+    CONCAT(sch.name, "/", tbl.name) AS `NAME`,
+    0 AS `FLAG`,
+    count(*) AS `N_COLS`,
+    IF (idx.tablespace_id < 4, NULL, idx.tablespace_id-3) AS `SPACE`,
+    tbl.row_format AS `ROW_FORMAT`,
+    0 AS `ZIP_PAGE_SIZE`,
+    "System" AS `SPACE_TYPE`
+--    GET_DD_TABLE_PRIVATE_DATA(tbl.se_private_data, 'autoinc') AS PRIVATE_DATA
+  FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+    JOIN mysql.columns col ON tbl.id=col.table_id
+    LEFT JOIN mysql.indexes idx ON tbl.id=idx.table_id and idx.name="PRIMARY"
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND NOT tbl.hidden
+    AND NOT tbl.type = 'VIEW' AND tbl.se_private_id IS NOT NULL
+    AND tbl.engine="INNODB"
+  GROUP BY tbl.id, tbl.name, tbl.se_private_data, idx.tablespace_id
+  UNION
+  SELECT
+    tp.se_private_id AS `TABLE_ID`,
+    CONCAT(sch.name, "/", tbl.name, "#P#", tp.name) AS `NAME`,
+    0 AS `FLAG`,
+    count(*) AS `N_COLS`,
+    IF (ts.id < 4, NULL, ts.id-3) AS `SPACE`,
+    tbl.row_format AS `ROW_FORMAT`,
+    0 AS `ZIP_PAGE_SIZE`,
+    "System" AS `SPACE_TYPE`
+--    GET_DD_TABLE_PRIVATE_DATA(tbl.se_private_data, 'autoinc') AS PRIVATE_DATA
+  FROM mysql.table_partitions tp
+    LEFT JOIN mysql.tables tbl ON tp.table_id=tbl.id
+    JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+    JOIN mysql.columns col ON tbl.id=col.table_id
+    JOIN mysql.tablespaces ts ON tp.tablespace_id=ts.id
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND NOT tbl.hidden
+    AND NOT tbl.type = 'VIEW' AND tbl.se_private_id IS NULL
+    AND tbl.engine="INNODB"
+  GROUP BY tp.name, tp.se_private_id, tbl.id, tbl.name, tbl.se_private_data, ts.id);
+
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_tablespaces AS
+  (SELECT
+    IF (ts.id < 4, NULL, ts.id-3) AS `SPACE`,
+   ts.name AS `NAME`,
+   0 AS `FLAG`,
+   "Dynamic" AS `ROW_FORMAT`,
+   0 AS `PAGE_SIZE`,
+   0 AS `ZIP_PAGE_SIZE`,
+   "System" AS `SPACE_TYPE`
+--    GET_DD_TABLE_PRIVATE_DATA(tbl.se_private_data, 'autoinc') AS PRIVATE_DATA
+  FROM mysql.tablespaces ts
+  WHERE ts.engine="InnoDB" AND ts.id > 3);

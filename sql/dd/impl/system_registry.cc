@@ -142,6 +142,8 @@ void System_views::init()
     "TABLES",
     "TABLES_DYNAMIC",
     "VIEWS",
+    "INNODB_SYS_TABLES",
+    "INNODB_SYS_TABLESPACES",
     nullptr
   };
   for (int i= 0; system_view_names[i] != NULL; ++i)

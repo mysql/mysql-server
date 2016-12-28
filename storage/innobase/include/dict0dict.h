@@ -1974,6 +1974,7 @@ dict_table_decode_n_col(
 	ulint*	n_col,
 	ulint*	n_v_col);
 
+#ifdef INNODB_NO_NEW_DD
 /** Look for any dictionary objects that are found in the given tablespace.
 @param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
@@ -1987,6 +1988,7 @@ dict_space_is_empty(
 space_id_t
 dict_space_get_id(
 	const char*	name);
+#endif /* INNODB_NO_NEW_DD */
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */

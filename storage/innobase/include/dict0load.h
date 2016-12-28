@@ -162,6 +162,7 @@ dict_load_foreigns(
 						foreign key constraints. */
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 This function opens a system table, and return the first record.
 @return first record of the system table */
@@ -172,6 +173,7 @@ dict_startscan_system(
 					the record */
 	mtr_t*		mtr,		/*!< in: the mini-transaction */
 	dict_system_id_t system_id);	/*!< in: which system table to open */
+#endif /* INNODB_NO_NEW_DD */
 /********************************************************************//**
 This function get the next system table record as we scan the table.
 @return the record if found, NULL if end of scan. */

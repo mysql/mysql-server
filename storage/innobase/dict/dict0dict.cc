@@ -6972,6 +6972,7 @@ dict_tf_to_row_format_string(
 	return(0);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Look for any dictionary objects that are found in the given tablespace.
 @param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
@@ -7059,6 +7060,7 @@ dict_space_get_id(
 
 	return(id);
 }
+#endif /* INNODB_NO_NEW_DD */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table

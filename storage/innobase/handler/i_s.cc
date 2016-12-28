@@ -8257,6 +8257,7 @@ static ST_FIELD_INFO	innodb_sys_datafiles_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill INFORMATION_SCHEMA.INNODB_SYS_DATAFILES with information
 collected by scanning SYS_DATAFILESS table.
@@ -8284,6 +8285,7 @@ i_s_dict_fill_sys_datafiles(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.INNODB_SYS_DATAFILES table.
 Loop through each record in SYS_DATAFILES, and extract the column
@@ -8297,6 +8299,7 @@ i_s_sys_datafiles_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
+#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
@@ -8349,6 +8352,9 @@ i_s_sys_datafiles_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
@@ -8601,6 +8607,7 @@ static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
+#ifdef INNODB_NO_NEW_DD
 /** Populate INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
 @param[in]	thd		user thread
 @param[in]	index		populated dict_index_t struct with index info
@@ -8636,6 +8643,7 @@ i_s_fill_innodb_cached_indexes_row(
 
 	DBUG_RETURN(0);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Go through each record in SYS_INDEXES, and fill
 INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
@@ -8649,6 +8657,7 @@ i_s_innodb_cached_indexes_fill_table(
 	TABLE_LIST*	tables,
 	Item*		/* not used */)
 {
+#ifdef INNODB_NO_NEW_DD
 	DBUG_ENTER("i_s_innodb_cached_indexes_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
@@ -8708,6 +8717,9 @@ i_s_innodb_cached_indexes_fill_table(
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
+#else
+	return(0);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.

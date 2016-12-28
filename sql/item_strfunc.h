@@ -1507,5 +1507,26 @@ public:
   String *val_str(String *) override;
 };
 
+class Item_func_get_dd_table_private_data final : public Item_str_func
+{
+public:
+  Item_func_get_dd_table_private_data(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    max_length= 256;
+    maybe_null= false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "get_dd_table_private_data"; }
+
+  String *val_str(String *) override;
+};
 
 #endif /* ITEM_STRFUNC_INCLUDED */

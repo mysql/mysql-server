@@ -5402,6 +5402,182 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
 }
 
 /**
+  @brief
+    This function prepares string representing create_options for table.
+    This is required for IS implementation which uses views on DD tables.
+    In older non-DD model, FRM file had only user options specified in
+    CREATE TABLE statement.
+    With new IS implementation using DD, all internal option values are
+    also stored in options field.
+    So, this UDF filters internal options from user defined options
+
+    Syntax:
+      string get_dd_table_private_data(dd.table.options)
+
+    The arguments accept values from options from 'tables' DD table,
+    as shown above.
+
+ */
+String *Item_func_get_dd_table_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_table_private_data::val_str");
+
+  // Read tables.options
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr=args[0]->val_str(&option)) != nullptr)
+  {
+    bool is_partitioned = args[1]->val_int();
+
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value= 0;
+    char option_buff[350],*ptr;
+    ptr=option_buff;
+
+    if (p->exists("max_rows"))
+    {
+      p->get_uint32("max_rows", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," max_rows=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("min_rows"))
+    {
+      p->get_uint32("min_rows", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," min_rows=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("avg_row_length"))
+    {
+      p->get_uint32("avg_row_length", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," avg_row_length=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("row_type"))
+    {
+      p->get_uint32("row_type", &opt_value);
+      ptr=strxmov(ptr, " row_format=",
+                  ha_row_type[(uint) opt_value],
+                  NullS);
+    }
+
+    if (p->exists("stats_sample_pages"))
+    {
+      p->get_uint32("stats_sample_pages", &opt_value);
+      if (opt_value != 0 )
+      {
+        ptr=my_stpcpy(ptr," stats_sample_pages=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (p->exists("stats_auto_recalc"))
+    {
+      p->get_uint32("stats_auto_recalc", &opt_value);
+      enum_stats_auto_recalc sar= (enum_stats_auto_recalc) opt_value;
+
+      if (sar == HA_STATS_AUTO_RECALC_ON)
+        ptr=my_stpcpy(ptr," stats_auto_recalc=1");
+      else if (sar == HA_STATS_AUTO_RECALC_OFF)
+        ptr=my_stpcpy(ptr," stats_auto_recalc=0");
+    }
+
+    if (p->exists("key_block_size"))
+      p->get_uint32("key_block_size", &opt_value);
+
+    if (opt_value != 0)
+    {
+      ptr=my_stpcpy(ptr," KEY_BLOCK_SIZE=");
+      ptr=longlong10_to_str(opt_value, ptr, 10);
+    }
+
+    if (p->exists("compress"))
+    {
+      dd::String_type opt_value;
+      p->get("compress", opt_value);
+      if (!opt_value.empty())
+      {
+        if (opt_value.size() > 7)
+          opt_value.erase(7, dd::String_type::npos);
+        ptr=my_stpcpy(ptr, " COMPRESSION=\"");
+        ptr=my_stpcpy(ptr, opt_value.c_str());
+        ptr=my_stpcpy(ptr, "\"");
+      }
+    }
+
+    if (p->exists("stats_persistent"))
+    {
+      p->get_uint32("stats_persistent", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," stats_persistent=1");
+      else
+        ptr=my_stpcpy(ptr," stats_persistent=0");
+    }
+
+    if (p->exists("pack_keys"))
+    {
+      p->get_uint32("pack_keys", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," pack_keys=1");
+      else
+        ptr=my_stpcpy(ptr," pack_keys=0");
+    }
+
+    if (p->exists("checksum"))
+    {
+      p->get_uint32("checksum", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," checksum=1");
+    }
+
+    if (p->exists("delay_key_write"))
+    {
+      p->get_uint32("delay_key_write", &opt_value);
+      if (opt_value)
+        ptr=my_stpcpy(ptr," delay_key_write=1");
+    }
+
+    if (p->exists("autoinc"))
+    {
+      p->get_uint32("autoinc", &opt_value);
+      if (opt_value != 0)
+      {
+        ptr=my_stpcpy(ptr," AUTOINC=");
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (is_partitioned)
+      ptr=my_stpcpy(ptr," partitioned");
+
+   if (ptr == option_buff)
+     oss << "";
+   else
+     oss << option_buff+1;
+
+  }
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+/**
   Get collation by name, send error to client on failure.
   @param name     Collation name
   @param name_cs  Character set of the name string
