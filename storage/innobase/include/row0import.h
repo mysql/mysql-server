@@ -63,6 +63,7 @@ row_import_update_discarded_flag(
 						dict_sys_t:: mutex. */
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifdef INNODB_NO_NEW_DD
 /*****************************************************************//**
 Update the (space, root page) of a table's indexes from the values
 in the data dictionary.
@@ -80,6 +81,7 @@ row_import_update_index_root(
 						caller already owns the
 						dict_sys_t:: mutex. */
 	MY_ATTRIBUTE((warn_unused_result));
+#endif /* INNODB_NO_NEW_DD */
 
 #include "row0import.ic"
 

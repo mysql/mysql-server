@@ -3693,13 +3693,16 @@ row_mysql_table_id_reassign(
 	table_id_t*	new_id)
 {
 	dberr_t		err;
+#ifdef INNODB_NO_NEW_DD
 	pars_info_t*	info	= pars_info_create();
+#endif /* INNODB_NO_NEW_DD */
 
 	dict_hdr_get_new_id(new_id, NULL, NULL, table, false);
 
 	/* Remove all locks except the table-level S and X locks. */
 	lock_remove_all_on_table(table, FALSE);
 
+#ifdef INNODB_NO_NEW_DD
 	pars_info_add_ull_literal(info, "old_id", table->id);
 	pars_info_add_ull_literal(info, "new_id", *new_id);
 
@@ -3716,7 +3719,9 @@ row_mysql_table_id_reassign(
 		"UPDATE SYS_VIRTUAL SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"END;\n", FALSE, trx);
-
+#else
+	err = DB_SUCCESS;
+#endif /* INNODB_NO_NEW_DD */
 	return(err);
 }
 
@@ -3899,12 +3904,14 @@ row_discard_tablespace(
 	}
 #endif
 
+#ifdef INNODB_NO_NEW_DD
 	/* Update the index root pages in the system tables, on disk */
 	err = row_import_update_index_root(trx, table, true, true);
 
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	/* Drop all the FTS auxiliary tables. */
 	if (dict_table_has_fts_index(table)

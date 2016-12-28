@@ -3494,6 +3494,7 @@ row_import_read_cfp(
 	return(err);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*****************************************************************//**
 Update the <space, root page> of a table's indexes from the values
 in the data dictionary.
@@ -3609,6 +3610,7 @@ row_import_update_index_root(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Callback arg for row_import_set_discarded. */
 struct discard_t {
@@ -4143,12 +4145,14 @@ row_import_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
+#ifdef INNODB_NO_NEW_DD
 	/* Update the root pages of the table's indexes. */
 	err = row_import_update_index_root(trx, table, false, true);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 #if 0
 	/* Update the table's discarded flag, unset it. */
