@@ -204,6 +204,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
     simulate_error_during_shutdown= SIGSEGV;
     kill(getpid(), SIGABRT);
   }
+
+  if(ERROR_INSERTED(9006)){
+    g_eventLogger->info("Activating error 9006 for SEGV of all nodes");
+    int *invalid_ptr = (int*) 123;
+    printf("%u", *invalid_ptr); // SEGV
+  }
 #endif
 
   if (signal->theData[0] == 9003)
@@ -1951,7 +1957,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #endif
 
-  if (arg == 9999)
+  if (arg == 9999 || arg == 9006)
   {
     Uint32 delay = 1000;
     switch(signal->getLength()){
@@ -1967,8 +1973,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       break;
     }
     }
-    
-    signal->theData[0] = 9999;
+    signal->theData[0] = arg;
     if (delay == 0)
     {
       execNDB_TAMPER(signal);
