@@ -151,11 +151,6 @@ typedef rw_lock_t BPageLock;
 class page_id_t {
 public:
 
-	/** Default constructor */
-	page_id_t() : m_space(), m_page_no(), m_fold()
-	{
-	}
-
 	/** Constructor from (space, page_no).
 	@param[in]	space	tablespace id
 	@param[in]	page_no	page number */
