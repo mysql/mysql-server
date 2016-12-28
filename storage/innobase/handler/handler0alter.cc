@@ -6283,15 +6283,6 @@ ok_exit:
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
 		ctx->m_stage, add_v, eval_table);
 
-	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
-		      || rebuild_templ);
-		dict_free_vc_templ(s_templ);
-		UT_DELETE(s_templ);
-
-		ctx->new_table->vc_templ = old_templ;
-	}
-
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -6300,6 +6291,15 @@ oom:
 		error = row_log_table_apply(
 			ctx->thr, m_prebuilt->table, altered_table,
 			ctx->m_stage);
+	}
+
+	if (s_templ) {
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
+		      || rebuild_templ);
+		dict_free_vc_templ(s_templ);
+		UT_DELETE(s_templ);
+
+		ctx->new_table->vc_templ = old_templ;
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -7494,10 +7494,30 @@ commit_try_rebuild(
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
 
+		dict_vcol_templ_t* s_templ  = NULL;
+
+		if (ctx->new_table->n_v_cols > 0) {
+			s_templ = UT_NEW_NOKEY(
+					dict_vcol_templ_t());
+			s_templ->vtempl = NULL;
+
+			innobase_build_v_templ(
+				altered_table, ctx->new_table, s_templ,
+				NULL, true, NULL);
+			ctx->new_table->vc_templ = s_templ;
+		}
+
 		error = row_log_table_apply(
 			ctx->thr, user_table, altered_table,
 			static_cast<ha_innobase_inplace_ctx*>(
 				ha_alter_info->handler_ctx)->m_stage);
+
+		if (s_templ) {
+			ut_ad(ctx->need_rebuild());
+			dict_free_vc_templ(s_templ);
+			UT_DELETE(s_templ);
+			ctx->new_table->vc_templ = NULL;
+		}
 
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
