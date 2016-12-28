@@ -71,11 +71,11 @@ SET FOREIGN_KEY_CHECKS = 1;
 SET UNIQUE_CHECKS = 1;
 BEGIN;
 INSERT INTO t2 VALUES (4,10);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT trx_state, trx_isolation_level, trx_last_foreign_key_error
 FROM INFORMATION_SCHEMA.INNODB_TRX;
 trx_state	trx_isolation_level	trx_last_foreign_key_error
-RUNNING	REPEATABLE READ	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)
+RUNNING	REPEATABLE READ	`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`) ON DELETE NO ACTION ON UPDATE NO ACTION
 DROP TABLE t2;
 DROP TABLE t1;
 SET GLOBAL innodb_lock_wait_timeout=default;

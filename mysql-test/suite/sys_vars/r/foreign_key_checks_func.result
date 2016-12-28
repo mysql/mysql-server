@@ -23,7 +23,7 @@ SET @@session.foreign_key_checks = 1;
 INSERT INTO t1 values (1),(2),(3);
 INSERT INTO t2 values (10,1);
 INSERT INTO t2 values (20,22);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 '---Check when foreign_key_checks is disabled---'
 TRUNCATE t1;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`b`) REFERENCES `test`.`t1` (`a`))

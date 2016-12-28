@@ -3068,7 +3068,7 @@ ha_innopart::discard_or_import_tablespace(
 {
 	int		error = 0;
 	uint		i;
-	table_id_t	old_table_id;
+	table_id_t	old_table_id = 0;
 
 	DBUG_ENTER("ha_innopart::discard_or_import_tablespace");
 

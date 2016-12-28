@@ -1821,14 +1821,16 @@ dd_fill_dict_table(
 		ut_ad(has_doc_id);
 	}
 
-	ulint	doc_id_col;
 	bool	add_doc_id = false;
 
 	/* Need to add FTS_DOC_ID column if it is not defined by user,
 	since TABLE_SHARE::fields does not contain it if it is a hidden col */
 	if (has_doc_id && doc_col->is_hidden()) {
+#ifdef UNIV_DEBUG
+		ulint	doc_id_col;
 		ut_ad(!create_table_check_doc_id_col(
 			m_thd, m_form, &doc_id_col));
+#endif
 		add_doc_id = true;
 	}
 
@@ -2093,33 +2095,17 @@ dd_tablespace_is_implicit(
         return(fail);
 }
 
-/** Load foreign key constraint for the table. Note, it could also open
-the foreign table, if this table is referenced by the foreign table
-@param[in,out]	client		data dictionary client
-@param[in]	table		MySQL table definition
-@param[in]	tbl_name	Table Name
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
+/** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
-@param[in]	thd		thread THD
 @param[in]	dict_locked	True if dict_sys->mutex is already held,
 				otherwise false
 @return DB_SUCESS 	if successfully load FK constraint */
-static
 dberr_t
-dd_table_load_fk(
-	dd::cache::Dictionary_client*	client,
-	const TABLE*			table,
-	const char*			tbl_name,
-	bool*				uncached,
+dd_table_load_fk_from_dd(
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
-	THD*				thd,
-	bool				dict_locked,
-	dict_names_t&			fk_tables)
+	bool				dict_locked)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -2147,20 +2133,27 @@ dd_table_load_fk(
 		foreign->referenced_table_name = mem_heap_strdup(
 			foreign->heap, norm_name);
 		dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+		ulint	db_len = dict_get_db_name_len(m_table->name.m_name);
 
-		build_table_filename(buf, sizeof(buf),
-				     db_name.c_str(), key->name().c_str(),
-				     NULL, 0, &truncated);
-		ut_ad(!truncated);
-		normalize_table_name(norm_name, buf);
+		ut_ad(db_len > 0);
+
+		memcpy(buf, m_table->name.m_name, db_len);
+
+		buf[db_len] = '\0';
+
+		snprintf(norm_name, sizeof norm_name, "%s/%s",
+			 buf, key->name().c_str());
+
 		foreign->id = mem_heap_strdup(
 			foreign->heap, norm_name);
 
 		switch (key->update_rule()) {
 		case dd::Foreign_key::RULE_NO_ACTION:
+			foreign->type = DICT_FOREIGN_ON_UPDATE_NO_ACTION;
+			break;
 		case dd::Foreign_key::RULE_RESTRICT:
 		case dd::Foreign_key::RULE_SET_DEFAULT:
-			foreign->type = DICT_FOREIGN_ON_UPDATE_NO_ACTION;
+			foreign->type = 0;
 			break;
 		case dd::Foreign_key::RULE_CASCADE:
 			foreign->type = DICT_FOREIGN_ON_UPDATE_CASCADE;
@@ -2174,9 +2167,9 @@ dd_table_load_fk(
 
 		switch (key->delete_rule()) {
 		case dd::Foreign_key::RULE_NO_ACTION:
+			foreign->type |= DICT_FOREIGN_ON_DELETE_NO_ACTION;
 		case dd::Foreign_key::RULE_RESTRICT:
 		case dd::Foreign_key::RULE_SET_DEFAULT:
-			foreign->type |= DICT_FOREIGN_ON_DELETE_NO_ACTION;
 			break;
 		case dd::Foreign_key::RULE_CASCADE:
 			foreign->type |= DICT_FOREIGN_ON_DELETE_CASCADE;
@@ -2241,6 +2234,38 @@ dd_table_load_fk(
 		dict_mem_table_free_foreign_vcol_set(m_table);
 		dict_mem_table_fill_foreign_vcol_set(m_table);
 	}
+	return(err);
+}
+
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]	client		data dictionary client
+@param[in]	table		MySQL table definition
+@param[in]	tbl_name	Table Name
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	thd		thread THD
+@param[in]	dict_locked	True if dict_sys->mutex is already held,
+				otherwise false
+@return DB_SUCESS 	if successfully load FK constraint */
+dberr_t
+dd_table_load_fk(
+	dd::cache::Dictionary_client*	client,
+	const TABLE*			table,
+	const char*			tbl_name,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
+	THD*				thd,
+	bool				dict_locked,
+	dict_names_t&			fk_tables)
+{
+	dberr_t	err = DB_SUCCESS;
+
+	err = dd_table_load_fk_from_dd(m_table, dd_table, dict_locked);
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
 	/* TODO: NewDD: Temporarily use dict_locked to check if it's during
@@ -2504,7 +2529,7 @@ dd_open_table_one(
 	/* Load foreign key info. It could also register child table(s) that
 	refers to current table */
 	if (exist == NULL) {
-		dd_table_load_fk(client, table, norm_name, uncached,
+		dd_table_load_fk(client, table, norm_name,
 				 m_table, &dd_table->table(), thd, false,
 				 fk_list);
 	}

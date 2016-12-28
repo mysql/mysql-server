@@ -225,10 +225,44 @@ dd_mdl_release(
 	THD*		thd,
 	MDL_ticket**	mdl);
 
+/** Load foreign key constraint info for the dd::Table object.
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	dict_locked	True if dict_sys->mutex is already held,
+				otherwise false
+@return DB_SUCESS	if successfully load FK constraint */
+dberr_t
+dd_table_load_fk_from_dd(
+	dict_table_t*		m_table,
+	const dd::Table*	dd_table,
+	bool			dict_locked);
+
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
 void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
+
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]  client          data dictionary client
+@param[in]      table           MySQL table definition
+@param[in]      tbl_name        Table Name
+@param[out]     m_table         InnoDB table handle
+@param[in]      dd_table        Global DD table
+@param[in]      thd             thread THD
+@param[in]      dict_locked     True if dict_sys->mutex is already held,
+                                otherwise false
+@return DB_SUCESS       if successfully load FK constraint */
+dberr_t
+dd_table_load_fk(
+        dd::cache::Dictionary_client*   client,
+        const TABLE*                    table,
+        const char*                     tbl_name,
+        dict_table_t*                   m_table,
+        const dd::Table*                dd_table,
+        THD*                            thd,
+        bool                            dict_locked,
+        dict_names_t&                   fk_tables);
 
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
 based on a Global DD object.
