@@ -2013,7 +2013,8 @@ trx_undo_truncate_tablespace(
 	mtr_t		mtr;
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
+			&mtr, false);
 	mtr_commit(&mtr);
 
 	/* Step-3: Re-initialize rollback segment header that resides

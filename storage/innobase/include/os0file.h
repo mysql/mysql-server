@@ -204,6 +204,11 @@ static const ulint ENCRYPTION_INFO_SIZE_V2 = (ENCRYPTION_MAGIC_SIZE \
 					 + (ENCRYPTION_KEY_LEN * 2) \
 					 + ENCRYPTION_SERVER_UUID_LEN \
 					 + 2 * sizeof(ulint));
+/** Default master key for bootstrap */
+static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
+
+/** Default master key id for bootstrap */
+static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
 
 class IORequest;
 
@@ -261,8 +266,14 @@ struct Encryption {
 
 	/** Check if page is encrypted page or not
 	@param[in]	page	page which need to check
-	@return true if it is a encrypted page */
+	@return true if it is an encrypted page */
 	static bool is_encrypted_page(const byte* page)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if a log block is encrypted or not
+	@param[in]	block	block which need to check
+	@return true if it is an encrypted block */
+	static bool is_encrypted_log(const byte* block)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check the encryption option and set it
@@ -314,14 +325,58 @@ struct Encryption {
 				   byte** master_key,
 				   Encryption::Version*  version);
 
+        /** Fill the encryption information.
+        @param[in]	key		encryption key
+        @param[in]	iv		encryption iv
+        @param[in,out]	encrypt_info	encryption information
+        @param[in]	is_boot		if it's for bootstrap
+	@return true if success. */
+	static bool fill_encryption_info(byte*	key,
+					 byte*	iv,
+					 byte*	encrypt_info,
+					 bool	is_boot);
+
+	/** Decoding the encryption info from the first page of a tablespace.
+	@param[in,out]	key		key
+	@param[in,out]	iv		iv
+	@param[in]	encryption_info	encrytion info.
+	@return true if success */
+	static bool decode_encryption_info(byte*	key,
+					   byte*	iv,
+					   byte*	encryption_info);
+
+	/** Encrypt the redo log block.
+	@param[in]	type		IORequest
+	@param[in,out]	src_ptr		log block which need to encrypt
+	@param[in,out]	dst_ptr		destination area
+	@return true if success. */
+	bool encrypt_log_block(
+		const IORequest&	type,
+		byte*			src_ptr,
+		byte*			dst_ptr);
+
+	/** Encrypt the redo log data contents.
+	@param[in]	type		IORequest
+	@param[in,out]	src		page data which need to encrypt
+	@param[in]	src_len		size of the source in bytes
+	@param[in,out]	dst		destination area
+	@param[in,out]	dst_len		size of the destination in bytes
+	@return buffer data, dst_len will have the length of the data */
+	byte* encrypt_log(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint*			dst_len);
+
 	/** Encrypt the page data contents. Page type can't be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
 	FIL_PAGE_ENCRYPTED_RTREE.
 	@param[in]	type		IORequest
 	@param[in,out]	src		page data which need to encrypt
-	@param[in]	src_len		Size of the source in bytes
+	@param[in]	src_len		size of the source in bytes
 	@param[in,out]	dst		destination area
-	@param[in,out]	dst_len		Size of the destination in bytes
+	@param[in,out]	dst_len		size of the destination in bytes
 	@return buffer data, dst_len will have the length of the data */
 	byte* encrypt(
 		const IORequest&	type,
@@ -331,16 +386,42 @@ struct Encryption {
 		ulint*			dst_len)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Decrypt the log block.
+	@param[in]	type		IORequest
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
+	@param[in,out]	dst		scratch area to use for decryption
+	@return DB_SUCCESS or error code */
+	dberr_t decrypt_log_block(
+		const IORequest&	type,
+		byte*			src,
+		byte*			dst);
+
+	/** Decrypt the log data contents.
+	@param[in]	type		IORequest
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
+	@param[in]	src_len		source data length
+	@param[in,out]	dst		scratch area to use for decryption
+	@param[in]	dst_len		size of the scratch area in bytes
+	@return DB_SUCCESS or error code */
+	dberr_t decrypt_log(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint			dst_len);
+
 	/** Decrypt the page data contents. Page type must be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
 	FIL_PAGE_ENCRYPTED_RTREE, if not then the source contents are
 	left unchanged and DB_SUCCESS is returned.
 	@param[in]	type		IORequest
-	@param[in,out]	src		Data read from disk, decrypt
+	@param[in,out]	src		data read from disk, decrypt
 					data will be copied to this page
 	@param[in]	src_len		source data length
-	@param[in,out]	dst		Scratch area to use for decrypt
-	@param[in]	dst_len		Size of the scratch area in bytes
+	@param[in,out]	dst		scratch area to use for decrypt
+	@param[in]	dst_len		size of the scratch area in bytes
 	@return DB_SUCCESS or error code */
 	dberr_t decrypt(
 		const IORequest&	type,
@@ -349,6 +430,9 @@ struct Encryption {
 		byte*			dst,
 		ulint			dst_len)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if keyring plugin loaded. */
+	static bool check_keyring();
 
 	/** Encrypt type */
 	Type			m_type;

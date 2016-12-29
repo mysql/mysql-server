@@ -420,7 +420,6 @@ fil_space_get(space_id_t id)
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
-	ut_ad(space == NULL || space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
 /** Returns the latch of a file space.
@@ -2443,6 +2442,7 @@ fil_space_undo_check_if_opened(
 	mutex_enter(&fil_system->mutex);
 
 	fil_space_t*	space	= fil_space_get_by_id(space_id);
+
 	if (space == nullptr) {
 		mutex_exit(&fil_system->mutex);
 		return(DB_TABLESPACE_NOT_FOUND);
@@ -2459,7 +2459,9 @@ fil_space_undo_check_if_opened(
 		mutex_exit(&fil_system->mutex);
 		return(DB_ERROR);
 	}
-	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)) {
+
+	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)
+	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		ib::error() << "Cannot load UNDO tablespace '"
 			<< file_name << "' with flags=" << space->flags;
 		mutex_exit(&fil_system->mutex);
@@ -4645,18 +4647,34 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
-	/* Don't encrypt the log, page 0 of all tablespaces, all pages
-	from the system tablespace. */
-	if (!req_type.is_log() && page_id.page_no() > 0
-	    && space->encryption_type != Encryption::NONE)
-	{
-		req_type.encryption_key(space->encryption_key,
-					space->encryption_klen,
-					space->encryption_iv);
-		req_type.encryption_algorithm(Encryption::AES);
-	} else {
+	/* Don't encrypt page 0 of all tablespaces except redo log
+	tablespace, all pages from the system tablespace. */
+	if (space->encryption_type == Encryption::NONE
+	    || (page_id.page_no() == 0 && !req_type.is_log())) {
 		req_type.clear_encrypted();
+		return;
 	}
+
+	/* For writting redo log, if encryption for redo log is disabled,
+	skip set encryption. */
+	if (req_type.is_log() && req_type.is_write()
+	    && !srv_redo_log_encrypt) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	/* For writting undo log, if encryption for undo log is disabled,
+	skip set encryption. */
+	if (fsp_is_undo_tablespace(space->id)
+	    && !srv_undo_log_encrypt && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	req_type.encryption_key(space->encryption_key,
+				space->encryption_klen,
+				space->encryption_iv);
+	req_type.encryption_algorithm(Encryption::AES);
 }
 
 /** Read or write data. This operation could be asynchronous (aio).
@@ -6324,9 +6342,8 @@ fil_set_encryption(
 	byte*			iv)
 {
 	ut_ad(space_id != TRX_SYS_SPACE);
-	ut_ad(!fsp_is_undo_tablespace(space_id));
 
-	if (fsp_is_system_temporary(space_id)) {
+	if (fsp_is_system_or_temp_tablespace(space_id)) {
 		return(DB_IO_NO_ENCRYPT_TABLESPACE);
 	}
 
@@ -6339,8 +6356,6 @@ fil_set_encryption(
 		return(DB_NOT_FOUND);
 	}
 
-	ut_ad(algorithm != Encryption::NONE);
-	space->encryption_type = algorithm;
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
 	} else {
@@ -6355,6 +6370,9 @@ fil_set_encryption(
 		memcpy(space->encryption_iv,
 		       iv, ENCRYPTION_KEY_LEN);
 	}
+
+	ut_ad(algorithm != Encryption::NONE);
+	space->encryption_type = algorithm;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -6373,13 +6391,26 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
+		/* Encrypted redo log tablespaces is handled in function
+		log_rotate_encryption. */
 		if (fsp_is_system_or_temp_tablespace(space->id)
-		    || fsp_is_undo_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}
 
+		/* Skip the undo tablespace when it's in default
+		key status, since it's the first server startup
+		after bootstrap, and the server uuid is not ready
+		yet. */
+		if (fsp_is_undo_tablespace(space->id)
+		    && Encryption::master_key_id ==
+			ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		/* Rotate the encrypted tablespaces. */
 		if (space->encryption_type != Encryption::NONE) {
 			mtr_start(&mtr);
 			mtr.set_named_space(space->id);

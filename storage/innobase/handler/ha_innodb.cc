@@ -3626,14 +3626,29 @@ innobase_encryption_key_rotation()
                 return(true);
         }
 
+	/* Rotate normal tablespace */
 	ret = !fil_encryption_rotate();
-
-	my_free(master_key);
 
 	/* If rotation failure, return error */
 	if (ret) {
+		my_free(master_key);
+		mutex_exit(&master_key_id_mutex);
 		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		return(ret);
 	}
+
+	/* Rotate log tablespace */
+	ret = !log_rotate_encryption();
+
+	/* If rotation failure, return error */
+	if (ret) {
+		my_free(master_key);
+		mutex_exit(&master_key_id_mutex);
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		return(ret);
+	}
+
+	my_free(master_key);
 
 	/* Release the mutex. */
 	mutex_exit(&master_key_id_mutex);
@@ -20388,6 +20403,11 @@ static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
+static MYSQL_SYSVAR_BOOL(undo_log_encrypt, srv_undo_log_encrypt,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable or disable Encrypt of UNDO tablespace.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The AUTOINC lock modes supported by InnoDB:"
@@ -20565,6 +20585,11 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
   " The ROW_FORMAT value COMPRESSED is not allowed",
   NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC,
   &innodb_default_row_format_typelib);
+
+static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable or disable Encryption of REDO tablespace.",
+  NULL, NULL, FALSE);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
@@ -20767,6 +20792,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(max_undo_log_size),
   MYSQL_SYSVAR(purge_rseg_truncate_frequency),
   MYSQL_SYSVAR(undo_log_truncate),
+  MYSQL_SYSVAR(undo_log_encrypt),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
@@ -20774,6 +20800,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compression_failure_threshold_pct),
   MYSQL_SYSVAR(compression_pad_pct_max),
   MYSQL_SYSVAR(default_row_format),
+  MYSQL_SYSVAR(redo_log_encrypt),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),

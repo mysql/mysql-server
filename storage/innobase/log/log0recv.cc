@@ -1494,9 +1494,7 @@ fil_write_encryption_parse(
 		fprintf(stderr, "Got %lu from redo log:", space->id);
 	}
 #endif
-	if (!fsp_header_decode_encryption_info(key,
-					       iv,
-					       ptr)) {
+	if (!Encryption::decode_encryption_info(key, iv, ptr)) {
 		recv_sys->found_corrupt_log = TRUE;
 		ib::warn() << "Encryption information"
 			<< " in the redo log of space "

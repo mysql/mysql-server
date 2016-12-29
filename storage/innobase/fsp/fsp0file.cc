@@ -637,6 +637,11 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 			m_encryption_key = NULL;
 			m_encryption_iv = NULL;
 			return(DB_CORRUPTION);
+		} else {
+			ib::info()
+				<< "Read encryption metadata from "
+				<< m_filepath << " successfully, encryption"
+				<< " of this tablespace enabled.";
 		}
 
 		if (recv_recovery_is_on()

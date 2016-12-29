@@ -394,6 +394,25 @@ create_log_files(
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
 
+	/* Once the redo log is set to be encrypted,
+	initialize encryption information. */
+	if (srv_redo_log_encrypt) {
+		if (!Encryption::check_keyring()) {
+			ib::error()
+				<< "Redo log encryption is enabled,"
+				<< " but keyring plugin is not loaded.";
+
+			return(DB_ERROR);
+		}
+
+		log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+		err = fil_set_encryption(log_space->id,
+					 Encryption::AES,
+					 NULL,
+					 NULL);
+		ut_ad(err == DB_SUCCESS);
+	}
+
 	logfile0 = fil_node_create(
 		logfilename, static_cast<page_no_t>(srv_log_file_size),
 		log_space, false, false);
@@ -428,6 +447,16 @@ create_log_files(
 	ut_d(recv_no_log_write = false);
 	recv_reset_logs(lsn);
 	log_mutex_exit();
+
+	/* Write encryption information into the first log file header
+	if redo log is set with encryption. */
+	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)) {
+		if (!log_write_encryption(log_space->encryption_key,
+					  log_space->encryption_iv,
+					  true)) {
+			return(DB_ERROR);
+		}
+	}
 
 	return(DB_SUCCESS);
 }
@@ -576,6 +605,113 @@ srv_undo_tablespace_create(
 	return(err);
 }
 
+/** Try to enable encryption of an undo log tablespace.
+@param[in]	space_id	undo tablespace id
+@return DB_SUCCESS if success */
+static
+dberr_t
+srv_undo_tablespace_enable_encryption(
+	space_id_t	space_id)
+{
+	fil_space_t*		space;
+	dberr_t			err;
+
+	if (Encryption::check_keyring() == false) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		return(DB_ERROR);
+	}
+
+	/* Set the space flag, and the encryption metadata
+	will be generated in fsp_header_init later. */
+	space = fil_space_get(space_id);
+	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+		err = fil_set_encryption(space_id,
+					 Encryption::AES,
+					 NULL,
+					 NULL);
+		if (err != DB_SUCCESS) {
+			ib::error() << "Can't set encryption"
+				" metadata for space "
+				<< space->name << ".";
+			return(err);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Try to read encryption metat dat from an undo log file.
+@param[in]	fh		file handle of undo log file
+@param[in]	space		undo tablespace
+@return DB_SUCCESS if success */
+static
+dberr_t
+srv_undo_tablespace_read_encryption(
+	os_pfs_file_t	fh,
+	fil_space_t*	space)
+{
+	IORequest	request;
+	ulint		n_read = 0;
+	size_t		page_size = UNIV_PAGE_SIZE_MAX;
+	dberr_t		err = DB_ERROR;
+
+	byte* first_page_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
+	/* Align the memory for a possible read from a raw device */
+	byte* first_page = static_cast<byte*>(
+		ut_align(first_page_buf, UNIV_PAGE_SIZE));
+
+	/* Don't want unnecessary complaints about partial reads. */
+	request.disable_partial_io_warnings();
+
+	err = os_file_read_no_error_handling(
+		request, fh, first_page, 0, page_size, &n_read);
+
+	if (err != DB_SUCCESS) {
+		ib::info()
+			<< "Cannot read first page of '"
+			<< space->name << "' "
+			<< ut_strerr(err);
+		ut_free(first_page_buf);
+		return(err);
+	}
+
+	ulint			offset;
+	const page_size_t	space_page_size(space->flags);
+
+	offset = fsp_header_get_encryption_offset(space_page_size);
+	ut_ad(offset);
+
+	/* Return if the encryption metadata is empty. */
+	if (memcmp(first_page + offset,
+		   ENCRYPTION_KEY_MAGIC_V2,
+		   ENCRYPTION_MAGIC_SIZE) != 0) {
+		ut_free(first_page_buf);
+		return(DB_SUCCESS);
+	}
+
+	byte	key[ENCRYPTION_KEY_LEN];
+	byte	iv[ENCRYPTION_KEY_LEN];
+	if (fsp_header_get_encryption_key(space->flags, key,
+					  iv, first_page)) {
+
+		space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+		err = fil_set_encryption(space->id,
+					 Encryption::AES,
+					 key,
+					 iv);
+		ut_ad(err == DB_SUCCESS);
+	} else {
+		ut_free(first_page_buf);
+		return(DB_FAIL);
+	}
+
+	ut_free(first_page_buf);
+
+	return(DB_SUCCESS);
+}
+
 /** Fix up an independent undo tablespace if it was in the process of being
 truncated when the server crashed. The truncation will need to be completed.
 @param[in]	space_id	Tablespace ID
@@ -678,9 +814,6 @@ srv_undo_tablespace_open(
 	os_offset_t size = os_file_get_size(fh);
 	ut_a(size != (os_offset_t)-1);
 
-	ret = os_file_close(fh);
-	ut_a(ret);
-
 	/* Load the tablespace into InnoDB's internal
 	data structures. */
 
@@ -703,7 +836,13 @@ srv_undo_tablespace_open(
 	if (fil_node_create(
 		file_name, n_pages, space, false, atomic_write)) {
 
-		err = DB_SUCCESS;
+		/* For encrypted undo tablespaces, check the encryption info
+		in the first page can be decrypt by master key, otherwise,
+		this table can't be open. */
+		err = srv_undo_tablespace_read_encryption(fh, space);
+
+		ret = os_file_close(fh);
+		ut_a(ret);
 	}
 
 	return(err);
@@ -862,6 +1001,35 @@ srv_undo_tablespaces_create()
 			break;
 		}
 
+
+		/* Enable undo log encryption if it's ON. */
+		if (srv_undo_log_encrypt) {
+			mtr_t	mtr;
+
+			err = srv_undo_tablespace_enable_encryption(
+				space_id);
+
+			if (err != DB_SUCCESS) {
+				ib::error() << "Unable to create"
+					<< " encrypted undo tablespace,"
+					<< " please check keyring"
+					<< " plugin is initialized"
+					<< " correctly";
+				return(DB_ERROR);
+			}
+
+			ib::info() << "Undo log encryption is"
+				<<" enabled.";
+
+			mtr_start(&mtr);
+			mtr.set_undo_space(space_id);
+			fsp_header_init(
+				space_id,
+				SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr,
+				true);
+			mtr_commit(&mtr);
+		}
+
 		trx_sys_undo_spaces->push_back(space_id);
 	}
 
@@ -897,7 +1065,8 @@ srv_undo_tablespaces_construct(bool create_new_db)
 		mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
 
 		fsp_header_init(
-			space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+			space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
+			&mtr, create_new_db);
 
 		if (create_new_db) {
 			/* The rollback segments will be created later in
@@ -1124,7 +1293,10 @@ srv_open_tmp_tablespace(
 			mtr_start(&mtr);
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-			fsp_header_init(tmp_space->space_id(), size, &mtr);
+			fsp_header_init(tmp_space->space_id(),
+					size,
+					&mtr,
+					false);
 
 			mtr_commit(&mtr);
 		} else {
@@ -1868,6 +2040,14 @@ srv_start(bool create_new_db)
 				    SRV_LOG_SPACE_FIRST_ID)) {
 			return(srv_init_abort(DB_ERROR));
 		}
+
+		/* Read the first log file header to get the encryption
+		information if it exist. */
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+		    if (!log_read_encryption()) {
+			return(srv_init_abort(DB_ERROR));
+		    }
+		}
 	}
 
 files_checked:
@@ -1895,7 +2075,7 @@ files_checked:
 		mtr_start(&mtr);
 		mtr.set_sys_modified();
 
-		bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
+		bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr, false);
 
 		mtr_commit(&mtr);
 
@@ -2199,7 +2379,7 @@ files_checked:
 	server could crash in middle of key rotation. Some tablespace
 	didn't complete key rotation. Here, we will resume the
 	rotation. */
-	if (!srv_read_only_mode
+	if (!srv_read_only_mode && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 		fil_encryption_rotate();
 	}
