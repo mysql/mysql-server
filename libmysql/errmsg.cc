@@ -88,6 +88,7 @@ const char *client_errors[]=
   "There is an attribute with the same name already",
   "Authentication plugin '%s' reported error: %s",
   "Insecure API function call: '%s' Use instead: '%s'",
+  "File name is too long",
   ""
 };
 

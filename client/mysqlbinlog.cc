@@ -2229,9 +2229,33 @@ err:
 }
 
 
-static int get_dump_flags()
+static uint get_dump_flags()
 {
   return stop_never ? 0 : BINLOG_DUMP_NON_BLOCK;
+}
+
+
+/**
+  Callback function for mysql_binlog_open().
+
+  Sets gtid data in the command packet.
+
+  @param rpl              Replication stream information.
+  @param packet_gtid_set  Pointer to command packet where gtid
+                          data should be stored.
+*/
+static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set)
+{
+  Gtid_set *gtid_set= (Gtid_set *) rpl->gtid_set_arg;
+
+  gtid_set->encode(packet_gtid_set);
+
+  /*
+    Note: we acquire lock in the dump_remote_log_entries()
+    just before mysql_binlog_open() call if GTID used.
+  */
+  global_sid_lock->assert_some_rdlock();
+  global_sid_lock->unlock();
 }
 
 
@@ -2251,16 +2275,10 @@ static int get_dump_flags()
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname)
 {
-  uchar *command_buffer= NULL;
-  size_t command_size= 0;
-  ulong len= 0;
-  size_t logname_len= 0;
   uint server_id= 0;
-  NET* net= NULL;
   my_off_t old_off= start_position_mot;
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval= OK_CONTINUE;
-  enum enum_server_command command= COM_END;
 
   DBUG_ENTER("dump_remote_log_entries");
 
@@ -2273,7 +2291,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   */
   if ((retval= safe_connect()) != OK_CONTINUE)
     DBUG_RETURN(retval);
-  net= &mysql->net;
 
   if ((retval= check_master_version()) != OK_CONTINUE)
     DBUG_RETURN(retval);
@@ -2295,137 +2312,62 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   if (connection_server_id != -1)
     server_id= static_cast<uint>(connection_server_id);
 
-  size_t tlen = strlen(logname);
-  if (tlen > UINT_MAX) 
-  {
-    error("Log name too long.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-  const size_t BINLOG_NAME_INFO_SIZE= logname_len= tlen;
-  
-  if (opt_remote_proto == BINLOG_DUMP_NON_GTID)
-  {
-    command= COM_BINLOG_DUMP;
-    size_t allocation_size= ::BINLOG_POS_OLD_INFO_SIZE +
-      BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
-      ::BINLOG_SERVER_ID_INFO_SIZE + 1;
-    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                              allocation_size, MYF(MY_WME))))
-    {
-      error("Got fatal error allocating memory.");
-      DBUG_RETURN(ERROR_STOP);
-    }
-    uchar* ptr_buffer= command_buffer;
+  /*
+    Ignore HEARBEAT events. They can show up if mysqlbinlog is
+    running with:
 
-    /*
-      COM_BINLOG_DUMP accepts only 4 bytes for the position, so
-      we are forced to cast to uint32.
-    */
-    int4store(ptr_buffer, (uint32) start_position);
-    ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
-    int2store(ptr_buffer, get_dump_flags());
-    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-    int4store(ptr_buffer, server_id);
-    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
-    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
+      --read-from-remote-server
+      --read-from-remote-master=BINLOG-DUMP-GTIDS'
+      --stop-never
+      --stop-never-slave-server-id
 
-    command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
-  }
-  else
+    i.e., acting as a fake slave.
+  */
+  MYSQL_RPL rpl= {0, logname, start_position, server_id,
+                  get_dump_flags() | MYSQL_RPL_SKIP_HEARTBEAT};
+
+  if (opt_remote_proto != BINLOG_DUMP_NON_GTID)
   {
-    command= COM_BINLOG_DUMP_GTID;
+    rpl.flags|= MYSQL_RPL_GTID;
 
     global_sid_lock->rdlock();
-
-    // allocate buffer
-    size_t encoded_data_size= gtid_set_excluded->get_encoded_length();
-    size_t allocation_size=
-      ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
-      ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
-      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
-      encoded_data_size + 1;
-    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                              allocation_size, MYF(MY_WME))))
-    {
-      error("Got fatal error allocating memory.");
-      global_sid_lock->unlock();
-      DBUG_RETURN(ERROR_STOP);
-    }
-    uchar* ptr_buffer= command_buffer;
-
-    int2store(ptr_buffer, get_dump_flags());
-    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-    int4store(ptr_buffer, server_id);
-    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
-    ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-    memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
-    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-    int8store(ptr_buffer, start_position);
-    ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
-    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-    gtid_set_excluded->encode(ptr_buffer);
-    ptr_buffer+= encoded_data_size;
-
-    global_sid_lock->unlock();
-
-    command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    rpl.gtid_set_encoded_size= gtid_set_excluded->get_encoded_length();
+    rpl.fix_gtid_set= fix_gtid_set;
+    rpl.gtid_set_arg= (void *) gtid_set_excluded;
   }
 
-  if (simple_command(mysql, command, command_buffer, command_size, 1))
+  if (mysql_binlog_open(mysql, &rpl))
   {
-    error("Got fatal error sending the log dump command.");
-    my_free(command_buffer);
+    error("Open binlog error: %s", mysql_error(mysql));
     DBUG_RETURN(ERROR_STOP);
   }
-  my_free(command_buffer);
 
   for (;;)
   {
-    const char *error_msg= NULL;
-    Log_event *ev= NULL;
-    Log_event_type type= binary_log::UNKNOWN_EVENT;
-
-    len= cli_safe_read(mysql, NULL);
-    if (len == packet_error)
+    if (mysql_binlog_fetch(mysql, &rpl)) // Error packet
     {
       error("Got error reading packet from server: %s", mysql_error(mysql));
       DBUG_RETURN(ERROR_STOP);
     }
-    if (len < 8 && net->read_pos[0] == 254)
-      break; // end of data
+    else if (rpl.size == 0) // EOF
+      break;
+
     DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
-			len, net->read_pos[5]));
+			rpl.size, mysql->net.read_pos[5]));
     /*
       In raw mode We only need the full event details if it is a 
       ROTATE_EVENT or FORMAT_DESCRIPTION_EVENT
     */
 
-    type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
-
-    /*
-      Ignore HEARBEAT events. They can show up if mysqlbinlog is
-      running with:
-
-        --read-from-remote-server
-        --read-from-remote-master=BINLOG-DUMP-GTIDS'
-        --stop-never
-        --stop-never-slave-server-id
-
-      i.e., acting as a fake slave.
-    */
-    if (type == binary_log::HEARTBEAT_LOG_EVENT)
-      continue;
+    Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
+    Log_event *ev= NULL;
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
-      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                          len - 1, &error_msg,
+      const char *error_msg= NULL;
+      if (!(ev= Log_event::read_log_event((const char*) rpl.buffer + 1,
+                                          rpl.size - 1, &error_msg,
                                           glob_description_event,
                                           opt_verify_binlog_checksum)))
       {
@@ -2436,7 +2378,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         If reading from a remote host, ensure the temp_buf for the
         Log_event class is pointing to the incoming stream.
       */
-      ev->register_temp_buf((char *) net->read_pos + 1);
+      ev->register_temp_buf((char *) rpl.buffer + 1);
     }
 
     {
@@ -2476,8 +2418,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         {
           if (!to_last_remote_log)
           {
-            if ((rev->ident_len != logname_len) ||
-                memcmp(rev->new_log_ident, logname, logname_len))
+            if ((rev->ident_len != rpl.file_name_length) ||
+                memcmp(rev->new_log_ident, logname, rpl.file_name_length))
             {
               reset_temp_buf_and_delete(rev);
               DBUG_RETURN(OK_CONTINUE);
@@ -2496,7 +2438,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
              next binlog file (fake rotate) picked by mysqlbinlog --to-last-log
          */
           old_off= start_position_mot;
-          len= 1; // fake Rotate, so don't increment old_off
+          rpl.size= 1; // fake Rotate, so don't increment old_off
         }
       }
       else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -2510,7 +2452,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         */
         // fake event when not in raw mode, don't increment old_off
         if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
-          len= 1;
+          rpl.size= 1;
         if (raw_mode)
         {
           if (result_file && (result_file != stdout))
@@ -2546,7 +2488,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",
                         DBUG_SET("+d,simulate_fwrite_error"););
-        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        if (my_fwrite(result_file, rpl.buffer + 1, rpl.size - 1, MYF(MY_NABP)))
         {
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
@@ -2566,9 +2508,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       Let's adjust offset for remote log as for local log to produce
       similar text and to have --stop-position to work identically.
     */
-    old_off+= len-1;
+    old_off+= rpl.size - 1;
   }
-
+  mysql_binlog_close(mysql, &rpl);
   DBUG_RETURN(OK_CONTINUE);
 }
 

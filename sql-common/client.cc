@@ -105,6 +105,9 @@
 #include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
 #include "client_settings.h"
 
+#include "rpl_constants.h"            /* mysql_binlog_XXX() */
+#include "log_event.h"                /* Log_event_type */
+
 using std::swap;
 
 #define STATE_DATA(M) \
@@ -5021,6 +5024,232 @@ my_bool mysql_reconnect(MYSQL *mysql)
   DBUG_RETURN(0);
 }
 
+
+/**
+  Open a new replication stream.
+
+  Compose and send COM_BINLOG_DUMP[_GTID] command
+  using information in the MYSQL_RPL structure.
+
+  Caller must set the following MYSQL_RPL's slots:
+  file_name_length, file_name, start_positions, server_id, flags
+  and in case of MYSQL_RPL_GTID: gtid_set_size, gtid_set
+  or fix_gtid_set/fix_gtid_set_arg which is used to compose command packet.
+
+  Note: we treat NULL rpl->file_name as an empty string.
+  If rpl->file_name_length is 0, strlen(rpl->file_name)
+  will be called to set it.
+  If rpl->fix_gtid_set is not NULL it will be called to fill
+  packet gtid set data (rpl->gtid_set is ignored).
+
+  @param  mysql  Connection handle.
+  @param  rpl    Replication stream information.
+
+  @retval  -1  Error.
+  @retval  0   Success.
+*/
+int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl)
+{
+  DBUG_ENTER("mysql_binlog_open");
+  DBUG_ASSERT(mysql);
+  DBUG_ASSERT(rpl);
+
+  enum enum_server_command command;
+  uchar *command_buffer= NULL;
+  size_t command_size= 0;
+
+  /*
+    No need to check mysql->net.vio here as
+    it'll be checked in the simple_command().
+  */
+
+  if (!rpl->file_name)
+  {
+    rpl->file_name= (char *) "";
+    rpl->file_name_length= 0;
+  }
+  else if (rpl->file_name_length == 0)
+    rpl->file_name_length= strlen(rpl->file_name);
+
+  if (rpl->file_name_length > UINT_MAX)
+  {
+    set_mysql_error(mysql, CR_FILE_NAME_TOO_LONG, unknown_sqlstate);
+    DBUG_RETURN(-1);
+  }
+
+  if (rpl->flags & MYSQL_RPL_GTID)
+  {
+    command= COM_BINLOG_DUMP_GTID;
+
+#define GTID_ENCODED_DATA_SIZE 8
+
+    size_t alloc_size= rpl->file_name_length +
+      ::BINLOG_FLAGS_INFO_SIZE +
+      ::BINLOG_SERVER_ID_INFO_SIZE +
+      ::BINLOG_NAME_SIZE_INFO_SIZE +
+      ::BINLOG_POS_INFO_SIZE +
+      ::BINLOG_DATA_SIZE_INFO_SIZE +
+      (rpl->gtid_set_encoded_size ?
+        rpl->gtid_set_encoded_size : GTID_ENCODED_DATA_SIZE) + 1;
+
+    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              alloc_size, MYF(MY_WME))))
+    {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      DBUG_RETURN(-1);
+    }
+
+    uchar* ptr= command_buffer;
+
+    int2store(ptr, rpl->flags);    // Note: we use low 16 bits
+    ptr+= ::BINLOG_FLAGS_INFO_SIZE;
+    int4store(ptr, rpl->server_id);
+    ptr+= ::BINLOG_SERVER_ID_INFO_SIZE;
+    int4store(ptr, static_cast<uint32>(rpl->file_name_length));
+    ptr+= ::BINLOG_NAME_SIZE_INFO_SIZE;
+    memcpy(ptr, rpl->file_name, rpl->file_name_length);
+    ptr+= rpl->file_name_length;
+    int8store(ptr, rpl->start_position);
+    ptr+= ::BINLOG_POS_INFO_SIZE;
+    if (rpl->gtid_set_encoded_size)
+    {
+      int4store(ptr, static_cast<uint32>(rpl->gtid_set_encoded_size));
+      ptr+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+      if (rpl->fix_gtid_set)
+        rpl->fix_gtid_set(rpl, ptr);
+      else
+        memcpy(ptr, rpl->gtid_set_arg, rpl->gtid_set_encoded_size);
+      ptr+= rpl->gtid_set_encoded_size;
+    }
+    else
+    {
+      /* No GTID set data, store 0 as its length. */
+      int4store(ptr, static_cast<uint32>(GTID_ENCODED_DATA_SIZE));
+      ptr+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+      int8store(ptr, static_cast<uint64>(0));
+      ptr+= GTID_ENCODED_DATA_SIZE;
+    }
+
+    command_size= ptr - command_buffer;
+    DBUG_ASSERT(command_size == (alloc_size - 1));
+  }
+  else
+  {
+    command= COM_BINLOG_DUMP;
+    size_t alloc_size= rpl->file_name_length +
+      ::BINLOG_POS_OLD_INFO_SIZE +
+      ::BINLOG_FLAGS_INFO_SIZE +
+      ::BINLOG_SERVER_ID_INFO_SIZE + 1;
+
+    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              alloc_size, MYF(MY_WME))))
+    {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      DBUG_RETURN(-1);
+    }
+
+    uchar* ptr= command_buffer;
+
+    /*
+      COM_BINLOG_DUMP accepts only 4 bytes for the position, so
+      we are forced to cast to uint32.
+    */
+    int4store(ptr, (uint32) rpl->start_position);
+    ptr+= ::BINLOG_POS_OLD_INFO_SIZE;
+    int2store(ptr, rpl->flags);    // note: we use low 16 bits
+    ptr+= ::BINLOG_FLAGS_INFO_SIZE;
+    int4store(ptr, rpl->server_id);
+    ptr+= ::BINLOG_SERVER_ID_INFO_SIZE;
+    memcpy(ptr, rpl->file_name, rpl->file_name_length);
+    ptr+= rpl->file_name_length;
+
+    command_size= ptr - command_buffer;
+    DBUG_ASSERT(command_size == (alloc_size - 1));
+  }
+
+  if (simple_command(mysql, command, command_buffer, command_size, 1))
+  {
+    my_free(command_buffer);
+    DBUG_RETURN(-1);
+  }
+
+  my_free(command_buffer);
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Fetch one event from the server.
+
+  Read one packet and check its validity,
+  set rpl->buffer and rpl->size accordingly.
+
+  @param  mysql  Connection handle.
+  @param  rpl    Replication stream information.
+
+  @retval  -1    Got error packet.
+  @retval  0     Success.
+*/
+int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl)
+{
+  DBUG_ENTER("mysql_binlog_fetch");
+  DBUG_ASSERT(mysql);
+  DBUG_ASSERT(rpl);
+
+  for (;;)
+  {
+    /* Read a packet from the server. */
+    ulong packet_len= cli_safe_read(mysql, NULL);
+
+    NET *net= &mysql->net;
+
+    /* Check if error packet. */
+    if (packet_len == packet_error || packet_len == 0)
+    {
+      DBUG_RETURN(-1);
+    }
+    /* Check if EOF packet. */
+    else if (packet_len < 8 && net->read_pos[0] == 254)
+    {
+      rpl->size= 0;
+      DBUG_RETURN(0);
+    }
+
+    /* Normal packet. */
+    if (rpl->flags & MYSQL_RPL_SKIP_HEARTBEAT)
+    {
+      Log_event_type event_type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
+      if (event_type == binary_log::HEARTBEAT_LOG_EVENT)
+        continue;
+    }
+
+    rpl->buffer= net->read_pos;
+    rpl->size= packet_len;
+    DBUG_RETURN(0);
+  }
+}
+
+
+/**
+  Close replication stream.
+
+  @param  mysql  Connection handle.
+  @param  rpl    Replication stream information.
+*/
+void STDCALL mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl)
+{
+  DBUG_ENTER("mysql_binlog_close");
+  DBUG_ASSERT(mysql);
+  DBUG_ASSERT(rpl);
+
+  end_server(mysql);
+
+  rpl->buffer= 0;
+  rpl->size= 0;
+
+  DBUG_VOID_RETURN;
+}
 
 /**************************************************************************
   Set current database
