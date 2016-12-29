@@ -11,4 +11,4 @@
 ##############################################################################
 
 group_replication.gr_nullable_unique_key_conflict               : BUG#24666169  2016-09-14 Nuno Carvalho Disabled until bug is fixed
-
+group_replication.gr_crud_sql_service                           : BUG#25200952  2016-12-29 SHOW TABLES does locking reads from DD tables.
