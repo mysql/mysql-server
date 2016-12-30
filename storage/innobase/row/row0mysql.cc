@@ -5002,15 +5002,13 @@ row_drop_database_for_mysql(
 	trx_t*		trx,
 	ulint*		found)
 {
-        return(DB_SUCCESS);
-
 #ifdef INNODB_NO_NEW_DD
 	dict_table_t*	table;
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
 	THD*		thd = current_thd;
-        
+
 	ut_ad(found != NULL);
 
 	DBUG_ENTER("row_drop_database_for_mysql");
@@ -5145,6 +5143,8 @@ loop:
 	trx->op_info = "";
 
 	DBUG_RETURN(err);
+#else
+        return(DB_SUCCESS);
 #endif /* INNODB_NO_NEW_DD */
 }
 

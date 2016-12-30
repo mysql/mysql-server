@@ -90,7 +90,6 @@ dict_load_table_one(
 	bool			cached,
 	dict_err_ignore_t	ignore_err,
 	dict_names_t&		fk_tables);
-#endif /* INNODB_NO_NEW_DD */
 
 /** Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
@@ -104,11 +103,13 @@ dict_load_table_low(
 	table_name_t&	name,
 	const rec_t*	rec,
 	dict_table_t**	table);
+#endif /* INNODB_NO_NEW_DD */
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
 my_bool     srv_load_corrupted = FALSE;
 
+#ifdef INNODB_NO_NEW_DD
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Compare the name of an index column.
@@ -243,7 +244,6 @@ dict_getnext_system_low(
 	return(rec);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 This function opens a system table, and returns the first record.
 @return first record of the system table */
@@ -272,7 +272,6 @@ dict_startscan_system(
 
 	return(rec);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
@@ -858,7 +857,6 @@ dict_process_sys_virtual_rec(
 	return(err_msg);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /** Loads SYS_VIRTUAL info for one virtual column
 @param[in,out]	table		table
 @param[in]	nth_v_col	virtual column sequence num
@@ -971,7 +969,6 @@ dict_load_virtual(
 		dict_load_virtual_one_col(table, i, v_col, heap);
 	}
 }
-#endif /* INNODB_NO_NEW_DD */
 /** Error message for a delete-marked record in dict_load_field_low() */
 static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 
@@ -1612,13 +1609,11 @@ dict_replace_tablespace_and_filepath(
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
-#ifdef INNODB_NO_NEW_DD
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
 	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_replace_tablespace_in_dictionary(
 		space_id, name, fsp_flags, filepath, trx, false);
-#endif /* INNODB_NO_NEW_DD */
 
 	trx_commit_for_mysql(trx);
 	trx->dict_operation_lock_mode = 0;
@@ -1710,7 +1705,6 @@ err_len:
 	return(NULL);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /** Read and return the contents of a SYS_TABLESPACES record.
 @param[in]	rec	A record of SYS_TABLESPACES
 @param[out]	id	Pointer to the space_id for this table
@@ -1840,7 +1834,6 @@ dict_check_sys_tablespaces(
 
 	DBUG_RETURN(max_space_id);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
 @param[in]	rec		A record of SYS_TABLES
@@ -1924,7 +1917,6 @@ dict_sys_tables_rec_read(
 	return(true);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /** Load and check each non-predefined tablespace mentioned in SYS_TABLES.
 Search SYS_TABLES and check each tablespace mentioned that has not
 already been added to the fil_system.  If it is valid, add it to the
@@ -2075,9 +2067,7 @@ dict_check_sys_tables(
 
 	DBUG_RETURN(max_space_id);
 }
-#endif /* INNODB_NO_NEW_DD */
 
-#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 Loads definitions for table columns. */
 static
@@ -2190,7 +2180,6 @@ next_rec:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /********************************************************************//**
 Loads definitions for index fields.
@@ -2550,6 +2539,7 @@ dict_load_table_low(
 
 	return(NULL);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /********************************************************************//**
 Using the table->heap, copy the null-terminated filepath into
@@ -2605,9 +2595,11 @@ dict_get_and_save_data_dir_path(
 			dict_mutex_enter_for_mysql();
 		}
 
+#ifdef INNODB_NO_NEW_DD
 		if (path == NULL) {
 			path = dict_get_first_path(table->space);
 		}
+#endif /* INNODB_NO_NEW_DD */
 
 		if (path != NULL) {
 			dict_save_data_dir_path(table, path);
@@ -2679,6 +2671,7 @@ dict_get_and_save_space_name(
 		}
 	}
 
+#ifdef INNODB_NO_NEW_DD
 	/* Read it from the dictionary. */
 	if (srv_sys_tablespaces_open) {
 		if (!dict_mutex_own) {
@@ -2692,6 +2685,7 @@ dict_get_and_save_space_name(
 			dict_mutex_exit_for_mysql();
 		}
 	}
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Loads a table definition and also all its index definitions, and also
@@ -2751,6 +2745,7 @@ dict_load_table(
 	DBUG_RETURN(result);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
 @param[in,out]	heap		A memory heap
@@ -2868,7 +2863,6 @@ dict_load_tablespace(
 	ut_free(filepath);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /** Loads a table definition and also all its index definitions.
 
 Loads those foreign key constraints whose referenced table is already in
@@ -3129,7 +3123,6 @@ func_exit:
 
 	DBUG_RETURN(table);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /***********************************************************************//**
 Loads a table object based on the table id.
@@ -3248,7 +3241,6 @@ dict_load_sys_table(
 	mem_heap_free(heap);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /********************************************************************//**
 Loads foreign key constraint col names (also for the referenced table).
 Members that must be set (and valid) in foreign:

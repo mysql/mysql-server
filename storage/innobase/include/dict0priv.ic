@@ -87,7 +87,9 @@ dict_table_open_on_id_low(
 		    dict_table_t*, table, ut_ad(table->cached),
 		    table->id == table_id);
 	if (table == NULL) {
+#ifdef INNODB_NO_NEW_DD
 		table = dict_load_table_on_id(table_id, ignore_err);
+#endif /* INNODB_NO_NEW_DD */
 	}
 
 	ut_ad(!table || table->cached);
