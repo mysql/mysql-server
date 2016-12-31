@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1758,13 +1758,13 @@ recheck:
   }
   NdbMutex_Unlock(my_thread_data->transport_mutex);
   if (first && wait &&
-      thread_list_header->num_in_list < ((tNoOfParallelTrans + 1) / 2))
+      list_header->num_in_list < ((tNoOfParallelTrans + 1) / 2))
   {
     /**
-     * We will wait for at least 2 milliseconds extra if we haven't yet
+     * We will wait for at least 1 milliseconds extra if we haven't yet
      * received at least half of the number of records we desire to execute.
      */
-    NdbSleep_MicroSleep(2000);
+    NdbSleep_MicroSleep(1000);
     first = false;
     goto recheck;
   }
