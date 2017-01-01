@@ -6,6 +6,7 @@
 # Checking of other prerequisites is in charset_master.test                    #
 ################################################################################
 
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 
 let $engine_type= InnoDB;
