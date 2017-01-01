@@ -134,7 +134,8 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
+               ignore_spaces= 0, sigint_received= 0, opt_syslog= 0,
+               opt_binhex= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -1658,6 +1659,8 @@ static struct my_option my_long_options[] =
   {"bind-address", 0, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-as-hex", 'b', "Print binary data as hex", &opt_binhex, &opt_binhex,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3895,6 +3898,34 @@ print_field_types(MYSQL_RES *result)
 }
 
 
+/* Used to determine if we should invoke print_as_hex for this field */
+my_bool
+is_binary_field(MYSQL_FIELD *field)
+{
+  if ((field->type == MYSQL_TYPE_BLOB)
+     || ((field->type == MYSQL_TYPE_VAR_STRING) && (field->charsetnr == 63))
+     || ((field->type == MYSQL_TYPE_STRING) && (field->charsetnr == 63))
+     || ((field->type == MYSQL_TYPE_GEOMETRY) && (field->charsetnr == 63)))
+    return 1;
+  return 0;
+}
+
+
+/* Print binary value as hex literal (0x...) */
+static void
+print_as_hex(FILE *output_file, const char *str, ulong len, ulong total_bytes_to_send)
+{
+    const char *ptr= str, *end= ptr + len;
+    ulong i;
+
+    fprintf(output_file, "0x");
+    for (; ptr < end ; ptr++)
+      fprintf(output_file, "%02X", *((uchar *)ptr));
+    for (i= 2+len*2; i < total_bytes_to_send; i++)
+      tee_putc((int)' ', output_file);
+}
+
+
 static void
 print_table_data(MYSQL_RES *result)
 {
@@ -3923,6 +3954,8 @@ print_table_data(MYSQL_RES *result)
       length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
+    if (opt_binhex && is_binary_field(field))
+      length=2+length*2;
     field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
@@ -3992,7 +4025,11 @@ print_table_data(MYSQL_RES *result)
       visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
       extra_padding= data_length - visible_length;
 
-      if (field_max_length > MAX_COLUMN_LENGTH)
+      if (opt_binhex && is_binary_field(field))
+      {
+        print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
+      }
+      else if (field_max_length > MAX_COLUMN_LENGTH)
         tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
@@ -4203,8 +4240,16 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
-        tee_putc('\n', PAGER);
+        if (opt_binhex && is_binary_field(field))
+        {
+          print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
+          tee_putc('\n', PAGER);
+        }
+        else
+        {
+          tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
+          tee_putc('\n', PAGER);
+        }
       }
       else
         tee_fprintf(PAGER, "NULL\n");
