@@ -3895,6 +3895,34 @@ print_field_types(MYSQL_RES *result)
 }
 
 
+/* Used to determine if we should invoke print_as_hex for this field */
+my_bool
+is_binary_field(MYSQL_FIELD *field)
+{
+  if ((field->type == MYSQL_TYPE_BLOB)
+     || ((field->type == MYSQL_TYPE_VAR_STRING) && (field->charsetnr == 63))
+     || ((field->type == MYSQL_TYPE_STRING) && (field->charsetnr == 63))
+     || ((field->type == MYSQL_TYPE_GEOMETRY) && (field->charsetnr == 63)))
+    return 1;
+  return 0;
+}
+
+
+/* Print binary value as hex literal (0x...) */
+static void
+print_as_hex(FILE *output_file, const char *str, ulong len, ulong total_bytes_to_send)
+{
+    const char *ptr= str, *end= ptr + len;
+    ulong i;
+
+    fprintf(output_file, "0x");
+    for (; ptr < end ; ptr++)
+      fprintf(output_file, "%02X", *((uchar *)ptr));
+    for (i= 2+len*2; i < total_bytes_to_send; i++)
+      tee_putc((int)' ', output_file);
+}
+
+
 static void
 print_table_data(MYSQL_RES *result)
 {
@@ -3923,6 +3951,8 @@ print_table_data(MYSQL_RES *result)
       length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
+    if (is_binary_field(field))
+      length=2+length*2;
     field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
@@ -3992,7 +4022,11 @@ print_table_data(MYSQL_RES *result)
       visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
       extra_padding= data_length - visible_length;
 
-      if (field_max_length > MAX_COLUMN_LENGTH)
+      if (is_binary_field(field))
+      {
+        print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
+      }
+      else if (field_max_length > MAX_COLUMN_LENGTH)
         tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
@@ -4170,14 +4204,6 @@ print_table_data_xml(MYSQL_RES *result)
 }
 
 
-static void print_blob_as_hex(FILE *output_file, const char *str, ulong len)
-{
-    const char *ptr= str, *end= ptr + len;
-    for (; ptr < end ; ptr++)
-      fprintf(output_file, "%02X", *((uchar *)ptr));
-}
-
-
 static void
 print_table_data_vertically(MYSQL_RES *result)
 {
@@ -4211,12 +4237,9 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        if ((field->type == MYSQL_TYPE_BLOB)
-           || ((field->type == MYSQL_TYPE_VAR_STRING) && (field->charsetnr == 63))
-           || ((field->type == MYSQL_TYPE_STRING) && (field->charsetnr == 63)))
+        if (is_binary_field(field))
         {
-          tee_fprintf(PAGER, "0x");
-          print_blob_as_hex(PAGER, cur[off], lengths[off]);
+          print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
           tee_putc('\n', PAGER);
         }
         else
