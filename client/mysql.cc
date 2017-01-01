@@ -134,7 +134,8 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
+               ignore_spaces= 0, sigint_received= 0, opt_syslog= 0,
+               opt_binhex= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -1658,6 +1659,8 @@ static struct my_option my_long_options[] =
   {"bind-address", 0, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-as-hex", 'b', "Print binary data as hex", &opt_binhex, &opt_binhex,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3951,7 +3954,7 @@ print_table_data(MYSQL_RES *result)
       length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
-    if (is_binary_field(field))
+    if (opt_binhex && is_binary_field(field))
       length=2+length*2;
     field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
@@ -4022,7 +4025,7 @@ print_table_data(MYSQL_RES *result)
       visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
       extra_padding= data_length - visible_length;
 
-      if (is_binary_field(field))
+      if (opt_binhex && is_binary_field(field))
       {
         print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
       }
@@ -4237,7 +4240,7 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        if (is_binary_field(field))
+        if (opt_binhex && is_binary_field(field))
         {
           print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
           tee_putc('\n', PAGER);
