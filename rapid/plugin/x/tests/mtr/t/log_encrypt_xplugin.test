@@ -8,6 +8,9 @@
 --source include/have_innodb_max_16k.inc
 --source include/have_mysqlx_plugin.inc
 
+--let plugins= MYSQLXPLUGIN,KEYRING_PLUGIN
+--source include/check_plugin_dir.inc
+
 # Create a table with encryption, should fail since keyring is not
 # loaded
 --disable_query_log
