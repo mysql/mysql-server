@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -316,13 +316,13 @@ dd_table_close(
 
 /** Set the discard flag for a dd table.
 @param[in,out]	thd	current thread
-@param[in]	name	InnoDB table name
+@param[in]	table	InnoDB table
 @param[in]	discard	discard flag
 @retval false if fail. */
 bool
-dd_table_set_discard_flag(
+dd_table_discard_tablespace(
 	THD*			thd,
-	const char*		name,
+	dict_table_t*		table,
 	bool			discard);
 
 /** Open an internal handle to a persistent InnoDB table by name.

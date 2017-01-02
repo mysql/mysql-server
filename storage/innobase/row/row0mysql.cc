@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3837,9 +3837,7 @@ row_discard_tablespace_end(
 
 	/* Set the TABLESPACE DISCARD flag in the table definition
 	on disk. */
-	dd_table_set_discard_flag(trx->mysql_thd,
-				  table->name.m_name,
-				  true);
+	dd_table_discard_tablespace(trx->mysql_thd, table, true);
 
 	return(err);
 }

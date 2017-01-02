@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -620,13 +620,14 @@ dd_table_open_on_id(
 
 /** Set the discard flag for a dd table.
 @param[in,out]	thd	current thread
-@param[in]	name	InnoDB table name
+@param[in]	table	InnoDB table
+
 @param[in]	discard	discard flag
 @retval false if fail. */
 bool
-dd_table_set_discard_flag(
+dd_table_discard_tablespace(
 	THD*			thd,
-	const char*		name,
+	dict_table_t*		table,
 	bool			discard)
 {
 	char			db_buf[NAME_LEN + 1];
@@ -644,7 +645,7 @@ dd_table_set_discard_flag(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	innobase_parse_tbl_name(name, db_buf, tbl_buf, NULL);
+	innobase_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, NULL);
 
 	if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 		DBUG_RETURN(false);
@@ -664,9 +665,34 @@ dd_table_set_discard_flag(
 					db_buf, tbl_buf, &new_dd_table)) {
 				ut_a(false);
 			}
+
+			/* For discarding, we need to set new private
+			id to dd_table */
+			if (discard) {
+				/* Set the new private id to dd_table object. */
+				new_dd_table->set_se_private_id(table->id);
+			} else {
+				ut_ad(new_dd_table->se_private_id() == table->id);
+			}
+
+			/* Set index root page. */
+			const dict_index_t* index = table->first_index();
+			for (auto dd_index : *new_dd_table->indexes()) {
+				ut_ad(index != NULL);
+
+				dd::Properties& p = dd_index->se_private_data();
+				p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT],
+index->page);
+			}
+
+			/* Set discard flag. */
 			new_dd_table->table().options().set_bool("discard",
 								 discard);
 			client->update(new_dd_table);
+
+			/* Remove uncommitted_ojects for cleaning dd cacahe. */
+			client->remove_uncommitted_objects<dd::Table>(true);
+
 			ret = true;
 		} else {
 			ret = false;
@@ -2480,7 +2506,8 @@ dd_open_table_one(
                 }
 
                 ut_ad(root > 1);
-                ut_ad(index->type & DICT_FTS || root != FIL_NULL);
+                ut_ad(index->type & DICT_FTS || root != FIL_NULL
+			|| dict_table_is_discarded(m_table));
                 ut_ad(id != 0);
 		index->page = root;
 		index->space = sid;
