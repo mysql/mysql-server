@@ -395,6 +395,13 @@ namespace ib {
 			<< std::endl;
 	}
 
+	fatal::~fatal()
+	{
+		std::cerr << "[FATAL] ibd2sdi: " << m_oss.str() << "."
+			<< std::endl;
+		ut_error;
+	}
+
 	/* TODO: Improve Object creation & destruction on DBUG_OFF */
 	class dbug : public logger {
 	public:
