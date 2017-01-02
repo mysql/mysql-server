@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2002, 2005, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "heapdef.h"
+#include "my_dbug.h"
 
 	/* if flag == HA_PANIC_CLOSE then all files are removed for more
 	   memory */

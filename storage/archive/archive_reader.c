@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "azlib.h"
-#include <string.h>
 #include <assert.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "azlib.h"
+#include "my_dbug.h"
 
 #define BUFFER_LEN 1024
 #define ARCHIVE_ROW_HEADER_SIZE 4

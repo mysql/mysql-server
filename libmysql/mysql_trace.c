@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,10 +42,12 @@
 */
 
 #include <my_global.h>
-#include "mysql.h"
-#include "mysql_trace.h"
-#include "mysql/service_mysql_alloc.h"
+
+#include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_trace.h"
 
 /*
   Definition of the global trace_plugin pointer - see plugin_trace.h

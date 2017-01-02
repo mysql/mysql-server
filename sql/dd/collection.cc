@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,14 +21,13 @@
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h" // dd::Raw_record_set
 #include "dd/impl/raw/raw_table.h"      // dd::Raw_table
-
 #include "dd/impl/types/abstract_table_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/column_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/column_type_element_impl.h"  // IWYU pragma: keep
-#include "dd/impl/types/foreign_key_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/foreign_key_element_impl.h"  // IWYU pragma: keep
-#include "dd/impl/types/index_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/foreign_key_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/index_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/index_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/parameter_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/parameter_type_element_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/partition_impl.h"  // IWYU pragma: keep
@@ -36,12 +35,13 @@
 #include "dd/impl/types/partition_value_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/routine_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/table_impl.h"  // IWYU pragma: keep
-#include "dd/impl/types/tablespace_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/tablespace_file_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/tablespace_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/trigger_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/view_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/view_routine_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/view_table_impl.h"  // IWYU pragma: keep
-#include "dd/impl/types/trigger_impl.h"  // IWYU pragma: keep
+#include "my_dbug.h"
 
 namespace dd {
 

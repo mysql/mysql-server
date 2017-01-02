@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,12 +22,12 @@
 
 #include <new>
 
+#include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
 #include "vio_priv.h"
-
-#include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_memory.h"
 
 #ifdef HAVE_OPENSSL
 PSI_memory_key key_memory_vio_ssl_fd;

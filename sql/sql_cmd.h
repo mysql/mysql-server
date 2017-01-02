@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #ifndef SQL_CMD_INCLUDED
 #define SQL_CMD_INCLUDED
 
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "sql_alloc.h"
 

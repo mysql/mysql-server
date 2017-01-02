@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 
 #include "tc_log.h"
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -30,9 +30,10 @@
 #include "log.h"            // sql_print_error
 #include "m_ctype.h"
 #include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_thread_local.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"         // mysql_data_home
 #include "psi_memory_key.h" // key_memory_TC_LOG_MMAP_pages

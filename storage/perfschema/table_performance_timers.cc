@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,12 +18,13 @@
   Table PERFORMANCE_TIMERS (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "table_performance_timers.h"
-#include "pfs_timer.h"
 #include "pfs_global.h"
-#include "field.h"
+#include "pfs_timer.h"
+#include "table_performance_timers.h"
 
 THR_LOCK table_performance_timers::m_table_lock;
 

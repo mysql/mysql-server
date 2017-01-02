@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "gcs_plugin_messages.h"
+
 #include "my_byteorder.h"
+#include "my_dbug.h"
 
 const int Plugin_gcs_message::PLUGIN_GCS_MESSAGE_VERSION= 1;
 

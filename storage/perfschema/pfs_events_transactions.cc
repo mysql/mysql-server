@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,19 +18,20 @@
   Events transactions data structures (implementation).
 */
 
+#include "m_string.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
 #include "pfs_account.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
-#include "pfs_events_transactions.h"
 #include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
-#include "m_string.h"
+#include "pfs_events_transactions.h"
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_user.h"
 
 PFS_ALIGNED ulong events_transactions_history_long_size= 0;
 /** Consumer flag for table EVENTS_TRANSACTIONS_CURRENT. */

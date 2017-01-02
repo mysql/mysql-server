@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -87,13 +87,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0plugin.h"
 #include "fts0priv.h"
 #include "fts0types.h"
-/* Include necessary SQL headers */
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_psi_config.h"
 #include "os0file.h"
@@ -116,7 +116,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "ha_innodb.h"
-/* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 #include "i_s.h"
 #include "lob0lob.h"

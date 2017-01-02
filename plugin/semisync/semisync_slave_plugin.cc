@@ -1,6 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
    Copyright (C) 2008 MySQL AB
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <mysqld_error.h>
 #include <stdlib.h>
 
+#include "my_dbug.h"
 #include "semisync_slave.h"
 
 ReplSemiSyncSlave repl_semisync;

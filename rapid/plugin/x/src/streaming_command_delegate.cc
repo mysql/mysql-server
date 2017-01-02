@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,14 +19,15 @@
 
 #include "streaming_command_delegate.h"
 
-#include "xpl_log.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs_common/protocol_const.h"
-
-#include "decimal.h"
 #include <iostream>
 #include <string>
+
+#include "decimal.h"
+#include "my_dbug.h"
+#include "ngs/protocol/row_builder.h"
+#include "ngs_common/protocol_const.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "xpl_log.h"
 
 using namespace xpl;
 

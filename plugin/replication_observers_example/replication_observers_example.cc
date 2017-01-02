@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,13 @@
   - Server state
  */
 
-#include <mysql/group_replication_priv.h>
 #include <current_thd.h>
+#include <mysql/group_replication_priv.h>
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_rpl_transaction_ctx.h>
+
+#include "my_dbug.h"
 
 static MYSQL_PLUGIN plugin_info_ptr;
 

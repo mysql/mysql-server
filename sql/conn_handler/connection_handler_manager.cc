@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "channel_info.h"              // Channel_info
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
 #include "current_thd.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_psi_config.h"
 #include "my_sys.h"

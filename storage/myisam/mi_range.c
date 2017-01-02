@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
   Used when optimizing querries.
  */
 
+#include "my_dbug.h"
 #include "myisamdef.h"
 #include "rt_index.h"
 

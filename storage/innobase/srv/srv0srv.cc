@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -50,6 +50,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "mem0mem.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "os0proc.h"
 #include "os0thread-create.h"

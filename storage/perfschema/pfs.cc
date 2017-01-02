@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,48 +17,47 @@
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
+#include "mdl.h" /* mdl_key_init */
+#include "my_dbug.h"
 #include "my_global.h"
-#include "thr_lock.h"
-
+#include "my_thread.h"
+#include "mysql/psi/mysql_thread.h"
+#include "pfs.h"
+#include "pfs_account.h"
+#include "pfs_column_values.h"
+#include "pfs_data_lock.h"
+#include "pfs_digest.h"
+#include "pfs_error.h"
+#include "pfs_error_provider.h"
+#include "pfs_events_stages.h"
+#include "pfs_events_statements.h"
+#include "pfs_events_transactions.h"
+#include "pfs_events_waits.h"
 /* Make sure exported prototypes match the implementation. */
 #include "pfs_file_provider.h"
+#include "pfs_global.h"
+#include "pfs_host.h"
 #include "pfs_idle_provider.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_memory_provider.h"
 #include "pfs_metadata_provider.h"
+#include "pfs_prepared_stmt.h"
+#include "pfs_program.h"
+#include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
 #include "pfs_socket_provider.h"
 #include "pfs_stage_provider.h"
 #include "pfs_statement_provider.h"
 #include "pfs_table_provider.h"
 #include "pfs_thread_provider.h"
-#include "pfs_transaction_provider.h"
-#include "pfs_error_provider.h"
-
-#include "mysql/psi/mysql_thread.h"
-#include "my_thread.h"
-#include "sql_const.h"
-#include "pfs.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
-#include "pfs_account.h"
-#include "pfs_global.h"
-#include "pfs_column_values.h"
 #include "pfs_timer.h"
-#include "pfs_events_waits.h"
-#include "pfs_events_stages.h"
-#include "pfs_events_statements.h"
-#include "pfs_events_transactions.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
-#include "sql_error.h"
+#include "pfs_transaction_provider.h"
+#include "pfs_user.h"
 #include "sp_head.h"
-#include "mdl.h" /* mdl_key_init */
-#include "pfs_digest.h"
-#include "pfs_program.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_error.h"
-#include "pfs_data_lock.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "thr_lock.h"
 
 /*
   Exporting cmake compilation flags to doxygen,

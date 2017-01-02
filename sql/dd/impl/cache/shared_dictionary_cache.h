@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "dd/types/table.h"                 // Table
 #include "dd/types/tablespace.h"            // Tablespace
 #include "handler.h"                        // enum_tx_isolation
+#include "my_dbug.h"
 #include "my_global.h"                      // DBUG_ASSERT() etc.
 #include "shared_multi_map.h"               // Shared_multi_map
 

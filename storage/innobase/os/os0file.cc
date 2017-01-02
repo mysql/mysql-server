@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -34,6 +34,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 #include "ha_prototypes.h"
+#include "my_dbug.h"
 #include "os0file.h"
 #include "sql_const.h"
 #include "srv0srv.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,27 +23,28 @@ File space management
 Created 11/29/1995 Heikki Tuuri
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-
-#include "fsp0fsp.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
+#include "fsp0fsp.h"
+#include "ha_prototypes.h"
 #include "mtr0log.h"
-#include "ut0byte.h"
+#include "my_dbug.h"
 #include "page0page.h"
 #include "page0zip.h"
+#include "ut0byte.h"
 #ifdef UNIV_HOTBACKUP
 # include "fut0lst.h"
 #else /* UNIV_HOTBACKUP */
-# include "fut0fut.h"
-# include "srv0srv.h"
-# include "srv0start.h"
-# include "ibuf0ibuf.h"
+# include <my_aes.h>
+
 # include "btr0btr.h"
 # include "btr0sea.h"
 # include "dict0boot.h"
+# include "fut0fut.h"
+# include "ibuf0ibuf.h"
 # include "log0log.h"
-# include <my_aes.h>
+# include "srv0srv.h"
+# include "srv0start.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
 #include "fsp0sysspace.h"

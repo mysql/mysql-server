@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #define FT_CORE
 #include "ftdefs.h"
+#include "my_dbug.h"
 
 /* search with natural language queries */
 

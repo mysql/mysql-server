@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,29 +24,29 @@ from dictionary tables
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <set>
+#include <stack>
 
-#include "dict0load.h"
-
-#include "mysql_version.h"
-#include "btr0pcur.h"
 #include "btr0btr.h"
+#include "btr0pcur.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
+#include "my_dbug.h"
+#include "mysql_version.h"
 #include "page0page.h"
 #include "rem0cmp.h"
-#include "srv0start.h"
 #include "srv0srv.h"
-#include <stack>
-#include <set>
+#include "srv0start.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,22 +13,23 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include "current_thd.h"
+#include "debug_sync.h"
+#include "derror.h"
 /**
   @file storage/perfschema/pfs_variable.cc
   Performance schema system variable and status variable (implementation).
 */
+#include "my_dbug.h"
 #include "my_global.h"
-#include "pfs_variable.h"
 #include "my_sys.h"
-#include "debug_sync.h"
+#include "mysqld.h"
 #include "pfs.h"
 #include "pfs_global.h"
+#include "pfs_variable.h"
 #include "pfs_visitor.h"
-#include "current_thd.h"
-#include "sql_class.h"
-#include "mysqld.h"
 #include "sql_audit.h"                      // audit_global_variable_get
-#include "derror.h"
+#include "sql_class.h"
 
 
 bool Find_THD_variable::operator()(THD *thd)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,16 +22,18 @@
   This code needs extra visibility in the lexer structures
 */
 
+#include <string.h>
+
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
+#include "mysqld.h"                //system_charset_info
+#include "pfs_buffer_container.h"
+#include "pfs_global.h"
 #include "pfs_instr.h"
 #include "pfs_program.h"
-#include "pfs_global.h"
-#include "sql_string.h"
 #include "pfs_setup_object.h"
-#include "pfs_buffer_container.h"
-#include "mysqld.h"                //system_charset_info
-#include <string.h>
+#include "sql_string.h"
 
 LF_HASH program_hash;
 static bool program_hash_inited= false;

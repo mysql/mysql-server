@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +14,14 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <signal.h>
-#include "recovery.h"
-#include "recovery_message.h"
+
 #include "member_info.h"
-#include "plugin_log.h"
-#include "recovery_channel_state_observer.h"
+#include "my_dbug.h"
 #include "plugin.h"
+#include "plugin_log.h"
+#include "recovery.h"
+#include "recovery_channel_state_observer.h"
+#include "recovery_message.h"
 
 using std::list;
 using std::string;

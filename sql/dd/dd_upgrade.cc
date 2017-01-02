@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_event.h"                      // create_event
 #include "dd/dd.h"                            // dd::get_dictionary
+#include "dd/dd_event.h"                      // create_event
 #include "dd/dd_schema.h"                     // create_schema
 #include "dd/dd_table.h"                      // create_dd_user_table
 #include "dd/dd_tablespace.h"                 // create_tablespace
@@ -36,9 +36,10 @@
 #include "handler.h"                          // legacy_db_type
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"                              // sql_print_warning
-#include "mysqld.h"                           // mysql_real_data_home
-#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "my_dbug.h"
 #include "my_user.h"                          // parse_user
+#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "mysqld.h"                           // mysql_real_data_home
 #include "parse_file.h"                       // File_option
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_TABLE

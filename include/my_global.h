@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,18 +23,18 @@
   Do not include it in new code; instead, include what you use.
 */
 
-#include "my_config.h"
-
 #include <assert.h>
+#include <errno.h>				/* Recommended by debian */
+#include <fcntl.h>
+#include <float.h>
+#include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <math.h>
-#include <limits.h>
-#include <float.h>
-#include <fcntl.h>
-#include <time.h>
-#include <errno.h>				/* Recommended by debian */
 #include <sys/types.h>
+#include <time.h>
+
+#include "my_config.h"
 
 #if !defined(_WIN32)
 #include <netdb.h>
@@ -44,7 +44,6 @@
 #endif
 
 #include "my_compiler.h"
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

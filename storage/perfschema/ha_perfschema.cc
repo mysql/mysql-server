@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,25 +18,27 @@
   Performance schema storage engine (implementation).
 */
 
+#include "ha_perfschema.h"
+
+#include "hostname.h"
+#include "my_atomic.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "my_atomic.h"
-#include "hostname.h"
+#include "mysql/plugin.h"
 #include "mysqld.h"
+#include "pfs_account.h"
+#include "pfs_buffer_container.h"
+#include "pfs_column_values.h"
+#include "pfs_engine_table.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_prepared_stmt.h"
+#include "pfs_program.h"
+#include "pfs_user.h"
 #include "sql_class.h"
 #include "sql_plugin.h"
-#include "mysql/plugin.h"
-#include "ha_perfschema.h"
-#include "pfs_engine_table.h"
-#include "pfs_column_values.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
-#include "pfs_program.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_buffer_container.h"
 
 handlerton *pfs_hton= NULL;
 

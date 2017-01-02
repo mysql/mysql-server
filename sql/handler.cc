@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -5257,14 +5258,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   {
     DBUG_RETURN(3);
   }
-
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  /*
-    Table discovery is not instrumented.
-    Once discovered, the table will be opened normally,
-    and instrumented normally.
-  */
-#endif
 
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
   {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "log0log.h"
 #include "log0recv.h"
 #include "mtr0log.h"
+#include "my_dbug.h"
 #include "page0types.h"
 #include "trx0purge.h"
 

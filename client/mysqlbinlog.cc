@@ -38,6 +38,7 @@
 
 #include "client_priv.h"
 #include "log_event.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_default.h"
 #include "my_dir.h"

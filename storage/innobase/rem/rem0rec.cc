@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,13 +24,15 @@ Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "rem0rec.h"
-#include "page0page.h"
-#include "mtr0mtr.h"
-#include "mtr0log.h"
+
 #include "fts0fts.h"
 #include "gis0geo.h"
-#include "trx0sys.h"
 #include "mach0data.h"
+#include "mtr0log.h"
+#include "mtr0mtr.h"
+#include "my_dbug.h"
+#include "page0page.h"
+#include "trx0sys.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
 			===========================

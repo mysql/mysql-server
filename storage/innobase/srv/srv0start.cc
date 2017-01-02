@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -57,6 +57,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"

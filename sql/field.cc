@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,30 +23,31 @@
 
 #include "field.h"
 
+#include <algorithm>
+#include <cmath>                         // isnan
+#include <memory>                        // unique_ptr
+
 #include "current_thd.h"
 #include "decimal.h"
 #include "derror.h"                      // ER_THD
 #include "filesort.h"                    // change_double_for_sort
+#include "item_json_func.h"              // ensure_utf8mb4
 #include "item_timefunc.h"               // Item_func_now_local
 #include "json_binary.h"                 // json_binary::serialize
 #include "json_dom.h"                    // Json_dom, Json_wrapper
-#include "item_json_func.h"              // ensure_utf8mb4
 #include "log_event.h"                   // class Table_map_log_event
+#include "my_dbug.h"
 #include "mysqld.h"                      // log_10
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // rpl_master_has_bug
+#include "spatial.h"                     // Geometry
+#include "sql_base.h"                    // is_equal
 #include "sql_class.h"                   // THD
 #include "sql_join_buffer.h"             // CACHE_FIELD
 #include "sql_time.h"                    // str_to_datetime_with_warn
 #include "strfunc.h"                     // find_type2
 #include "template_utils.h"              // pointer_cast
 #include "tztime.h"                      // Time_zone
-#include "spatial.h"                     // Geometry
-#include "sql_base.h"                    // is_equal
-
-#include <algorithm>
-#include <cmath>                         // isnan
-#include <memory>                        // unique_ptr
 
 using std::max;
 using std::min;

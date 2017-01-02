@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,11 @@
 */
 
 #include <ndbapi/NdbApi.hpp>
-#include "ndb_table_map.h"
 
-#include "table.h"
 #include "field.h"
+#include "my_dbug.h"
+#include "ndb_table_map.h"
+#include "table.h"
 
 Ndb_table_map::Ndb_table_map(struct TABLE * mysqlTable,
                              const NdbDictionary::Table * ndbTable) :

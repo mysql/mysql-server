@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Created 2014/01/16 Jimmy Yang
 
 #include "fsp0fsp.h"
 #include "gis0rtree.h"
+#include "my_dbug.h"
 #include "page0cur.h"
 #include "page0page.h"
 #include "page0zip.h"

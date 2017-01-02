@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,6 @@
 
 #include "binlog.h"
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -24,6 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+#include "my_config.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -54,6 +54,7 @@
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_dir.h"
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"                  // my_safe_print_system_time

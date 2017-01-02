@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,21 +16,21 @@
 #ifndef CERTIFIER_INCLUDE
 #define CERTIFIER_INCLUDE
 
-#include <map>
-#include <unordered_map>
-#include <string>
-#include <list>
-#include <vector>
-
-#include "certifier_stats_interface.h"
-#include "member_info.h"
-#include "gcs_plugin_messages.h"
-#include "plugin_utils.h"
-#include "pipeline_interfaces.h"
-
 #include <mysql/gcs/gcs_communication_interface.h>
 #include <mysql/gcs/gcs_control_interface.h>
 #include <mysql/group_replication_priv.h>
+#include <list>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "certifier_stats_interface.h"
+#include "gcs_plugin_messages.h"
+#include "member_info.h"
+#include "my_dbug.h"
+#include "pipeline_interfaces.h"
+#include "plugin_utils.h"
 
 
 /**

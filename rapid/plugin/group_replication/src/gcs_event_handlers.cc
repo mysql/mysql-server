@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,11 @@
 #include <vector>
 
 #include "gcs_event_handlers.h"
-#include "plugin.h"
-#include "sql_service_gr_user.h"
+#include "my_dbug.h"
 #include "pipeline_stats.h"
+#include "plugin.h"
 #include "single_primary_message.h"
+#include "sql_service_gr_user.h"
 
 using std::vector;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <mysql/psi/mysql_thread.h>
+
 #include "NdbSleep.h"
 #include "binlog.h"
 #include "dd/types/abstract_table.h"
@@ -23,6 +25,7 @@
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_connection.h"
 #include "ha_ndbcluster_glue.h"
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "ndb_global_schema_lock.h"
@@ -37,8 +40,6 @@
 #include "rpl_filter.h"
 #include "rpl_injector.h"
 #include "rpl_slave.h"
-
-#include <mysql/psi/mysql_thread.h>
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
@@ -61,16 +62,15 @@ void ndb_index_stat_restart();
   defines for cluster replication table names
 */
 #include "ha_ndbcluster_tables.h"
-
-#include "ndb_dist_priv_util.h"
 #include "ndb_anyvalue.h"
 #include "ndb_binlog_extra_row_info.h"
-#include "ndb_event_data.h"
-#include "ndb_schema_object.h"
-#include "ndb_schema_dist.h"
-#include "ndb_repl_tab.h"
 #include "ndb_binlog_thread.h"
+#include "ndb_dist_priv_util.h"
+#include "ndb_event_data.h"
 #include "ndb_find_files_list.h"
+#include "ndb_repl_tab.h"
+#include "ndb_schema_dist.h"
+#include "ndb_schema_object.h"
 
 /*
   Timeout for syncing schema events between

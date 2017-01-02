@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -12,19 +12,6 @@
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#ifndef MYSQL_FILE_H
-#define MYSQL_FILE_H
-
-#include <my_global.h>
-
-/* For strlen() */
-#include <string.h>
-/* For MY_STAT */
-#include <my_dir.h>
-/* For my_chsize */
-#include <my_sys.h>
-#include "mysql/service_mysql_alloc.h"
 
 /**
   @file include/mysql/psi/mysql_file.h
@@ -42,8 +29,21 @@
   the dependency on my_sys already exists.
 */
 
-#include "mysql/psi/psi_file.h"
 
+#ifndef MYSQL_FILE_H
+#define MYSQL_FILE_H
+
+/* For MY_STAT */
+#include <my_dir.h>
+#include <my_global.h>
+/* For my_chsize */
+#include <my_sys.h>
+/* For strlen() */
+#include <string.h>
+
+#include "my_dbug.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/service_mysql_alloc.h"
 #include "pfs_file_provider.h"
 
 #ifndef PSI_FILE_CALL

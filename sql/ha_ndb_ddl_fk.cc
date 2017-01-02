@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster.h"
-#include "ndb_table_guard.h"
-#include "mysql/service_thd_alloc.h"
+#include "ha_ndbcluster_glue.h"
 #include "key_spec.h"
+#include "my_dbug.h"
+#include "mysql/service_thd_alloc.h"
+#include "ndb_table_guard.h"
 #include "template_utils.h"
 
 #define ERR_RETURN(err)                  \

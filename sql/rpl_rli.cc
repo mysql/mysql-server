@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "log_event.h"             // Log_event
 #include "m_ctype.h"
 #include "mdl.h"
+#include "my_dbug.h"
 #include "my_dir.h"                // MY_STAT
 #include "my_sqlcommand.h"
 #include "my_thread.h"

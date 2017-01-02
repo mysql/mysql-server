@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,21 +30,25 @@ Database log
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <debug_sync.h>
 
+#include "ha_prototypes.h"
 #include "log0log.h"
+#include "my_dbug.h"
 #ifndef UNIV_HOTBACKUP
-#include "mem0mem.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "srv0srv.h"
-#include "log0recv.h"
-#include "fil0fil.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h"
+#include "fil0fil.h"
+#include "log0recv.h"
+#include "mem0mem.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "sync0sync.h"
+#include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "trx0roll.h"

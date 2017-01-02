@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@
 #include "ha_myisam.h"
 #include "key.h"                                // key_copy
 #include "log.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
+#include "myisam.h"
 #include "myisamdef.h"
 #include "mysqld.h"
 #include "rt_index.h"

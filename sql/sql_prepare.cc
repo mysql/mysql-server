@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,6 +108,7 @@ When one supplies long data for a placeholder:
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -20,33 +20,33 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
 #ifndef _WIN32
 # include <unistd.h>
 #endif
-#include <my_getopt.h>
 #include <m_string.h>
+#include <my_getopt.h>
 #include <welcome_copyright_notice.h>
+#include <iostream>
 #include <map>
-#include "typelib.h"
 
+#include "btr0cur.h"
+#include "fil0fil.h"
+#include "fsp0fsp.h"
+#include "lob0lob.h"
+#include "mach0data.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "page0page.h"
+#include "page0size.h"
+#include "page0types.h"
+#include "typelib.h"
 #include "univ.i"
 #include "ut0byte.h"
-#include "mach0data.h"
-#include "page0size.h"
-#include "fil0fil.h"
-#include "page0types.h"
-#include "page0page.h"
-#include "mach0data.h"
-#include "fsp0fsp.h"
 #include "ut0crc32.h"
 #include "zlib.h"
-#include "btr0cur.h"
-#include "my_dir.h"
-#include "lob0lob.h"
-#include <iostream>
 
 typedef enum {
 	SUCCESS = 0,

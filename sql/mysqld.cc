@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,6 +338,7 @@
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_default.h"                 // print_defaults
 #include "my_dir.h"
@@ -488,10 +489,10 @@
 #include <atomic>
 #include <functional>
 #include <list>
+#include <new>
 #include <set>
 #include <string>
 #include <vector>
-#include <new>
 
 #include "srv_session.h"
 

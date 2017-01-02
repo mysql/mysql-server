@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,12 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
+#include "binary_log_types.h" // enum_field_types
 #include "my_base.h"          // ha_rows
 #include "my_byteorder.h"     // uint2korr
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"            // mysql_com.h needs my_socket
-#include "binary_log_types.h" // enum_field_types
 #include "mysql_com.h"        // Item_result
 #include "sql_alloc.h"        // sql_alloc
 #include "sql_array.h"        // Bounds_checked_array

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
 #include "auth_common.h"                      /* *_ACL */
+#include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
 #include "dd/info_schema/show.h"             // build_show_...
 #include "dd/types/abstract_table.h"         // TT_BASE_TABLE
 #include "derror.h"
@@ -44,11 +45,12 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_create.h"
 #include "item_geofunc.h"
 #include "item_json_func.h"
-#include "keycaches.h"
 #include "key_spec.h"
+#include "keycaches.h"
 #include "lex_symbol.h"
 #include "lex_token.h"
 #include "log_event.h"
+#include "my_dbug.h"
 #include "myisam.h"
 #include "myisammrg.h"
 #include "mysqld.h"        // slave_net_timeout national_charset_info ...
@@ -77,8 +79,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
 #include "sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql_parse.h"                        /* comp_*_creator */
-#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql_partition.h"                    /* mem_alloc_error */
+#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql_plugin.h"                      // plugin_is_ready
 #include "sql_select.h"                        // Sql_cmd_select...
 #include "sql_servers.h"
@@ -88,8 +90,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_trigger.h"                     // Sql_cmd_create_trigger,
                                              // Sql_cmd_create_trigger
 #include "sql_truncate.h"                      // Sql_cmd_truncate_table
-
-#include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
                                              // used in RESET_MASTER parsing check
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -400,10 +400,10 @@ static void init_index_hints(List<Index_hint> *hints, index_hint_type type,
 
 bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
-#include "parse_tree_nodes.h"
-#include "parse_tree_items.h"
-#include "parse_tree_partitions.h"
 #include "parse_tree_column_attrs.h"
+#include "parse_tree_items.h"
+#include "parse_tree_nodes.h"
+#include "parse_tree_partitions.h"
 
 %}
 

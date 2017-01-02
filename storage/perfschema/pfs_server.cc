@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,31 +18,32 @@
   Private interface for the server (implementation).
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "mysys_err.h"
-#include "pfs_server.h"
 #include "pfs.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include "pfs_account.h"
 #include "pfs_builtin_memory.h"
-#include "pfs_instr.h"
-#include "pfs_events_waits.h"
+#include "pfs_defaults.h"
+#include "pfs_digest.h"
+#include "pfs_error.h"
 #include "pfs_events_stages.h"
 #include "pfs_events_statements.h"
 #include "pfs_events_transactions.h"
-#include "pfs_timer.h"
+#include "pfs_events_waits.h"
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_prepared_stmt.h"
+#include "pfs_program.h"
+#include "pfs_server.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
-#include "pfs_host.h"
+#include "pfs_timer.h"
 #include "pfs_user.h"
-#include "pfs_account.h"
-#include "pfs_defaults.h"
-#include "pfs_digest.h"
-#include "pfs_program.h"
 #include "template_utils.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_error.h"
 
 PFS_global_param pfs_param;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,26 +23,25 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0import.h"
-#include "btr0pcur.h"
-#include "que0que.h"
-#include "dict0boot.h"
-#include "ibuf0ibuf.h"
-#include "pars0pars.h"
-#include "row0upd.h"
-#include "row0sel.h"
-#include "row0mysql.h"
-#include "srv0start.h"
-#include "row0quiesce.h"
-#include "ut0new.h"
-#include "dict0crea.h"
-#include "lob0lob.h"
-
+#include <my_aes.h>
 #include <vector>
 
-#include <my_aes.h>
+#include "btr0pcur.h"
+#include "dict0boot.h"
+#include "dict0crea.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "row0import.h"
+#include "row0mysql.h"
+#include "row0quiesce.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "srv0start.h"
+#include "ut0new.h"
 
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the

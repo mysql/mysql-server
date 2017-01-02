@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,23 +18,24 @@
   Performance schema table helpers (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "pfs_engine_table.h"
-#include "table_helper.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
 #include "pfs_account.h"
-#include "pfs_instr.h"
-#include "pfs_program.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
-#include "field.h"
-#include "pfs_error.h"
-#include "pfs_variable.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
+#include "pfs_engine_table.h"
+#include "pfs_error.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_prepared_stmt.h"
+#include "pfs_program.h"
+#include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
+#include "pfs_user.h"
+#include "pfs_variable.h"
+#include "table_helper.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {

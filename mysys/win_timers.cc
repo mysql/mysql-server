@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,14 @@
 */
 
 #if defined (_WIN32)
+#include <windows.h>        /* Timer Queue and IO completion port functions */
+
+#include "my_dbug.h"
 #include "my_global.h"
-#include "my_thread.h"      /* my_thread_init, my_thread_end */
 #include "my_sys.h"         /* my_message_local */
+#include "my_thread.h"      /* my_thread_init, my_thread_end */
 #include "my_timer.h"       /* my_timer_t */
 #include "mysys_priv.h"     /* key_thread_timer_notifier */
-#include <windows.h>        /* Timer Queue and IO completion port functions */
 
 
 enum enum_timer_state { TIMER_SET=FALSE, TIMER_EXPIRED=TRUE };

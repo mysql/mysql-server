@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,19 +23,18 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
-#include "ha_prototypes.h"
-
+#include "btr0bulk.h"
+#include "btr0cur.h"
 #include "dict0dict.h"
-#include "row0merge.h"
+#include "fts0plugin.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
+#include "os0thread-create.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"
 #include "row0merge.h"
 #include "row0row.h"
-#include "btr0cur.h"
-#include "btr0bulk.h"
-#include "fts0plugin.h"
-#include "lob0lob.h"
-#include "os0thread-create.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */

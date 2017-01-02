@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,11 +17,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "btr0pcur.h"
-#include "lob0lob.h"
 #include "fil0fil.h"
-#include "row0upd.h"
-#include "lob0zip.h"
 #include "lob0fit.h"
+#include "lob0lob.h"
+#include "lob0zip.h"
+#include "my_dbug.h"
+#include "row0upd.h"
 
 namespace lob {
 

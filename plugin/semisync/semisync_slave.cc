@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,11 @@
 
 
 #include "semisync_slave.h"
-#include "mysql.h"
-#include "debug_sync.h"
+
 #include "current_thd.h"
+#include "debug_sync.h"
+#include "my_dbug.h"
+#include "mysql.h"
 
 char rpl_semi_sync_slave_enabled;
 char rpl_semi_sync_slave_status= 0;

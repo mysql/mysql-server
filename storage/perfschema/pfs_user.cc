@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,16 +18,17 @@
   Performance schema user (implementation).
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "pfs.h"
-#include "pfs_stat.h"
-#include "pfs_instr.h"
-#include "pfs_setup_actor.h"
-#include "pfs_user.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_setup_actor.h"
+#include "pfs_stat.h"
+#include "pfs_user.h"
 
 /**
   @addtogroup performance_schema_buffers

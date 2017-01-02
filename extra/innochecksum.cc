@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,33 +29,36 @@
 #include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
 #include <iostream>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-#include <my_getopt.h>
 #include <m_string.h>
+#include <my_getopt.h>
 #include <welcome_copyright_notice.h>	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-#include "typelib.h"
+
+#include "my_dbug.h"
 #include "prealloced_array.h"
+#include "typelib.h"
 
 /* Only parts of these files are included from the InnoDB codebase.
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
-#include "univ.i"			/* include all of this */
-#include "page0size.h"			/* page_size_t */
-#include "page0zip.h"
-#include "page0page.h"			/* PAGE_* */
-#include "trx0undo.h"			/* TRX_UNDO_* */
-#include "fut0lst.h"			/* FLST_NODE_SIZE */
 #include "buf0checksum.h"
-#include "os0file.h"
 #include "fil0types.h"
 #include "fsp0fsp.h"			/* fsp_flags_get_page_size() &
 					   fsp_flags_get_zip_size() */
+#include "fut0lst.h"			/* FLST_NODE_SIZE */
+#include "os0file.h"
+#include "page0page.h"			/* PAGE_* */
+#include "page0size.h"			/* page_size_t */
+#include "page0zip.h"
+#include "trx0undo.h"			/* TRX_UNDO_* */
+#include "univ.i"			/* include all of this */
+
 #include "mach0data.h"			/* mach_read_from_4() */
 #include "ut0crc32.h"			/* ut_crc32_init() */
 

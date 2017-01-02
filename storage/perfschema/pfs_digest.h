@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,8 +21,9 @@
   Statement Digest data structures (declarations).
 */
 
-#include "pfs_column_types.h"
 #include "lf.h"
+#include "pfs_column_types.h"
+#include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "sql_digest.h"
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,8 +19,10 @@
 
 
 #include "query_string_builder.h"
-#include "mysql/plugin.h"
+
+#include "my_dbug.h"
 #include "my_sys.h" // escape_string_for_mysql
+#include "mysql/plugin.h"
 
 using namespace xpl;
 

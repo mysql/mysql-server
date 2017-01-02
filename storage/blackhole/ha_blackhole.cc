@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 
 #define MYSQL_SERVER 1
 #include "ha_blackhole.h"
+
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*

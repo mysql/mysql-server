@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,46 +21,42 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-/* Include necessary SQL headers */
-#include "ha_prototypes.h"
 #include <debug_sync.h>
+#include <key_spec.h>
 #include <log.h>
-#include <sql_lex.h>
+#include <mysql/plugin.h>
 #include <sql_class.h>
+#include <sql_lex.h>
 #include <sql_table.h>
 #include <sql_thd_internal_api.h>
-#include <mysql/plugin.h>
-#include <key_spec.h>
 
-/* Include necessary InnoDB headers */
 #include "btr0sea.h"
+#include "dd/types/table.h"           // dd::Table
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fsp0sysspace.h"
+#include "fts0plugin.h"
+#include "fts0priv.h"
+#include "ha_innodb.h"
+#include "ha_innopart.h"
+#include "ha_prototypes.h"
+#include "handler0alter.h"
 #include "log0log.h"
+#include "my_dbug.h"
+#include "pars0pars.h"
+#include "partition_info.h"
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "handler0alter.h"
-#include "srv0mon.h"
-#include "fts0priv.h"
-#include "fts0plugin.h"
-#include "pars0pars.h"
 #include "row0sel.h"
-#include "ha_innodb.h"
+#include "srv0mon.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
 #include "ut0new.h"
 #include "ut0stage.h"
-
-/* For supporting Native InnoDB Partitioning. */
-#include "partition_info.h"
-#include "ha_innopart.h"
-
-#include "dd/types/table.h"           // dd::Table
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.

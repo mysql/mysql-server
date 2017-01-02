@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,14 +17,15 @@
   @file mysys/kqueue_timers.cc
 */
 
-#include "my_thread.h"   /* my_thread_init, my_thread_end */
-#include "my_sys.h"       /* my_message_local */
-#include "my_timer.h"     /* my_timer_t */
-#include "my_global.h"
-#include "mysys_priv.h"     /* key_thread_timer_notifier */
-
-#include <sys/types.h>
 #include <sys/event.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"       /* my_message_local */
+#include "my_thread.h"   /* my_thread_init, my_thread_end */
+#include "my_timer.h"     /* my_timer_t */
+#include "mysys_priv.h"     /* key_thread_timer_notifier */
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif

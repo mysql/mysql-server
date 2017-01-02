@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,34 +23,34 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0ins.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
-#include "trx0rec.h"
-#include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
-#include "mach0data.h"
-#include "que0que.h"
-#include "row0upd.h"
-#include "row0sel.h"
-#include "row0row.h"
-#include "row0log.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "log0log.h"
-#include "eval0eval.h"
-#include "data0data.h"
-#include "usr0sess.h"
 #include "buf0lru.h"
+#include "current_thd.h"
+#include "data0data.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "eval0eval.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "m_string.h"
 #include "gis0geo.h"
+#include "ha_prototypes.h"
 #include "lob0lob.h"
-#include "current_thd.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "m_string.h"
+#include "mach0data.h"
+#include "my_dbug.h"
+#include "que0que.h"
+#include "rem0cmp.h"
+#include "row0ins.h"
+#include "row0log.h"
+#include "row0row.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0rec.h"
+#include "trx0undo.h"
+#include "usr0sess.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
   Performance schema built in memory instrumentation.
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
-#include "pfs_global.h"
 #include "pfs_builtin_memory.h"
+#include "pfs_global.h"
 
 PFS_builtin_memory_class builtin_memory_mutex;
 PFS_builtin_memory_class builtin_memory_rwlock;

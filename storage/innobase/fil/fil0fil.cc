@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
@@ -34,11 +32,13 @@ Created 10/25/1995 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "log0recv.h"
 #include "mach0data.h"
 #include "mem0mem.h"
 #include "mtr0log.h"
+#include "my_dbug.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "row0mysql.h"
@@ -524,6 +524,7 @@ fil_space_is_flushed(
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 
 #include <sys/ioctl.h>
+
 /** FusionIO atomic write control info */
 #define DFS_IOCTL_ATOMIC_WRITE_SET	_IOW(0x95, 2, uint)
 

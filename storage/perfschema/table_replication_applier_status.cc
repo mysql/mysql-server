@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -19,21 +19,22 @@
   Table replication_applier_status (implementation).
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
 
 #ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION
 #endif /* EMBEDDED_LIBRARY */
 
-#include "table_replication_applier_status.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
-#include "rpl_slave.h"
+#include "pfs_instr_class.h"
 #include "rpl_info.h"
-#include  "rpl_rli.h"
 #include "rpl_mi.h"
-#include "sql_parse.h"
 #include "rpl_msr.h"    /*Multi source replication */
+#include  "rpl_rli.h"
+#include "rpl_slave.h"
+#include "sql_parse.h"
+#include "table_replication_applier_status.h"
 
 THR_LOCK table_replication_applier_status::m_table_lock;
 
