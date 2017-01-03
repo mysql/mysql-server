@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -294,12 +294,14 @@ dberr_t
 dict_boot(void)
 /*===========*/
 {
+#ifdef INNODB_NO_NEW_DD
 	dict_table_t*	table;
 	dict_index_t*	index;
-	dict_hdr_t*	dict_hdr;
-	mem_heap_t*	heap;
-	mtr_t		mtr;
 	dberr_t		error;
+	mem_heap_t*	heap;
+#endif /* INNODB_NO_NEW_DD */
+	dict_hdr_t*	dict_hdr;
+	mtr_t		mtr;
 
 	/* Be sure these constants do not ever change.  To avoid bloat,
 	only check the *NUM_FIELDS* in each table */
@@ -324,7 +326,9 @@ dict_boot(void)
 	/* Create the hash tables etc. */
 	dict_init();
 
+#ifdef INNODB_NO_NEW_DD
 	heap = mem_heap_create(450);
+#endif /* INNODB_NO_NEW_DD */
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -345,6 +349,7 @@ dict_boot(void)
 		+ ut_uint64_align_up(mach_read_from_8(dict_hdr + DICT_HDR_ROW_ID),
 				     DICT_HDR_ROW_ID_WRITE_MARGIN);
 
+#ifdef INNODB_NO_NEW_DD
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */
 	/*-------------------------*/
@@ -498,6 +503,7 @@ dict_boot(void)
 						       MLOG_4BYTES, &mtr),
 					FALSE);
 	ut_a(error == DB_SUCCESS);
+#endif /* INNODB_NO_NEW_DD */
 
 	mtr_commit(&mtr);
 

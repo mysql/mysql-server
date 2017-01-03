@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -8892,7 +8892,9 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	char			norm_name[FN_REFLEN];
 	THD*			thd;
 	char*			is_part = NULL;
+#ifdef INNODB_NO_NEW_DD
 	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
+#endif /* INNODB_NO_NEW_DD */
 
 	DBUG_ENTER("ha_innobase::open");
 	DBUG_ASSERT(table_share == table->s);
@@ -8923,18 +8925,22 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	/* Check whether FOREIGN_KEY_CHECKS is set to 0. If so, the table
 	can be opened even if some FK indexes are missing. If not, the table
 	can't be opened in the same situation */
+#ifdef INNODB_NO_NEW_DD
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		ignore_err = DICT_ERR_IGNORE_FK_NOKEY;
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
+#ifdef INNODB_NO_NEW_DD
 		/* TODO: NewDD: Ignore the InnoDB system table, as they are
 		not registered with newDD */
 		if (strstr(name, "sys") == nullptr) {
+#endif /* INNODB_NO_NEW_DD */
 			bool	cached = false;
 
 			mutex_enter(&dict_sys->mutex);
@@ -8964,10 +8970,12 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 					DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 				}
 			}
+#ifdef INNODB_NO_NEW_DD
 		} else {
 			ib_table = open_dict_table(name, norm_name, is_part,
                                            ignore_err);
 		}
+#endif /* INNODB_NO_NEW_DD */
 	} else {
 		ib_table->acquire();
 		ut_ad(ib_table->is_intrinsic());

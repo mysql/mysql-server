@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3610,13 +3610,12 @@ row_import_update_index_root(
 
 	return(err);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /** Callback arg for row_import_set_discarded. */
 struct discard_t {
 	ib_uint32_t	flags2;			/*!< Value read from column */
 	bool		state;			/*!< New state of the flag */
-	ulint		n_recs;			/*!< Number of recs processed */
+m	ulint		n_recs;			/*!< Number of recs processed */
 };
 
 /******************************************************************//**
@@ -3719,6 +3718,7 @@ row_import_update_discarded_flag(
 
 	return(err);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
