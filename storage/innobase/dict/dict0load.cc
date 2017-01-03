@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2988,7 +2988,7 @@ err_exit:
 	/* TODO: To remove this along with this function.
 	Currently, there are still functions calling this,
 	thus this workaround */
-	if (dict_sys->table_metadata != NULL) {
+	if (dict_sys->dynamic_metadata != NULL) {
 		dict_table_load_dynamic_metadata(table);
 	}
 

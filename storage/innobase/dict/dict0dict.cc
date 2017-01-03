@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -6539,8 +6539,8 @@ dict_close(void)
 	if (dict_sys->index_stats) {
 		dict_table_close(dict_sys->index_stats, true, false);
 	}
-	if (dict_sys->table_metadata) {
-		dict_table_close(dict_sys->table_metadata, true, false);
+	if (dict_sys->dynamic_metadata) {
+		dict_table_close(dict_sys->dynamic_metadata, true, false);
 	}
 
 	/* Free the hash elements. We don't remove them from the table
@@ -7175,8 +7175,8 @@ DDTableBuffer::create_tuples()
 void
 DDTableBuffer::init()
 {
-	ut_ad(dict_table_is_comp(dict_sys->table_metadata));
-	m_index = dict_sys->table_metadata->first_index();
+	ut_ad(dict_table_is_comp(dict_sys->dynamic_metadata));
+	m_index = dict_sys->dynamic_metadata->first_index();
 	ut_ad(m_index->next() == NULL);
 	ut_ad(m_index->n_uniq == 1);
 	/* We don't need AHI for this table */

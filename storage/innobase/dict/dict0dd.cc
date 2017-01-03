@@ -2544,7 +2544,7 @@ dd_open_table_one(
 	} else {
 		dict_table_add_to_cache(m_table, TRUE, heap);
 
-		if (dict_sys->table_metadata != NULL) {
+		if (dict_sys->dynamic_metadata != NULL) {
 			dict_table_load_dynamic_metadata(m_table);
 		}
 	}

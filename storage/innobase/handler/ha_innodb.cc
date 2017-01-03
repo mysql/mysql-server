@@ -3826,11 +3826,11 @@ innobase_dict_recover(
 		dict_sys->index_stats = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_index_stats",
 			false, DICT_ERR_IGNORE_NONE);
-		dict_sys->table_metadata = dd_table_open_on_name(
+		dict_sys->dynamic_metadata = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_dynamic_metadata",
 			false, DICT_ERR_IGNORE_NONE);
 
-		if (dict_sys->table_metadata == NULL) {
+		if (dict_sys->dynamic_metadata == NULL) {
 			srv_missing_dd_table_buffer = true;
 		}
 
