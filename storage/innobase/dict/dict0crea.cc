@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1259,6 +1259,7 @@ dict_drop_temporary_table_index(
 	}
 }
 
+#ifdef INNODB_NO_NEW_DD
 /*********************************************************************//**
 Creates a table create graph.
 @return own: table create node */
@@ -1334,7 +1335,6 @@ ind_create_graph_create(
 	return(node);
 }
 
-#ifdef INNODB_NO_NEW_DD
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return query thread to run next or NULL */

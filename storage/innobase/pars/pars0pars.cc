@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1793,6 +1793,7 @@ pars_create_table(
 	sym_node_t*	block_size,
 	void*		not_fit_in_memory MY_ATTRIBUTE((unused)))
 {
+#ifdef INNODB_NO_NEW_DD
 	dict_table_t*	table;
 	sym_node_t*	column;
 	tab_node_t*	node;
@@ -1880,6 +1881,9 @@ pars_create_table(
 	table_sym->token_type = SYM_TABLE;
 
 	return(node);
+#else
+	return(NULL);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /*********************************************************************//**
@@ -1896,6 +1900,7 @@ pars_create_index(
 					table */
 	sym_node_t*	column_list)	/*!< in: list of column names */
 {
+#ifdef INNODB_NO_NEW_DD
 	dict_index_t*	index;
 	sym_node_t*	column;
 	ind_node_t*	node;
@@ -1936,6 +1941,9 @@ pars_create_index(
 	index_sym->token_type = SYM_TABLE;
 
 	return(node);
+#else
+	return(NULL);
+#endif /* INNODB_NO_NEW_DD */
 }
 
 /*********************************************************************//**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1439,11 +1439,14 @@ struct dict_sys_t{
 	lint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
+
+#ifdef INNODB_NO_NEW_DD
 	dict_table_t*	sys_tables;	/*!< SYS_TABLES table */
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
 	dict_table_t*	sys_virtual;	/*!< SYS_VIRTUAL table */
+#endif /* INNODB_NO_NEW_DD */
 
 	/** Permanent handle to mysql.innodb_table_stats */
 	dict_table_t*	table_stats;

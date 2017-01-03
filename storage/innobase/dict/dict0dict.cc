@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -5905,8 +5905,10 @@ dict_set_corrupted(
 {
 	dict_table_t*	table = index->table;
 
+#ifdef INNODB_NO_NEW_DD
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
+#endif /* INNODB_NO_NEW_DD */
 
 	if (srv_missing_dd_table_buffer) {
 
@@ -6092,6 +6094,7 @@ dict_persist_to_dd_table_buffer(void)
 	mutex_exit(&dict_persist->mutex);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Sets merge_threshold in the SYS_INDEXES
 @param[in,out]	index		index
 @param[in]	merge_threshold	value to set */
@@ -6165,6 +6168,7 @@ dict_index_set_merge_threshold(
 	mutex_exit(&(dict_sys->mutex));
 	rw_lock_x_unlock(dict_operation_lock);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
@@ -7178,6 +7182,7 @@ DDTableBuffer::init()
 {
 	ut_ad(dict_table_is_comp(dict_sys->table_metadata));
 	m_index = dict_sys->table_metadata->first_index();
+
 	ut_ad(m_index->next() == NULL);
 	ut_ad(m_index->n_uniq == 1);
 	/* We don't need AHI for this table */
