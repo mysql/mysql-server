@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1449,7 +1449,7 @@ struct dict_sys_t{
 	dict_table_t*	table_stats;
 	/** Permanent handle to mysql.innodb_index_stats */
 	dict_table_t*	index_stats;
-	/** Permanent handle to mysql.innodb_table_metadata */
+	/** Permanent handle to mysql.innodb_dynamic_metadata */
 	dict_table_t*	table_metadata;
 
 	/*=============================*/
@@ -1621,7 +1621,7 @@ void
 dict_close(void);
 /*============*/
 
-/** Wrapper for the mysql.innodb_table_metadata used to buffer the persistent
+/** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent
 dynamic metadata.
 This should be a table with only clustered index, no delete-marked records,
 no locking, no undo logging, no purge, no adaptive hash index.
@@ -1714,10 +1714,10 @@ private:
 
 private:
 
-	/** Column number of mysql.innodb_table_metadata.table_id */
+	/** Column number of mysql.innodb_dynamic_metadata.table_id */
 	static constexpr unsigned	TABLE_ID_COL_NO = 0;
 
-	/** Column number of mysql.innodb_table_metadata.metadata */
+	/** Column number of mysql.innodb_dynamic_metadata.metadata */
 	static constexpr unsigned	METADATA_COL_NO = 1;
 
 	/** Number of user columns */
@@ -1727,10 +1727,10 @@ private:
 	static constexpr unsigned	N_COLS = N_USER_COLS + DATA_N_SYS_COLS;
 
 	/** Clustered index field number of
-        mysql.innodb_table_metadata.table_id */
+        mysql.innodb_dynamic_metadata.table_id */
         static constexpr unsigned	TABLE_ID_FIELD_NO = TABLE_ID_COL_NO;
 	/** Clustered index field number of
-	mysql.innodb_table_metadata.metadata */
+	mysql.innodb_dynamic_metadata.metadata */
 	static constexpr unsigned	METADATA_FIELD_NO = METADATA_COL_NO + 2;
 
 	/** Number of fields in the clustered index */

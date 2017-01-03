@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -3713,7 +3713,7 @@ dd_open_builtin(THD* thd, const char* name, table_id_t)
 {
 	ut_ad(strcmp(name, "innodb_table_stats") == 0
 	      || strcmp(name, "innodb_index_stats") == 0
-	      || strcmp(name, "innodb_table_metadata") == 0);
+	      || strcmp(name, "innodb_dynamic_metadata") == 0);
         MDL_ticket*     mdl = NULL;
         dict_table_t*   table = dd_table_open_on_name(
                 thd, &mdl, name, false, DICT_ERR_IGNORE_NONE);
@@ -3827,7 +3827,7 @@ innobase_dict_recover(
 			thd, NULL, "mysql/innodb_index_stats",
 			false, DICT_ERR_IGNORE_NONE);
 		dict_sys->table_metadata = dd_table_open_on_name(
-			thd, NULL, "mysql/innodb_table_metadata",
+			thd, NULL, "mysql/innodb_dynamic_metadata",
 			false, DICT_ERR_IGNORE_NONE);
 
 		if (dict_sys->table_metadata == NULL) {
@@ -12122,7 +12122,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("triggers", 6),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
-	INNODB_DD_TABLE("innodb_table_metadata", 1)
+	INNODB_DD_TABLE("innodb_dynamic_metadata", 1)
 };
 
 /** Number of hard-coded data dictionary tables */
@@ -12349,9 +12349,9 @@ innobase_dict_init(
                 "DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
 		"STATS_PERSISTENT=0");
 
-	static const Plugin_table innodb_table_metadata(
+	static const Plugin_table innodb_dynamic_metadata(
 		/* Name */
-		"innodb_table_metadata",
+		"innodb_dynamic_metadata",
 		/* Definition */
 		"  table_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,\n"
 		/* TODO: Enable this one in WL#9536 */
@@ -12363,7 +12363,7 @@ innobase_dict_init(
 
 	tables->push_back(&innodb_table_stats);
 	tables->push_back(&innodb_index_stats);
-	tables->push_back(&innodb_table_metadata);
+	tables->push_back(&innodb_dynamic_metadata);
 
 	DBUG_RETURN(innobase_init_files(dict_init_mode, tablespaces));
 }
