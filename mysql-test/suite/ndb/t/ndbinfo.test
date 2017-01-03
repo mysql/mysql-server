@@ -849,3 +849,33 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
   where config_param = 112 /* DataMemory */
   order by node_id;
 
+
+#
+# wl#9819 ndbinfo.processes
+#
+
+# (A) Normative tests of table and view definition
+desc ndb$processes;
+show create table processes;
+
+# (B) Tests of table content.
+# These results will change if the cluster config used when running
+# this test case changes.
+
+# Query the base table
+SELECT reporting_node_id, node_id, node_type, process_name, connection_name
+FROM ndb$processes
+ORDER BY reporting_node_id, node_id;
+
+# Query the view
+SELECT node_id,
+node_type,
+process_name,
+if(process_id is null, "null", "not_null") as proc_id,
+if(angel_process_id is null, "null", "not_null") as angel_proc_id,
+process_name,
+connection_name,
+if(application_port is null, "null", "not_null") as port
+FROM processes
+ORDER BY node_id;
+
