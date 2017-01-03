@@ -217,9 +217,9 @@ SET(REPLACE_REGEX_OPTIONS
   "-W[-A-Za-z]*"
   "--param=[-=a-z0-9]*"
   "-O[0-9]"
-  "-march=[-A-Za-z0-9]*"
-  "-mcpu=[-A-Za-z0-9]*"
-  "-mtune=[-A-Za-z0-9]*"
+  "-march=[-A-Za-z0-9.]*"
+  "-mcpu=[+-A-Za-z0-9.]*"
+  "-mtune=[-A-Za-z0-9.]*"
   "-specs=[-A-Za-z0-9/]*"
   "-xO[0-9]"
 )
