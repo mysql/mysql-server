@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             CharsetMap.cpp
             CharsetMapImpl.cpp
             parse_mask.cpp
+            LogBuffer.cpp
 )
 SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
@@ -71,6 +72,6 @@ ENDFOREACH(tests)
 
 NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
-FOREACH(tests NdbPack mysql_utils_test NdbSqlUtil)
+FOREACH(tests NdbPack mysql_utils_test NdbSqlUtil LogBuffer)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral ndbportlib)
 ENDFOREACH(tests)
