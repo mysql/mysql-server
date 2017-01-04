@@ -74,7 +74,8 @@ int my_set_user(const char *user, struct passwd *user_info, myf MyFlags)
   {
     my_errno= errno;
     if (MyFlags & MY_WME)
-      my_error(my_errno, MYF(ME_NOREFRESH));
+      my_printf_error(errno, "Cannot change uid/gid (errno: %d)", MYF(ME_NOREFRESH),
+                      errno);
     DBUG_RETURN(my_errno);
   }
   DBUG_RETURN(0);
