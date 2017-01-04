@@ -7,8 +7,5 @@ loose-thread_pool_max_threads= 2
 extra-port=        @ENV.MASTER_EXTRA_PORT
 extra-max-connections=1
 
-[client]
-connect-timeout=  2 
-
 [ENV]
 MASTER_EXTRA_PORT= @OPT.port

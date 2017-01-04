@@ -15,20 +15,26 @@ SET optimizer_switch=@save_optimizer_switch;
 # connections on the extra port.
 
 # First set two connections running, and check that extra connection
-# on normal port fails due to--thread-pool-max_threads=2
+# on normal port fails due to --thread-pool-max-threads=2.
+# We can afford using a really long sleep, because we won't wait
+# till it ends, we'll interrupt it as soon as we don't need it anymore
+
 connection default;
-send SELECT sleep(5);
+--let $con1_id= `SELECT CONNECTION_ID()`
+
+send SELECT sleep(50);
 --sleep  1 
 
 connect(con2,localhost,root,,);
-connection con2;
-send SELECT sleep(5);
+--let $con2_id= `SELECT CONNECTION_ID()`
+
+send SELECT sleep(50);
 --sleep  0.5
 
 --disable_abort_on_error
 --disable_result_log
 --disable_query_log
-connect(con3,localhost,root,,);
+connect(con3,localhost,root,,,,,connect_timeout=2);
 --enable_query_log
 --enable_result_log
 --enable_abort_on_error
@@ -42,23 +48,14 @@ if ($error)
   --echo # -- Success: more than --thread_pool_max_threads normal connections not possible
 }
 
-connection default;
---reap
-connection con2;
---reap
-
-# Now try again, but this time use the extra port to successfully connect.
-
-connection default;
-send SELECT sleep(5);
-
-connection con2;
-send SELECT sleep(5);
---sleep 1
-
 connect(extracon,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
 connection extracon;
 SELECT 'Connection on extra port ok';
+
+# Here, sleep just for slightly longer than 5 sec to trigger MDEV-4566
+# (abort in interruptible wait connection check).
+send SELECT sleep(5.5);
+
 
 connect(extracon2,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
 connection extracon2;
@@ -67,7 +64,7 @@ SELECT 'Connection on extra port 2 ok';
 --disable_abort_on_error
 --disable_result_log
 --disable_query_log
-connect(extracon3,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connect(extracon3,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,,connect_timeout=2);
 --enable_query_log
 --enable_result_log
 --enable_abort_on_error
@@ -81,7 +78,16 @@ if ($error)
   --echo # -- Success: more than --extra-max-connections + 1 normal connections not possible
 }
 
+connection extracon2;
+--replace_result $con1_id <default_connection_ID>
+eval KILL QUERY $con1_id;
+--replace_result $con2_id <con2_connection_ID>
+eval KILL QUERY $con2_id;
+
 connection default;
 --reap
 connection con2;
+--reap
+
+connection extracon;
 --reap

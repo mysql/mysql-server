@@ -5900,6 +5900,7 @@ void do_connect(struct st_command *command)
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0;
   my_bool con_shm __attribute__ ((unused))= 0;
+  int connect_timeout= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5996,6 +5997,9 @@ void do_connect(struct st_command *command)
       con_pipe= 1;
     else if (length == 3 && !strncmp(con_options, "SHM", 3))
       con_shm= 1;
+    else if (strncasecmp(con_options, "connect_timeout=",
+                         sizeof("connect_timeout=")-1) == 0)
+      connect_timeout= atoi(con_options + sizeof("connect_timeout=")-1);
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -6065,6 +6069,10 @@ void do_connect(struct st_command *command)
 
   if (opt_protocol)
     mysql_options(con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+
+  if (connect_timeout)
+    mysql_options(con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                  (char*)&connect_timeout);
 
 #ifdef HAVE_SMEM
   if (con_shm)
