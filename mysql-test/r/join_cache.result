@@ -5702,11 +5702,13 @@ LEFT JOIN t2 c1 ON c1.parent_id = t.id AND c1.col2 = "val"
   LEFT JOIN t2 c23 ON c23.parent_id = t.id AND c23.col2 = "val"
   LEFT JOIN t2 c24 ON c24.parent_id = t.id AND c24.col2 = "val"
   LEFT JOIN t2 c25 ON c25.parent_id = t.id AND c25.col2 = "val"
+  LEFT JOIN t2 c26 ON c26.parent_id = t.id AND c26.col2 = "val"
+  LEFT JOIN t2 c27 ON c27.parent_id = t.id AND c27.col2 = "val"
 ORDER BY 
 col1;
 id	col1
-select timestampdiff(second, @init_time, now()) <= 1;
-timestampdiff(second, @init_time, now()) <= 1
+select timestampdiff(second, @init_time, now()) <= 5;
+timestampdiff(second, @init_time, now()) <= 5
 1
 set join_cache_level=2;
 set @init_time:=now();
@@ -5738,11 +5740,13 @@ LEFT JOIN t2 c1 ON c1.parent_id = t.id AND c1.col2 = "val"
   LEFT JOIN t2 c23 ON c23.parent_id = t.id AND c23.col2 = "val"
   LEFT JOIN t2 c24 ON c24.parent_id = t.id AND c24.col2 = "val"
   LEFT JOIN t2 c25 ON c25.parent_id = t.id AND c25.col2 = "val"
+  LEFT JOIN t2 c26 ON c26.parent_id = t.id AND c26.col2 = "val"
+  LEFT JOIN t2 c27 ON c27.parent_id = t.id AND c27.col2 = "val"
 ORDER BY 
 col1;
 id	col1
-select timestampdiff(second, @init_time, now()) <= 1;
-timestampdiff(second, @init_time, now()) <= 1
+select timestampdiff(second, @init_time, now()) <= 5;
+timestampdiff(second, @init_time, now()) <= 5
 1
 EXPLAIN
 SELECT t.* 
@@ -5773,6 +5777,8 @@ LEFT JOIN t2 c1 ON c1.parent_id = t.id AND c1.col2 = "val"
   LEFT JOIN t2 c23 ON c23.parent_id = t.id AND c23.col2 = "val"
   LEFT JOIN t2 c24 ON c24.parent_id = t.id AND c24.col2 = "val"
   LEFT JOIN t2 c25 ON c25.parent_id = t.id AND c25.col2 = "val"
+  LEFT JOIN t2 c26 ON c26.parent_id = t.id AND c26.col2 = "val"
+  LEFT JOIN t2 c27 ON c27.parent_id = t.id AND c27.col2 = "val"
 ORDER BY 
 col1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -5802,6 +5808,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	c23	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
 1	SIMPLE	c24	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
 1	SIMPLE	c25	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	c26	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	c27	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
 set join_buffer_size=default;
 set join_cache_level = default;
 DROP TABLE t1,t2;
