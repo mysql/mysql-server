@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -684,7 +684,7 @@ namespace undo {
 		/* Step-2: Create the log file, open it and write 0 to
 		indicate init phase. */
 		bool            ret;
-		os_pfs_file_t	handle = os_file_create(
+		pfs_os_file_t	handle = os_file_create(
 			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
@@ -742,7 +742,7 @@ namespace undo {
 		/* Step-2: Open log file and write magic number to
 		indicate done phase. */
 		bool    ret;
-		os_pfs_file_t	handle =
+		pfs_os_file_t	handle =
 			os_file_create_simple_no_error_handling(
 				innodb_log_file_key, log_file_name,
 				OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -812,7 +812,7 @@ namespace undo {
 
 		if (exist) {
 			bool    ret;
-			os_pfs_file_t	handle =
+			pfs_os_file_t	handle =
 				os_file_create_simple_no_error_handling(
 					innodb_log_file_key, log_file_name,
 					OS_FILE_OPEN, OS_FILE_READ_WRITE,
