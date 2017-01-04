@@ -533,7 +533,7 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_pfs_file_t file)
+fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 {
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
@@ -3230,7 +3230,7 @@ fil_ibd_create(
 	ulint		flags,
 	page_no_t	size)
 {
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 	dberr_t		err;
 	byte*		buf2;
 	byte*		page;
@@ -5109,7 +5109,7 @@ fil_flush(
 					the database) */
 {
 	fil_node_t*	node;
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5492,7 +5492,7 @@ fil_buf_block_init(
 }
 
 struct fil_iterator_t {
-	os_pfs_file_t	file;			/*!< File handle */
+	pfs_os_file_t	file;			/*!< File handle */
 	const char*	filepath;		/*!< File path name */
 	os_offset_t	start;			/*!< From where to start */
 	os_offset_t	end;			/*!< Where to stop */
@@ -5673,7 +5673,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 	char*		filepath;
 	bool		success;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -289,7 +289,7 @@ public:
 
 	/** Get Datafile::m_handle.
 	@return m_handle */
-	os_pfs_file_t	handle()	const
+	pfs_os_file_t	handle()	const
 	{
 		return(m_handle);
 	}
@@ -421,7 +421,7 @@ private:
 	char*			m_filename;
 
 	/** Open file handle */
-	os_pfs_file_t		m_handle;
+	pfs_os_file_t		m_handle;
 
 	/** Flags to use for opening the data file */
 	os_file_create_t	m_open_flags;
