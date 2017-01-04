@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -953,14 +953,18 @@ dberr_t
 fil_prepare_for_truncate(
 /*=====================*/
 	ulint	id);			/*!< in: space id */
-/**********************************************************************//**
-Reinitialize the original tablespace header with the same space id
-for single tablespace */
+
+/** Reinitialize the original tablespace header with the same space id
+for single tablespace
+@param[in]	id		space id of the tablespace
+@param[in]	size            size in blocks
+@param[in]	trx		Transaction covering truncate */
 void
 fil_reinit_space_header(
-/*====================*/
-	ulint		id,	/*!< in: space id */
-	ulint		size);	/*!< in: size in blocks */
+	ulint		id,
+	ulint		size,
+	trx_t*		trx);
+
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
