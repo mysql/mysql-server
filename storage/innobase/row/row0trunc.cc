@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2059,7 +2059,7 @@ row_truncate_table_for_mysql(
 			space_size -= ib_vector_size(table->fts->indexes);
 		}
 
-		fil_reinit_space_header(table->space, space_size);
+		fil_reinit_space_header(table->space, space_size, trx);
 	}
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_with_intermediate_log_checkpoint",

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,6 +52,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "ut0new.h"
+#include "btr0sea.h"
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
@@ -2970,20 +2971,34 @@ fil_prepare_for_truncate(
 	return(err);
 }
 
-/**********************************************************************//**
-Reinitialize the original tablespace header with the same space id
-for single tablespace */
+/** Reinitialize the original tablespace header with the same space id
+for single tablespace
+@param[in]      id              space id of the tablespace
+@param[in]      size            size in blocks
+@param[in]      trx             Transaction covering truncate */
 void
 fil_reinit_space_header(
-/*====================*/
-	ulint		id,	/*!< in: space id */
-	ulint		size)	/*!< in: size in blocks */
+	ulint		id,
+	ulint		size,
+	trx_t*		trx)
 {
 	ut_a(!is_system_tablespace(id));
 
 	/* Invalidate in the buffer pool all pages belonging
-	to the tablespace */
+	to the tablespace. The buffer pool scan may take long
+	time to complete, therefore we release dict_sys->mutex
+	and the dict operation lock during the scan and aquire
+	it again after the buffer pool scan.*/
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	/* Lock the search latch in shared mode to prevent user
+	from disabling AHI during the scan */
+	btr_search_s_lock_all();
+	DEBUG_SYNC_C("simulate_buffer_pool_scan");
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
+	btr_search_s_unlock_all();
+	row_mysql_lock_data_dictionary(trx);
 
 	/* Remove all insert buffer entries for the tablespace */
 	ibuf_delete_for_discarded_space(id);
