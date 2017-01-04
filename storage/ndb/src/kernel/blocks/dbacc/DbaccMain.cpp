@@ -1051,7 +1051,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
           operationRecPtr.p->elementPointer = elemptr;
 
 	  eh = ElementHeader::setLocked(operationRecPtr.i);
-          dbgWord32(elemPageptr, elemptr, eh);
           elemPageptr.p->word32[elemptr] = eh;
 	  
 	  opbits |= Operationrec::OP_LOCK_OWNER;
@@ -2256,7 +2255,6 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
   {
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
     ptrCheckGuard(ulkPageidptr, cpagesize, page8);
-    dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey1);
     arrGuard(tulkLocalPtr, 2048);
     operationRecPtr.p->localdata = localkey;
     ndbrequire(fragrecptr.p->localkeylen == 1);
@@ -3155,7 +3153,6 @@ void Dbacc::insertContainer(const Element          elem,
     if (tidrContainerlen > Container::UP_LIMIT) {
       ContainerHeader conthead = pageptr.p->word32[conptr];
       conthead.setUsingBothEnds();
-      dbgWord32(pageptr, conptr, conthead);
       pageptr.p->word32[conptr] = conthead;
       if (isforward) {
         jam();
@@ -3205,7 +3202,6 @@ void Dbacc::insertContainer(const Element          elem,
   pageptr.p->word32[tidrIndex] = elem.getHeader();
   pageptr.p->word32[tidrIndex + 1] = elem.getData(); /* INSERTS LOCALKEY */
   conthead.setLength(tidrContainerlen);
-  dbgWord32(pageptr, conptr, conthead);
   pageptr.p->word32[conptr] = conthead;
   result = ZTRUE;
 }//Dbacc::insertContainer()
@@ -3230,9 +3226,7 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr,
 {
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   containerhead.setNext(nextContype, nextConidx, nextSamepage);
-  dbgWord32(pageptr, conptr, containerhead);
   pageptr.p->word32[conptr] = containerhead;
-  dbgWord32(pageptr, conptr + 1, nextPagei);
   pageptr.p->word32[conptr + 1] = nextPagei;
 }//Dbacc::addnewcontainer()
 
@@ -3250,7 +3244,7 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr,
 /* --------------------------------------------------------------------------------- */
 void Dbacc::getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype)
 {
-  const Uint32 emptylist = pageptr.p->word32[ZPOS_EMPTY_LIST];
+  const Uint32 emptylist = pageptr.p->word32[Page8::EMPTY_LIST];
   pageindex = (emptylist >> 7) & 0x7f;	/* LEFT FREE LIST */
   buftype = ZLEFT;
   if (pageindex == Container::NO_CONTAINER_INDEX) {
@@ -3273,12 +3267,11 @@ void Dbacc::getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::increaselistcont(Page8Ptr ilcPageptr)
 {
-  dbgWord32(ilcPageptr, ZPOS_ALLOC_CONTAINERS, ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1);
-  ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] = ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1;
+  ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] = ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] + 1;
   // A sparse page just got full
-  if (ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] == ZFREE_LIMIT + 1) {
+  if (ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] == ZFREE_LIMIT + 1) {
     // Check that it is an overflow page
-    if (((ilcPageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1)
+    if (((ilcPageptr.p->word32[Page8::EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1)
     {
       jam();
       LocalContainerPageList sparselist(*this, fragrecptr.p->sparsepages);
@@ -3316,23 +3309,20 @@ void Dbacc::seizeLeftlist(Page8Ptr slPageptr, Uint32 tslPageindex)
   if (tslPrevfree == Container::NO_CONTAINER_INDEX) {
     jam();
     /* UPDATE FREE LIST OF LEFT CONTAINER IN PAGE HEAD */
-    tsllTmp1 = slPageptr.p->word32[ZPOS_EMPTY_LIST];
+    tsllTmp1 = slPageptr.p->word32[Page8::EMPTY_LIST];
     tsllTmp = tsllTmp1 & 0x7f;
     tsllTmp1 = (tsllTmp1 >> 14) << 14;
     tsllTmp1 = (tsllTmp1 | (tslNextfree << 7)) | tsllTmp;
-    dbgWord32(slPageptr, ZPOS_EMPTY_LIST, tsllTmp1);
-    slPageptr.p->word32[ZPOS_EMPTY_LIST] = tsllTmp1;
+    slPageptr.p->word32[Page8::EMPTY_LIST] = tsllTmp1;
   } else {
     ndbrequire(tslPrevfree <= Container::MAX_CONTAINER_INDEX);
     jam();
     tsllTmp = getForwardContainerPtr(tslPrevfree);
-    dbgWord32(slPageptr, tsllTmp, tslNextfree);
     slPageptr.p->word32[tsllTmp] = tslNextfree;
   }//if
   if (tslNextfree <= Container::MAX_CONTAINER_INDEX) {
     jam();
     tsllTmp = getForwardContainerPtr(tslNextfree) + 1;
-    dbgWord32(slPageptr, tsllTmp, tslPrevfree);
     slPageptr.p->word32[tsllTmp] = tslPrevfree;
   } else {
     ndbrequire(tslNextfree == Container::NO_CONTAINER_INDEX);
@@ -3359,20 +3349,17 @@ void Dbacc::seizeRightlist(Page8Ptr slPageptr, Uint32 tslPageindex)
   Uint32 tslPrevfree = slPageptr.p->word32[tsrlHeadIndex + 1];
   if (tslPrevfree == Container::NO_CONTAINER_INDEX) {
     jam();
-    tsrlTmp = slPageptr.p->word32[ZPOS_EMPTY_LIST];
-    dbgWord32(slPageptr, ZPOS_EMPTY_LIST, ((tsrlTmp >> 7) << 7) | tslNextfree);
-    slPageptr.p->word32[ZPOS_EMPTY_LIST] = ((tsrlTmp >> 7) << 7) | tslNextfree;
+    tsrlTmp = slPageptr.p->word32[Page8::EMPTY_LIST];
+    slPageptr.p->word32[Page8::EMPTY_LIST] = ((tsrlTmp >> 7) << 7) | tslNextfree;
   } else {
     ndbrequire(tslPrevfree <= Container::MAX_CONTAINER_INDEX);
     jam();
     tsrlTmp = getBackwardContainerPtr(tslPrevfree);
-    dbgWord32(slPageptr, tsrlTmp, tslNextfree);
     slPageptr.p->word32[tsrlTmp] = tslNextfree;
   }//if
   if (tslNextfree <= Container::MAX_CONTAINER_INDEX) {
     jam();
     tsrlTmp = getBackwardContainerPtr(tslNextfree) + 1;
-    dbgWord32(slPageptr, tsrlTmp, tslPrevfree);
     slPageptr.p->word32[tsrlTmp] = tslPrevfree;
   } else {
     ndbrequire(tslNextfree == Container::NO_CONTAINER_INDEX);
@@ -4068,7 +4055,6 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       if (!containerhead.haveNext())
       {
          Uint32 tglrTmp = prevConhead.clearNext();
-         dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
          lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
       }
       else
@@ -4079,7 +4065,6 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
         Uint32 tglrTmp = prevConhead.setNext(containerhead.getNextEnd(),
                                              containerhead.getNextIndexNumber(),
                                              (nextPagei == lastPrevpageptr.i));
-        dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
         lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
         lastPrevpageptr.p->word32[tlastPrevconptr+1] = nextPagei;
       }
@@ -4128,7 +4113,6 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
     }//if
   }//if
   containerhead.setLength(tlastContainerlen);
-  dbgWord32(lastPageptr, tlastContainerptr, containerhead);
   arrGuard(tlastContainerptr, 2048);
   lastPageptr.p->word32[tlastContainerptr] = containerhead;
 }//Dbacc::getLastAndRemove()
@@ -4153,33 +4137,26 @@ void Dbacc::releaseLeftlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr)
   Uint32 tullTmp;
   Uint32 tullTmp1;
 
-  dbgWord32(pageptr, conptr + 1, Container::NO_CONTAINER_INDEX);
   arrGuard(conptr + 1, 2048);
   pageptr.p->word32[conptr + 1] = Container::NO_CONTAINER_INDEX;
-  tullTmp1 = (pageptr.p->word32[ZPOS_EMPTY_LIST] >> 7) & 0x7f;
-  dbgWord32(pageptr, conptr, tullTmp1);
+  tullTmp1 = (pageptr.p->word32[Page8::EMPTY_LIST] >> 7) & 0x7f;
   arrGuard(conptr, 2048);
   pageptr.p->word32[conptr] = tullTmp1;
   if (tullTmp1 <= Container::MAX_CONTAINER_INDEX) {
     jam();
     tullTmp1 = getForwardContainerPtr(tullTmp1) + 1;
-    dbgWord32(pageptr, tullTmp1, conidx);
     /* UPDATES PREV POINTER IN THE NEXT FREE */
     pageptr.p->word32[tullTmp1] = conidx;
   } else {
     ndbrequire(tullTmp1 == Container::NO_CONTAINER_INDEX);
   }//if
-  tullTmp = pageptr.p->word32[ZPOS_EMPTY_LIST];
+  tullTmp = pageptr.p->word32[Page8::EMPTY_LIST];
   tullTmp = (((tullTmp >> 14) << 14) | (conidx << 7)) | (tullTmp & 0x7f);
-  dbgWord32(pageptr, ZPOS_EMPTY_LIST, tullTmp);
-  pageptr.p->word32[ZPOS_EMPTY_LIST] = tullTmp;
-  dbgWord32(pageptr,
-            ZPOS_ALLOC_CONTAINERS,
-            pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1);
-  pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] =
-    pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1;
-  ndbrequire(pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] <= ZNIL);
-  if (((pageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
+  pageptr.p->word32[Page8::EMPTY_LIST] = tullTmp;
+  pageptr.p->word32[Page8::ALLOC_CONTAINERS] =
+    pageptr.p->word32[Page8::ALLOC_CONTAINERS] - 1;
+  ndbrequire(pageptr.p->word32[Page8::ALLOC_CONTAINERS] <= ZNIL);
+  if (((pageptr.p->word32[Page8::EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
     jam();
     ptrCheck(pageptr, cpagesize, page8);
     checkoverfreelist(pageptr);
@@ -4207,32 +4184,25 @@ void Dbacc::releaseRightlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr)
   Uint32 turlTmp1;
   Uint32 turlTmp;
 
-  dbgWord32(pageptr, conptr + 1, Container::NO_CONTAINER_INDEX);
   arrGuard(conptr + 1, 2048);
   pageptr.p->word32[conptr + 1] = Container::NO_CONTAINER_INDEX;
-  turlTmp1 = pageptr.p->word32[ZPOS_EMPTY_LIST] & 0x7f;
-  dbgWord32(pageptr, conptr, turlTmp1);
+  turlTmp1 = pageptr.p->word32[Page8::EMPTY_LIST] & 0x7f;
   arrGuard(conptr, 2048);
   pageptr.p->word32[conptr] = turlTmp1;
   if (turlTmp1 <= Container::MAX_CONTAINER_INDEX) {
     jam();
     turlTmp = getBackwardContainerPtr(turlTmp1) + 1;
-    dbgWord32(pageptr, turlTmp, conidx);
     /* UPDATES PREV POINTER IN THE NEXT FREE */
     pageptr.p->word32[turlTmp] = conidx;
   } else {
     ndbrequire(turlTmp1 == Container::NO_CONTAINER_INDEX);
   }//if
-  turlTmp = pageptr.p->word32[ZPOS_EMPTY_LIST];
-  dbgWord32(pageptr, ZPOS_EMPTY_LIST, ((turlTmp >> 7) << 7) | conidx);
-  pageptr.p->word32[ZPOS_EMPTY_LIST] = ((turlTmp >> 7) << 7) | conidx;
-  dbgWord32(pageptr,
-            ZPOS_ALLOC_CONTAINERS,
-            pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1);
-  pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] =
-    pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1;
-  ndbrequire(pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] <= ZNIL);
-  if (((pageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
+  turlTmp = pageptr.p->word32[Page8::EMPTY_LIST];
+  pageptr.p->word32[Page8::EMPTY_LIST] = ((turlTmp >> 7) << 7) | conidx;
+  pageptr.p->word32[Page8::ALLOC_CONTAINERS] =
+    pageptr.p->word32[Page8::ALLOC_CONTAINERS] - 1;
+  ndbrequire(pageptr.p->word32[Page8::ALLOC_CONTAINERS] <= ZNIL);
+  if (((pageptr.p->word32[Page8::EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
     jam();
     checkoverfreelist(pageptr);
   }//if
@@ -4250,7 +4220,7 @@ void Dbacc::checkoverfreelist(Page8Ptr colPageptr)
   Uint32 tcolTmp;
 
 // always an overflow page
-  tcolTmp = colPageptr.p->word32[ZPOS_ALLOC_CONTAINERS];
+  tcolTmp = colPageptr.p->word32[Page8::ALLOC_CONTAINERS];
   if (tcolTmp == 0) // Just got empty
   {
     jam();
@@ -4641,7 +4611,6 @@ void Dbacc::abortOperation(Signal* signal)
                       operationRecPtr.p->localdata.m_page_idx,
                       operationRecPtr.p->reducedHashValue);
         ptrCheckGuard(aboPageidptr, cpagesize, page8);
-        dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
         arrGuard(taboElementptr, 2048);
         aboPageidptr.p->word32[taboElementptr] = tmp2Olq;
         return;
@@ -4803,7 +4772,6 @@ void Dbacc::commitOperation(Signal* signal)
                     operationRecPtr.p->localdata.m_page_idx,
                     operationRecPtr.p->reducedHashValue);
       ptrCheckGuard(coPageidptr, cpagesize, page8);
-      dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
       arrGuard(tcoElementptr, 2048);
       coPageidptr.p->word32[tcoElementptr] = tmp2Olq;
       return;
@@ -6388,7 +6356,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   }//if
   ContainerHeader conthead;
   conthead.initInUse();
-  dbgWord32(pageptr, conptr, conthead);
   arrGuard(conptr, 2048);
   pageptr.p->word32[conptr] = conthead;
   if (containerhead.getNextEnd() == 0) {
@@ -8108,7 +8075,6 @@ void Dbacc::setlock(Page8Ptr pageptr, Uint32 elemptr) const
   operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
-  dbgWord32(pageptr, elemptr, tselTmp1);
   pageptr.p->word32[elemptr] = tselTmp1;
 }//Dbacc::setlock()
 
@@ -8332,7 +8298,7 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   /*       SET PAGE ID FOR USE OF CHECKPOINTER.                                        */
   /*       PREPARE CONTAINER HEADERS INDICATING EMPTY CONTAINERS WITHOUT NEXT.         */
   /* --------------------------------------------------------------------------------- */
-  inpPageptr.p->word32[ZPOS_PAGE_ID] = tipPageId;
+  inpPageptr.p->word32[Page8::PAGE_ID] = tipPageId;
   ContainerHeader tinpTmp1;
   tinpTmp1.initInUse();
   /* --------------------------------------------------------------------------------- */
@@ -8343,7 +8309,7 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
     inpPageptr.p->word32[tinpIndex] = tinpTmp1;
     tinpIndex = tinpIndex + ZBUF_SIZE;
   }//for
-  /* WORD32(ZPOS_EMPTY_LIST) DATA STRUCTURE:*/
+  /* WORD32(Page8::EMPTY_LIST) DATA STRUCTURE:*/
   /*--------------------------------------- */
   /*| PAGE TYPE|LEFT FREE|RIGHT FREE        */
   /*|     1    |  LIST   |  LIST            */
@@ -8355,7 +8321,7 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   /*       ALSO INITIALISE PAGE TYPE TO NOT OVERFLOW PAGE.                             */
   /* --------------------------------------------------------------------------------- */
   tinpTmp = (ZNO_CONTAINERS << 7);
-  inpPageptr.p->word32[ZPOS_EMPTY_LIST] = tinpTmp;
+  inpPageptr.p->word32[Page8::EMPTY_LIST] = tinpTmp;
   /* --------------------------------------------------------------------------------- */
   /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.        */
   /* --------------------------------------------------------------------------------- */
@@ -8400,8 +8366,8 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   /*       INITIALISE HEADER POSITIONS NOT CURRENTLY USED AND ENSURE USE OF OVERFLOW   */
   /*       RECORD POINTER ON THIS PAGE LEADS TO ERROR.                                 */
   /* --------------------------------------------------------------------------------- */
-  inpPageptr.p->word32[ZPOS_CHECKSUM] = 0;
-  inpPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] = 0;
+  inpPageptr.p->word32[Page8::CHECKSUM] = 0;
+  inpPageptr.p->word32[Page8::ALLOC_CONTAINERS] = 0;
 }//Dbacc::initPage()
 
 /* --------------------------------------------------------------------------------- */

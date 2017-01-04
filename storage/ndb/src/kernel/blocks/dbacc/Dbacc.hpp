@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,39 +35,6 @@
 
 
 #ifdef DBACC_C
-// Debug Macros
-#define dbgWord32(ptr, ind, val) 
-
-/*
-#define dbgWord32(ptr, ind, val) \
-if(debug_jan){ \
-tmp_val = val; \
-switch(ind){ \
-case 1: strcpy(tmp_string, "ZPOS_PAGE_TYPE   "); \
-break; \
-case 2: strcpy(tmp_string, "ZPOS_NO_ELEM_IN_PAGE"); \
-break; \
-case 3: strcpy(tmp_string, "ZPOS_CHECKSUM    "); \
-break; \
-case 5: strcpy(tmp_string, "ZPOS_FREE_AREA_IN_PAGE"); \
-break; \
-case 6: strcpy(tmp_string, "ZPOS_LAST_INDEX   "); \
-break; \
-case 7: strcpy(tmp_string, "ZPOS_INSERT_INDEX  "); \
-break; \
-case 8: strcpy(tmp_string, "ZPOS_ARRAY_POS    "); \
-break; \
-case 9: strcpy(tmp_string, "ZPOS_NEXT_FREE_INDEX"); \
-break; \
-case 10: strcpy(tmp_string, "ZPOS_NEXT_PAGE   "); \
-break; \
-case 11: strcpy(tmp_string, "ZPOS_PREV_PAGE   "); \
-break; \
-default: sprintf(tmp_string, "%-20d", ind);\
-} \
-ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: " << tmp_val << " \tLINE: " << __LINE__ << endl; \
-}\
-*/
 
 // Constants
 /** ------------------------------------------------------------------------ 
@@ -83,45 +50,15 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 /* ------------------------------------------------------------------------- */
 /*  THESE CONSTANTS DEFINE THE USE OF THE PAGE HEADER IN THE INDEX PAGES.    */
 /* ------------------------------------------------------------------------- */
-#define ZPOS_PAGE_ID Page8::PAGE_ID
-#define ZPOS_PAGE_TYPE 1
 #define ZPOS_PAGE_TYPE_BIT 14
-#define ZPOS_EMPTY_LIST Page8::EMPTY_LIST
-#define ZPOS_ALLOC_CONTAINERS Page8::ALLOC_CONTAINERS
-#define ZPOS_CHECKSUM Page8::CHECKSUM
-#define ZPOS_NO_ELEM_IN_PAGE 2
-#define ZPOS_FREE_AREA_IN_PAGE Page8::FREE_AREA_IN_PAGE
-#define ZPOS_LAST_INDEX Page8::LAST_INDEX
-#define ZPOS_INSERT_INDEX Page8::INSERT_INDEX
-#define ZPOS_ARRAY_POS Page8::ARRAY_POS
-#define ZPOS_NEXT_FREE_INDEX Page8::NEXT_FREE_INDEX
-#define ZPOS_NEXT_PAGE Page8::NEXT_PAGE
-#define ZPOS_PREV_PAGE Page8::PREV_PAGE
 #define ZNORMAL_PAGE_TYPE 0
 #define ZOVERFLOW_PAGE_TYPE 1
-#define ZDEFAULT_LIST 3
-#define ZWORDS_IN_PAGE 2048
 #define ZADDFRAG 0
-//#define ZEMPTY_FRAGMENT 0
 #define ZFRAGMENTSIZE 64
-#define ZFIRSTTIME 1
-#define ZFS_CONNECTSIZE 300
-#define ZFS_OPSIZE 100
-#define ZKEYINKEYREQ 4
 #define ZLEFT 1
-#define ZLOCALLOGFILE 2
-#define ZLOCKED 0
-#define ZMAXSCANSIGNALLEN 20
-#define ZMAINKEYLEN 8
-#define ZNO_OF_DISK_VERSION 3
-#define ZNO_OF_OP_PER_SIGNAL 20
-//#define ZNOT_EMPTY_FRAGMENT 1
-#define ZOP_HEAD_INFO_LN 3
 #define ZOPRECSIZE 740
-#define ZPAGE8_BASE_ADD 1
 #define ZPAGESIZE 128
 #define ZPARALLEL_QUEUE 1
-#define ZPDIRECTORY 1
 #define ZSCAN_MAX_LOCK 4
 #define ZSERIAL_QUEUE 2
 #define ZSPH1 1
@@ -130,18 +67,12 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZSPH6 6
 #define ZREADLOCK 0
 #define ZRIGHT 2
-#define ZROOTFRAGMENTSIZE 32
-#define ZSCAN_LOCK_ALL 3
 /**
  * Check kernel_types for other operation types
  */
 #define ZSCAN_OP 8
 #define ZSCAN_REC_SIZE 256
-#define ZSTAND_BY 2
 #define ZTABLESIZE 16
-#define ZTABMAXINDEX 3
-#define ZUNDEFINED_OP 6
-#define ZUNLOCKED 1
 
 /* --------------------------------------------------------------------------------- */
 /* CONTINUEB CODES                                                                   */
@@ -150,7 +81,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
-
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
 /* ------------------------------------------------------------------------- */
