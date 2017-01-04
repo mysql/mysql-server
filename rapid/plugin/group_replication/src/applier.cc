@@ -18,6 +18,7 @@
 
 #include "applier.h"
 #include "my_dbug.h"
+#include "my_systime.h"
 #include "plugin.h"
 #include "plugin_log.h"
 #include "single_primary_message.h"

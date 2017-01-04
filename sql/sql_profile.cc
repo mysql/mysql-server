@@ -31,7 +31,6 @@
 #include <string.h>
 
 #include "my_config.h"
-#include "sql_profile.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -47,6 +46,7 @@
 #include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -54,6 +54,7 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
+#include "sql_profile.h"
 #include "sql_security_ctx.h"
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_string.h"

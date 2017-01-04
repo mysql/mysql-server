@@ -29,6 +29,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"                // MY_STAT
 #include "my_sqlcommand.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_stage.h"

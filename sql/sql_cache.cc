@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -350,6 +350,7 @@ TODO list:
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "myisammrg.h"        // MYRG_INFO
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_stage.h"

@@ -36,6 +36,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_stage.h"
