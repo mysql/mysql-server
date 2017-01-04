@@ -84,6 +84,7 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 #       information_schema.statistics is in is_columns_is.test.
 
 # Show that TABLE_CATALOG is always NULL.
+--sorted_result
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
 FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
      table_name != 'ndb_binlog_index';
