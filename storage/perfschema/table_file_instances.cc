@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,15 +18,16 @@
   Table FILE_INSTANCES (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "pfs_instr.h"
+#include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
-#include "table_file_instances.h"
 #include "pfs_global.h"
-#include "pfs_buffer_container.h"
-#include "field.h"
+#include "pfs_instr.h"
+#include "table_file_instances.h"
 
 THR_LOCK table_file_instances::m_table_lock;
 

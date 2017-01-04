@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,29 +23,35 @@
 
 #include "ha_ndbcluster.h"
 
+#include <mysql/psi/mysql_thread.h>
+
+#include "../storage/ndb/include/util/SparseBitmask.hpp"
+#include "../storage/ndb/src/common/util/parse_mask.hpp"
+#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "abstract_query_plan.h"
+#include "ha_ndb_index_stat.h"
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_cond.h"
 #include "ha_ndbcluster_connection.h"
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_tables.h"
-#include "ha_ndb_index_stat.h"
 #include "m_ctype.h"
 #include "mf_wcomp.h"
+#include "my_dbug.h"
 #include "mysql/plugin.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "ndb_anyvalue.h"
-#include "ndbapi/NdbApi.hpp"
-#include "ndbapi/NdbIndexStat.hpp"
-#include "ndbapi/NdbInterpretedCode.hpp"
 #include "ndb_binlog_extra_row_info.h"
+#include "ndb_bitmap.h"
 #include "ndb_component.h"
 #include "ndb_conflict.h"
 #include "ndb_dist_priv_util.h"
 #include "ndb_event_data.h"
 #include "ndb_global.h"
-#include "ndb_global_schema_lock_guard.h"
 #include "ndb_global_schema_lock.h"
+#include "ndb_global_schema_lock_guard.h"
 #include "ndb_local_connection.h"
 #include "ndb_local_schema.h"
 #include "ndb_log.h"
@@ -57,14 +63,10 @@
 #include "ndb_thd.h"
 #include "ndb_util_thread.h"
 #include "ndb_version.h"
+#include "ndbapi/NdbApi.hpp"
+#include "ndbapi/NdbIndexStat.hpp"
+#include "ndbapi/NdbInterpretedCode.hpp"
 #include "partition_info.h"
-#include "ndb_bitmap.h"
-#include <mysql/psi/mysql_thread.h>
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "../storage/ndb/include/util/SparseBitmask.hpp"
-#include "../storage/ndb/src/common/util/parse_mask.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "template_utils.h"
 
 using std::min;
@@ -17383,8 +17385,6 @@ void Ndb_util_thread::do_wakeup()
   mysql_mutex_unlock(&LOCK);
 }
 
-
-#include "ndb_log.h"
 
 void
 Ndb_util_thread::do_run()

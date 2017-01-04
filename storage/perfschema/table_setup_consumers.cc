@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,13 +18,14 @@
   Table SETUP_CONSUMERS (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "table_setup_consumers.h"
-#include "pfs_instr.h"
-#include "pfs_events_waits.h"
 #include "pfs_digest.h"
-#include "field.h"
+#include "pfs_events_waits.h"
+#include "pfs_instr.h"
+#include "table_setup_consumers.h"
 
 #define COUNT_SETUP_CONSUMERS 15
 

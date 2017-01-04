@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,19 +18,20 @@
 
 #include <stddef.h>
 
+#include "dd/cache/object_registry.h"        // Object_registry
+#include "dd/impl/cache/cache_element.h"     // Cache_element
 #include "dd/impl/types/entity_object_impl.h" // set_id()
 #include "dd/object_id.h"
 #include "handler.h"                         // enum_tx_isolation
+#include "my_dbug.h"
 #include "my_global.h"                       // DBUG_ASSERT() etc.
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
-#include "thr_mutex.h"
-#include "dd/cache/object_registry.h"        // Object_registry
-#include "dd/impl/cache/cache_element.h"     // Cache_element
-#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "mysqld_error.h"                    // my_error
 #include "sql_class.h"                       // THD
+#include "thr_mutex.h"
 
 class THD;
 

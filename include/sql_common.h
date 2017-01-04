@@ -140,7 +140,7 @@ typedef struct st_mysql_methods
 			MYSQL_ROW column, unsigned int field_count);
   void (*flush_use_result)(MYSQL *mysql, my_bool flush_all_results);
   int (*read_change_user_result)(MYSQL *mysql);
-#if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
+#if !defined(MYSQL_SERVER)
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (*stmt_execute)(MYSQL_STMT *stmt);

@@ -1326,10 +1326,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   thd->want_privilege= SELECT_ACL;
   enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
   thd->mark_used_columns= MARK_COLUMNS_READ;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
     tr->set_want_privilege(SELECT_ACL);
-#endif
   if (select->setup_conds(thd))
     DBUG_RETURN(true);
 
@@ -1337,10 +1335,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   // Check the fields to be updated (assume that all tables may be updated)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
     tr->set_want_privilege(UPDATE_ACL);
-#endif
 
   if (setup_fields(thd, Ref_item_array(), *update_fields,
                    UPDATE_ACL, NULL, false, true))
@@ -1359,10 +1355,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 
   DBUG_ASSERT(update_table_count_local > 0);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
     tr->set_want_privilege(SELECT_ACL);
-#endif
   if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL, NULL,
                    false, false))
     DBUG_RETURN(true);                          /* purecov: inspected */
@@ -1493,14 +1487,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Downgrade desired privileges for updated tables to SELECT
   for (TABLE_LIST *tl= table_list; tl; tl= tl->next_local)
   {
     if (tl->updating)
       tl->set_want_privilege(SELECT_ACL);
   }
-#endif
 
   /* @todo: downgrade the metadata locks here. */
 

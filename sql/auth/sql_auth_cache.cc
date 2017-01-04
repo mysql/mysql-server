@@ -79,7 +79,6 @@
 
 using std::min;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[]=
 { {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_GLOBAL, 0} };
@@ -90,7 +89,6 @@ void init_acl_cache();
 extern Role_index_map *g_authid_to_vertex;
 extern Granted_roles_graph *g_granted_roles;
 #include <boost/property_map/property_map.hpp>
-#endif
 
 struct ACL_internal_schema_registry_entry
 {
@@ -108,7 +106,6 @@ struct ACL_internal_schema_registry_entry
 static ACL_internal_schema_registry_entry registry_array[2];
 static uint m_registry_array_size= 0;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 MEM_ROOT global_acl_memory;
 MEM_ROOT memex;
 Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users= NULL;
@@ -131,8 +128,6 @@ my_bool validate_user_plugins= TRUE;
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
                         1 + USERNAME_LENGTH + 1)
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 
 /**
@@ -654,9 +649,6 @@ bool hostname_requires_resolving(const char *hostname)
 
   return FALSE; /* all characters are either dots or digits. */
 }
-
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 
 static const uchar* get_key_column(const uchar *arg, size_t *length)
@@ -1583,13 +1575,12 @@ my_bool acl_init(bool dont_read_acl_tables)
   my_bool return_val;
   DBUG_ENTER("acl_init");
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   init_acl_cache();
 
   (void)my_hash_init(&db_cache, &my_charset_utf8_bin,
                      0, 0, get_grant_db, my_free,
                      0, key_memory_acl_cache);
-#endif
+
   acl_cache_initialized= true;
 
   /*
@@ -3871,7 +3862,6 @@ void shutdown_acl_cache()
   roles_delete_graph();
 }
 
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /* Constants used by Acl_cache_lock_guard */
 static const ulong ACL_CACHE_LOCK_TIMEOUT= 3600UL;

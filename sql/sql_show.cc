@@ -290,7 +290,6 @@ enum enum_i_s_events_fields
 };
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
@@ -298,7 +297,6 @@ static const char *grant_names[]={
 TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names, NULL};
-#endif
 
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
@@ -557,9 +555,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
   uint i;
   MY_DIR *dirp;
   MEM_ROOT **root_ptr= NULL, *old_root= NULL;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
-#endif
   size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
@@ -643,7 +639,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
     }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))
     {
@@ -655,7 +650,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
         continue;
     }
-#endif
+
     if (!(file_name= tmp_mem_root ?
                      make_lex_string_root(tmp_mem_root, file_name, uname,
                                           file_name_len, TRUE) :
@@ -937,10 +932,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 {
   char buff[2048], orig_dbname[NAME_LEN];
   String buffer(buff, sizeof(buff), system_charset_info);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_context();
   uint db_access;
-#endif
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol=thd->get_protocol();
@@ -950,7 +943,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (lower_case_table_names && dbname != any_db)
     my_casedn_str(files_charset_info, dbname);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (sctx->check_access(DB_ACLS))
     db_access=DB_ACLS;
   else
@@ -976,7 +968,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                                    sctx->host_or_ip().str, dbname);
     DBUG_RETURN(TRUE);
   }
-#endif
+
   if (is_infoschema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
@@ -3727,7 +3719,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                               lookup_field_vals->table_value.str, 0))
           continue;
       }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
       /* Don't show tables where we don't have any privileges */
       if (!(thd->col_access & TABLE_ACLS))
       {
@@ -3741,7 +3733,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
         if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
           continue;
       }
-#endif
+
       LEX_STRING *table_name= NULL;
       table_name= thd->make_lex_string(table_name, name->c_str(),
                                        name->length(), true);
@@ -4380,9 +4372,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   Item *partial_cond= 0;
   int error= 1;
   Open_tables_backup open_tables_state_backup;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_context();
-#endif
   uint table_open_method;
   bool can_deadlock;
 
@@ -4489,7 +4479,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   while ((db_name= it++))
   {
     DBUG_ASSERT(db_name->length <= NAME_LEN);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
     bool have_db_privileges= false;
     if (sctx->get_active_roles()->size() > 0)
     {
@@ -4502,7 +4492,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
         sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
         have_db_privileges || acl_get(thd, sctx->host().str, sctx->ip().str,
                 sctx->priv_user().str, db_name->str, 0))
-#endif
+
     {
       // We must make sure the schema is released and unlocked in the right
       // order. Fail if we are unable to get a meta data lock on the schema
@@ -4852,7 +4842,6 @@ for (; (field= *ptr) ; ptr++)
   }
 
   // PRIVILEGES
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access;
   check_access(thd,SELECT_ACL, db_name->str,
                &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
@@ -4872,8 +4861,6 @@ for (; (field= *ptr) ; ptr++)
   }
   table->field[TMP_TABLE_COLUMNS_PRIVILEGES]->store(
     tmp+1, end == tmp ? 0 : (uint) (end-tmp-1), cs);
-
-#endif
 
   // COLUMN_COMMENT
   table->field[TMP_TABLE_COLUMNS_COLUMN_COMMENT]->store(

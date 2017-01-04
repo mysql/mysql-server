@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,25 +18,26 @@
   Performance schema instruments meta data (implementation).
 */
 
+#include <string.h>
+
+#include "lf.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
-#include "table.h"
-#include "mysqld.h"                             // lower_case_table_names
-#include "pfs_instr_class.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_instr.h"
-#include "pfs_global.h"
-#include "pfs_timer.h"
-#include "pfs_events_waits.h"
-#include "pfs_setup_object.h"
-#include "pfs_atomic.h"
-#include "pfs_program.h"
-#include "pfs_column_values.h"
-#include "pfs_buffer_container.h"
 #include "mysql/psi/mysql_thread.h"
-#include "lf.h"
-
-#include <string.h>
+#include "mysqld.h"                             // lower_case_table_names
+#include "pfs_atomic.h"
+#include "pfs_buffer_container.h"
+#include "pfs_builtin_memory.h"
+#include "pfs_column_values.h"
+#include "pfs_events_waits.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_program.h"
+#include "pfs_setup_object.h"
+#include "pfs_timer.h"
+#include "table.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers

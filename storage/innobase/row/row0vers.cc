@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,27 +23,27 @@ Row versions
 Created 2/6/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0vers.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
 #include "btr0btr.h"
+#include "current_thd.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
+#include "my_dbug.h"
 #include "que0que.h"
+#include "read0read.h"
+#include "rem0cmp.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
-#include "rem0cmp.h"
-#include "read0read.h"
-#include "lock0lock.h"
-#include "row0mysql.h"
-#include "current_thd.h"
+#include "row0vers.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /** Check whether all non-virtual columns in a virtual index match that of in
 the cluster index

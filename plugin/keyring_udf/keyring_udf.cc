@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #include <sql_class.h> // THD
 #include <stdio.h>
 #include <new>
+
+#include "my_dbug.h"
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8

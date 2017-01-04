@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -90,7 +90,7 @@ typedef int	os_file_t;
 
 /** Common file descriptor for file IO instrumentation with PFS
 on windows and other platforms */
-struct os_pfs_file_t
+struct pfs_os_file_t
 {
 	os_file_t   m_file;
 #ifdef UNIV_PFS_IO
@@ -204,6 +204,11 @@ static const ulint ENCRYPTION_INFO_SIZE_V2 = (ENCRYPTION_MAGIC_SIZE \
 					 + (ENCRYPTION_KEY_LEN * 2) \
 					 + ENCRYPTION_SERVER_UUID_LEN \
 					 + 2 * sizeof(ulint));
+/** Default master key for bootstrap */
+static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
+
+/** Default master key id for bootstrap */
+static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
 
 class IORequest;
 
@@ -261,8 +266,14 @@ struct Encryption {
 
 	/** Check if page is encrypted page or not
 	@param[in]	page	page which need to check
-	@return true if it is a encrypted page */
+	@return true if it is an encrypted page */
 	static bool is_encrypted_page(const byte* page)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if a log block is encrypted or not
+	@param[in]	block	block which need to check
+	@return true if it is an encrypted block */
+	static bool is_encrypted_log(const byte* block)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check the encryption option and set it
@@ -314,14 +325,58 @@ struct Encryption {
 				   byte** master_key,
 				   Encryption::Version*  version);
 
+        /** Fill the encryption information.
+        @param[in]	key		encryption key
+        @param[in]	iv		encryption iv
+        @param[in,out]	encrypt_info	encryption information
+        @param[in]	is_boot		if it's for bootstrap
+	@return true if success. */
+	static bool fill_encryption_info(byte*	key,
+					 byte*	iv,
+					 byte*	encrypt_info,
+					 bool	is_boot);
+
+	/** Decoding the encryption info from the first page of a tablespace.
+	@param[in,out]	key		key
+	@param[in,out]	iv		iv
+	@param[in]	encryption_info	encrytion info.
+	@return true if success */
+	static bool decode_encryption_info(byte*	key,
+					   byte*	iv,
+					   byte*	encryption_info);
+
+	/** Encrypt the redo log block.
+	@param[in]	type		IORequest
+	@param[in,out]	src_ptr		log block which need to encrypt
+	@param[in,out]	dst_ptr		destination area
+	@return true if success. */
+	bool encrypt_log_block(
+		const IORequest&	type,
+		byte*			src_ptr,
+		byte*			dst_ptr);
+
+	/** Encrypt the redo log data contents.
+	@param[in]	type		IORequest
+	@param[in,out]	src		page data which need to encrypt
+	@param[in]	src_len		size of the source in bytes
+	@param[in,out]	dst		destination area
+	@param[in,out]	dst_len		size of the destination in bytes
+	@return buffer data, dst_len will have the length of the data */
+	byte* encrypt_log(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint*			dst_len);
+
 	/** Encrypt the page data contents. Page type can't be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
 	FIL_PAGE_ENCRYPTED_RTREE.
 	@param[in]	type		IORequest
 	@param[in,out]	src		page data which need to encrypt
-	@param[in]	src_len		Size of the source in bytes
+	@param[in]	src_len		size of the source in bytes
 	@param[in,out]	dst		destination area
-	@param[in,out]	dst_len		Size of the destination in bytes
+	@param[in,out]	dst_len		size of the destination in bytes
 	@return buffer data, dst_len will have the length of the data */
 	byte* encrypt(
 		const IORequest&	type,
@@ -331,16 +386,42 @@ struct Encryption {
 		ulint*			dst_len)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Decrypt the log block.
+	@param[in]	type		IORequest
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
+	@param[in,out]	dst		scratch area to use for decryption
+	@return DB_SUCCESS or error code */
+	dberr_t decrypt_log_block(
+		const IORequest&	type,
+		byte*			src,
+		byte*			dst);
+
+	/** Decrypt the log data contents.
+	@param[in]	type		IORequest
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
+	@param[in]	src_len		source data length
+	@param[in,out]	dst		scratch area to use for decryption
+	@param[in]	dst_len		size of the scratch area in bytes
+	@return DB_SUCCESS or error code */
+	dberr_t decrypt_log(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint			dst_len);
+
 	/** Decrypt the page data contents. Page type must be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
 	FIL_PAGE_ENCRYPTED_RTREE, if not then the source contents are
 	left unchanged and DB_SUCCESS is returned.
 	@param[in]	type		IORequest
-	@param[in,out]	src		Data read from disk, decrypt
+	@param[in,out]	src		data read from disk, decrypt
 					data will be copied to this page
 	@param[in]	src_len		source data length
-	@param[in,out]	dst		Scratch area to use for decrypt
-	@param[in]	dst_len		Size of the scratch area in bytes
+	@param[in,out]	dst		scratch area to use for decrypt
+	@param[in]	dst_len		size of the scratch area in bytes
 	@return DB_SUCCESS or error code */
 	dberr_t decrypt(
 		const IORequest&	type,
@@ -349,6 +430,9 @@ struct Encryption {
 		byte*			dst,
 		ulint			dst_len)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if keyring plugin loaded. */
+	static bool check_keyring();
 
 	/** Encrypt type */
 	Type			m_type;
@@ -1101,7 +1185,7 @@ os_file_create_simple() which opens or creates a file.
 @return own: handle to the file, not defined if error, error number
 	can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -1132,7 +1216,7 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 	can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -1166,7 +1250,7 @@ Add instrumentation to monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 	can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -1189,7 +1273,7 @@ A performance schema instrumented wrapper function for os_file_close().
 UNIV_INLINE
 bool
 pfs_os_file_close_func(
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	src_file,
 	uint		src_line);
 
@@ -1209,7 +1293,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_file_read_func(
 	IORequest&	type,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1234,7 +1318,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_file_read_no_error_handling_func(
 	IORequest&	type,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1297,7 +1381,7 @@ pfs_os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1326,7 +1410,7 @@ dberr_t
 pfs_os_file_write_func(
 	IORequest&	type,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const void*	buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1372,7 +1456,7 @@ Flushes the write buffers of a given file to the disk.
 UNIV_INLINE
 bool
 pfs_os_file_flush_func(
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	src_file,
 	uint		src_line);
 
@@ -1502,7 +1586,7 @@ os_file_get_size(
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
 os_file_get_size(
-	os_pfs_file_t	file)
+	pfs_os_file_t	file)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Write the specified number of zeros to a newly created file.
@@ -1515,7 +1599,7 @@ os_file_get_size(
 bool
 os_file_set_size(
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size,
 	bool		read_only)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1536,7 +1620,7 @@ preserved is smaller or equal than current size of file.
 bool
 os_file_truncate(
 	const char*	pathname,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size);
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -1732,7 +1816,7 @@ os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1883,7 +1967,7 @@ Note: On Windows we use the name and on Unices we use the file handle.
 bool
 os_is_sparse_file_supported(
 	const char*	path,
-	os_pfs_file_t	fh)
+	pfs_os_file_t	fh)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if

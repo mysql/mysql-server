@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,28 +23,28 @@ Database object creation
 Created 1/8/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "dict0crea.h"
-#include "btr0pcur.h"
 #include "btr0btr.h"
-#include "page0page.h"
-#include "mach0data.h"
+#include "btr0pcur.h"
 #include "dict0boot.h"
+#include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0priv.h"
+#include "dict0stats.h"
+#include "fsp0space.h"
+#include "fsp0sysspace.h"
+#include "fts0priv.h"
+#include "ha_prototypes.h"
+#include "mach0data.h"
+#include "my_dbug.h"
+#include "page0page.h"
+#include "pars0pars.h"
 #include "que0que.h"
 #include "row0ins.h"
 #include "row0mysql.h"
-#include "pars0pars.h"
+#include "srv0start.h"
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
-#include "dict0priv.h"
-#include "fts0priv.h"
-#include "fsp0space.h"
-#include "fsp0sysspace.h"
-#include "srv0start.h"
-#include "dict0stats.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -431,7 +431,8 @@ dict_build_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
 	ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-	bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+	bool ret = fsp_header_init(
+		space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 	mtr_commit(&mtr);
 
 	if (!ret) {
@@ -529,9 +530,8 @@ dict_build_tablespace_for_table(
 		mtr_start(&mtr);
 		mtr.set_named_space(table->space);
 
-		bool ret = fsp_header_init(table->space,
-					   FIL_IBD_FILE_INITIAL_SIZE,
-					   &mtr);
+		bool ret = fsp_header_init(
+			table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 		mtr_commit(&mtr);
 
 		if (!ret) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,10 +23,10 @@ Transaction undo log
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "trx0undo.h"
 #include "fsp0fsp.h"
+#include "ha_prototypes.h"
+#include "my_dbug.h"
+#include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
 #include "mach0data.h"
 #include "mtr0log.h"
@@ -2013,7 +2013,8 @@ trx_undo_truncate_tablespace(
 	mtr_t		mtr;
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
+			&mtr, false);
 	mtr_commit(&mtr);
 
 	/* Step-3: Re-initialize rollback segment header that resides

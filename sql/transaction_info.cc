@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "derror.h"             // ER_THD
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "mysqld.h"             // global_system_variables
 #include "mysqld_error.h"       // ER_*

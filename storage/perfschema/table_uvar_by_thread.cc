@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,20 +18,20 @@
   Table USER_VARIABLES_BY_THREAD (implementation).
 */
 
+#include "item_func.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "mysqld_thd_manager.h"
+#include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
-#include "table_uvar_by_thread.h"
 #include "pfs_global.h"
+#include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "pfs_buffer_container.h"
-
 /* Iteration on THD from the sql layer. */
 #include "sql_class.h"
-#include "mysqld_thd_manager.h"
-#include "item_func.h"
+#include "table_uvar_by_thread.h"
 
 class Find_thd_user_var : public Find_THD_Impl
 {

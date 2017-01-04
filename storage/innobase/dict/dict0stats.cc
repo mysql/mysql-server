@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_dbug.h"
+
 /**************************************************//**
 @file dict/dict0stats.cc
 Code used for calculating and manipulating table statistics.
@@ -25,23 +27,22 @@ Created Jan 06, 2010 Vasil Dimov
 
 #ifndef UNIV_HOTBACKUP
 
-#include "univ.i"
-
-#include "ut0ut.h"
-#include "ut0rnd.h"
-#include "dyn0buf.h"
-#include "row0sel.h"
-#include "trx0trx.h"
-#include "pars0pars.h"
-#include "dict0stats.h"
-#include "ha_prototypes.h"
-#include "ut0new.h"
-#include "lob0lob.h"
 #include <mysql_com.h>
-
 #include <algorithm>
 #include <map>
 #include <vector>
+
+#include "dict0stats.h"
+#include "dyn0buf.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "pars0pars.h"
+#include "row0sel.h"
+#include "trx0trx.h"
+#include "univ.i"
+#include "ut0new.h"
+#include "ut0rnd.h"
+#include "ut0ut.h"
 
 /* Sampling algorithm description @{
 
@@ -2147,6 +2148,7 @@ dict_stats_update_persistent(
 }
 
 #include "mysql_com.h"
+
 /** Save an individual index's statistic into the persistent statistics
 storage.
 @param[in]	index			index to be updated

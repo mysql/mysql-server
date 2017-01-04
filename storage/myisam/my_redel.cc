@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "myisam_sys.h"
-
-#include "my_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -31,8 +28,11 @@
 #include <sys/utime.h>
 #endif
 
+#include "my_config.h"
+#include "my_dbug.h"
 #include "my_dir.h"
 #include "my_sys.h"
+#include "myisam_sys.h"
 #include "mysys_err.h"
 
 

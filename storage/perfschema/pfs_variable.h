@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -124,15 +124,16 @@
 
 /* Iteration on THD from the sql layer. */
 #include "mysqld_thd_manager.h"
+
 #define PFS_VAR
-/* Class sys_var */
-#include "set_var.h"
-/* PFS_thread */
+#include <string>
+
+#include "my_dbug.h"
+#include "pfs_account.h"
+#include "pfs_host.h"
 #include "pfs_instr.h"
 #include "pfs_user.h"
-#include "pfs_host.h"
-#include "pfs_account.h"
-#include <string>
+#include "set_var.h"
 
 using std::string;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,12 +21,13 @@
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-#include "queues.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_pointer_arithmetic.h"
+#include "myisam_sys.h"
 #include "myisamdef.h"
 #include "mysys_err.h"
-#include "myisam_sys.h"
+#include "queues.h"
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64

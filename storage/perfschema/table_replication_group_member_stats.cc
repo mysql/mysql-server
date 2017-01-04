@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,20 +19,21 @@
   Table replication_group_member_stats (implementation).
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
 
 #ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION
 #endif /* EMBEDDED_LIBRARY */
 
-#include "table_replication_group_member_stats.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "log.h"
-#include "rpl_group_replication.h"
-#include "thr_lock.h"
-#include "table.h"
 #include "field.h"
+#include "log.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "rpl_group_replication.h"
+#include "table.h"
+#include "table_replication_group_member_stats.h"
+#include "thr_lock.h"
 
 #ifdef HAVE_REPLICATION
 

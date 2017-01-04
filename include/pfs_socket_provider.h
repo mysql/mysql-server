@@ -25,7 +25,6 @@
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include <stddef.h>
@@ -72,7 +71,6 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket);
 
 C_MODE_END
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_SOCKET_INTERFACE */

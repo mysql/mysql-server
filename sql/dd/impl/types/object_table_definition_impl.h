@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,18 @@
 #ifndef DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 #define	DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 
-#include "my_global.h"
-#include "m_string.h"                         // my_stpcpy
-#include "mysqld.h"                           // lower_case_table_names
-#include "table.h"                            // MYSQL_TABLESPACE_NAME
-
-#include "dd/string_type.h"                   // dd::String_type
-#include "dd/impl/system_registry.h"          // System_tablespaces
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
-#include "dd/types/table.h"                   // dd::Table
-
 #include <map>
 #include <vector>
+
+#include "dd/impl/system_registry.h"          // System_tablespaces
+#include "dd/string_type.h"                   // dd::String_type
+#include "dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "dd/types/table.h"                   // dd::Table
+#include "m_string.h"                         // my_stpcpy
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysqld.h"                           // lower_case_table_names
+#include "table.h"                            // MYSQL_TABLESPACE_NAME
 
 namespace dd {
 

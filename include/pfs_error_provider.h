@@ -25,7 +25,6 @@
 
 #ifdef HAVE_PSI_ERROR_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include "my_inttypes.h"
@@ -41,7 +40,6 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation);
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_ERROR_INTERFACE */
 

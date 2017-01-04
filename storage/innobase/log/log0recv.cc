@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -41,6 +41,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
+#include "my_dbug.h"
 #include "os0thread-create.h"
 #include "page0cur.h"
 #include "page0zip.h"
@@ -1494,9 +1495,7 @@ fil_write_encryption_parse(
 		fprintf(stderr, "Got %lu from redo log:", space->id);
 	}
 #endif
-	if (!fsp_header_decode_encryption_info(key,
-					       iv,
-					       ptr)) {
+	if (!Encryption::decode_encryption_info(key, iv, ptr)) {
 		recv_sys->found_corrupt_log = TRUE;
 		ib::warn() << "Encryption information"
 			<< " in the redo log of space "

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,11 @@
   Table USER_VARIABLES_BY_THREAD (declarations).
 */
 
+#include "my_dbug.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**

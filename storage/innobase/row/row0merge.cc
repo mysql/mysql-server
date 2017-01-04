@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "pars0pars.h"
 #include "row0ext.h"

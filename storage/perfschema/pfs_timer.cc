@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
   Performance schema timers (implementation).
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
-#include "pfs_timer.h"
 #include "my_rdtsc.h"
+#include "pfs_timer.h"
 
 enum_timer_name idle_timer= TIMER_NAME_MICROSEC;
 enum_timer_name wait_timer= TIMER_NAME_CYCLE;

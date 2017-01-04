@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,11 +26,13 @@
 #include "current_thd.h"
 #include "key.h"
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "mysqld.h"                    // table_alias_charset
 #include "mysqld_error.h"
 #include "parse_location.h"
+#include "parse_tree_nodes.h"          // PT_with_clause
 #include "prealloced_array.h"          // Prealloced_array
 #include "protocol.h"
 #include "select_lex_visitor.h"
@@ -48,7 +50,6 @@
 #include "sql_security_ctx.h"
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
-#include "parse_tree_nodes.h"          // PT_with_clause
 #include "sql_yacc.h"
 #include "system_variables.h"
 #include "template_utils.h"

@@ -27,7 +27,7 @@
 #include "mysql.h"
 #include "typelib.h"
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 
 #ifndef MYSQL_CLIENT
 #error This header is supposed to be used only in the client

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #define  HASH_FILO_H
 
 #include "hash.h"        /* hash_get_key_function, my_hash_free_key, HASH */
+#include "my_dbug.h"
 #include "my_global.h"
 
 #ifdef HAVE_PSI_INTERFACE

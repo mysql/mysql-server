@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,12 @@
 #define BOUNDED_QUEUE_C_INCLUDED
 
 #include <string.h>
-#include "my_global.h"
-#include "my_base.h"
-#include "my_sys.h"
+
 #include "../storage/myisam/queues.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "test_utils.h"
 
 /**

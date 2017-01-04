@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "ha_innopart.h"
 #include "key.h"
 #include "lock0lock.h"
+#include "my_dbug.h"
 #include "partition_info.h"
 #include "row0import.h"
 #include "row0ins.h"

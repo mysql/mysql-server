@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "auth_acls.h"
 #include "auth_common.h"                     // check_access
+#include "dd/types/trigger.h"                // dd::Trigger
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Strict_error_handler
 #include "field.h"
@@ -28,6 +29,7 @@
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/service_my_snprintf.h"
@@ -41,8 +43,6 @@
 #include "sql_udf.h"
 #include "table.h"
 #include "template_utils.h"                  // delete_container_pointers
-
-#include "dd/types/trigger.h"                // dd::Trigger
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
  :drop_list(PSI_INSTRUMENT_ME, rhs.drop_list.begin(), rhs.drop_list.end()),

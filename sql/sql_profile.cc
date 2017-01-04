@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,10 +28,10 @@
   - "profiling_history_size", integer, session + global, "Num queries stored?"
 */
 
+#include <string.h>
+
 #include "my_config.h"
 #include "sql_profile.h"
-
-#include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -43,6 +43,7 @@
 #include "item.h"
 #include "my_base.h"
 #include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 #include "json_dom.h"        // Json_wrapper
 #include "key.h"
 #include "log_event.h"       // append_query_string
+#include "my_dbug.h"
 #include "mysql.h"           // IS_NUM
 #include "mysql/service_my_snprintf.h"
 #include "mysql_time.h"
@@ -982,8 +983,6 @@ bool Item_field::check_gcol_func_processor(uchar *int_arg)
 
 bool Item_field::check_column_privileges(uchar *arg)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
   THD *thd= (THD *)arg;
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
@@ -995,7 +994,6 @@ bool Item_field::check_column_privileges(uchar *arg)
   {
     return true;
   }
-#endif
 
   return false;
 }
@@ -1006,8 +1004,6 @@ bool Item_field::check_column_privileges(uchar *arg)
 
 bool Item_direct_view_ref::check_column_privileges(uchar *arg)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
   THD *thd= (THD *)arg;
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
@@ -1020,7 +1016,6 @@ bool Item_direct_view_ref::check_column_privileges(uchar *arg)
   {
     return true;
   }
-#endif
 
   return false;
 }
@@ -5981,7 +5976,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     if (!bitmap_fast_test_and_set(current_bitmap, field->field_index))
       DBUG_ASSERT(bitmap_is_set(other_bitmap, field->field_index));
   }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (any_privileges)
   {
     const char *db, *tab;
@@ -5997,7 +5991,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       goto error;
     }
   }
-#endif
   fixed= 1;
   if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select()->resolve_place ==
@@ -9180,7 +9173,6 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **)
 
   if (field_idx != (uint)-1)
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       Check access privileges for the subject table. We check privileges only
       in runtime.
@@ -9199,7 +9191,6 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **)
                              want_privilege))
         return TRUE;
     }
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
     field= triggers->get_trigger_variable_field(trigger_var_type, field_idx);
 

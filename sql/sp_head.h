@@ -904,7 +904,6 @@ public:
   */
   bool check_show_access(THD *thd, bool *full_access);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /**
     Change routine security context, and check if there is an EXECUTE privilege in
     new context. If there is no EXECUTE privilege, change the context back and
@@ -920,7 +919,6 @@ public:
     @return Error status.
   */
   bool set_security_ctx(THD *thd, Security_context **save_ctx);
-#endif
 
 private:
   /// Use sp_start_parsing() to create instances of sp_head.

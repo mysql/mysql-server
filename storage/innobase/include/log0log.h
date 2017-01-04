@@ -166,6 +166,37 @@ log_io_complete(
 /*============*/
 	log_group_t*	group);	/*!< in: log group */
 
+/* Read the first log file header to get the encryption
+information if it exist.
+@return true if success */
+bool
+log_read_encryption();
+
+/** Write the encryption info into the log file header(the 3rd block).
+It just need to flush the file header block with current master key.
+@param[in]	key	encryption key
+@param[in]	iv	encryption iv
+@param[in]	is_boot	if it is for bootstrap
+@return true if success. */
+bool
+log_write_encryption(
+	byte*	key,
+	byte*	iv,
+	bool	is_boot);
+
+/** Rotate the redo log encryption
+It will re-encrypt the redo log encryption metadata and write it to
+redo log file header.
+@return true if success. */
+bool
+log_rotate_encryption();
+
+/** Try to enable the redo log encryption if it's set.
+It will try to enable the redo log encryption and write the metadata to
+redo log file header if the innodb_undo_log_encrypt is ON. */
+void
+log_enable_encryption_if_set();
+
 /** This function is called, e.g., when a transaction wants to commit. It
 checks that the log has been written to the log file up to the last log entry
 written by the transaction. If there is a flush running, it waits and checks if
@@ -293,6 +324,24 @@ ibool
 log_block_get_flush_bit(
 /*====================*/
 	const byte*	log_block);	/*!< in: log block */
+
+/** Gets a log block encrypt bit.
+@param[in]	log_block	log block
+@return TRUE if this block was encrypted */
+UNIV_INLINE
+bool
+log_block_get_encrypt_bit(
+	const byte*	log_block);
+
+/** Sets the log block encrypt bit.
+@param[in,out]	log_block	log block
+@param[in]	val		value to set */
+UNIV_INLINE
+void
+log_block_set_encrypt_bit(
+	byte*	log_block,
+	ibool	val);
+
 /************************************************************//**
 Gets a log block number stored in the header.
 @return log block number stored in the block header */
@@ -475,6 +524,11 @@ extern my_bool	innodb_log_checksums;
 #define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000UL
 					/* mask used to get the highest bit in
 					the preceding field */
+#define LOG_BLOCK_ENCRYPT_BIT_MASK 0x8000UL
+					/* mask used to get the highest bit in
+					the data len field, this bit is to
+					indicate if this block is encrypted or
+					not */
 #define	LOG_BLOCK_HDR_DATA_LEN	4	/* number of bytes of log written to
 					this block */
 #define	LOG_BLOCK_FIRST_REC_GROUP 6	/* offset of the first start of an

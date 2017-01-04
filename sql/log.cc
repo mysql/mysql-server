@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@
 
 #include "log.h"
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -35,6 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -59,6 +59,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
@@ -1504,9 +1505,7 @@ static bool log_command(THD *thd, enum_server_command command)
   if (what_to_log & (1L << (uint) command))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
          && (thd->security_context()->check_access(SUPER_ACL))
-#endif
        )
     {
       /* No logging */

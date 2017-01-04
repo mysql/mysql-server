@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <new>
 
 #include "cmp_varlen_keys.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"

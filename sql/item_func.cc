@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@
 #include "mutex_lock.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
@@ -8830,22 +8831,18 @@ Item_func_sp::execute_impl(THD *thd)
 {
   bool err_status= TRUE;
   Sub_statement_state statement_state;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_context();
-#endif
   enum enum_sp_data_access access=
     (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
      SP_DEFAULT_ACCESS_MAPPING : m_sp->m_chistics->daccess;
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (context->security_ctx)
   {
     /* Set view definer security context */
     thd->set_security_context(context->security_ctx);
   }
-#endif
   if (sp_check_access(thd))
     goto error;
 
@@ -8872,9 +8869,7 @@ Item_func_sp::execute_impl(THD *thd)
   thd->restore_sub_statement_state(&statement_state);
 
 error:
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->set_security_context(save_security_ctx);
-#endif
 
   DBUG_RETURN(err_status);
 }
@@ -8958,11 +8953,9 @@ Item_func_sp::sp_check_access(THD *thd)
 {
   DBUG_ENTER("Item_func_sp::sp_check_access");
   DBUG_ASSERT(m_sp);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
     DBUG_RETURN(TRUE);
-#endif
 
   DBUG_RETURN(FALSE);
 }
@@ -8972,14 +8965,11 @@ bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_context();
-#endif
 
   DBUG_ENTER("Item_func_sp::fix_fields");
   DBUG_ASSERT(fixed == 0);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Checking privileges to execute the function while creating view and
     executing the function of select.
@@ -9010,7 +9000,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       DBUG_RETURN(res);
     }
   }
-#endif
 
   /*
     We must call init_result_field before Item_func::fix_fields() 
@@ -9045,7 +9034,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       the used stored procedure has SQL SECURITY DEFINER.
     */
     res= sp_check_access(thd);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       Try to set and restore the security context to see whether it's valid
     */
@@ -9053,8 +9041,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     res= m_sp->set_security_ctx(thd, &save_secutiry_ctx);
     if (!res)
       m_sp->m_security_ctx.restore_security_context(thd, save_secutiry_ctx);
-    
-#endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
 
   DBUG_RETURN(res);
@@ -9217,7 +9203,6 @@ longlong Item_func_can_access_database::val_int()
   if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
     DBUG_RETURN(FALSE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
     DBUG_RETURN(TRUE);
@@ -9232,7 +9217,6 @@ longlong Item_func_can_access_database::val_int()
   {
     DBUG_RETURN(FALSE);
   }
-#endif
 
   DBUG_RETURN(TRUE);
 }
@@ -9274,7 +9258,6 @@ longlong Item_func_can_access_table::val_int()
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
     DBUG_RETURN(TRUE);
@@ -9301,7 +9284,6 @@ longlong Item_func_can_access_table::val_int()
       DBUG_RETURN(FALSE);
     }
   }
-#endif
 
   DBUG_RETURN(TRUE);
 }
@@ -9345,7 +9327,6 @@ longlong Item_func_can_access_column::val_int()
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read column_name.
   String column_name;
   String *column_name_ptr= args[2]->val_str(&column_name);
@@ -9379,7 +9360,6 @@ longlong Item_func_can_access_column::val_int()
   {
     DBUG_RETURN(FALSE);
   }
-#endif
 
   DBUG_RETURN(TRUE);
 }
@@ -9469,7 +9449,6 @@ longlong Item_func_can_access_view::val_int()
                      sctx->priv_host().str))
     DBUG_RETURN(TRUE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   //
   // Check for ACL's
   //
@@ -9488,7 +9467,6 @@ longlong Item_func_can_access_view::val_int()
   if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
       (SHOW_VIEW_ACL|SELECT_ACL))
     DBUG_RETURN(TRUE);
-#endif
 
   DBUG_RETURN(FALSE);
 }

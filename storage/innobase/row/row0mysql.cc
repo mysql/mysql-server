@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,6 +50,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "my_dbug.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"

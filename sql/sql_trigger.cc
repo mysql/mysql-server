@@ -30,7 +30,7 @@
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
+#include "my_global.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_sp.h"

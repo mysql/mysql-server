@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,17 +18,18 @@
   Table VARIABLES_INFO (implementation).
 */
 
+#include "current_thd.h"
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
-#include "table_variables_info.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "mysqld.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
-#include "current_thd.h"
-#include "field.h"
+#include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "mysqld.h"
+#include "table_variables_info.h"
 
 THR_LOCK table_variables_info::m_table_lock;
 

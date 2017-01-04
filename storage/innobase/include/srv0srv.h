@@ -239,10 +239,16 @@ extern ulong	srv_purge_rseg_truncate_frequency;
 /** Enable or Disable Truncate of UNDO tablespace. */
 extern my_bool	srv_undo_log_truncate;
 
+/** Enable or disable Encrypt of UNDO tablespace. */
+extern my_bool	srv_undo_log_encrypt;
+
 /** Default size of UNDO tablespace while it is created new. */
 extern const page_no_t	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
+
+/** Enable or Disable Encrypt of REDO tablespace. */
+extern my_bool	srv_redo_log_encrypt;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */

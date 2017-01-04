@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -34,6 +34,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fil0fil.h"
 #include "fts0fts.h"
 #include "ha_prototypes.h"
+#include "my_dbug.h"
 #include "mysqld.h"                             // system_charset_info
 #include "que0types.h"
 #include "row0sel.h"

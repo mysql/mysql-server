@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,11 @@ Insert buffer
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "ibuf0ibuf.h"
-#include "sync0sync.h"
 #include "btr0sea.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
+#include "my_dbug.h"
+#include "sync0sync.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 my_bool	srv_ibuf_disable_background_merge;
@@ -43,24 +43,24 @@ my_bool	srv_ibuf_disable_background_merge;
 
 #ifndef UNIV_HOTBACKUP
 
-#include "buf0buf.h"
-#include "buf0rea.h"
-#include "fsp0fsp.h"
-#include "trx0sys.h"
-#include "fil0fil.h"
-#include "rem0rec.h"
+#include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0pcur.h"
-#include "btr0btr.h"
-#include "row0upd.h"
+#include "buf0buf.h"
+#include "buf0rea.h"
 #include "dict0boot.h"
+#include "fil0fil.h"
+#include "fsp0fsp.h"
+#include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "que0que.h"
-#include "srv0start.h" /* srv_shutdown_state */
-#include "fsp0sysspace.h"
 #include "rem0cmp.h"
+#include "rem0rec.h"
+#include "row0upd.h"
+#include "srv0start.h" /* srv_shutdown_state */
+#include "trx0sys.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 

@@ -3550,3 +3550,32 @@ String *Item_func_json_unquote::val_str(String *str)
   null_value= false;
   return str;
 }
+
+
+String *Item_func_json_pretty::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  try
+  {
+    Json_wrapper wr;
+    if (get_json_wrapper(args, 0, str, func_name(), &wr))
+      return error_str();
+
+    null_value= args[0]->null_value;
+    if (null_value)
+      return nullptr;
+
+    str->length(0);
+    if (wr.to_pretty_string(str, func_name()))
+      return error_str();                       /* purecov: inspected */
+
+    return str;
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_str();
+  }
+  /* purecov: end */
+}

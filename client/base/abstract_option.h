@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include "my_getopt.h"
+
 #include "i_option_changed_listener.h"
+#include "my_dbug.h"
+#include "my_getopt.h"
 #include "mysql/service_mysql_alloc.h"
 
 

@@ -160,6 +160,16 @@ DROP TABLE test.proc;
 --copy_file $MYSQLTEST_VARDIR/std_data/initial_t@1o.frm $MYSQL_TMP_DIR/data57/test/initial_t@1o.frm
 --copy_file $MYSQLTEST_VARDIR/std_data/initial_v@1o.frm $MYSQL_TMP_DIR/data57/test/initial_v@1o.frm
 
+#Test case for Bug #25139901 : DB COLLATION CHANGED TO SERVER DEFAULT AFTER UPGRADE
+# Create a folder and db.opt file. Write a character set in db.opt file which is not default.
+--mkdir $MYSQL_TMP_DIR/data57/db_charset_koi8r/
+let DB_OPT_FILE= $MYSQL_TMP_DIR/data57/db_charset_koi8r/db.opt;
+--echo # 1.1 Create db.opt file.
+write_file $DB_OPT_FILE;
+default-character-set=koi8r
+default-collation=koi8r_bin
+EOF
+
 --echo #Files in 'test' dir
 --list_files $MYSQL_TMP_DIR/data57/
 
@@ -233,6 +243,9 @@ SHOW CREATE VIEW aview.view_user;
 SHOW CREATE VIEW aview.view_user2;
 #view with different character_set and connection collation
 SHOW CREATE VIEW aview.view_character_set;
+
+# Data check after upgrade for Bug#25139901
+SHOW CREATE DATABASE db_charset_koi8r;
 
 # Test case for Bug#24580586
 SET names utf8;

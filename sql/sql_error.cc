@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,7 @@ This file contains the implementation of error and warnings related
 #include "derror.h"       // ER_THD
 #include "item.h"
 #include "log.h"          // sql_print_warning
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_sys.h"
 #include "my_time.h"

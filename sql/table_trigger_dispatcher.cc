@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "handler.h"
 #include "key.h"
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysqld.h"                 // table_alias_charset
 #include "psi_memory_key.h"
@@ -271,7 +272,6 @@ bool Table_trigger_dispatcher::create_trigger(
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (lex->definer && !is_acl_user(thd, lex->definer->host.str,
                                    lex->definer->user.str))
   {
@@ -285,7 +285,6 @@ bool Table_trigger_dispatcher::create_trigger(
     if (thd->get_stmt_da()->is_error())
       return true;
   }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   /*
     Check if all references to fields in OLD/NEW-rows in this trigger are valid.

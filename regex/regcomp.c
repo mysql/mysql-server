@@ -3,7 +3,7 @@
 
    This file was modified by Oracle on 2015-05-18 for 32-bit compatibility.
 
-   Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights
+   Modifications copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights
    reserved. */
 
 #include <m_ctype.h>
@@ -16,6 +16,7 @@
 
 #include "cclass.h"
 #include "cname.h"
+#include "my_dbug.h"
 #include "my_regex.h"
 #include "regex2.h"
 #include "utils.h"

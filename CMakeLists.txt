@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -453,6 +453,32 @@ IF (USE_LD_GOLD)
     SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
     SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
   ENDIF()
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
+  SET(LINK_RANDOMIZE_SEED "mysql"
+    CACHE STRING "Seed to use for link randomization")
+ELSE()
+  SET(LINK_RANDOMIZE OFF)
+ENDIF()
+IF(LINK_RANDOMIZE)
+  SET(CMAKE_C_FLAGS_DEBUG
+    "${CMAKE_C_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ffunction-sections -fdata-sections")
+  SET(CMAKE_CXX_FLAGS_DEBUG
+    "${CMAKE_CXX_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ffunction-sections -fdata-sections")
+
+  SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--sort-section=name")
+  SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--sort-section=name")
+
+  SET(CMAKE_CXX_ARCHIVE_CREATE "sh -c '${CMAKE_SOURCE_DIR}/scripts/randomize-order.pl ${LINK_RANDOMIZE_SEED} <OBJECTS> && <CMAKE_AR> qc <TARGET> <LINK_FLAGS> <OBJECTS>'")
+  SET(CMAKE_CXX_ARCHIVE_CREATE_APPEND "sh -c '${CMAKE_SOURCE_DIR}/scripts/randomize-order.pl ${LINK_RANDOMIZE_SEED} <OBJECTS> && <CMAKE_AR> q <TARGET> <LINK_FLAGS> <OBJECTS>'")
+  SET(CMAKE_C_ARCHIVE_CREATE ${CMAKE_CXX_ARCHIVE_CREATE})
+  SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE

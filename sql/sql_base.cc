@@ -7741,7 +7741,6 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 
   if (fld)
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     // Check if there are sufficient privileges to the found field.
     if (want_privilege)
     {
@@ -7763,7 +7762,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(WRONG_GRANT);
       }
     }
-#endif
+
     /*
       Get read_set correct for this field so that the handler knows that
       this field is involved in the query and gets retrieved.
@@ -7908,13 +7907,11 @@ find_field_in_tables(THD *thd, Item_ident *item,
     {
       found= find_field_in_table(thd, table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       // Check if there are sufficient privileges to the found field.
       if (found && want_privilege &&
           check_column_grant_in_table_ref(thd, table_ref, name, length,
                                           want_privilege))
         found= WRONG_GRANT;
-#endif
       if (found && found != WRONG_GRANT)
         table_ref->table->mark_column_used(thd, found, thd->mark_used_columns);
     }
@@ -8044,7 +8041,6 @@ find_field_in_tables(THD *thd, Item_ident *item,
     if (report_error == REPORT_ALL_ERRORS ||
         report_error == REPORT_EXCEPT_NON_UNIQUE)
     {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* We now know that this column does not exist in any table_list
          of the query. If user does not have grant, then we should throw
          error stating 'access denied'. If user does have right then we can
@@ -8057,7 +8053,6 @@ find_field_in_tables(THD *thd, Item_ident *item,
             false : want_privilege) ||
           !check_column_grant_in_table_ref(thd, first_table, name, length,
                                            want_privilege))
-#endif
              my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
     }
     else
@@ -9247,7 +9242,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         (db_name && strcmp(tables->db,db_name)))
       continue;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* 
        Ensure that we have access rights to all fields to be inserted. Under
        some circumstances, this check may be skipped.
@@ -9289,7 +9283,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       if (check_grant_all_columns(thd, SELECT_ACL, &field_iterator))
         DBUG_RETURN(TRUE);
     }
-#endif
 
     /*
       Update the tables used in the query based on the referenced fields. For
@@ -9327,7 +9320,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       else
         it->after(item);   /* Add 'item' to the SELECT list. */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /*
         Set privilege information for the fields of newly created views.
         We have that (any_priviliges == TRUE) if and only if we are creating
@@ -9357,7 +9349,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           DBUG_RETURN(TRUE);
         }
       }
-#endif
 
       thd->lex->used_tables|= item->used_tables();
       thd->lex->current_select()->select_list_tables|= item->used_tables();
@@ -9370,14 +9361,13 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       }
       else
       {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
         if (thd->want_privilege && tables->is_view_or_derived())
         {
           if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
                          (uchar *)thd))
             DBUG_RETURN(true);
         }
-#endif
+
         // Register underlying fields in read map if wanted.
         Mark_field mf(thd->mark_used_columns);
         item->walk(&Item::mark_field_in_map,

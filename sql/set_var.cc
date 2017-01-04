@@ -1061,24 +1061,16 @@ void set_var_user::print(THD *thd, String *str)
 */
 int set_var_password::check(THD *thd)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
                                password, strlen(password)) ? 1 : 0;
-#else
-  return 0;
-#endif
 }
 
 int set_var_password::update(THD *thd)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Returns 1 as the function sends error to client */
   return change_password(thd, user->host.str, user->user.str, password) ?
           1 : 0;
-#else
-  return 0;
-#endif
 }
 
 void set_var_password::print(THD *thd, String *str)

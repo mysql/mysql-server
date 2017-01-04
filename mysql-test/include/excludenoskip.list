@@ -28,10 +28,11 @@ have_partition_open_file_limit.inc
 table_compress_2.test
 table_compress_3.test
 have_posix_locale.inc
-# Checks if mysqld_safe is installed in the path specified by MTR. mysqld_safe is obsolete on platforms that use systemd to monitor mysqld.
+# Checks if mysqld_safe is installed in the path specified by MTR. mysqld_safe
+# is obsolete on platforms that use systemd to monitor mysqld.
 have_mysqld_safe.inc
-# Native partitioning is supported by Innodb but not supported by MyISAM.
-support_native_partitioning.inc
+# Test need to run only on Linux and OSX and skip all other platforms.
+costmodel_planchange.test
 # Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
 have_met_timezone.inc
 # Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
@@ -71,7 +72,8 @@ have_undo_tablespaces.inc
 have_no_undo_tablespaces.inc
 
 # 4.3 Tests are run only on Dev builds compiled with -DWITH_DEBUG=1 option
-# Additional references for more details:  https://dev.mysql.com/doc/internals/en/cmake-build-types.html
+# Additional references for more details:
+# https://dev.mysql.com/doc/internals/en/cmake-build-types.html
 mysqlbinlog_have_debug.inc
 have_innochecksum_debug.inc
 have_udf.inc
@@ -99,6 +101,7 @@ have_innodb_64k.inc
 have_innodb_8k.inc
 have_innodb_max_16k.inc
 have_innodb_min_8k.inc
+not_have_innodb_4k.inc
 
 # 4.6 IP versions
 have_ipv4_mapped.inc
@@ -107,7 +110,8 @@ have_ipv4_mapped.inc
 # not.The value can be NO if the background thread used by this feature could
 # not be initialized during server start
 # More details can be found at:
-# http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_have_statement_timeout
+# http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.
+# html#sysvar_have_statement_timeout
 have_statement_timeout.inc
 
 # 5.0 Different protocols
@@ -125,6 +129,7 @@ no_cursor_protocol.inc
 # 6.0 Different builds
 is_embedded.inc
 not_embedded.inc
+not_windows_embedded.inc
 have_valgrind.inc
 not_valgrind.inc
 not_ubsan.inc
@@ -135,29 +140,59 @@ mysql_embedded.test
 mysql_tzinfo_to_sql_sys.test
 wrapper.test
 
-# Skip tests that need storage engines compiled as plugins.
+# 8.0 Skip tests that need storage engines compiled as plugins.
 have_federated_plugin.inc
 have_archive_plugin.inc
 have_blackhole_plugin.inc
 
-# Until Bug#24365372 is fixed and pushed on trunk, including the below inc file in the excluded list.
-only_mts_slave_parallel_workers.inc
-not_mts_slave_parallel_workers.inc
-
-# Bug#24390614 MAIN.DYNAMIC_TRACING NEVER RUNS. To be retained until the Bug is fixed.
-dynamic_tracing.test
-
-# To be retained until Bug#24382105 - PARTS.PARTITION_VALUE_INNODB NEVER RUNS
+# 9.0 To be retained until Bug#24382105 - PARTS.PARTITION_VALUE_INNODB NEVER RUNS
 # is fixed.
 partition_value_innodb.test
 
-# Not running currently on Solaris and Windows as the binary must be built with NUMA support.
-have_numa.inc
-
-# GNU grep not supported on Solaris and Windows
+# 10.0 GNU grep not supported on Solaris and Windows
 have_grep.inc
 
-# Thread stack overrun on debug/sparc when built with Developer Studio
+# 11.0
+# In mysql source, all the plugins might not be in the same location. Some MTR
+# tests would require multiple plugins, so it is desirable that there is a
+# check to see that, if all the plugins are in a directory, then the test
+# should run, else it needs to be skipped.
+# for ex. Developer builds refers to include/plugin.defs for plugin locations
+# and do not have all the plugins kept at one location.
+check_plugin_dir.inc
+
+# 12.0 Tests that do/don't need group replication plugin.
+have_group_replication_plugin.inc
+not_group_replication_plugin.inc
+
+# 13.0 Memcached plugin is not available on all PB2 builds. Only supported by
+# Linux, Solaris and OS X platforms.
+have_memcached_plugin.inc
+
+# 14.0 MTR tests that runs only with specific rpl modes:
+
+# 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
+have_slave_parallel_type_logical_clock.inc
+have_slave_parallel_type_database.inc
+only_mts_slave_parallel_workers.inc
+only_mts_slave_parallel_type_logical_clock.inc
+only_mts_slave_parallel_type_database.inc
+not_mts_slave_parallel_workers.inc
+# 14.2 rpl misc files
+not_master_info_table.inc
+not_relay_log_info_table.inc
+have_slave_repository_type_file.inc
+
+# 15.0 With QC enabled additional code paths are activated which will change
+# performance schema output.
+have_QC_Disabled.inc
+have_query_cache_disabled.inc
+
+# 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
+# few test cannot run on Solaris discover
+not_discover.inc
+# test fails on Linux gcov
+have_numa.inc

@@ -1402,11 +1402,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     else
     {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* we've authenticated new user */
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
       mysql_mutex_lock(&thd->LOCK_thd_data);
       my_free(const_cast<char*>(save_db.str));
       save_db= NULL_CSTR;
@@ -2174,7 +2172,6 @@ bool sp_process_definer(THD *thd)
 
   /* Check that the specified definer exists. Emit a warning if not. */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str))
   {
     push_warning_printf(thd,
@@ -2184,7 +2181,6 @@ bool sp_process_definer(THD *thd)
                         lex->definer->user.str,
                         lex->definer->host.str);
   }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   DBUG_RETURN(FALSE);
 }
@@ -3651,7 +3647,6 @@ mysql_execute_command(THD *thd, bool first_level)
       my_ok(thd);
     break;
   }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_CREATE_USER:
   {
     if (check_access(thd, INSERT_ACL, "mysql", NULL, NULL, 1, 1) &&
@@ -3809,7 +3804,6 @@ mysql_execute_command(THD *thd, bool first_level)
     }
     break;
   }
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   case SQLCOM_RESET:
     /*
       RESET commands are never written to the binary log, so we have to
@@ -3902,7 +3896,6 @@ mysql_execute_command(THD *thd, bool first_level)
     sql_kill(thd, thread_id, lex->type & ONLY_KILL_QUERY);
     break;
   }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_SHOW_PRIVILEGES:
   {
     mysqld_show_privileges(thd);
@@ -3918,7 +3911,6 @@ mysql_execute_command(THD *thd, bool first_level)
       res= mysql_show_create_user(thd, show_user);
     break;
   }
-#endif
   case SQLCOM_BEGIN:
     if (trans_begin(thd, lex->start_transaction_opt))
       goto error;
@@ -4042,7 +4034,6 @@ mysql_execute_command(THD *thd, bool first_level)
 
     if (! (res= sp_create_routine(thd, lex->sphead, thd->lex->definer)))
     {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
 
       Security_context security_context;
@@ -4124,7 +4115,6 @@ mysql_execute_command(THD *thd, bool first_level)
         DBUG_ASSERT(thd->slave_thread == 1);
         thd->security_context()->restore_security_context(thd, backup);
       }
-#endif
       my_ok(thd);
     }
     break; /* break super switch */
@@ -4227,7 +4217,6 @@ mysql_execute_command(THD *thd, bool first_level)
       enum_sp_return_code sp_result= sp_drop_routine(thd, sp_type,
                                                      lex->spname);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /*
         We're going to issue an implicit REVOKE statement so we close all
         open tables. We have to keep metadata locks as this ensures that
@@ -4257,7 +4246,6 @@ mysql_execute_command(THD *thd, bool first_level)
         /* If this happens, an error should have been reported. */
         goto error;
       }
-#endif
 
       res= sp_result;
       switch (sp_result) {
@@ -4424,7 +4412,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res= lex->m_sql_cmd->execute(thd);
     break;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_ALTER_USER:
   {
     LEX_USER *user, *tmp_user;
@@ -4517,7 +4504,6 @@ mysql_execute_command(THD *thd, bool first_level)
       my_ok(thd);
     break;
   }
-#endif
   default:
     DBUG_ASSERT(0);                             /* Impossible */
     my_ok(thd);
@@ -5015,14 +5001,12 @@ void THD::reset_for_next_command()
              ("is_current_stmt_binlog_format_row(): %d",
               thd->is_current_stmt_binlog_format_row()));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    /*
-      In case we're processing multiple statements we need to checkout a new
-      acl access map here as the global acl version might have increased due to
-      a grant/revoke or flush.
-    */
-    thd->security_context()->checkout_access_maps();
-#endif
+  /*
+    In case we're processing multiple statements we need to checkout a new
+    acl access map here as the global acl version might have increased due to
+    a grant/revoke or flush.
+  */
+  thd->security_context()->checkout_access_maps();
   DBUG_VOID_RETURN;
 }
 
@@ -5181,7 +5165,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                    sql_statement_info[thd->lex->sql_command].m_key);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->get_user_connect() &&
           check_mqh(thd, lex->sql_command))
       {
@@ -5189,7 +5172,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           thd->get_protocol_classic()->get_net()->error = 0;
       }
       else
-#endif
       {
 	if (! thd->is_error())
 	{

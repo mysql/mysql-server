@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,9 +22,10 @@
   This code organization helps a lot maintenance of the unit tests.
 */
 
+#include "my_dbug.h"
 #include "my_global.h"
-#include "pfs_server.h"
 #include "pfs_engine_table.h"
+#include "pfs_server.h"
 #include "sql_class.h"
 
 /**

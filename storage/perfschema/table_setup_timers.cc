@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,12 +18,13 @@
   Table SETUP_TIMERS (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "table_setup_timers.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
-#include "field.h"
+#include "table_setup_timers.h"
 
 #define COUNT_SETUP_TIMERS 5
 

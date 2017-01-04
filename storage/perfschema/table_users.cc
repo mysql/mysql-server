@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,17 +18,18 @@
   TABLE USERS.
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "table_users.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
 #include "pfs_account.h"
-#include "pfs_user.h"
-#include "pfs_visitor.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_memory.h"
 #include "pfs_status.h"
-#include "field.h"
+#include "pfs_user.h"
+#include "pfs_visitor.h"
+#include "table_users.h"
 
 THR_LOCK table_users::m_table_lock;
 

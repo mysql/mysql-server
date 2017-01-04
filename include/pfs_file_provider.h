@@ -25,7 +25,6 @@
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include <stddef.h>
@@ -87,7 +86,6 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc);
 
 C_MODE_END
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_FILE_INTERFACE */

@@ -147,9 +147,7 @@ extern LEX_CSTRING sha256_password_plugin_name;
 extern LEX_CSTRING validate_password_plugin_name;
 extern LEX_CSTRING default_auth_plugin_name;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern bool allow_all_hosts;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 extern plugin_ref native_password_plugin;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -25,6 +25,7 @@
 #include "control_events.h"     // binary_log::Uuid
 #include "hash.h"               // HASH
 #include "my_atomic.h"          // my_atomic_add32
+#include "my_dbug.h"
 #include "my_global.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array

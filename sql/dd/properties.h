@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
 #ifndef DD__PROPERTIES_INCLUDED
 #define DD__PROPERTIES_INCLUDED
 
-#include "my_global.h"
-
-#include "m_string.h"       // my_strtoll10
-#include "dd/string_type.h" // String_type, Stringstream_type
-
 #include <limits>
 #include <map>
+
+#include "dd/string_type.h" // String_type, Stringstream_type
+#include "m_string.h"       // my_strtoll10
+#include "my_dbug.h"
+#include "my_global.h"
 
 typedef struct st_mem_root MEM_ROOT;
 

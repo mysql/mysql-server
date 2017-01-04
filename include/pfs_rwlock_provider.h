@@ -25,7 +25,6 @@
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include "my_inttypes.h"
@@ -65,7 +64,6 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc);
 
 C_MODE_END
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */

@@ -1843,7 +1843,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     memset(&table_list, 0, sizeof(table_list));
     table_list.db = table->db();
     table_list.alias= table_list.table_name= table->table;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
     if (check_table_access(thd,SELECT_ACL,&table_list, false, 1,true))
     {
       DBUG_PRINT("qcache",
@@ -1864,7 +1864,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       thd->lex->safe_to_cache_query= false;	// Don't try to cache this
       goto err_unlock;				// Parse query
     }
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
+
     engine_data= table->engine_data;
     if (table->callback)
     {
@@ -3677,7 +3677,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
   for (; tables_used; tables_used= tables_used->next_global)
   {
     table_count++;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
     /*
       Disable any attempt to store this statement if there are
       column level grants on any referenced tables.
@@ -3706,7 +3706,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
         DBUG_RETURN(0);
       }
     }
-#endif
+
     if (tables_used->is_view())
     {
       DBUG_PRINT("qcache", ("view: %s  db: %s",

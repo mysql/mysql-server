@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,33 +23,33 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <new>
+#include <set>
 
-#include "trx0trx.h"
 #include "btr0sea.h"
+#include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "my_dbug.h"
 #include "os0proc.h"
 #include "que0que.h"
 #include "read0read.h"
+#include "row0mysql.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
-#include "fsp0sysspace.h"
-#include "row0mysql.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
+#include "trx0trx.h"
 #include "trx0undo.h"
 #include "trx0xa.h"
 #include "usr0sess.h"
 #include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
-
-#include <set>
-#include <new>
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 

@@ -26,7 +26,7 @@
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_global.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
@@ -2234,10 +2234,8 @@ struct TABLE_LIST
   /// Prepare security context for a view
   bool prepare_security(THD *thd);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *find_view_security_context(THD *thd);
   bool prepare_view_security_context(THD *thd);
-#endif
 
   /// Cleanup for re-execution in a prepared statement or a stored procedure.
   void reinit_before_use(THD *thd);
@@ -2423,13 +2421,11 @@ struct TABLE_LIST
 
     @param privilege   Privileges granted for this table.
   */
-  void set_privileges(ulong privilege MY_ATTRIBUTE((unused)))
+  void set_privileges(ulong privilege)
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     grant.privilege|= privilege;
     if (table)
       table->grant.privilege|= privilege;
-#endif
   }
   /*
     List of tables local to a subquery or the top-level SELECT (used by

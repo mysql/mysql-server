@@ -25,7 +25,6 @@
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include <sys/types.h>
@@ -67,7 +66,6 @@ void pfs_end_metadata_wait_v1
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 

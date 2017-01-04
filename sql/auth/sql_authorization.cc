@@ -91,7 +91,6 @@ class Item;
 namespace dd {
 class Abstract_table;
 }  // namespace dd
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include <boost/concept/usage.hpp>
 #include <boost/graph/adjacency_iterator.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -119,7 +118,6 @@ extern bool initialized;
 extern Default_roles *g_default_roles;
 typedef boost::graph_traits<Granted_roles_graph>::adjacency_iterator
   Role_adjacency_iterator;
-#endif
 
 const char *command_array[]=
 {
@@ -141,7 +139,6 @@ uint command_lengths[]=
 const char *any_db="*any*";	// Special symbol for check_access
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool check_routine_level_acl(THD *thd, const char *db,
                                     const char *name, bool is_proc);
 void get_granted_roles(Role_vertex_descriptor &v,
@@ -1245,7 +1242,7 @@ private:
   Grant_acl_set *m_with_admin_acl;
 };
 
-#endif
+
 /**
   Get a cached internal schema access.
   @param grant_internal_info the cache
@@ -1515,8 +1512,6 @@ void err_readonly(THD *thd)
 
 }
 
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /**
   Check grants for commands which work only with one table and all other
@@ -2208,7 +2203,6 @@ static bool test_if_create_new_users(THD *thd)
   return create_new_users;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host)
 {
@@ -2246,7 +2240,6 @@ bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
   DBUG_RETURN(false);
 }
 
-#endif
 /*
   Store table level and column level grants in the privilege tables
 
@@ -2737,7 +2730,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   DBUG_RETURN(result);
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
                        const List <LEX_USER > *roles)
 {
@@ -2947,7 +2940,7 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
   get_global_acl_cache()->increase_version();
   DBUG_RETURN(errors);
 }
-#endif
+
 
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                  ulong rights, bool revoke_grant, bool is_proxy)
@@ -3945,13 +3938,9 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   if (!acl_cache_lock.lock(false))
     return (NO_ACCESS);
 
-#ifdef EMBEDDED_LIBRARY
-  grant_table= NULL;
-#else
   grant_table= table_hash_search(sctx->host().str,
                                  sctx->ip().str, db, sctx->priv_user().str,
                                  table->table_name, 0);
-#endif /* EMBEDDED_LIBRARY */
   table->grant.grant_table=grant_table; // Remember for column test
   table->grant.version=grant_version;
   if (grant_table)
@@ -4074,7 +4063,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
   *to=0;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 void get_privilege_access_maps(ACL_USER *acl_user,
                                const List_of_auth_id_refs *using_roles,
                                ulong *access,
@@ -4320,7 +4309,6 @@ void roles_graphml(THD *thd, String *str)
   str->copy(out.c_str(), out.length(), system_charset_info);
 }
 
-#endif
 
 /**
   Remove db access privileges.
@@ -5067,24 +5055,8 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
 }
 
 
-#else /* NO_EMBEDDED_ACCESS_CHECKS */
-
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  table->grant.privilege= want_access;
-  return false;
-}
-
-/****************************************************************************
- Dummy wrappers when we don't have any access checks
-****************************************************************************/
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-
 int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   ACL_USER *acl_user;
   ulong want_access;
@@ -5150,15 +5122,11 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 err:
   DBUG_RETURN(error);
-#else
-  return(0);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
 int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   ACL_DB *acl_db;
   ulong want_access;
@@ -5228,15 +5196,11 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
 
   DBUG_RETURN(error);
-#else
-  return (0);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
@@ -5313,15 +5277,11 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
 
   DBUG_RETURN(error);
-#else
-  return (0);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
@@ -5396,12 +5356,9 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
 
   DBUG_RETURN(error);
-#else
-  return (0);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 bool
 is_privileged_user_for_credential_change(THD *thd)
 {
@@ -5412,7 +5369,6 @@ is_privileged_user_for_credential_change(THD *thd)
   return (!check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) ||
           thd->security_context()->check_access(CREATE_USER_ACL, false));
 }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 
 /**
@@ -5428,7 +5384,6 @@ is_privileged_user_for_credential_change(THD *thd)
 
 bool check_show_access(THD *thd, TABLE_LIST *table)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   switch (get_schema_table_idx(table->schema_table)) {
   case SCH_TRIGGERS:
   case SCH_EVENTS:
@@ -5522,7 +5477,6 @@ bool check_show_access(THD *thd, TABLE_LIST *table)
       break;
   }
 
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
   return FALSE;
 }
 /**
@@ -5546,16 +5500,12 @@ bool check_show_access(THD *thd, TABLE_LIST *table)
 bool check_global_access(THD *thd, ulong want_access)
 {
   DBUG_ENTER("check_global_access");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   char command[128];
   if (thd->security_context()->check_access(want_access, true))
     DBUG_RETURN(0);
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
   DBUG_RETURN(1);
-#else
-  DBUG_RETURN(0);
-#endif /*NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -5672,7 +5622,7 @@ bool check_fk_parent_table_access(THD *thd,
   return false;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 /**
   Examines if a user\@host authid is connected to a role\@role_host authid by
   comparing all out-edges if the user\@host vertex in the global role graph.
@@ -6507,4 +6457,3 @@ bool operator<(const Auth_id_ref &a, const Auth_id_ref &b)
     return second < 0;
   return false;
 }
-#endif

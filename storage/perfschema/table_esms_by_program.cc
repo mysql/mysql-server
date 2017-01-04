@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,19 +18,20 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_program.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "pfs_program.h"
 #include "table_esms_by_program.h"
-#include "pfs_buffer_container.h"
-#include "field.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
 

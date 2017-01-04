@@ -1171,10 +1171,8 @@ static void mysql_change_db_impl(THD *thd,
 
   /* 2. Update security context. */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Cache the effective schema level privilege with roles applied */
   thd->security_context()->cache_current_db_access(new_db_access);
-#endif
 
   /* 3. Update db-charset environment variables. */
 
@@ -1391,7 +1389,6 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   new_db_file_name_cstr.length= new_db_file_name.length;
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (sctx->get_active_roles()->size() == 0)
   {
     db_access= sctx->check_access(DB_ACLS) ?
@@ -1406,7 +1403,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   {
     db_access= sctx->db_acl(new_db_file_name_cstr) | sctx->master_access();
   }
-  
+
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
       check_grant_db(thd, new_db_file_name.str))
@@ -1423,7 +1420,6 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     my_free(new_db_file_name.str);
     DBUG_RETURN(true);
   }
-#endif
 
   if (dd::schema_exists(thd, new_db_file_name.str, &schema_exists))
   {

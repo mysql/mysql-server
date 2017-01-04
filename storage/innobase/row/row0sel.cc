@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -31,34 +31,36 @@ Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
 #include "row0sel.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
-#include "trx0undo.h"
-#include "trx0trx.h"
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
-#include "gis0rtree.h"
-#include "mach0data.h"
-#include "que0que.h"
-#include "row0upd.h"
-#include "row0row.h"
-#include "row0vers.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "eval0eval.h"
-#include "pars0sym.h"
-#include "pars0pars.h"
-#include "row0mysql.h"
-#include "read0read.h"
 #include "buf0lru.h"
-#include "handler.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "eval0eval.h"
+#include "gis0rtree.h"
 #include "ha_innodb.h"
 #include "ha_prototypes.h"
-#include "record_buffer.h"
-#include "srv0mon.h"
-#include "ut0new.h"
+#include "handler.h"
 #include "lob0lob.h"
+#include "lock0lock.h"
+#include "mach0data.h"
+#include "my_dbug.h"
+#include "pars0pars.h"
+#include "pars0sym.h"
+#include "que0que.h"
+#include "read0read.h"
+#include "record_buffer.h"
+#include "rem0cmp.h"
+#include "row0mysql.h"
+#include "row0row.h"
+#include "row0upd.h"
+#include "row0vers.h"
+#include "srv0mon.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
+#include "ut0new.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16

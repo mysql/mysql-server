@@ -1235,6 +1235,20 @@ public:
   */
   bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
 
+  /**
+    Format the JSON value to an external JSON string in buffer in the format of
+    ISO/IEC 10646. Add newlines and indentation for readability.
+
+    @param[in,out] buffer     the buffer that receives the formatted string
+                              (the string is appended, so make sure the length
+                              is set correctly before calling)
+    @param[in]     func_name  the name of the calling function
+
+    @retval false on success
+    @retval true on error
+  */
+  bool to_pretty_string(String *buffer, const char *func_name) const;
+
   // Accessors
 
   /**

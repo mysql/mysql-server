@@ -483,6 +483,19 @@ typedef struct st_mysql_res {
   my_bool unbuffered_fetch_cancelled;
   void *extension;
 } MYSQL_RES;
+typedef struct st_mysql_rpl {
+  size_t file_name_length;
+  const char *file_name;
+  my_ulonglong start_position;
+  unsigned int server_id;
+  unsigned int flags;
+  size_t gtid_set_encoded_size;
+  void (*fix_gtid_set)(struct st_mysql_rpl *rpl,
+                       unsigned char *packet_gtid_set);
+  void *gtid_set_arg;
+  unsigned long size;
+  const unsigned char *buffer;
+} MYSQL_RPL;
 int mysql_server_init(int argc, char **argv, char **groups);
 void mysql_server_end(void);
 my_bool mysql_thread_init(void);
@@ -605,6 +618,9 @@ unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
 my_bool mysql_read_query_result(MYSQL *mysql);
 int mysql_reset_connection(MYSQL *mysql);
+int mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl);
+int mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl);
+void mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl);
 enum enum_mysql_stmt_state
 {
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,

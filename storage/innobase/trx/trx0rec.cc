@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,23 +24,25 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "trx0rec.h"
+
 #include "fsp0fsp.h"
 #include "mach0data.h"
-#include "trx0undo.h"
 #include "mtr0log.h"
+#include "my_dbug.h"
+#include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
-#include "ut0mem.h"
+#include "fsp0sysspace.h"
+#include "lob0lob.h"
+#include "que0que.h"
 #include "read0read.h"
 #include "row0ext.h"
+#include "row0mysql.h"
+#include "row0row.h"
 #include "row0upd.h"
-#include "que0que.h"
 #include "trx0purge.h"
 #include "trx0rseg.h"
-#include "row0row.h"
-#include "fsp0sysspace.h"
-#include "row0mysql.h"
-#include "lob0lob.h"
+#include "ut0mem.h"
 
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
 

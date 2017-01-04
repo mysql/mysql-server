@@ -88,7 +88,6 @@ public:
 
   inline void assign_user(const char *user_arg, const size_t user_arg_length);
 
- #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int activate_role(LEX_CSTRING user, LEX_CSTRING host,
                     bool validate_access= false);
   void clear_active_roles(void);
@@ -104,7 +103,6 @@ public:
                           const LEX_CSTRING &role_host);
   bool any_sp_acl(const LEX_CSTRING &db);
   bool any_table_acl(const LEX_CSTRING &db);
-#endif
 
   /**
     Getter method for member m_host.
@@ -397,7 +395,6 @@ public:
     m_password_expired= password_expired;
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
                           const LEX_CSTRING &definer_user,
@@ -408,7 +405,6 @@ public:
   void
   restore_security_context(THD *thd, Security_context *backup);
 
-#endif
   bool user_matches(Security_context *);
 
   void logout();
@@ -469,11 +465,9 @@ private:
     effective user.
   */
   bool m_password_expired;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
   int m_map_checkout_count;
-#endif
 };
 
 

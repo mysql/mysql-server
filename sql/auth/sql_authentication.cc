@@ -499,12 +499,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 
 
 /* few defines to have less ifdef's in the code below */
-#ifdef EMBEDDED_LIBRARY
-#undef HAVE_OPENSSL
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-#define initialized 0
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-#endif /* EMBEDDED_LIBRARY */
 #ifndef HAVE_OPENSSL
 #define ssl_acceptor_fd 0
 #define sslaccept(A,B,C) 1
@@ -739,9 +733,6 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
                                 (uchar*) data, data_len));
 }
 
-
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 
 /* Return true if there is no users that can match the given host */
@@ -1065,9 +1056,6 @@ bool rsa_auth_status()
 }
 
 
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-
 /* the packet format is described in send_change_user_packet() */
 static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
                                          size_t packet_length)
@@ -1151,7 +1139,6 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     DBUG_RETURN(0);
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (find_mpvio_user(thd, mpvio))
   {
     DBUG_RETURN(1);
@@ -1185,13 +1172,10 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   mpvio->cached_client_reply.pkt_len= passwd_len;
   mpvio->cached_client_reply.plugin= client_plugin;
   mpvio->status= MPVIO_EXT::RESTART;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   DBUG_RETURN (0);
 }
 
-
-#ifndef EMBEDDED_LIBRARY
 
 /** Get a string according to the protocol of the underlying buffer. */
 typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
@@ -1397,14 +1381,12 @@ char *get_41_lenc_string(char **buffer,
   *buffer+= *string_length + 1;
   return str;
 }
-#endif /* EMBEDDED LIBRARY */
 
 
 /* the packet format is described in send_client_reply_packet() */
 static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
                                             uchar **buff, size_t pkt_len)
 {
-#ifndef EMBEDDED_LIBRARY
   Protocol_classic *protocol = mpvio->protocol;
   char *end;
   bool packet_has_required_size= false;
@@ -1756,9 +1738,6 @@ skip_to_ssl:
 
   *buff= (uchar *) passwd;
   return passwd_len;
-#else
-  return 0;
-#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -1958,14 +1937,12 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
 
   if (auth_plugin_name.str == native_password_plugin_name.str)
     plugin= native_password_plugin;
-#ifndef EMBEDDED_LIBRARY
   else
   {
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin= true;
   }
-#endif /* EMBEDDED_LIBRARY */
 
 
   mpvio->plugin= plugin;
@@ -2019,11 +1996,11 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip= sctx_host_or_ip.str;
   mpvio->auth_info.host_or_ip_length= sctx_host_or_ip.length;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   if (thd->get_protocol()->get_ssl())
     mpvio->vio_is_encrypted= 1;
   else
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
     mpvio->vio_is_encrypted= 0;
   mpvio->status= MPVIO_EXT::FAILURE;
   mpvio->mem_root= thd->mem_root;
@@ -2057,7 +2034,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 /**
   Calculate the timestamp difference for password expiry
 
@@ -2115,7 +2092,6 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                   });
   return password_time_expired;
 }
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 /**
@@ -2352,7 +2328,6 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   if (initialized) // if not --skip-grant-tables
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     bool is_proxy_user= FALSE;
     bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
@@ -2417,12 +2392,10 @@ acl_authenticate(THD *thd, enum_server_command command)
                           " identity %s", auth_user, acl_user->user));
       acl_cache_lock.unlock();
     }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Assign default role */
     {
       List_of_auth_id_refs default_roles;
@@ -2444,7 +2417,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_cache_lock.unlock();
     }
     sctx->checkout_access_maps();
-#endif
+
     if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
     {
       mysql_mutex_lock(&LOCK_offline_mode);
@@ -2458,7 +2431,6 @@ acl_authenticate(THD *thd, enum_server_command command)
       }
     }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       OK. Let's check the SSL. Historically it was checked after the password,
       as an additional layer, not instead of the password
@@ -2542,7 +2514,6 @@ acl_authenticate(THD *thd, enum_server_command command)
     */
     sctx->set_password_expired(mpvio.acl_user->password_expired ||
                                password_time_expired);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else
     sctx->skip_grants();
@@ -2569,14 +2540,12 @@ acl_authenticate(THD *thd, enum_server_command command)
   if (command == COM_CONNECT &&
       !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
   {
-#ifndef EMBEDDED_LIBRARY
     if (!Connection_handler_manager::get_instance()->valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
-#endif // !EMBEDDED_LIBRARY
   }
 
   /*
@@ -2813,10 +2782,6 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)
     DBUG_RETURN(CR_AUTH_HANDSHAKE);
   DBUG_PRINT("info", ("reply read : pkt_len=%d", pkt_len));
-
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  DBUG_RETURN(CR_OK);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   DBUG_EXECUTE_IF("native_password_bad_reply",
                   {

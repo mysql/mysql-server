@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #define NDB_TABLE_GUARD_H
 
 #include <ndbapi/NdbDictionary.hpp>
+
+#include "my_dbug.h"
 
 class Ndb_table_guard
 {

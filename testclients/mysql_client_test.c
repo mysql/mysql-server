@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"
@@ -20800,6 +20801,218 @@ static void test_bug24963580()
 }
 
 
+static int test_mysql_binlog_perform(MYSQL *mysql1,
+                                     const char *binlog_name,
+                                     ulong start_position,
+                                     uint server_id,
+                                     uint flags,
+                                     size_t gtid_set_size,
+                                     uchar *gtid_set)
+{
+  MYSQL_RPL rpl;
+
+  if (!opt_silent)
+  {
+    fprintf(stdout, "Perform binlog read: '%s' from %lu, flags=%u\n",
+            binlog_name, start_position, flags);
+  }
+
+  rpl.file_name_length= 0;
+  rpl.file_name= binlog_name;
+  rpl.start_position= start_position;
+  rpl.server_id= server_id;
+  rpl.flags= flags;
+  rpl.gtid_set_encoded_size= gtid_set_size;
+  rpl.gtid_set_arg= gtid_set;
+  rpl.fix_gtid_set= NULL;
+
+  if (mysql_binlog_open(mysql1, &rpl))
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_binlog_open() failed: '%s'\n", mysql_error(mysql1));
+    mysql_binlog_close(mysql1, &rpl);
+    return 1;
+  }
+
+  for (;;)
+  {
+    if (mysql_binlog_fetch(mysql1, &rpl)) // Error
+    {
+      if (!opt_silent)
+        fprintf(stdout, "Error packet: '%s'\n", mysql_error(mysql1));
+      mysql_binlog_close(mysql1, &rpl);
+      return 2;
+    }
+
+    if (rpl.size == 0) // EOF
+    {
+      if (!opt_silent)
+        fprintf(stdout, "EOF packet.\n");
+      break;
+    }
+
+    /* Normal packet. */
+    if (!opt_silent)
+      fprintf(stdout, "%lu byte length packet.\n", rpl.size);
+  }
+
+  mysql_binlog_close(mysql1, &rpl);
+
+  return 0;
+}
+
+
+static void test_mysql_binlog()
+{
+  int rc;
+  MYSQL *mysql1, *mysql2;
+  MYSQL_RPL rpl1, rpl2;
+  const char *binlog_name= "mysql-binlog.000001";
+  my_bool reconnect= TRUE;
+
+  myheader("test_mysql_binlog");
+
+  /* Check if binary logging enabled. */
+  {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    DIE_IF(mysql_query(mysql, "SHOW MASTER STATUS"));
+    DIE_UNLESS(res= mysql_store_result(mysql));
+    if (!(row= mysql_fetch_row(res)) ||
+        strcmp(row[0], binlog_name))
+    {
+      if (!opt_silent)
+        fprintf(stdout, "Skipping test_mysql_binlog\n");
+      mysql_free_result(res);
+      return;
+    }
+    mysql_free_result(res);
+  }
+
+  rc= mysql_query(mysql, "SET @save_global_binlog_checksum=@@global.binlog_checksum");
+  myquery(rc);
+  rc= mysql_query(mysql, "SET @@global.binlog_checksum=NONE");
+  myquery(rc);
+  rc= mysql_query(mysql, "RESET MASTER");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1(a INT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES(0)");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "FLUSH LOGS");
+  myquery(rc);
+
+  if (!(mysql1= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    DIE_UNLESS(0);
+  }
+
+  /* binlog_open without being connected */
+  if (!opt_silent)
+    fprintf(stdout, "binlog_open without being connected\n");
+  DIE_UNLESS(-1 == mysql_binlog_open(mysql1, &rpl1));
+  if (!opt_silent)
+    fprintf(stdout, "binlog_open error: %s\n", mysql_error(mysql1));
+  /* binlog_close on without being connected */
+  if (!opt_silent)
+    fprintf(stdout, "binlog_close without being connected\n");
+  mysql_binlog_close(mysql1, &rpl1);
+
+  mysql_options(mysql1, MYSQL_OPT_RECONNECT, &reconnect);
+  mysql1= mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket, 0);
+  if (!mysql1)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_real_connect() failed: '%s'\n", mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+
+#define BIN_LOG_HEADER_SIZE 4U
+
+  rc= test_mysql_binlog_perform(mysql1, 0, BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, "", BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE, 0,
+                                MYSQL_RPL_GTID, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE, 0,
+                                MYSQL_RPL_GTID | MYSQL_RPL_SKIP_HEARTBEAT, 0, 0);
+  DIE_UNLESS(rc == 0);
+
+  /* Incorrect start position. */
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE - 1, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 2 && mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE + 1, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 2 && mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+
+  /* Non-existing binlog file. */
+  rc= test_mysql_binlog_perform(mysql1, "Xfile", BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 2 && mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+
+  /* Two readers. */
+  if (!opt_silent)
+    fprintf(stdout, "Two readers\n");
+
+  if (!(mysql2= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    DIE_UNLESS(0);
+  }
+  mysql2= mysql_real_connect(mysql2, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket, 0);
+  if (!mysql2)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_real_connect() failed: '%s'\n", mysql_error(mysql2));
+    DIE_UNLESS(0);
+  }
+
+  memset(&rpl1, 0, sizeof(rpl1));
+  memset(&rpl2, 0, sizeof(rpl2));
+  rpl1.start_position= rpl2.start_position= BIN_LOG_HEADER_SIZE;
+
+  if (mysql_binlog_open(mysql1, &rpl1) ||
+      mysql_binlog_open(mysql2, &rpl2))
+  {
+    myerror("mysql_binlog_open() failed");
+    DIE_UNLESS(0);
+  }
+
+  for (;;)
+  {
+    int rc1= mysql_binlog_fetch(mysql1, &rpl1);
+    int rc2= mysql_binlog_fetch(mysql2, &rpl2);
+    if (rc1 != 0 || rc2 != 0) // Error
+      DIE_UNLESS(0);
+    else if (rpl1.size != rpl2.size)
+      DIE_UNLESS(0);
+    else if (rpl1.size == 0) // EOF
+      break;
+    if (!opt_silent)
+      fprintf(stdout, "%lu byte length packet.\n", rpl1.size);
+    DIE_UNLESS(!memcmp(rpl1.buffer, rpl2.buffer, rpl1.size));
+  }
+
+  mysql_close(mysql1);
+  mysql_close(mysql2);
+
+  rc= mysql_query(mysql, "SET @@global.binlog_checksum=@save_global_binlog_checksum");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -21090,6 +21303,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug22336527", test_bug22336527 },
   { "test_bug22559575", test_bug22559575 },
   { "test_bug24963580", test_bug24963580 },
+  { "test_mysql_binlog", test_mysql_binlog },
   { 0, 0 }
 };
 

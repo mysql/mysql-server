@@ -335,7 +335,6 @@ static struct mysql_locking_service_st locking_service_handler=
   mysql_release_locking_service_locks
 };
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static struct security_context_service_st security_context_handler={
   thd_get_security_context,
   thd_set_security_context,
@@ -346,7 +345,6 @@ static struct security_context_service_st security_context_handler={
   security_context_get_option,
   security_context_set_option
 };
-#endif
 
 static struct mysql_keyring_service_st mysql_keyring_handler= {
   my_key_store,
@@ -382,10 +380,8 @@ static struct st_service_ref list_of_services[]=
     VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
   { "transaction_write_set_service",
     VERSION_transaction_write_set_service, &transaction_write_set_handler },
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   { "security_context_service",
     VERSION_security_context_service, &security_context_handler },
-#endif
   { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
   { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler},
   { "plugin_registry_service", VERSION_plugin_registry_service, &plugin_registry_handler}

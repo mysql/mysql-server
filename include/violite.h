@@ -220,7 +220,6 @@ typedef my_socket YASSL_SOCKET_T;
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#ifndef EMBEDDED_LIBRARY
 enum enum_ssl_init_error
 {
   SSL_INITERR_NOERROR= 0, SSL_INITERR_CERT, SSL_INITERR_KEY, 
@@ -255,7 +254,6 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
 
-#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
 void ssl_start(void);
@@ -368,7 +366,7 @@ struct st_vio
 #ifdef HAVE_OPENSSL
   void    *ssl_arg= { nullptr };
 #endif
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   HANDLE  handle_file_map= { nullptr };
   char    *handle_map= { nullptr };
   HANDLE  event_server_wrote= { nullptr };
@@ -378,7 +376,7 @@ struct st_vio
   HANDLE  event_conn_closed= { nullptr };
   size_t  shared_memory_remain= { 0 };
   char    *shared_memory_pos= { nullptr };
-#endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 
 private:
   friend st_vio *internal_vio_create(uint flags);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 #ifndef DD_CACHE__CACHE_ELEMENT_INCLUDED
 #define DD_CACHE__CACHE_ELEMENT_INCLUDED
 
-#include "my_global.h"                    // DBUG_ASSERT() etc.
-
-#include "dd/string_type.h"               // dd::String_type
 #include "dd/impl/raw/object_keys.h"      // Primary_id_key
+#include "dd/string_type.h"               // dd::String_type
+#include "my_dbug.h"
+#include "my_global.h"                    // DBUG_ASSERT() etc.
 
 namespace dd_cache_unittest {
   class CacheTestHelper;

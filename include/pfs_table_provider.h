@@ -25,7 +25,6 @@
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include "my_inttypes.h"
@@ -79,7 +78,6 @@ void pfs_unlock_table_v1(PSI_table *table);
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_TABLE_INTERFACE */
 

@@ -330,6 +330,46 @@ typedef struct st_mysql_res {
   void *extension;
 } MYSQL_RES;
 
+/**
+  Flag to indicate that COM_BINLOG_DUMP_GTID should
+  be used rather than COM_BINLOG_DUMP in the @sa mysql_binlog_open().
+*/
+#define MYSQL_RPL_GTID            (1 << 16)
+/**
+  Skip HEARBEAT events in the @sa mysql_binlog_fetch().
+*/
+#define MYSQL_RPL_SKIP_HEARTBEAT  (1 << 17)
+
+/**
+  Struct for information about a replication stream.
+
+  @sa mysql_binlog_open()
+  @sa mysql_binlog_fetch()
+  @sa mysql_binlog_close()
+*/
+typedef struct st_mysql_rpl {
+  size_t              file_name_length;  /** Length of the 'file_name' or 0     */
+  const char          *file_name;        /** Filename of the binary log to read */
+  my_ulonglong        start_position;    /** Position in the binary log to      */
+                                         /*  start reading from                 */
+  unsigned int        server_id;         /** Server ID to use when identifying  */
+                                         /*  with the master                    */
+  unsigned int        flags;             /** Flags, e.g. MYSQL_RPL_GTID         */
+
+                                         /** Size of gtid set data              */
+  size_t              gtid_set_encoded_size;
+                                          /** Callback function which is called  */
+                                         /*  from @sa mysql_binlog_open() to    */
+                                         /*  fill command packet gtid set       */
+  void                (*fix_gtid_set)(struct st_mysql_rpl *rpl,
+                                      unsigned char *packet_gtid_set);
+  void                *gtid_set_arg;     /** GTID set data or an argument for   */
+                                         /*  fix_gtid_set() callback function   */
+
+  unsigned long       size;              /** Size of the packet returned by     */
+                                         /*  mysql_binlog_fetch()               */
+  const unsigned char *buffer;           /** Pointer to returned data           */
+} MYSQL_RPL;
 
 #if !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT)
 #define MYSQL_CLIENT
@@ -497,6 +537,10 @@ unsigned int  STDCALL mysql_thread_safe(void);
 my_bool       STDCALL mysql_embedded(void);
 my_bool       STDCALL mysql_read_query_result(MYSQL *mysql);
 int           STDCALL mysql_reset_connection(MYSQL *mysql);
+
+int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl);
+int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl);
+void STDCALL mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl);
 
 /*
   The following definitions are added for the enhanced 

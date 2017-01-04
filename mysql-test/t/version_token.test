@@ -7,6 +7,29 @@ if ( !$VERSION_TOKEN ) {
   skip Locking service plugin requires the environment variable \$VERSION_TOKEN to be set (normally done by mtr);
 }
 
+--echo #
+--echo # Bug #23210850: VERSION_TOKEN better protected
+--echo #
+
+--echo # Define a UDF before installing the plugin
+--replace_regex /\.dll/.so/
+eval create function version_tokens_show returns string soname '$VERSION_TOKEN';
+--error ER_CANT_INITIALIZE_UDF
+SELECT version_tokens_show();
+
+--echo # Testing installing the plugin twice while there's a UDF defined
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+UNINSTALL PLUGIN version_tokens;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+UNINSTALL PLUGIN version_tokens;
+
+--echo # Should not crash when unloading the so through removing the UDF
+drop function version_tokens_show;
+
+
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
 --replace_regex /\.dll/.so/
@@ -264,6 +287,7 @@ UNINSTALL PLUGIN version_tokens;
 --disable_result_log
 --disable_query_log 
 let $mysql_errno = 0;
+# 1123=ER_CANT_INITIALIZE_UDF
 while ($mysql_errno != 1123)
 {
   --error 0,1123

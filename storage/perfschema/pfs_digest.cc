@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,18 +22,20 @@
   This code needs extra visibility in the lexer structures
 */
 
+#include <string.h>
+
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
-#include "pfs_instr.h"
+#include "pfs_builtin_memory.h"
 #include "pfs_digest.h"
 #include "pfs_global.h"
-#include "pfs_builtin_memory.h"
-#include "table_helper.h"
+#include "pfs_instr.h"
+#include "sql_get_diagnostics.h"
 #include "sql_lex.h"
 #include "sql_signal.h"
-#include "sql_get_diagnostics.h"
 #include "sql_string.h"
-#include <string.h>
+#include "table_helper.h"
 
 size_t digest_max= 0;
 ulong digest_lost= 0;
