@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -146,7 +146,7 @@ struct fil_node_t {
 				belongs */
 	char*		name;	/*!< path to the file */
 	ibool		open;	/*!< TRUE if file open */
-	os_pfs_file_t	handle;	/*!< OS handle to the file, if file open */
+	pfs_os_file_t	handle;	/*!< OS handle to the file, if file open */
 	os_event_t	sync_event;/*!< Condition event to group and
 				serialize calls to fsync */
 	ibool		is_raw_disk;/*!< TRUE if the 'file' is actually a raw
@@ -2025,7 +2025,7 @@ UNIV_INTERN
 const char*
 fil_read_first_page(
 /*================*/
-	os_pfs_file_t	data_file,		/*!< in: open data file */
+	pfs_os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
@@ -3360,7 +3360,7 @@ fil_open_linked_file(
 /*===============*/
 	const char*	tablename,	/*!< in: database/tablename */
 	char**		remote_filepath,/*!< out: remote filepath */
-	os_pfs_file_t*	remote_file)	/*!< out: remote file handle */
+	pfs_os_file_t*	remote_file)	/*!< out: remote file handle */
 
 {
 	ibool		success;
@@ -3420,7 +3420,7 @@ fil_create_new_single_table_tablespace(
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 {
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 
 	ibool		ret;
 	dberr_t		err;
@@ -5863,7 +5863,7 @@ fil_flush(
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 
 
 	mutex_enter(&fil_system->mutex);
@@ -6225,7 +6225,7 @@ fil_buf_block_init(
 }
 
 struct fil_iterator_t {
-	os_pfs_file_t	file;			/*!< File handle */
+	pfs_os_file_t	file;			/*!< File handle */
 	const char*	filepath;		/*!< File path name */
 	os_offset_t	start;			/*!< From where to start */
 	os_offset_t	end;			/*!< Where to stop */
@@ -6360,7 +6360,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	os_pfs_file_t	file;
+	pfs_os_file_t*	file;
 	char*		filepath;
 
 	ut_a(n_io_buffers > 0);
@@ -6382,7 +6382,7 @@ fil_tablespace_iterate(
 	{
 		ibool	success;
 
-		file = os_file_create_simple_no_error_handling(
+		*file = os_file_create_simple_no_error_handling(
 			innodb_file_data_key, filepath,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 
@@ -6393,7 +6393,7 @@ fil_tablespace_iterate(
 			if (!once || ut_rnd_interval(0, 10) == 5) {
 				once = true;
 				success = FALSE;
-				os_file_close(file);
+				os_file_close(*file);
 			}
 		});
 
@@ -6414,9 +6414,9 @@ fil_tablespace_iterate(
 		}
 	}
 
-	callback.set_file(filepath, file);
+	callback.set_file(filepath, *file);
 
-	os_offset_t	file_size = os_file_get_size(file);
+	os_offset_t	file_size = os_file_get_size(&file);
 	ut_a(file_size != (os_offset_t) -1);
 
 	/* The block we will use for every physical page */
@@ -6443,7 +6443,7 @@ fil_tablespace_iterate(
 	} else if ((err = callback.init(file_size, &block)) == DB_SUCCESS) {
 		fil_iterator_t	iter;
 
-		iter.file = file;
+		iter.file = *file;
 		iter.start = 0;
 		iter.end = file_size;
 		iter.filepath = filepath;
@@ -6476,7 +6476,7 @@ fil_tablespace_iterate(
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Sync to disk");
 
-		if (!os_file_flush(file)) {
+		if (!os_file_flush(*file)) {
 			ib_logf(IB_LOG_LEVEL_INFO, "os_file_flush() failed!");
 			err = DB_IO_ERROR;
 		} else {
@@ -6484,7 +6484,7 @@ fil_tablespace_iterate(
 		}
 	}
 
-	os_file_close(file);
+	os_file_close(*file);
 
 	mem_free(page_ptr);
 	mem_free(filepath);
