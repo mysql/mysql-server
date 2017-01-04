@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved. */
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved. */
 
 #ifndef AUTH_LDAP_SASL_CLIENT_H_
 #define AUTH_LDAP_SASL_CLIENT_H_

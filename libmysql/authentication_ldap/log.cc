@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved. */
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved. */
 
 #include <my_global.h>
 #include "log.h"
