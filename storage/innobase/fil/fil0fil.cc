@@ -6360,7 +6360,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	pfs_os_file_t*	file;
+	pfs_os_file_t	file;
 	char*		filepath;
 
 	ut_a(n_io_buffers > 0);
@@ -6382,7 +6382,7 @@ fil_tablespace_iterate(
 	{
 		ibool	success;
 
-		*file = os_file_create_simple_no_error_handling(
+		file = os_file_create_simple_no_error_handling(
 			innodb_file_data_key, filepath,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 
@@ -6393,7 +6393,7 @@ fil_tablespace_iterate(
 			if (!once || ut_rnd_interval(0, 10) == 5) {
 				once = true;
 				success = FALSE;
-				os_file_close(*file);
+				os_file_close(file);
 			}
 		});
 
@@ -6414,9 +6414,9 @@ fil_tablespace_iterate(
 		}
 	}
 
-	callback.set_file(filepath, *file);
+	callback.set_file(filepath, file);
 
-	os_offset_t	file_size = os_file_get_size(&file);
+	os_offset_t	file_size = os_file_get_size(file);
 	ut_a(file_size != (os_offset_t) -1);
 
 	/* The block we will use for every physical page */
@@ -6443,7 +6443,7 @@ fil_tablespace_iterate(
 	} else if ((err = callback.init(file_size, &block)) == DB_SUCCESS) {
 		fil_iterator_t	iter;
 
-		iter.file = *file;
+		iter.file = file;
 		iter.start = 0;
 		iter.end = file_size;
 		iter.filepath = filepath;
@@ -6476,7 +6476,7 @@ fil_tablespace_iterate(
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Sync to disk");
 
-		if (!os_file_flush(*file)) {
+		if (!os_file_flush(file)) {
 			ib_logf(IB_LOG_LEVEL_INFO, "os_file_flush() failed!");
 			err = DB_IO_ERROR;
 		} else {
@@ -6484,7 +6484,7 @@ fil_tablespace_iterate(
 		}
 	}
 
-	os_file_close(*file);
+	os_file_close(file);
 
 	mem_free(page_ptr);
 	mem_free(filepath);
