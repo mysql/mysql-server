@@ -17,8 +17,11 @@
   @file mysys/kqueue_timers.cc
 */
 
+#include <sys/types.h>  /* Must be before <sys/event.h> on FreeBSD. */
 #include <sys/event.h>
-#include <sys/types.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 
 #include "my_dbug.h"
 #include "my_global.h"
@@ -26,9 +29,6 @@
 #include "my_thread.h"   /* my_thread_init, my_thread_end */
 #include "my_timer.h"     /* my_timer_t */
 #include "mysys_priv.h"     /* key_thread_timer_notifier */
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 
 /* Kernel event queue file descriptor. */
 static int kq_fd= -1;
