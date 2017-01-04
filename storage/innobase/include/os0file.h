@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -99,7 +99,7 @@ typedef int	os_file_t;
 
 /** Common file descriptor for file IO instrumentation with PFS
 on windows and other platforms */
-struct os_pfs_file_t
+struct pfs_os_file_t
 {
 	os_file_t   m_file;
 #ifdef UNIV_PFS_IO
@@ -1272,7 +1272,7 @@ os_file_create_simple() which opens or creates a file.
 @return own: handle to the file, not defined if error, error number
 	can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -1303,7 +1303,7 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 	can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -1336,7 +1336,7 @@ Add instrumentation to monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 	can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -1359,7 +1359,7 @@ A performance schema instrumented wrapper function for os_file_close().
 UNIV_INLINE
 bool
 pfs_os_file_close_func(
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	src_file,
 	ulint		src_line);
 
@@ -1379,7 +1379,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_file_read_func(
 	IORequest&	type,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1404,7 +1404,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_file_read_no_error_handling_func(
 	IORequest&	type,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1467,7 +1467,7 @@ pfs_os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1496,7 +1496,7 @@ dberr_t
 pfs_os_file_write_func(
 	IORequest&	type,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const void*	buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1542,7 +1542,7 @@ Flushes the write buffers of a given file to the disk.
 UNIV_INLINE
 bool
 pfs_os_file_flush_func(
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	src_file,
 	ulint		src_line);
 
@@ -1672,7 +1672,7 @@ os_file_get_size(
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
 os_file_get_size(
-	os_pfs_file_t	file)
+	pfs_os_file_t	file)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Write the specified number of zeros to a newly created file.
@@ -1685,7 +1685,7 @@ os_file_get_size(
 bool
 os_file_set_size(
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size,
 	bool		read_only)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1706,7 +1706,7 @@ preserved is smaller or equal than current size of file.
 bool
 os_file_truncate(
 	const char*	pathname,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size);
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -1900,7 +1900,7 @@ os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -2051,7 +2051,7 @@ Note: On Windows we use the name and on Unices we use the file handle.
 bool
 os_is_sparse_file_supported(
 	const char*	path,
-	os_pfs_file_t	fh)
+	pfs_os_file_t	fh)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if

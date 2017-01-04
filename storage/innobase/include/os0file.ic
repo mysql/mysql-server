@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,7 +42,7 @@ os_file_create_simple() which opens or creates a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -55,7 +55,7 @@ pfs_os_file_create_simple_func(
 {
 	PSI_file_locker_state	state;
 	struct PSI_file_locker* locker = NULL;
-	os_pfs_file_t		file;
+	pfs_os_file_t		file;
 
 	/* register a file open or creation depending on "create_mode" */
 	register_pfs_file_open_begin(
@@ -94,7 +94,7 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -107,7 +107,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 {
 	PSI_file_locker_state	state;
 	struct PSI_file_locker* locker = NULL;
-	os_pfs_file_t		file;
+	pfs_os_file_t		file;
 
 	/* register a file open or creation depending on "create_mode" */
 	register_pfs_file_open_begin(
@@ -147,7 +147,7 @@ Add instrumentation to monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_func(
 	mysql_pfs_key_t key,
 	const char*	name,
@@ -161,7 +161,7 @@ pfs_os_file_create_func(
 {
 	PSI_file_locker_state	state;
 	struct PSI_file_locker* locker = NULL;
-	os_pfs_file_t		file;
+	pfs_os_file_t		file;
 
 	/* register a file open or creation depending on "create_mode" */
 	register_pfs_file_open_begin(
@@ -190,7 +190,7 @@ A performance schema instrumented wrapper function for os_file_close().
 UNIV_INLINE
 bool
 pfs_os_file_close_func(
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	src_file,
 	ulint		src_line)
 {
@@ -236,7 +236,7 @@ pfs_os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -281,7 +281,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_file_read_func(
 	IORequest&	type,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -323,7 +323,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_file_read_no_error_handling_func(
 	IORequest&	type,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -411,7 +411,7 @@ dberr_t
 pfs_os_file_write_func(
 	IORequest&	type,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const void*	buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -492,7 +492,7 @@ Flushes the write buffers of a given file to the disk.
 UNIV_INLINE
 bool
 pfs_os_file_flush_func(
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	src_file,
 	ulint		src_line)
 {

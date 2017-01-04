@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -232,7 +232,7 @@ struct Slot {
 	os_offset_t		offset;
 
 	/** file where to read or write */
-	os_pfs_file_t		file;
+	pfs_os_file_t		file;
 
 	/** file name or path */
 	const char*		name;
@@ -330,7 +330,7 @@ public:
 		IORequest&	type,
 		fil_node_t*	m1,
 		void*		m2,
-		os_pfs_file_t	file,
+		pfs_os_file_t	file,
 		const char*	name,
 		void*		buf,
 		os_offset_t	offset,
@@ -3846,7 +3846,7 @@ os_file_close_func(
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
 os_file_get_size(
-	os_pfs_file_t	file)
+	pfs_os_file_t	file)
 {
 	/* Store current position */
 	os_offset_t	pos = lseek(file.m_file, 0, SEEK_CUR);
@@ -3966,7 +3966,7 @@ static
 bool
 os_file_truncate_posix(
 	const char*	pathname,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size)
 {
 	int     res = ftruncate(file.m_file, size);
@@ -5078,7 +5078,7 @@ os_file_close_func(
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
 os_file_get_size(
-	os_pfs_file_t	file)
+	pfs_os_file_t	file)
 {
 	DWORD		high;
 	DWORD		low;
@@ -5279,7 +5279,7 @@ static
 bool
 os_file_truncate_win32(
 	const char*	pathname,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size)
 {
 	LARGE_INTEGER	length;
@@ -5898,7 +5898,7 @@ short_warning:
 bool
 os_file_set_size(
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size,
 	bool		read_only)
 {
@@ -5992,7 +5992,7 @@ size of the file.
 bool
 os_file_truncate(
 	const char*	pathname,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	os_offset_t	size)
 {
 	/* Do nothing if the size preserved is larger than or equal to the
@@ -6144,7 +6144,7 @@ Note: On Windows we use the name and on Unices we use the file handle.
 @param[in]	fh		File handle for the file - if opened
 @return true if the file system supports sparse files */
 bool
-os_is_sparse_file_supported(const char* path, os_pfs_file_t fh)
+os_is_sparse_file_supported(const char* path, pfs_os_file_t fh)
 {
 	/* In this debugging mode, we act as if punch hole is supported,
 	then we skip any calls to actually punch a hole.  In this way,
@@ -6871,7 +6871,7 @@ AIO::reserve_slot(
 	IORequest&	type,
 	fil_node_t*	m1,
 	void*		m2,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	const char*	name,
 	void*		buf,
 	os_offset_t	offset,
@@ -7393,7 +7393,7 @@ os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	os_pfs_file_t	file,
+	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
