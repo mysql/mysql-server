@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2324,7 +2324,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     i.e., acting as a fake slave.
   */
   MYSQL_RPL rpl= {0, logname, start_position, server_id,
-                  get_dump_flags() | MYSQL_RPL_SKIP_HEARTBEAT};
+                  get_dump_flags() | MYSQL_RPL_SKIP_HEARTBEAT,
+                  0, NULL, NULL, 0, NULL};
 
   if (opt_remote_proto != BINLOG_DUMP_NON_GTID)
   {
