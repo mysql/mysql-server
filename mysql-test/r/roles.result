@@ -369,6 +369,8 @@ ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators;
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 localhost	joe	%	wp_administrators
+# CURRENT_USER shouldn't crash the server.
+ALTER USER CURRENT_USER() DEFAULT ROLE NONE;
 ++ Flushing and reloading privileges shouldn't break the server
 FLUSH PRIVILEGES;
 # Restart the server and verify that the role graph and default roles

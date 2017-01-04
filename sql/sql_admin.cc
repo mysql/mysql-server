@@ -1463,6 +1463,8 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
     LEX_USER *user;
     while((user= it++))
     {
+      /* Check for CURRENT_USER token */
+      user= get_current_user(thd, user);
       if (strcmp(thd->security_context()->priv_user().str,
                  user->user.str)  != 0)
       {
@@ -1506,9 +1508,9 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
              }
           }
         }
-      }
-    }
-  }
+      } // end else
+    } // end while
+  } // end scope
   List_of_auth_id_refs authids;
   if (roles != 0)
   {
