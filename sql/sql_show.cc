@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5003,11 +5003,22 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         predictable and repeatable results without having to flush tables.
       */
       if (share->db_type() && is_ha_partition_handlerton(share->db_type()))
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_WARN_DEPRECATED_SYNTAX,
-                            ER_THD(thd,
+      {
+        /*
+          For a bootstrap thread, we only print to the error log, otherwise,
+          the warning is lost since there is no client connection.
+        */
+        if (thd->bootstrap)
+          sql_print_warning(ER_THD(thd,
                                    ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
                             share->db.str, share->table_name.str);
+        else
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER_THD(thd,
+                                     ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                              share->db.str, share->table_name.str);
+      }
     }
 
     table->field[19]->store(option_buff+1,
