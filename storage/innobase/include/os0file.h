@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -91,7 +91,7 @@ typedef int	os_file_t;
 
 /*Common file descriptor for file IO instrumentation with PFS
 on windows and other platforms */
-struct os_pfs_file_t
+struct pfs_os_file_t
 {
 	os_file_t   m_file;
 #ifdef UNIV_PFS_IO
@@ -653,7 +653,7 @@ os_file_create_simple() which opens or creates a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_func(
 /*===========================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -676,7 +676,7 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
 /*=============================================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -700,7 +700,7 @@ Add instrumentation to monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_func(
 /*====================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -729,7 +729,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_close_func(
 /*===================*/
-        os_pfs_file_t	file,	/*!< in, own: handle to a file */
+        pfs_os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 /*******************************************************************//**
@@ -742,7 +742,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_read_func(
 /*==================*/
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
@@ -760,7 +760,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_read_no_error_handling_func(
 /*====================================*/
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
@@ -781,7 +781,7 @@ pfs_os_aio_func(
 	ulint		mode,	/*!< in: OS_AIO_NORMAL etc. I/O mode */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
@@ -808,7 +808,7 @@ pfs_os_file_write_func(
 /*===================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
 	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n,	/*!< in: number of bytes to write */
@@ -825,7 +825,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_flush_func(
 /*===================*/
-	os_pfs_file_t	file,	/*!< in, own: handle to a file */
+	pfs_os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 
@@ -896,7 +896,7 @@ UNIV_INTERN
 os_offset_t
 os_file_get_size(
 /*=============*/
-	os_pfs_file_t	file)	/*!< in: handle to a file */
+	pfs_os_file_t	file)	/*!< in: handle to a file */
 	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
@@ -907,7 +907,7 @@ os_file_set_size(
 /*=============*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	os_offset_t	size)	/*!< in: file size */
 	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /***********************************************************************//**
@@ -1145,7 +1145,7 @@ os_aio_func(
 				caution! */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */

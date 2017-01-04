@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ os_file_create_simple() which opens or creates a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_func(
 /*===========================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -47,7 +47,7 @@ pfs_os_file_create_simple_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -78,7 +78,7 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
 /*=============================================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -93,7 +93,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -122,7 +122,7 @@ Add instrumentation to monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_pfs_file_t
+pfs_os_file_t
 pfs_os_file_create_func(
 /*====================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -141,7 +141,7 @@ pfs_os_file_create_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	os_pfs_file_t	file;
+	pfs_os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -170,7 +170,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_close_func(
 /*===================*/
-        os_pfs_file_t	file,	/*!< in, own: handle to a file */
+        pfs_os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -203,7 +203,7 @@ pfs_os_aio_func(
 	ulint		mode,	/*!< in: OS_AIO_NORMAL etc. I/O mode */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
@@ -248,7 +248,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_read_func(
 /*==================*/
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
@@ -281,7 +281,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_read_no_error_handling_func(
 /*====================================*/
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
@@ -351,7 +351,7 @@ pfs_os_file_write_func(
 /*===================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
 	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n,	/*!< in: number of bytes to write */
@@ -419,7 +419,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_flush_func(
 /*===================*/
-	os_pfs_file_t	file,	/*!< in, own: handle to a file */
+	pfs_os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {

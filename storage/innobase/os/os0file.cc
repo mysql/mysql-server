@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -163,7 +163,7 @@ struct os_aio_slot_t{
 	byte*		buf;		/*!< buffer used in i/o */
 	ulint		type;		/*!< OS_FILE_READ or OS_FILE_WRITE */
 	os_offset_t	offset;		/*!< file offset in bytes */
-	os_pfs_file_t	file;		/*!< file where to read or write */
+	pfs_os_file_t	file;		/*!< file where to read or write */
 	const char*	name;		/*!< file name or path */
 	ibool		io_already_done;/*!< used only in simulated aio:
 					TRUE if the physical i/o already
@@ -2086,7 +2086,7 @@ UNIV_INTERN
 os_offset_t
 os_file_get_size(
 /*=============*/
-	os_pfs_file_t	file)	/*!< in: handle to a file */
+	pfs_os_file_t	file)	/*!< in: handle to a file */
 {
 #ifdef __WIN__
 	os_offset_t	offset;
@@ -2117,7 +2117,7 @@ os_file_set_size(
 /*=============*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	os_offset_t	size)	/*!< in: file size */
 {
 	os_offset_t	current_size;
@@ -4188,7 +4188,7 @@ os_aio_array_reserve_slot(
 				the aio operation */
 	void*		message2,/*!< in: message to be passed along with
 				the aio operation */
-	os_pfs_file_t	file,	/*!< in: file handle */
+	pfs_os_file_t	file,	/*!< in: file handle */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	void*		buf,	/*!< in: buffer where to read or from which
@@ -4549,7 +4549,7 @@ os_aio_func(
 				caution! */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_pfs_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
