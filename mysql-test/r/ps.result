@@ -3920,3 +3920,30 @@ SELECT * FROM t1;
 ERROR 70100: Query execution was interrupted
 # Connection default
 DROP TABLE t1;
+#
+# Bug#19894382 - SERVER SIDE PREPARED STATEMENTS LEADS TO POTENTIAL OFF-BY-SECOND
+#                TIMESTAMP ON SLAVE.
+#
+CREATE TABLE bug19894382(f1 CHAR(64) DEFAULT 'slave',
+f2 TIME, f3 TIMESTAMP NULL, f4 DATETIME,
+f5 TIME(3), f6 TIMESTAMP(3) NULL, f7 DATETIME(3));
+# Execute prepared statements from mysql_client_test.
+# Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.
+# Tuples in the client_test_db.bug19894382 are inserted from the mysql_client_test.
+INSERT INTO bug19894382 SELECT * FROM client_test_db.bug19894382;
+# Replay binlog events
+# Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.
+# Tuples in the client_test_db.bug19894382 are inserted from the binlog.
+INSERT INTO bug19894382(f2, f3, f4, f5, f6, f7)
+SELECT f2, f3, f4, f5, f6, f7 FROM client_test_db.bug19894382;
+# With fix, tuples of "master" and "slave" will be same. There will not be any difference
+# in values inserted for time, timestamp and datetime type columns.
+SELECT * FROM bug19894382 ORDER BY f2;
+f1	f2	f3	f4	f5	f6	f7
+master	07:30:30	2015-04-24 13:30:30	2015-04-24 07:30:30	07:30:30.005	2015-04-24 13:30:30.005	2015-04-24 07:30:30.005
+slave	07:30:30	2015-04-24 13:30:30	2015-04-24 07:30:30	07:30:30.005	2015-04-24 13:30:30.005	2015-04-24 07:30:30.005
+master	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 13:30:30.502	2015-04-24 07:30:30.502
+slave	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 13:30:30.502	2015-04-24 07:30:30.502
+# Cleanup
+DROP DATABASE client_test_db;
+DROP TABLE bug19894382;
