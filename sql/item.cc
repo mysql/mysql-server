@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3556,12 +3556,11 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   value.time= *tm;
   value.time.time_type= time_type;
+  decimals= tm->second_part ? DATETIME_MAX_DECIMALS : 0;
 
   if (check_datetime_range(&value.time))
   {
-    make_truncated_value_warning(ErrConvString(&value.time,
-                                               MY_MIN(decimals,
-                                                      DATETIME_MAX_DECIMALS)),
+    make_truncated_value_warning(ErrConvString(&value.time, decimals),
                                  time_type);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
@@ -3569,7 +3568,6 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   state= TIME_VALUE;
   maybe_null= 0;
   max_length= max_length_arg;
-  decimals= 0;
   DBUG_VOID_RETURN;
 }
 
