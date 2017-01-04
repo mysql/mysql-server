@@ -67,9 +67,9 @@ sleep(0.5)
 select count(*) FROM mysql.slow_log;
 count(*)
 1
-truncate mysql.slow_log;
 set @@long_query_time=default;
 set global slow_query_log= @org_slow_query_log;
 set @@log_slow_filter=default;
 set @@log_slow_verbosity=default;
 set global log_output= default;
+truncate mysql.slow_log;
