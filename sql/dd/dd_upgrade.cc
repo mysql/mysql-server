@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2237,11 +2237,19 @@ bool migrate_plugin_table_to_dd(THD *thd)
 
 
 /**
-   Returns the collation id for the database specified.
+  Returns the collation id for the database specified.
+
+  @param[in]  thd                        Thread handle.
+  @param[in]  db_opt_path                Path for database.
+  @param[out] schema_charset             Character set of database.
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+
 */
 static bool load_db_schema_collation(THD *thd,
                                      const LEX_STRING *db_opt_path,
-                                     const CHARSET_INFO *schema_charset)
+                                     const CHARSET_INFO **schema_charset)
 {
   IO_CACHE cache;
   File file;
@@ -2281,23 +2289,23 @@ static bool load_db_schema_collation(THD *thd,
            it's an old 4.1.0 db.opt file, which didn't have separate
            default-character-set and default-collation commands.
         */
-        if (!(schema_charset= get_charset_by_csname(pos + 1,
+        if (!(*schema_charset= get_charset_by_csname(pos + 1,
                                                     MY_CS_PRIMARY, MYF(0))) &&
-            !(schema_charset= get_charset_by_name(pos + 1, MYF(0))))
+            !(*schema_charset= get_charset_by_name(pos + 1, MYF(0))))
         {
           sql_print_warning("Unable to identify the charset in %s. "
                             "Using default character set.", db_opt_path->str);
 
-          schema_charset= thd->variables.collation_server;
+          *schema_charset= thd->variables.collation_server;
         }
       }
       else if (!strncmp(buf, "default-collation", (pos - buf)))
       {
-        if (!(schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
+        if (!(*schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
         {
           sql_print_warning("Unable to identify the charset in %s. "
                             "Using default character set.", db_opt_path->str);
-          schema_charset= thd->variables.collation_server;
+          *schema_charset= thd->variables.collation_server;
         }
       }
     }
@@ -2335,7 +2343,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
   if (!my_access(dbopt_file_name.str, F_OK))
   {
     // Get the collation id for the database.
-    if (load_db_schema_collation(thd, &dbopt_file_name, schema_charset))
+    if (load_db_schema_collation(thd, &dbopt_file_name, &schema_charset))
       return true;
   }
   else

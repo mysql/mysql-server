@@ -96,9 +96,11 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
 'begin select   @@show_compatibility_56 into b; end');
 DROP TABLE test.proc;
 # Stop DB server which was created by MTR default
+# 1.1 Create db.opt file.
 #Files in 'test' dir
 auto.cnf
 aview
+db_charset_koi8r
 events
 foreign_keys
 ib_buffer_pool
@@ -228,6 +230,7 @@ view_with_column_names.t1                          OK
 SHOW DATABASES;
 Database
 aview
+db_charset_koi8r
 events
 foreign_keys
 information_schema
@@ -460,6 +463,9 @@ view_user2	CREATE ALGORITHM=UNDEFINED DEFINER=`abcd`@`localhost` SQL SECURITY IN
 SHOW CREATE VIEW aview.view_character_set;
 View	Create View	character_set_client	collation_connection
 view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_character_set` AS select 1 AS `1`	latin1	latin1_swedish_ci
+SHOW CREATE DATABASE db_charset_koi8r;
+Database	Create Database
+db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */
 SET names utf8;
 DESC `test`.`initial_vü`;
 Field	Type	Null	Key	Default	Extra
