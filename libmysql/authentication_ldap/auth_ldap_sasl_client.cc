@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved. */
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved. */
 
 #include "auth_ldap_sasl_client.h"
 #include <string.h>
@@ -27,11 +27,11 @@ void Sasl_client::Interact(sasl_interact_t *ilist) {
       ilist->result = strdup(m_user_name);
       ilist->len = strlen((const char*)ilist->result);
       break;
-    case SASL_CB_AUTHNAME:			
+    case SASL_CB_AUTHNAME:            
       ilist->result = strdup(m_user_name);
       ilist->len = strlen((const char*)ilist->result);
       break;
-    case SASL_CB_PASS:			
+    case SASL_CB_PASS:            
       ilist->result = strdup(m_user_pwd);
       ilist->len = strlen((const char*)ilist->result);
       break;
