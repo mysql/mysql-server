@@ -56,7 +56,7 @@ template <typename T> class Cache_element;
 class Shared_dictionary_cache
 {
 private:
-  // We have 223 collations, 41 character sets and 4535 spatial
+  // We have 223 collations, 41 character sets and 4906 spatial
   // reference systems after initializing the server, as of MySQL
   // 8.0.0.
   static const size_t collation_capacity= 256;
