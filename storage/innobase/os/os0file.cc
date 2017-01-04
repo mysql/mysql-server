@@ -1383,7 +1383,7 @@ os_file_compress_page(
 
 	case Compression::LZ4:
 
-		len = LZ4_compress_limitedOutput(
+		len = LZ4_compress_default(
 			reinterpret_cast<char*>(src) + FIL_PAGE_DATA,
 			reinterpret_cast<char*>(dst) + FIL_PAGE_DATA,
 			static_cast<int>(content_len),
