@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,7 +57,7 @@ buffer pool; the latter method is used for very big heaps */
 					allocation functions can return
 					NULL. */
 
-/** Different type of heaps in terms of which datastructure is using them */
+/** Different type of heaps in terms of which data structure is using them */
 #define MEM_HEAP_FOR_BTR_SEARCH		(MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
 #define MEM_HEAP_FOR_PAGE_HASH		(MEM_HEAP_DYNAMIC)
 #define MEM_HEAP_FOR_RECV_SYS		(MEM_HEAP_BUFFER)
@@ -230,7 +230,7 @@ mem_heap_replace(
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified data to it. If the memory chunk
 specified with (top, top_sz) is the topmost element, then it will be discarded,
-otherwise it will be left untouched and this function will be equivallent to
+otherwise it will be left untouched and this function will be equivalent to
 mem_heap_dup().
 @param[in,out]	heap	memory heap
 @param[in]	top	chunk to discard if possible
@@ -251,7 +251,7 @@ mem_heap_dup_replace(
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified string to it. If the memory chunk
 specified with (top, top_sz) is the topmost element, then it will be discarded,
-otherwise it will be left untouched and this function will be equivallent to
+otherwise it will be left untouched and this function will be equivalent to
 mem_heap_strdup().
 @param[in,out]	heap	memory heap
 @param[in]	top	chunk to discard if possible

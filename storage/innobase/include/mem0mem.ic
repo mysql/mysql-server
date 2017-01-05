@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -484,7 +484,7 @@ mem_heap_create_func(
 #endif /* UNIV_DEBUG */
 	ulint		type)
 {
-	mem_block_t*   block;
+	mem_block_t*	block;
 
 	if (!size) {
 		size = MEM_BLOCK_START_SIZE;
