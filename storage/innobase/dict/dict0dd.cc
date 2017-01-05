@@ -2266,7 +2266,6 @@ dd_table_load_fk_from_dd(
 /** Load foreign key constraint for the table. Note, it could also open
 the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
-@param[in]	table		MySQL table definition
 @param[in]	tbl_name	Table Name
 @param[in,out]	uncached	NULL if the table should be added to the cache;
 				if not, *uncached=true will be assigned
@@ -2277,26 +2276,26 @@ the foreign table, if this table is referenced by the foreign table
 @param[in]	thd		thread THD
 @param[in]	dict_locked	True if dict_sys->mutex is already held,
 				otherwise false
+@param[in]	char_charsets	whether to check charset compatibility
+@param[in,out]	fk_tables	name list for tables that refer to this table
 @return DB_SUCESS 	if successfully load FK constraint */
 dberr_t
 dd_table_load_fk(
 	dd::cache::Dictionary_client*	client,
-	const TABLE*			table,
 	const char*			tbl_name,
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
 	THD*				thd,
 	bool				dict_locked,
-	dict_names_t&			fk_tables)
+	bool				check_charsets,
+	dict_names_t*			fk_tables)
 {
 	dberr_t	err = DB_SUCCESS;
 
 	err = dd_table_load_fk_from_dd(m_table, dd_table, dict_locked);
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
-	/* TODO: NewDD: Temporarily use dict_locked to check if it's during
-	create table */
-	if (!strstr(tbl_name, "mysql") && !dict_locked) {
+	if (!strstr(tbl_name, "mysql") && fk_tables != nullptr) {
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
 
@@ -2329,9 +2328,6 @@ dd_table_load_fk(
 					full_name, true,
 					DICT_ERR_IGNORE_NONE);
 
-#ifdef UNIV_DEBUG
-			bool found = false;
-#endif
 			if (foreign_table) {
 				for (auto &fk : foreign_table->foreign_set) {
 					if (strcmp(fk->referenced_table_name,
@@ -2341,15 +2337,13 @@ dd_table_load_fk(
 
 					if (fk->referenced_table) {
 						ut_ad(fk->referenced_table == m_table);
-						ut_d(found = true);
 					} else {
 						err = dict_foreign_add_to_cache(
-							fk, NULL, FALSE,
+							fk, NULL,
+							check_charsets,
 							DICT_ERR_IGNORE_NONE);
-						ut_d(found = true);
 					}
 				}
-				ut_ad(found);
 				foreign_table->release();
 			} else {
 				/* To avoid recursively loading the tables
@@ -2360,7 +2354,7 @@ dd_table_load_fk(
                                 lint    old_size = mem_heap_get_size(
 					m_table->heap);
 
-                                fk_tables.push_back(
+                                fk_tables->push_back(
                                         mem_heap_strdupl(m_table->heap,
                                                 full_name,
                                                 strlen(full_name)));
@@ -2460,6 +2454,7 @@ dd_open_table_one(
                 uint64                  id = 0;
                 uint32                  root = 0;
 		uint32			sid = 0;
+		uint64			trx_id = 0;
 		dd::Object_id		index_space_id =
 			dd_index->tablespace_id();
 		dd::Tablespace*	index_space = nullptr;
@@ -2497,13 +2492,15 @@ dd_open_table_one(
 			first_index = false;
 		}
 
-                if (se_private_data.get_uint64(
-                            dd_index_key_strings[DD_INDEX_ID], &id)
-                    || se_private_data.get_uint32(
-                            dd_index_key_strings[DD_INDEX_ROOT], &root)) {
+		if (se_private_data.get_uint64(
+			    dd_index_key_strings[DD_INDEX_ID], &id)
+		    || se_private_data.get_uint32(
+			    dd_index_key_strings[DD_INDEX_ROOT], &root)
+		    || se_private_data.get_uint64(
+			    dd_index_key_strings[DD_INDEX_TRX_ID], &trx_id)) {
 			fail = true;
 			break;
-                }
+		}
 
                 ut_ad(root > 1);
                 ut_ad(index->type & DICT_FTS || root != FIL_NULL
@@ -2512,6 +2509,7 @@ dd_open_table_one(
 		index->page = root;
 		index->space = sid;
 		index->id = id;
+		index->trx_id = trx_id;
                 index = index->next();
 	}
 
@@ -2556,15 +2554,100 @@ dd_open_table_one(
 	/* Load foreign key info. It could also register child table(s) that
 	refers to current table */
 	if (exist == NULL) {
-		dd_table_load_fk(client, table, norm_name,
+		dd_table_load_fk(client, norm_name,
 				 m_table, &dd_table->table(), thd, false,
-				 fk_list);
+				 true, &fk_list);
 	}
 	mem_heap_free(heap);
 
 	return(m_table);
 }
 
+
+/** Open foreign tables reference a table.
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+void
+dd_open_fk_tables(
+	dd::cache::Dictionary_client*	client,
+	dict_names_t&			fk_list,
+	THD*				thd)
+{
+	while (!fk_list.empty()) {
+		table_name_t		fk_table_name;
+		dict_table_t*		fk_table;
+		const dd::Table*	dd_table = nullptr;
+
+		fk_table_name.m_name =
+			const_cast<char*>(fk_list.front());
+		mutex_enter(&dict_sys->mutex);
+		fk_table = dict_table_check_if_in_cache_low(
+			fk_table_name.m_name);
+		mutex_exit(&dict_sys->mutex);
+		if (!fk_table) {
+			MDL_ticket*     fk_mdl = nullptr;
+			char		db_buf[NAME_LEN + 1];
+			char		tbl_buf[NAME_LEN + 1];
+
+			if (!innobase_parse_tbl_name(
+				fk_table_name.m_name,
+				db_buf, tbl_buf, NULL)) {
+				goto next;
+			}
+
+			dd_mdl_acquire(thd, &fk_mdl, db_buf, tbl_buf);
+
+			if (client->acquire(db_buf, tbl_buf, &dd_table)
+			    || dd_table == nullptr) {
+				dd_mdl_release(thd, &fk_mdl);
+				goto next;
+			}
+
+			ut_ad(dd_table->se_private_id()
+			      != dd::INVALID_OBJECT_ID);
+
+			TABLE_SHARE	ts;
+
+			init_tmp_table_share(thd,
+				&ts, db_buf, strlen(db_buf),
+				dd_table->name().c_str(),
+				""/* file name */);
+
+			ulint error = open_table_def(thd, &ts, false,
+						     dd_table);
+
+			if (error) {
+				dd_mdl_release(thd, &fk_mdl);
+				goto next;
+			}
+
+			TABLE	td;
+
+			error = open_table_from_share(thd, &ts,
+				dd_table->name().c_str(),
+				0, OPEN_FRM_FILE_ONLY, 0,
+				&td, false, dd_table);
+
+			if (error) {
+				free_table_share(&ts);
+				dd_mdl_release(thd, &fk_mdl);
+				goto next;
+			}
+
+			fk_table = dd_open_table_one(
+				client, &td, fk_table_name.m_name,
+				nullptr, fk_table, dd_table,
+				false, thd, fk_list);
+
+			closefrm(&td, false);
+			free_table_share(&ts);
+			dd_table_close(fk_table, thd, &fk_mdl, false);
+		}
+next:
+		fk_list.pop_front();
+	}
+}
 
 /** Open or load a table definition based on a Global DD object.
 @tparam		Table		dd::Table or dd::Partition
@@ -2609,80 +2692,7 @@ dd_open_table(
 		dd::cache::Dictionary_client::Auto_releaser
 			releaser(client);
 
-
-		while (!fk_list.empty()) {
-			table_name_t		fk_table_name;
-			dict_table_t*		fk_table;
-			const dd::Table*	dd_table = nullptr;
-
-			fk_table_name.m_name =
-				const_cast<char*>(fk_list.front());
-			mutex_enter(&dict_sys->mutex);
-			fk_table = dict_table_check_if_in_cache_low(
-				fk_table_name.m_name);
-			mutex_exit(&dict_sys->mutex);
-			if (!fk_table) {
-				MDL_ticket*     fk_mdl = nullptr;
-				char		db_buf[NAME_LEN + 1];
-				char		tbl_buf[NAME_LEN + 1];
-
-				if (!innobase_parse_tbl_name(
-					fk_table_name.m_name,
-					db_buf, tbl_buf, NULL)) {
-					goto next;
-				}
-
-				dd_mdl_acquire(thd, &fk_mdl, db_buf, tbl_buf);
-
-				if (client->acquire(db_buf, tbl_buf, &dd_table)
-				    || dd_table == nullptr) {
-					dd_mdl_release(thd, &fk_mdl);
-					goto next;
-				}
-
-				ut_ad(dd_table->se_private_id()
-				      != dd::INVALID_OBJECT_ID);
-
-				TABLE_SHARE	ts;
-
-				init_tmp_table_share(thd,
-					&ts, db_buf, strlen(db_buf),
-					dd_table->name().c_str(),
-					""/* file name */);
-
-				ulint error = open_table_def(thd, &ts, false,
-							     dd_table);
-
-				if (error) {
-					dd_mdl_release(thd, &fk_mdl);
-					goto next;
-				}
-
-				TABLE	td;
-
-				error = open_table_from_share(thd, &ts,
-					dd_table->name().c_str(),
-					0, OPEN_FRM_FILE_ONLY, 0,
-					&td, false, dd_table);
-
-				if (error) {
-					free_table_share(&ts);
-					dd_mdl_release(thd, &fk_mdl);
-					goto next;
-				}
-
-				fk_table = dd_open_table_one(
-					client, &td, fk_table_name.m_name,
-					nullptr, fk_table, dd_table,
-					false, thd, fk_list);
-
-				closefrm(&td, false);
-				free_table_share(&ts);
-				dd_table_close(fk_table, thd, &fk_mdl, false);
-			}
-next:
-			fk_list.pop_front();
-		}
+		dd_open_fk_tables(client, fk_list, thd);
 	}
 
 	return(m_table);

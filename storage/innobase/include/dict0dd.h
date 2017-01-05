@@ -244,25 +244,26 @@ void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 
 /** Load foreign key constraint for the table. Note, it could also open
 the foreign table, if this table is referenced by the foreign table
-@param[in,out]  client          data dictionary client
-@param[in]      table           MySQL table definition
-@param[in]      tbl_name        Table Name
-@param[out]     m_table         InnoDB table handle
-@param[in]      dd_table        Global DD table
-@param[in]      thd             thread THD
-@param[in]      dict_locked     True if dict_sys->mutex is already held,
-                                otherwise false
-@return DB_SUCESS       if successfully load FK constraint */
+@param[in,out]	client		data dictionary client
+@param[in]	tbl_name	Table Name
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	thd		thread THD
+@param[in]	dict_locked	True if dict_sys->mutex is already held,
+				otherwise false
+@param[in]	char_charsets	whether to check charset compatibility
+@param[in,out]	fk_tables	name list for tables that refer to this table
+@return DB_SUCESS	if successfully load FK constraint */
 dberr_t
 dd_table_load_fk(
-        dd::cache::Dictionary_client*   client,
-        const TABLE*                    table,
-        const char*                     tbl_name,
-        dict_table_t*                   m_table,
-        const dd::Table*                dd_table,
-        THD*                            thd,
-        bool                            dict_locked,
-        dict_names_t&                   fk_tables);
+	dd::cache::Dictionary_client*	client,
+	const char*			tbl_name,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
+	THD*				thd,
+	bool				dict_locked,
+	bool				check_charsets,
+	dict_names_t*			fk_tables);
 
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
 based on a Global DD object.
@@ -391,6 +392,16 @@ dd_open_table(
 	dict_table_t*&			ib_table,
 	const Table*			dd_table,
 	bool				skip_mdl,
+	THD*				thd);
+
+/** Open foreign tables reference a table.
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+void
+dd_open_fk_tables(
+	dd::cache::Dictionary_client*	client,
+	dict_names_t&			fk_list,
 	THD*				thd);
 
 /** Get dd tablespace by dd space id

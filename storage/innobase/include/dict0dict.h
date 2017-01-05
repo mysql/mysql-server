@@ -2067,6 +2067,18 @@ uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
 
+/** Check whether the dict_table_t is a partition.
+A partitioned table on the SQL level is composed of InnoDB tables,
+where each InnoDB table is a [sub]partition including its secondary indexes
+which belongs to the partition.
+@param[in]      table   Table to check.
+@return true if the dict_table_t is a partition else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*     table);
+
+
 #endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dict.ic"

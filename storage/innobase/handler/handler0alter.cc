@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -9926,7 +9926,8 @@ alter_part::rename_table(
 
 	row_mysql_lock_data_dictionary(m_trx);
 
-	error = row_rename_table_for_mysql(norm_from, norm_to, m_trx, TRUE);
+	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
+					   m_trx, TRUE);
 
 	row_mysql_unlock_data_dictionary(m_trx);
 
@@ -12166,7 +12167,8 @@ rename_table_for_exchange(
 
         row_mysql_lock_data_dictionary(trx);
 
-        error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
+        error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
+					   trx, TRUE);
 
 	row_mysql_unlock_data_dictionary(trx);
 

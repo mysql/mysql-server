@@ -1054,10 +1054,14 @@ row_prebuilt_free(
 	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
 		dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
 		if (prebuilt->table->discard_after_ddl) {
-			mutex_enter(&dict_sys->mutex);
+			if (!dict_locked) {
+				mutex_enter(&dict_sys->mutex);
+			}
 			ut_ad(prebuilt->table->n_ref_count == 0);
 			dict_table_remove_from_cache(prebuilt->table);
-			mutex_exit(&dict_sys->mutex);
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
 		}
 	}
 
@@ -5195,16 +5199,20 @@ row_delete_constraint(
 	return(err);
 }
 
-/*********************************************************************//**
-Renames a table for MySQL.
+/** Renames a table for MySQL.
+@param[in]	old_name	old table name
+@param[in]	new_name	new table name
+@param[in]	dd_table	dd::Table for new table
+@param[in,out]	trx		transaction
+@param[in]	commit		whether to commit trx
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
-/*=======================*/
-	const char*	old_name,	/*!< in: old table name */
-	const char*	new_name,	/*!< in: new table name */
-	trx_t*		trx,		/*!< in/out: transaction */
-	bool		commit)		/*!< in: whether to commit trx */
+	const char*	old_name,
+	const char*	new_name,
+	dd::Table*	dd_table,
+	trx_t*		trx,
+	bool		commit)
 {
 	dict_table_t*	table			= NULL;
 	ibool		dict_locked		= FALSE;
@@ -5332,6 +5340,7 @@ row_rename_table_for_mysql(
 
 		ut_free(new_path);
 	}
+	
 	if (err != DB_SUCCESS) {
 		goto end;
 	}
@@ -5524,14 +5533,63 @@ end:
 			innobase_rename_vc_templ(table);
 		}
 
+		if (!dd_table) {
+			goto funct_exit;
+		}
+
 		/* We only want to switch off some of the type checking in
 		an ALTER TABLE...ALGORITHM=COPY, not in a RENAME. */
 		dict_names_t	fk_tables;
 
-		err = dict_load_foreigns(
-			new_name, NULL,
-			false, !old_is_tmp || trx->check_foreigns,
-			DICT_ERR_IGNORE_NONE, fk_tables);
+		THD*				thd = current_thd;
+		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+		if (dict_locked) {
+			ut_ad(mutex_own(&dict_sys->mutex));
+			mutex_exit(&dict_sys->mutex);
+		}
+
+		err = dd_table_load_fk(client, new_name, table, dd_table,
+				       thd, false,
+				       !old_is_tmp || trx->check_foreigns,
+				       &fk_tables);
+
+		if (dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
+
+		/* TODO: remove following chunk of code once Bug 25338895
+		(NEWDD: RENAME TABLE DID NOT CHANGE FOREIGN KEY NAME
+		ACCORDINGLY) is fixed */
+
+		if (!old_is_tmp && !new_is_tmp) {
+			for (dict_foreign_set::iterator it
+			     = table->foreign_set.begin();
+			     it != table->foreign_set.end(); ++it) {
+				dict_foreign_t*	foreign = *it;
+				char	buf[MAX_TABLE_NAME_LEN + 1];
+				ulint   db_len = dict_get_db_name_len(
+					old_name);
+
+				filename_to_tablename(
+					old_name + db_len + 1,
+					buf, MAX_TABLE_NAME_LEN + 1);
+
+				if (strstr(foreign->id, buf)) {
+					table->foreign_set.erase(it);
+					dict_table_t*	ref_table
+					= dict_table_check_if_in_cache_low(
+					foreign->referenced_table_name_lookup);
+
+					dict_foreign_set::iterator	rit
+					= ref_table->referenced_set.find(
+						foreign);
+
+					ref_table->referenced_set.erase(rit);
+				}
+			}
+		}
 
 		if (err != DB_SUCCESS) {
 
@@ -5577,11 +5635,7 @@ end:
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		while (!fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), true,
-					DICT_ERR_IGNORE_NONE);
-			fk_tables.pop_front();
-		}
+		dd_open_fk_tables(client, fk_tables, thd);
 	}
 
 funct_exit:

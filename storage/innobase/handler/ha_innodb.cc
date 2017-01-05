@@ -6938,19 +6938,31 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 		/* TODO: NewDD: Ignore the InnoDB system table, as they are
 		not registered with newDD */
 		if (strstr(name, "sys") == nullptr) {
-			bool	cached = false;
+			bool		cached = false;
+			ib_uint64_t	autoinc = 0;
 
 			mutex_enter(&dict_sys->mutex);
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
 			if (ib_table != NULL) {
-				cached = true;
-				if (ib_table->is_corrupted()) {
-					dict_table_remove_from_cache(ib_table);
+				if (ib_table->discard_after_ddl) {
+					dict_table_autoinc_lock(ib_table);
+					autoinc = dict_table_autoinc_read(
+						ib_table);
+					dict_table_autoinc_unlock(ib_table);
+					dict_table_remove_from_cache(
+						ib_table);
 					ib_table = NULL;
 				} else {
-					ib_table->acquire();
+					cached = true;
+					if (ib_table->is_corrupted()) {
+						dict_table_remove_from_cache(ib_table);
+						ib_table = NULL;
+					} else {
+						ib_table->acquire();
+					}
 				}
 			}
+
 			mutex_exit(&dict_sys->mutex);
 
 			if (!cached) {
@@ -6965,6 +6977,12 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 					thd))) {
 					set_my_errno(ENOENT);
 					DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+				}
+				if (autoinc) {
+				dict_table_autoinc_lock(ib_table);
+				dict_table_autoinc_update_if_greater(
+					ib_table, autoinc);
+				dict_table_autoinc_unlock(ib_table);
 				}
 			}
 		} else {
@@ -13252,12 +13270,12 @@ create_table_info_t::create_table(
 				dd::get_dd_client(m_thd);
 			dd::cache::Dictionary_client::Auto_releaser releaser(
 				client);
-			dict_names_t	fk_list;
 			innobase_table = dd_table_open_on_name_in_mem(
 				m_table_name, true, DICT_ERR_IGNORE_NONE);
 			err = dd_table_load_fk(
-				client, m_form, m_table_name,
-				innobase_table, dd_table, m_thd, true, fk_list);
+				client, m_table_name,
+				innobase_table, dd_table, m_thd, true,
+				true, nullptr);
 			dd_table_close(innobase_table, NULL, NULL, true);
 		}
 #endif /* NO_NEW_DD_FK */
@@ -15818,7 +15836,8 @@ ha_innobase::rename_table_impl(
 
 	ut_a(trx->will_lock > 0);
 
-	error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
+	error = row_rename_table_for_mysql(
+		norm_from, norm_to, &to_table->table(), trx, TRUE);
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -15838,6 +15857,14 @@ ha_innobase::rename_table_impl(
                 if (rename_dd_filename) {
                         new_path = fil_space_get_first_path(table->space);
                 }
+
+		if (row_is_mysql_tmp_table_name(from)
+		    && !row_is_mysql_tmp_table_name(to)
+		    && !dict_table_is_partition(table)) {
+			ut_ad(table->n_ref_count == 0);
+			btr_search_drop_table(table);
+			table->discard_after_ddl = true;
+		}
 
 		mutex_exit(&dict_sys->mutex);
 	}

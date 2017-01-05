@@ -100,6 +100,8 @@ ALTER TABLE tab MODIFY COLUMN c7 VARCHAR(2048) ;
 Warnings:
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
+Warning	1618	<MERGE_THRESHOLD> option ignored
+Warning	1618	<MERGE_THRESHOLD> option ignored
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
