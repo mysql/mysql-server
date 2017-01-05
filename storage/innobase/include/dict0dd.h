@@ -228,6 +228,7 @@ dd_mdl_release(
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
+@param[in]	col_names	column names, or NULL
 @param[in]	dict_locked	True if dict_sys->mutex is already held,
 				otherwise false
 @return DB_SUCESS	if successfully load FK constraint */
@@ -235,6 +236,7 @@ dberr_t
 dd_table_load_fk_from_dd(
 	dict_table_t*		m_table,
 	const dd::Table*	dd_table,
+	const char**		col_names,
 	bool			dict_locked);
 
 /** Set the AUTO_INCREMENT attribute.
@@ -246,6 +248,7 @@ void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
 @param[in]	tbl_name	Table Name
+@param[in]	col_names	column names, or NULL
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
 @param[in]	thd		thread THD
@@ -258,6 +261,7 @@ dberr_t
 dd_table_load_fk(
 	dd::cache::Dictionary_client*	client,
 	const char*			tbl_name,
+	const char**			col_names,
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
 	THD*				thd,

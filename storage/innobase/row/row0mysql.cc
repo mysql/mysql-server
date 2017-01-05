@@ -5550,8 +5550,8 @@ end:
 			mutex_exit(&dict_sys->mutex);
 		}
 
-		err = dd_table_load_fk(client, new_name, table, dd_table,
-				       thd, false,
+		err = dd_table_load_fk(client, new_name, nullptr, table,
+				       dd_table, thd, false,
 				       !old_is_tmp || trx->check_foreigns,
 				       &fk_tables);
 
