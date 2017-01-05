@@ -923,6 +923,14 @@
    fun:backtrace
 }
 
+{
+   memory leak in mysqld_exit
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+}
+
 #
 # Bug in Glibc 2.9: http://sourceware.org/bugzilla/show_bug.cgi?id=10391
 # Fixed in latest Glibc, but suppressed here for running tests on hosts
