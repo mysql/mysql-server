@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -108,7 +108,7 @@ static inline void inline_mysql_mdl_set_status(
 
 static inline void inline_mysql_mdl_destroy(
   PSI_metadata_lock *psi,
-  const char *src_file, uint src_line)
+  const char*, uint)
 {
   if (psi != NULL)
     PSI_METADATA_CALL(destroy_metadata_lock)(psi);

@@ -277,10 +277,10 @@ class Silence_log_table_errors : public Internal_error_handler
 public:
   Silence_log_table_errors() { m_message[0]= '\0'; }
 
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sql_state,
-                                Sql_condition::enum_severity_level *level,
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char* msg)
   {
     strmake(m_message, msg, sizeof(m_message)-1);
@@ -838,8 +838,6 @@ void File_query_log::check_and_print_write_error()
 
 
 bool File_query_log::write_general(ulonglong event_utime,
-                                   const char *user_host,
-                                   size_t user_host_len,
                                    my_thread_id thread_id,
                                    const char *command_type,
                                    size_t command_type_len,
@@ -892,9 +890,8 @@ err:
 
 
 bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
-                                ulonglong query_start_arg,
                                 const char *user_host,
-                                size_t user_host_len, ulonglong query_utime,
+                                size_t, ulonglong query_utime,
                                 ulonglong lock_utime, bool is_command,
                                 const char *sql_text, size_t sql_text_len)
 {
@@ -1143,7 +1140,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                         const char *user_host,
                                         size_t user_host_len,
                                         ulonglong query_utime,
-                                        ulonglong lock_utime, bool is_command,
+                                        ulonglong lock_utime, bool,
                                         const char *sql_text,
                                         size_t sql_text_len)
 {
@@ -1351,7 +1348,7 @@ bool Log_to_csv_event_handler::activate_log(THD *thd,
 
 
 bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
-                                         ulonglong query_start_arg,
+                                         ulonglong,
                                          const char *user_host,
                                          size_t user_host_len,
                                          ulonglong query_utime,
@@ -1365,7 +1362,7 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_slow_log.write_slow(thd, current_utime, query_start_arg,
+  bool retval= mysql_slow_log.write_slow(thd, current_utime,
                                          user_host, user_host_len,
                                          query_utime, lock_utime, is_command,
                                          sql_text, sql_text_len);
@@ -1375,22 +1372,21 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
 
 bool Log_to_file_event_handler::log_general(THD *thd, ulonglong event_utime,
-                                            const char *user_host,
-                                            size_t user_host_len,
+                                            const char*,
+                                            size_t,
                                             my_thread_id thread_id,
                                             const char *command_type,
                                             size_t command_type_len,
                                             const char *sql_text,
                                             size_t sql_text_len,
-                                            const CHARSET_INFO *client_cs)
+                                            const CHARSET_INFO*)
 {
   if (!mysql_general_log.is_open())
     return false;
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_general_log.write_general(event_utime, user_host,
-                                               user_host_len, thread_id,
+  bool retval= mysql_general_log.write_general(event_utime, thread_id,
                                                command_type, command_type_len,
                                                sql_text, sql_text_len);
   thd->pop_internal_handler();

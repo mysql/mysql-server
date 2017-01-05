@@ -6564,7 +6564,7 @@ struct my_option my_long_options[]=
 };
 
 
-static int show_queries(THD *thd, SHOW_VAR *var, char *buff)
+static int show_queries(THD *thd, SHOW_VAR *var, char*)
 {
   var->type= SHOW_LONGLONG;
   var->value= (char *)&thd->query_id;
@@ -6600,7 +6600,7 @@ static int show_max_used_connections_time(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_num_thread_running(THD *thd, SHOW_VAR *var, char *buff)
+static int show_num_thread_running(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONGLONG;
   var->value= buff;
@@ -6611,7 +6611,7 @@ static int show_num_thread_running(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-static int show_num_thread_created(THD *thd, SHOW_VAR *var, char *buff)
+static int show_num_thread_created(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6621,7 +6621,7 @@ static int show_num_thread_created(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_thread_id_count(THD *thd, SHOW_VAR *var, char *buff)
+static int show_thread_id_count(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6632,7 +6632,7 @@ static int show_thread_id_count(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-static int show_aborted_connects(THD *thd, SHOW_VAR *var, char *buff)
+static int show_aborted_connects(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6642,7 +6642,7 @@ static int show_aborted_connects(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_acl_cache_items_count(THD *thd, SHOW_VAR *var, char *buff)
+static int show_acl_cache_items_count(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6652,7 +6652,7 @@ static int show_acl_cache_items_count(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-static int show_connection_errors_max_connection(THD *thd, SHOW_VAR *var,
+static int show_connection_errors_max_connection(THD*, SHOW_VAR *var,
                                                  char *buff)
 {
   var->type= SHOW_LONG;
@@ -6663,7 +6663,7 @@ static int show_connection_errors_max_connection(THD *thd, SHOW_VAR *var,
   return 0;
 }
 
-static int show_connection_errors_select(THD *thd, SHOW_VAR *var, char *buff)
+static int show_connection_errors_select(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6673,7 +6673,7 @@ static int show_connection_errors_select(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_connection_errors_accept(THD *thd, SHOW_VAR *var, char *buff)
+static int show_connection_errors_accept(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6683,7 +6683,7 @@ static int show_connection_errors_accept(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_connection_errors_tcpwrap(THD *thd, SHOW_VAR *var, char *buff)
+static int show_connection_errors_tcpwrap(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6717,7 +6717,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
          the users to start using replication performance schema
          tables.
 */
-static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
+static int show_slave_running(THD*, SHOW_VAR *var, char *buff)
 {
   channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
@@ -6742,7 +6742,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   This status variable is also exclusively (look comments on
   show_slave_running()) for default channel.
 */
-static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
+static int show_slave_retried_trans(THD*, SHOW_VAR *var, char *buff)
 {
   channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
@@ -6763,7 +6763,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 /**
   Only for default channel. Refer to comments on show_slave_running()
 */
-static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
+static int show_slave_received_heartbeats(THD*, SHOW_VAR *var, char *buff)
 {
   channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
@@ -6835,7 +6835,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 #ifndef DBUG_OFF
-static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, char *buff)
+static int show_slave_rows_last_search_algorithm_used(THD*, SHOW_VAR *var, char *buff)
 {
   uint res= slave_rows_last_search_algorithm_used;
   const char* s= ((res == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
@@ -6850,7 +6850,7 @@ static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, c
 }
 
 static int show_ongoing_automatic_gtid_violating_transaction_count(
-  THD *thd, SHOW_VAR *var, char *buf)
+  THD*, SHOW_VAR *var, char *buf)
 {
   var->type= SHOW_CHAR;
   var->value= buf;
@@ -6860,7 +6860,7 @@ static int show_ongoing_automatic_gtid_violating_transaction_count(
 }
 
 static int show_ongoing_anonymous_gtid_violating_transaction_count(
-  THD *thd, SHOW_VAR *var, char *buf)
+  THD*, SHOW_VAR *var, char *buf)
 {
   var->type= SHOW_CHAR;
   var->value= buf;
@@ -6872,7 +6872,7 @@ static int show_ongoing_anonymous_gtid_violating_transaction_count(
 #endif
 
 static int show_ongoing_anonymous_transaction_count(
-  THD *thd, SHOW_VAR *var, char *buf)
+  THD*, SHOW_VAR *var, char *buf)
 {
   var->type= SHOW_CHAR;
   var->value= buf;
@@ -6882,7 +6882,7 @@ static int show_ongoing_anonymous_transaction_count(
 
 #endif /* HAVE_REPLICATION */
 
-static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
+static int show_open_tables(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6890,7 +6890,7 @@ static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_prepared_stmt_count(THD *thd, SHOW_VAR *var, char *buff)
+static int show_prepared_stmt_count(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6900,7 +6900,7 @@ static int show_prepared_stmt_count(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
+static int show_table_definitions(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6910,7 +6910,7 @@ static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
 
 #if defined(HAVE_OPENSSL)
 /* Functions relying on CTX */
-static int show_ssl_ctx_sess_accept(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_accept(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6919,7 +6919,7 @@ static int show_ssl_ctx_sess_accept(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_accept_good(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_accept_good(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6928,7 +6928,7 @@ static int show_ssl_ctx_sess_accept_good(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_connect_good(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_connect_good(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6937,7 +6937,7 @@ static int show_ssl_ctx_sess_connect_good(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_accept_renegotiate(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_accept_renegotiate(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6946,7 +6946,7 @@ static int show_ssl_ctx_sess_accept_renegotiate(THD *thd, SHOW_VAR *var, char *b
   return 0;
 }
 
-static int show_ssl_ctx_sess_connect_renegotiate(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_connect_renegotiate(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6955,7 +6955,7 @@ static int show_ssl_ctx_sess_connect_renegotiate(THD *thd, SHOW_VAR *var, char *
   return 0;
 }
 
-static int show_ssl_ctx_sess_cb_hits(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_cb_hits(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6964,7 +6964,7 @@ static int show_ssl_ctx_sess_cb_hits(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_hits(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_hits(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6973,7 +6973,7 @@ static int show_ssl_ctx_sess_hits(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_cache_full(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_cache_full(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6982,7 +6982,7 @@ static int show_ssl_ctx_sess_cache_full(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_misses(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_misses(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -6991,7 +6991,7 @@ static int show_ssl_ctx_sess_misses(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_timeouts(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_timeouts(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -7000,7 +7000,7 @@ static int show_ssl_ctx_sess_timeouts(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_number(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_number(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -7009,7 +7009,7 @@ static int show_ssl_ctx_sess_number(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_connect(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_connect(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -7018,7 +7018,7 @@ static int show_ssl_ctx_sess_connect(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_sess_get_cache_size(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_sess_get_cache_size(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -7027,7 +7027,7 @@ static int show_ssl_ctx_sess_get_cache_size(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_get_verify_mode(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -7036,7 +7036,7 @@ static int show_ssl_ctx_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_get_verify_depth(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
@@ -7045,7 +7045,7 @@ static int show_ssl_ctx_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_ctx_get_session_cache_mode(THD*, SHOW_VAR *var, char*)
 {
   var->type= SHOW_CHAR;
   if (!ssl_acceptor_fd)
@@ -7078,7 +7078,7 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
          when session_status or global_status is requested from
          inside an Event.
  */
-static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char*)
 {
   var->type= SHOW_CHAR;
   if (thd->get_protocol()->get_ssl())
@@ -7137,7 +7137,7 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
+static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char*)
 {
   var->type= SHOW_CHAR;
   if (thd->get_protocol()->get_ssl())
@@ -7213,7 +7213,6 @@ end:
 /**
   Handler function for the 'ssl_get_server_not_before' variable
 
-  @param      thd  the mysql thread structure
   @param      var  the data for the variable
   @param[out] buf  the string to put the value of the variable into
 
@@ -7222,7 +7221,7 @@ end:
 */
 
 static int
-show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
+show_ssl_get_server_not_before(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   if (ssl_acceptor_fd)
@@ -7253,7 +7252,6 @@ show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
 /**
   Handler function for the 'ssl_get_server_not_after' variable
 
-  @param      thd  the mysql thread structure
   @param      var  the data for the variable
   @param[out] buf  the string to put the value of the variable into
 
@@ -7262,7 +7260,7 @@ show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
 */
 
 static int
-show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
+show_ssl_get_server_not_after(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   if (ssl_acceptor_fd)
@@ -7291,7 +7289,7 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 
 #endif /* HAVE_OPENSSL */
 
-static int show_slave_open_temp_tables(THD *thd, SHOW_VAR *var, char *buf)
+static int show_slave_open_temp_tables(THD*, SHOW_VAR *var, char *buf)
 {
   var->type= SHOW_INT;
   var->value= buf;
@@ -8962,7 +8960,7 @@ public:
 /**
   Reset global and session status variables.
 */
-void refresh_status(THD *thd)
+void refresh_status()
 {
   mysql_mutex_lock(&LOCK_status);
 

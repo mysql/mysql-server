@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -333,7 +333,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
-    refresh_status(thd);
+    refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();
 #ifdef HAVE_REPLICATION

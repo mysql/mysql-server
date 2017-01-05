@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 
 /* Function prototypes */
 void kill_mysql(void);
-void refresh_status(THD *thd);
+void refresh_status();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 

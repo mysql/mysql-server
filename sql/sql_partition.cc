@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7229,7 +7229,7 @@ void append_row_to_str(String &str, const uchar *row, TABLE *table)
     str.append(" ");
     str.append(field->field_name);
     str.append(":");
-    field_unpack(&str, field, rec, 0, false);
+    field_unpack(&str, field, 0, false);
   }
 
   if (!is_rec0)
