@@ -3057,7 +3057,7 @@ sum_array(const Uint32 array[], unsigned sz)
 static int
 check_threshold(Uint32 last, Uint32 now)
 {
-  assert(last <= 100 && now <= 100);
+  // assert(last <= 100 && now <= 100);
 
   static const Uint32 thresholds[] = { 100, 99, 90, 80, 0 };
 

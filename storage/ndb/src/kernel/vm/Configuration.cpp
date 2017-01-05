@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -924,15 +924,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    (noOfLocalOperations + EXTRA_LOCAL_OPERATIONS) + 
 	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
-    
-    /* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
-    cfg.put(CFG_ACC_OVERFLOW_RECS,
-	    noOfIndexPages + 
-	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
-    
-    cfg.put(CFG_ACC_PAGE8, 
-	    noOfIndexPages + 32);
-    
+
     cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
     cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
