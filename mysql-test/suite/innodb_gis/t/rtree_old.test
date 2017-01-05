@@ -70,7 +70,7 @@ while ($1)
   let $2=10;
   while ($2)
   {
-    eval DELETE FROM t2 WHERE MBRWithin(g, ST_Envelope(ST_GeometryFromWKB(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
+    eval DELETE FROM t2 WHERE MBRWithin(g, ST_Envelope(ST_GeometryFromWKB(St_AsWKB(Point($1 * 10 - 9, $2 * 10 - 9)), St_AsWKB(Point($1 * 10, $2 * 10)))));
     SELECT count(*) FROM t2;
     dec $2;
   }

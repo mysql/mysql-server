@@ -655,50 +655,6 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     return nullptr;
   }
 
-  /*
-    GeometryFromWKB(wkb [,srid]) understands both WKB (without SRID) and
-    Geometry (with SRID) values in the "wkb" argument.
-    In case if a Geometry type value is passed, we assume that the value
-    is well-formed and can directly return it without going through
-    Geometry::create_from_wkb(), and consequently such WKB data must be
-    MySQL standard (little) endian. Note that users can pass via client
-    any WKB/Geometry byte string, including those of big endianess.
-  */
-  if (args[0]->data_type() == MYSQL_TYPE_GEOMETRY)
-  {
-    Geometry_buffer buff;
-    Geometry *g= Geometry::construct(&buff, wkb->ptr(), wkb->length());
-    if (g == nullptr)
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      return error_str();
-    }
-    if (!is_allowed_wkb_type(g->get_type()))
-    {
-      my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "WKB",
-               g->get_class_info()->m_name.str, func_name());
-      return error_str();
-    }
-
-    /*
-      Check if SRID embedded into the Geometry value differs
-      from the SRID value passed in the second argument.
-    */
-    if (srid == uint4korr(wkb->ptr()))
-      return wkb; // Do not differ
-
-    /*
-      Replace SRID to the one passed in the second argument.
-      Note, we cannot replace SRID directly in wkb->ptr(),
-      because wkb can point to some value that we should not touch,
-      e.g. to a SP variable value. So we need to copy to "str".
-    */
-    if (str->copy(*wkb))
-      return error_str();
-    str->write_at_position(0, srid);
-    return str;
-  }
-
   str->set_charset(&my_charset_bin);
   if (str->reserve(GEOM_HEADER_SIZE, 512))
   {
