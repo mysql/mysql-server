@@ -714,10 +714,15 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (mixed_implicit_grouping && tbl->table)
       tbl->table->maybe_null= 1;
   }
+ 
+  uint real_og_num= og_num;
+  if (skip_order_by && 
+      select_lex != select_lex->master_unit()->global_parameters)
+    real_og_num+= select_lex->order_list.elements;
 
   if ((wild_num && setup_wild(thd, tables_list, fields_list, &all_fields,
                               wild_num)) ||
-      select_lex->setup_ref_array(thd, og_num) ||
+      select_lex->setup_ref_array(thd, real_og_num) ||
       setup_fields(thd, (*rref_pointer_array), fields_list, MARK_COLUMNS_READ,
 		   &all_fields, 1) ||
       setup_without_group(thd, (*rref_pointer_array), tables_list,

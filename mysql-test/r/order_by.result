@@ -2050,4 +2050,15 @@ t2 A, t2 B
 where A.b = B.b
 order by A.col2, B.col2 limit 10, 1000000;
 drop table t1,t2,t3;
+#
+# mdev-10705 : long order by list that can be skipped
+#
+SELECT 1 
+UNION 
+( SELECT 2 
+ORDER BY NULL, @a0 := 3, @a1 := 3, @a2 := 3, @a3 := 3, @a4 := 3,
+@a5 := 3, @a6 := 3, @a7 := 3, @a8 := 3, @a9 := 3, @a10 := 3 );
+1
+1
+2
 End of 5.5 tests
