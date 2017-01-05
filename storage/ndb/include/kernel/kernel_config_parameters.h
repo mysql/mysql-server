@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,6 @@
 
 #define CFG_ACC_FRAGMENT      (PRIVATE_BASE +  3)
 #define CFG_ACC_OP_RECS       (PRIVATE_BASE +  4)
-/* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
-#define CFG_ACC_OVERFLOW_RECS (PRIVATE_BASE +  5)
-#define CFG_ACC_PAGE8         (PRIVATE_BASE +  6)
-#define CFG_ACC_ROOT_FRAG     (PRIVATE_BASE +  7)
 #define CFG_ACC_TABLE         (PRIVATE_BASE +  8)
 #define CFG_ACC_SCAN          (PRIVATE_BASE +  9)
 
