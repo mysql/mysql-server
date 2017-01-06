@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,10 @@ private:
   TransporterFacade * m_facade;
 
   /**
-   * This is used for polling
+   * This is used for polling by the poll_owner:
+   *   A client is 'locked_for_poll' iff it is registered in the 
+   *   m_locked_clients[] array by the poll owner.
+   *   'm_locked_for_poll' also implies 'm_mutex' is locked
    */
   bool m_locked_for_poll;
 public:
@@ -121,6 +124,11 @@ public:
   bool is_locked_for_poll() const
   {
     return m_locked_for_poll;
+  }
+
+  bool has_unflushed_sends() const
+  {
+    return m_send_nodes_cnt > 0;
   }
 private:
   struct PollQueue
@@ -216,7 +224,7 @@ inline
 void
 trp_client::unlock()
 {
-  assert(m_send_nodes_mask.isclear()); // Nothing unsent when unlocking...
+  assert(has_unflushed_sends() == false); //Nothing unsent when unlocking...
   assert(m_poll.m_locked == true);
   m_poll.m_locked = false;
   NdbMutex_Unlock(m_mutex);

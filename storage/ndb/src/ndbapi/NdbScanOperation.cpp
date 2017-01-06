@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1925,6 +1925,9 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
         last+= cnt;
         theImpl->incClientStat(Ndb::ScanBatchCount, cnt);
         m_conf_receivers_count= 0;
+        if (sent > 0) {
+          theImpl->flush_send_buffers();
+        }
       }
       else if (retVal == 2 && sent > 0)
       {
