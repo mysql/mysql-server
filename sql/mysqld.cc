@@ -3798,14 +3798,19 @@ static int warn_self_signed_ca()
 }
 
 
-static int init_ssl()
+static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
 #endif
   ssl_start();
+#endif
+}
 
+static int init_ssl_communication()
+{
+#ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
     ssl_artifacts_status auto_detection_status= auto_detect_ssl();
@@ -5335,6 +5340,8 @@ int mysqld_main(int argc, char **argv)
   Service.SetSlowStarting(slow_start_timeout);
 #endif
 
+  /* This limits ability to configure SSL library through config options */
+  init_ssl();
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -5496,7 +5503,7 @@ int mysqld_main(int argc, char **argv)
   }
 
 
-  if (init_ssl())
+  if (init_ssl_communication())
     unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init())
     unireg_abort(MYSQLD_ABORT_EXIT);
