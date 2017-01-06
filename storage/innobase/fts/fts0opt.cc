@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2989,6 +2989,7 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	ulint		n_tables = 0;
 	ulint		n_optimize = 0;
 
+	my_thread_init();
 	ut_ad(!srv_read_only_mode);
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
@@ -3130,6 +3131,8 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	ib::info() << "FTS optimize thread exiting.";
 
 	os_event_set(fts_opt_shutdown_event);
+
+	my_thread_end();
 }
 
 /**********************************************************************//**

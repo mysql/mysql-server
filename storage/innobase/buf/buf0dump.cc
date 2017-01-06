@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -755,6 +755,8 @@ buf_dump_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
+	my_thread_init();
+
 	srv_buf_dump_thread_active = TRUE;
 
 	buf_dump_status(STATUS_VERBOSE, "Dumping of buffer pool not started");
@@ -787,4 +789,6 @@ buf_dump_thread()
 	}
 
 	srv_buf_dump_thread_active = FALSE;
+
+	my_thread_end();
 }

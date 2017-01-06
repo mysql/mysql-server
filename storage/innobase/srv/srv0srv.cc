@@ -2406,6 +2406,8 @@ srv_master_thread()
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
 
+	my_thread_init();
+
 	ut_ad(!srv_read_only_mode);
 
 	srv_main_thread_process_no = os_proc_get_number();
@@ -2463,6 +2465,8 @@ suspend_thread:
 	if (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		goto loop;
 	}
+
+	my_thread_end();
 }
 
 /**
@@ -2534,6 +2538,8 @@ srv_worker_thread()
 {
 	srv_slot_t*	slot;
 
+	my_thread_init();
+
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
@@ -2585,6 +2591,8 @@ srv_worker_thread()
 #ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
 #endif /* UNIV_PFS_THREAD */
+
+	my_thread_end();
 }
 
 /*********************************************************************//**
@@ -2788,6 +2796,8 @@ srv_purge_coordinator_thread()
 #endif /* UNIV_PFS_THREAD */
 	ulint	n_total_purged = ULINT_UNDEFINED;
 
+	my_thread_init();
+
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_n_purge_threads >= 1);
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
@@ -2887,6 +2897,8 @@ srv_purge_coordinator_thread()
 #ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
 #endif /* UNIV_PFS_THREAD */
+
+	my_thread_end();
 }
 
 /**********************************************************************//**

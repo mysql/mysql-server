@@ -836,6 +836,8 @@ recv_writer_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
+	my_thread_init();
+
 	/* The code flow is as follows:
 	Step 1: In recv_recovery_from_checkpoint_start().
 	Step 2: This recv_writer thread is started.
@@ -853,8 +855,10 @@ recv_writer_thread()
 		recv_writer_thread_active = true;
 	} else {
 		mutex_exit(&recv_sys->writer_mutex);
+		my_thread_end();
 		return;
 	}
+
 	mutex_exit(&recv_sys->writer_mutex);
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -878,6 +882,8 @@ recv_writer_thread()
 	}
 
 	recv_writer_thread_active = false;
+
+	my_thread_end();
 }
 #endif /* !UNIV_HOTBACKUP */
 

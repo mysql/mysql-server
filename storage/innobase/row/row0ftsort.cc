@@ -743,6 +743,7 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	ulint			retried = 0;
 	dberr_t			error = DB_SUCCESS;
 
+	my_thread_init();
 	ut_ad(psort_info->psort_common->trx->mysql_thd != NULL);
 	const char*		path = thd_innodb_tmpdir(
 		psort_info->psort_common->trx->mysql_thd);
@@ -1017,6 +1018,8 @@ func_exit:
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
+
+	my_thread_end();
 }
 
 /** Start the parallel tokenization and parallel merge sort
@@ -1042,6 +1045,7 @@ void
 fts_parallel_merge_thread(fts_psort_t* psort_info)
 {
 	ulint	id = psort_info->psort_id;
+	my_thread_init();
 
 	row_fts_merge_insert(psort_info->psort_common->dup->index,
 			     psort_info->psort_common->new_table,
@@ -1050,6 +1054,8 @@ fts_parallel_merge_thread(fts_psort_t* psort_info)
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
+
+	my_thread_end();
 }
 
 /** Kick off the parallel merge and insert thread
