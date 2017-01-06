@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1073,6 +1073,7 @@ TransporterFacade::external_poll(Uint32 wait_time)
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   min_active_clients_recv_thread(DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD),
   recv_thread_cpu_id(NO_RECV_THREAD_CPU_ID),
+  m_poll_owner_tid(),
   m_poll_owner(NULL),
   m_poll_queue_head(NULL),
   m_poll_queue_tail(NULL),
@@ -1323,6 +1324,15 @@ TransporterFacade::for_each(trp_client* sender,
                             const NdbApiSignal* aSignal, 
                             const LinearSectionPtr ptr[3])
 {
+  /**
+   * ::for_each() is required to be called by the thread being
+   * the poll owner while it trp_deliver_signal() to
+   * a client. That client may then use ::for_each() to further
+   * distribute a signal to 'each' of the clients known by this
+   * TransporterFacade.
+   */
+  assert(is_poll_owner_thread());
+
   /*
     Allow up to 16 threads to receive signals here before we start
     waking them up.
@@ -1591,6 +1601,43 @@ TransporterFacade::~TransporterFacade()
 }
 
 
+/**
+ * ::is_poll_owner_thread() is used in assert's to verify and
+ * enforce correct usage of raw_sendSignal vs. safe_sendSignal():
+ *
+ * - (raw_)sendSignal() is the 'normal' way to send signals from
+ *   a client. The sent signals are aggregated in client-local
+ *   send buffers which are flushed to the global Transporter
+ *   buffers before the client enter poll-wait (do_poll()).
+ *   -- prepare_poll() asserts 'has_unflushed_sends() == false'
+ *      to catch any violations of this.
+ *
+ * - safe_sendSignal():
+ *   If signals are sent by a client while receiving (processing
+ *   trp_deliver_signal()), we can't buffer the signals in this 
+ *   clients send buffers: There are no guarantee when this client
+ *   will wake up and eventually flush its local send buffers.
+ *   Instead such signals should be sent with safe_sendSignal().
+ *   Such signals will be buffered in the *poll_owners* send buffers,
+ *   and later (rather soon) be flushed when the poll owner 
+ *   finish_poll().
+ *   -- This require TransporterFacade::m_poll_owner to be accessed.
+ *      Thus, safe_sendSignal() should only be called by the 
+ *      'poll_owner_thread' (Asserted in safe_sendSignal()).
+ *   -- The 'poll_owner_thread' must not use (raw_)sendSignal()
+ *      to send from any other clients than itself:
+ *      There are no guarantee when such sends would have been
+ *      flushed, and the signal eventually sent.
+ *      (Asserted in ::sendSignal()++)
+ */
+bool
+TransporterFacade::is_poll_owner_thread() const
+{
+  Guard g(thePollMutex);
+  return m_poll_owner != NULL &&
+         my_thread_equal(my_thread_self(),m_poll_owner_tid);
+}
+
 /******************************************************************************
  * SEND SIGNAL METHODS
  *****************************************************************************/
@@ -1598,6 +1645,8 @@ int
 TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal * aSignal, NodeId aNode)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   const Uint32* tDataPtr = aSignal->getConstDataPtrSend();
   Uint32 Tlen = aSignal->theLength;
   Uint32 TBno = aSignal->theReceiversBlockNumber;
@@ -1871,6 +1920,8 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
                                         const GenericSectionPtr ptr[3],
                                         Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   NdbApiSignal copySignal(* inputSignal);
   NdbApiSignal* aSignal = &copySignal;
 
@@ -2083,6 +2134,8 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
                                         const LinearSectionPtr ptr[3],
                                         Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   /* Use the GenericSection variant of sendFragmentedSignal */
   GenericSectionPtr tmpPtr[3];
   LinearSectionPtr linCopy[3];
@@ -2113,6 +2166,8 @@ TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal* aSignal, NodeId aNode,
                               const LinearSectionPtr ptr[3], Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   Uint32 save = aSignal->m_noOfSections;
   const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = secs;
 #ifdef API_TRACE
@@ -2148,6 +2203,8 @@ TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal* aSignal, NodeId aNode,
                               const GenericSectionPtr ptr[3], Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   Uint32 save = aSignal->m_noOfSections;
   const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = secs;
 #ifdef API_TRACE
@@ -2209,7 +2266,6 @@ TransporterFacade::reportConnected(int aNodeId)
   {
     theClusterMgr->lock();
     theClusterMgr->reportConnected(aNodeId);
-    theClusterMgr->flush_send_buffers();
     theClusterMgr->unlock();
   }
   else
@@ -2227,7 +2283,6 @@ TransporterFacade::reportDisconnected(int aNodeId)
   {
     theClusterMgr->lock();
     theClusterMgr->reportDisconnected(aNodeId);
-    theClusterMgr->flush_send_buffers();
     theClusterMgr->unlock();
   }
   else
@@ -2563,6 +2618,7 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
   /* We found the poll-right available, grab it */
   assert(m_poll_owner == NULL);
   m_poll_owner = clnt;
+  m_poll_owner_tid = my_thread_self();
   unlock_poll_mutex();
 
   assert(clnt->m_poll.m_poll_owner == false);
@@ -2634,11 +2690,18 @@ TransporterFacade::finish_poll(trp_client* arr[])
 #endif
 
   /**
-   * we're finished polling
+   * we're finished polling:
+   *  - Any signals sent by receivers has been 'safe-sent' by the poll_owner.
+   *    Thus we have to flush the poll_owner (== clnt) send buffer to 'global'
+   *    TransporterFacade queues.
+   *    (At latest sent by send thread after 'sendThreadWaitMillisec')
+   *  - Assert: There should *not* be any 'unflushed_send' for the other clients
+   *  - Unlock the clients.
    */
   trp_client *clnt = m_poll_owner;
 
   assert(clnt->is_locked_for_poll() == true);
+  clnt->flush_send_buffers();
   clnt->set_locked_for_poll(false);
   dbg("%p->set_locked_for_poll false", clnt);
 
@@ -2654,6 +2717,7 @@ TransporterFacade::finish_poll(trp_client* arr[])
     trp_client * tmp = m_locked_clients[i];
     bool woken = (tmp->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN);
     assert(tmp->is_locked_for_poll() == true);
+    assert(tmp->has_unflushed_sends() == false);
     tmp->set_locked_for_poll(false);
     dbg("%p->set_locked_for_poll false", tmp);
     if (woken)
@@ -2780,6 +2844,13 @@ TransporterFacade::do_poll(trp_client* clnt,
     {
       clnt->m_poll.m_poll_owner = false;
       m_poll_owner = NULL;
+      /**
+       * Note, there is no platform independent 'NULL' defined for
+       * thread id, so can't clear it as one might have expected here.
+       * Instead we define that 'owner_tid' is only valid iff
+       * 'm_poll_owner != NULL'
+       */
+      //m_poll_owner_tid = 0;
     }
     unlock_poll_mutex();
 
@@ -2862,6 +2933,8 @@ TransporterFacade::lock_client(trp_client* clnt)
 {
   assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
   assert(check_if_locked(clnt, 0) == false);
+
+  NdbMutex_Lock(clnt->m_mutex);
   assert(!clnt->is_locked_for_poll());
 
   Uint32 locked_cnt = m_locked_cnt;
@@ -2871,7 +2944,6 @@ TransporterFacade::lock_client(trp_client* clnt)
   assert(m_locked_cnt < MAX_LOCKED_CLIENTS);
   m_locked_clients[locked_cnt] = clnt;
   m_locked_cnt = locked_cnt + 1;
-  NdbMutex_Lock(clnt->m_mutex);
 }
 
 void
