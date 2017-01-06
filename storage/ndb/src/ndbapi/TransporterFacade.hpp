@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <BlockNumbers.h>
 #include <mgmapi.h>
 #include "trp_buffer.hpp"
+#include <my_thread.h>
 
 class ClusterMgr;
 class ArbitMgr;
@@ -207,7 +208,8 @@ public:
   int lock_recv_thread_cpu();
   int unlock_recv_thread_cpu();
 
-  /* All 3 poll_owner and poll_queue members below need thePollMutex */
+  /* All 4 poll_owner and poll_queue members below need thePollMutex */
+  my_thread_t  m_poll_owner_tid;  // poll_owner thread id
   trp_client * m_poll_owner;
   trp_client * m_poll_queue_head; // First in queue
   trp_client * m_poll_queue_tail; // Last in queue
@@ -261,6 +263,9 @@ private:
 
   void propose_poll_owner(); 
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
+
+  /* Used in debug asserts to enforce sendSignal rules: */
+  bool is_poll_owner_thread() const;
 
   /**
    * When poll owner is assigned:
