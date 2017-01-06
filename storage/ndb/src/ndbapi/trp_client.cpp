@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,6 +135,7 @@ trp_client::prepare_poll()
   assert(m_poll.m_locked == false);
   assert(m_poll.m_poll_queue == false);
   assert(m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
+  assert(has_unflushed_sends() == false); //Flushed prior to poll-wait
   m_poll.m_locked = true;
 }
 
@@ -153,8 +154,12 @@ trp_client::complete_poll()
   assert(m_poll.m_locked == true);
   assert(m_poll.m_poll_queue == false);
   assert(m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
-
-  flush_send_buffers();  //Flush while still 'm_locked'
+  /**
+   * Ensure any signals sent by receiver/poll owner has been
+   * flushed to the global Transporter buffers.
+   * The send thread will eventually send the transporter buffers.
+   */
+  assert(has_unflushed_sends() == false);
   m_poll.m_locked = false;
   NdbMutex_Unlock(m_mutex);
 }
@@ -191,9 +196,18 @@ trp_client::do_forceSend(bool forceSend)
   return 1;
 }
 
+/**
+ * The 'safe' sendSignal() methods has to be used instead of the
+ * other sendSignal methods when a reply signal has to be
+ * sent by the client getting a signal 'delivered'.
+ *
+ * See 'is_poll_owner_thread()'-comments for more details.
+ */
 int
 trp_client::safe_noflush_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
 {
+  // This thread must be the poll owner
+  assert(m_facade->is_poll_owner_thread());
   return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
 }
 
@@ -322,6 +336,8 @@ trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
  * of nodes this client has flushed messages to.
  * Client must ensure that the messages to these nodes
  * are force-sent before it starts waiting for any reply.
+ *
+ * Need to be called with the 'm_mutex' held
  */
 void
 trp_client::flush_send_buffers()
@@ -454,10 +470,9 @@ int PollGuard::wait_for_input_in_loop(int max_wait_ms, bool forceSend)
       break;
     }
     /**
-     * Ensure any signals sent by receivers are sent by send thread
-     * eventually by flushing buffers to global area.
+     * Ensure no reply-signals sent by receivers remains unflushed.
      */
-    m_clnt->flush_send_buffers();
+    assert(m_clnt->has_unflushed_sends() == false);
   } while (1);
 #ifdef VM_TRACE
   if (verbose)
