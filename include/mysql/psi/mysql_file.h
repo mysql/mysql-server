@@ -29,7 +29,6 @@
   the dependency on my_sys already exists.
 */
 
-
 #ifndef MYSQL_FILE_H
 #define MYSQL_FILE_H
 

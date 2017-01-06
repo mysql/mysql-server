@@ -111,9 +111,8 @@ inline_mysql_mdl_set_status(PSI_metadata_lock *psi,
   }
 }
 
-static inline void inline_mysql_mdl_destroy(
-  PSI_metadata_lock *psi,
-  const char*, uint)
+static inline void
+inline_mysql_mdl_destroy(PSI_metadata_lock *psi, const char *, uint)
 {
   if (psi != NULL)
   {
