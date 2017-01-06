@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2016 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -4469,3 +4469,62 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
 --    GET_DD_TABLE_PRIVATE_DATA(tbl.se_private_data, 'autoinc') AS PRIVATE_DATA
   FROM mysql.tablespaces ts
   WHERE ts.engine="InnoDB" AND ts.id > 3);
+
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_COLUMNS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_columns AS
+  (SELECT
+    tbl.se_private_id AS `TABLE_ID`,
+    col.name AS `NAME`,
+	col.ordinal_position AS `POS`,
+    0 AS `MTYPE`,
+    0 AS `PRTYPE`,
+    0 AS `LEN`
+  FROM mysql.columns col
+    LEFT JOIN mysql.tables tbl ON col.table_id=tbl.id
+  WHERE tbl.engine="InnoDB");
+
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_FIELDS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_fields AS
+  (SELECT
+    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id') AS `INDEX_ID`,
+    col.name AS `NAME`,
+	fld.ordinal_position AS `POS`
+   FROM mysql.index_column_usage fld
+    JOIN mysql.columns col ON fld.column_id=col.id
+	JOIN mysql.indexes idx ON fld.index_id=idx.id
+	JOIN mysql.tables tbl ON tbl.id=idx.table_id
+   WHERE tbl.engine="InnoDB");
+
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_datafiles AS
+  (SELECT
+    GET_DD_TABLESPACE_PRIVATE_DATA(ts.se_private_data, 'id') AS `SPACE`,
+    tf.file_name AS `PATH`
+   FROM mysql.tablespace_files tf
+    JOIN mysql.tablespaces ts ON tf.tablespace_id=ts.id);
+
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_indexes AS
+  (SELECT
+    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id') AS INDEX_ID,
+    idx.name AS `NAME`,
+    tbl.se_private_id AS `TABLE_ID`,
+	idx.type AS `TYPE`,
+    count(*) AS `N_FIELDS`,
+    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'root') AS `PAGE_NO`,
+    idx.tablespace_id AS `SPACE`,
+    0 AS `MERGE_THRESHOLD`
+  FROM mysql.indexes idx
+    JOIN mysql.index_column_usage col ON idx.id=col.index_id
+    LEFT JOIN mysql.tables tbl ON idx.table_id=tbl.id
+  WHERE tbl.engine="InnoDB"
+  GROUP BY idx.name, tbl.se_private_id, idx.se_private_data, idx.tablespace_id,
+    idx.type);

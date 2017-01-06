@@ -24818,15 +24818,17 @@ i_s_innodb_ft_index_table,
 i_s_innodb_sys_tables,
 #endif /* INNODB_NO_NEW_DD */
 i_s_innodb_sys_tablestats,
+#ifdef INNODB_NO_NEW_DD
 i_s_innodb_sys_indexes,
 i_s_innodb_sys_columns,
 i_s_innodb_sys_fields,
+#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_sys_foreign,
 i_s_innodb_sys_foreign_cols,
 #ifdef INNODB_NO_NEW_DD
 i_s_innodb_sys_tablespaces,
-#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_sys_datafiles,
+#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_sys_virtual,
 i_s_innodb_cached_indexes
 

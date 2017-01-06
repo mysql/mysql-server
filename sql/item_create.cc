@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1747,6 +1747,71 @@ public:
 protected:
   Create_func_get_dd_table_private_data () {}
   virtual ~Create_func_get_dd_table_private_data () {}
+};
+
+class Create_func_get_dd_column_private_data : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_column_private_data s_singleton;
+
+protected:
+  Create_func_get_dd_column_private_data () {}
+  virtual ~Create_func_get_dd_column_private_data () {}
+};
+
+class Create_func_get_dd_tablespace_private_data : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_tablespace_private_data s_singleton;
+
+protected:
+  Create_func_get_dd_tablespace_private_data () {}
+  virtual ~Create_func_get_dd_tablespace_private_data () {}
+};
+
+class Create_func_get_dd_partition_private_data : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_partition_private_data s_singleton;
+
+protected:
+  Create_func_get_dd_partition_private_data () {}
+  virtual ~Create_func_get_dd_partition_private_data () {}
+};
+
+class Create_func_get_dd_tablespace_file_private_data : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_tablespace_file_private_data s_singleton;
+
+protected:
+  Create_func_get_dd_tablespace_file_private_data () {}
+  virtual ~Create_func_get_dd_tablespace_file_private_data () {}
+};
+
+class Create_func_get_dd_index_private_data : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_get_dd_index_private_data s_singleton;
+
+protected:
+  Create_func_get_dd_index_private_data () {}
+  virtual ~Create_func_get_dd_index_private_data () {}
 };
 
 /*
@@ -4814,7 +4879,17 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("internal_get_view_warning_or_error") },
     BUILDER(Create_func_internal_get_view_warning_or_error)},
   { { C_STRING_WITH_LEN("GET_DD_TABLE_PRIVATE_DATA") },
-                BUILDER(Create_func_get_dd_table_private_data)}
+                BUILDER(Create_func_get_dd_table_private_data)},
+  { { C_STRING_WITH_LEN("GET_DD_COLUMN_PRIVATE_DATA") },
+                BUILDER(Create_func_get_dd_column_private_data)},
+  { { C_STRING_WITH_LEN("GET_DD_TABLESPACE_PRIVATE_DATA") },
+                BUILDER(Create_func_get_dd_tablespace_private_data)},
+  { { C_STRING_WITH_LEN("GET_DD_PARTITION_PRIVATE_DATA") },
+                BUILDER(Create_func_get_dd_partition_private_data)},
+  { { C_STRING_WITH_LEN("GET_DD_TABLESPACE_FILE_PRIVATE_DATA") },
+                BUILDER(Create_func_get_dd_tablespace_file_private_data)},
+  { { C_STRING_WITH_LEN("GET_DD_INDEX_PRIVATE_DATA") },
+                BUILDER(Create_func_get_dd_index_private_data)}
 };
 
 static HASH native_functions_hash;
@@ -5190,6 +5265,166 @@ Create_func_get_dd_table_private_data::create_native(THD *thd, LEX_STRING name,
   Item *param_2= item_list->pop_front();
 
   return new (thd->mem_root) Item_func_get_dd_table_private_data(
+                               POS(), param_1, param_2);
+}
+
+Create_func_get_dd_column_private_data
+  Create_func_get_dd_column_private_data::s_singleton;
+
+Item*
+Create_func_get_dd_column_private_data::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_column_private_data(
+                               POS(), param_1, param_2);
+}
+
+Create_func_get_dd_tablespace_private_data
+  Create_func_get_dd_tablespace_private_data::s_singleton;
+
+Item*
+Create_func_get_dd_tablespace_private_data::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_tablespace_private_data(
+                               POS(), param_1, param_2);
+}
+
+Create_func_get_dd_partition_private_data
+  Create_func_get_dd_partition_private_data::s_singleton;
+
+Item*
+Create_func_get_dd_partition_private_data::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_partition_private_data(
+                               POS(), param_1, param_2);
+}
+
+Create_func_get_dd_tablespace_file_private_data
+  Create_func_get_dd_tablespace_file_private_data::s_singleton;
+
+Item*
+Create_func_get_dd_tablespace_file_private_data::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_tablespace_file_private_data(
+                               POS(), param_1, param_2);
+}
+
+Create_func_get_dd_index_private_data
+  Create_func_get_dd_index_private_data::s_singleton;
+
+Item*
+Create_func_get_dd_index_private_data::create_native(THD *thd, LEX_STRING name,
+                                                 PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  // This native method should be invoked from the system views only.
+  if (thd->parsing_system_view == false)
+  {
+    my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return nullptr;
+  }
+
+  Item *param_1= item_list->pop_front();
+  Item *param_2= item_list->pop_front();
+
+  return new (thd->mem_root) Item_func_get_dd_index_private_data(
                                POS(), param_1, param_2);
 }
 
