@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -597,6 +597,7 @@ DECLARE_THREAD(buf_dump_thread)(
 	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
+	my_thread_init();
 	ut_ad(!srv_read_only_mode);
 
 	srv_buf_dump_thread_active = TRUE;
@@ -632,6 +633,7 @@ DECLARE_THREAD(buf_dump_thread)(
 
 	srv_buf_dump_thread_active = FALSE;
 
+	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 	os_thread_exit(NULL);
