@@ -24,6 +24,7 @@ call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
 call mtr.add_suppression("InnoDB: New log files created, LSN=");
 call mtr.add_suppression("InnoDB: Can't set redo log tablespace to be encrypted");
 call mtr.add_suppression("InnoDB: Can't set undo log tablespace to be encrypted");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
 --enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
