@@ -41,35 +41,36 @@
 #include <netinet/in.h>
 #endif
 
-bool pfs_initialized= false;
+bool pfs_initialized = false;
 
 /**
   Memory allocation for the performance schema.
   The memory used internally in the performance schema implementation.
   It is allocated at startup, or during runtime with scalable buffers.
 */
-void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
+void *
+pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
 {
   DBUG_ASSERT(klass != NULL);
   DBUG_ASSERT(size > 0);
 
-  void *ptr= NULL;
+  void *ptr = NULL;
 
 #ifdef PFS_ALIGNEMENT
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
-  if (unlikely(posix_memalign(& ptr, PFS_ALIGNEMENT, size)))
+  if (unlikely(posix_memalign(&ptr, PFS_ALIGNEMENT, size)))
     return NULL;
 #else
 #ifdef HAVE_MEMALIGN
   /* Solaris */
-  ptr= memalign(PFS_ALIGNEMENT, size);
+  ptr = memalign(PFS_ALIGNEMENT, size);
   if (unlikely(ptr == NULL))
     return NULL;
 #else
 #ifdef HAVE_ALIGNED_MALLOC
   /* Windows */
-  ptr= _aligned_malloc(size, PFS_ALIGNEMENT);
+  ptr = _aligned_malloc(size, PFS_ALIGNEMENT);
   if (unlikely(ptr == NULL))
     return NULL;
 #else
@@ -77,9 +78,9 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
 #endif /* HAVE_ALIGNED_MALLOC */
 #endif /* HAVE_MEMALIGN */
 #endif /* HAVE_POSIX_MEMALIGN */
-#else /* PFS_ALIGNMENT */
+#else  /* PFS_ALIGNMENT */
   /* Everything else */
-  ptr= malloc(size);
+  ptr = malloc(size);
   if (unlikely(ptr == NULL))
     return NULL;
 #endif
@@ -91,7 +92,8 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
   return ptr;
 }
 
-void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr)
+void
+pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr)
 {
   if (ptr == NULL)
     return;
@@ -126,12 +128,16 @@ void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr)
   @param flags malloc flags
   @return pointer to memory on success, else NULL
 */
-void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size, myf flags)
+void *
+pfs_malloc_array(PFS_builtin_memory_class *klass,
+                 size_t n,
+                 size_t size,
+                 myf flags)
 {
   DBUG_ASSERT(klass != NULL);
   DBUG_ASSERT(n > 0);
   DBUG_ASSERT(size > 0);
-  size_t array_size= n * size;
+  size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size))
     return NULL;
@@ -145,11 +151,15 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size, m
   @param size  element size
   @param ptr   pointer to memory
 */
-void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size, void *ptr)
+void
+pfs_free_array(PFS_builtin_memory_class *klass,
+               size_t n,
+               size_t size,
+               void *ptr)
 {
   if (ptr == NULL)
     return;
-  size_t array_size= n * size;
+  size_t array_size = n * size;
   /* Overflow should have been detected by pfs_malloc_array. */
   DBUG_ASSERT(!is_overflow(array_size, n, size));
   return pfs_free(klass, array_size, ptr);
@@ -162,7 +172,8 @@ void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size, void
   @param n2  operand
   @return true if multiplication caused an overflow.
 */
-bool is_overflow(size_t product, size_t n1, size_t n2)
+bool
+is_overflow(size_t product, size_t n1, size_t n2)
 {
   if (n1 != 0 && (product / n1 != n2))
     return true;
@@ -170,7 +181,8 @@ bool is_overflow(size_t product, size_t n1, size_t n2)
     return false;
 }
 
-void pfs_print_error(const char *format, ...)
+void
+pfs_print_error(const char *format, ...)
 {
   va_list args;
   va_start(args, format);
@@ -185,61 +197,71 @@ void pfs_print_error(const char *format, ...)
   fflush(stderr);
 }
 
+/** Convert raw ip address into readable format. Do not do a reverse DNS lookup.
+ */
 
-/** Convert raw ip address into readable format. Do not do a reverse DNS lookup. */
-
-uint pfs_get_socket_address(char *host,
-                            uint host_len,
-                            uint *port,
-                            const struct sockaddr_storage *src_addr,
-                            socklen_t)
+uint
+pfs_get_socket_address(char *host,
+                       uint host_len,
+                       uint *port,
+                       const struct sockaddr_storage *src_addr,
+                       socklen_t)
 {
   DBUG_ASSERT(host);
   DBUG_ASSERT(src_addr);
   DBUG_ASSERT(port);
 
   memset(host, 0, host_len);
-  *port= 0;
+  *port = 0;
 
   switch (src_addr->ss_family)
   {
-    case AF_INET:
-    {
-      if (host_len < INET_ADDRSTRLEN+1)
-        return 0;
-      struct sockaddr_in *sa4= (struct sockaddr_in *)(src_addr);
-    #ifdef _WIN32
-      /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in),
-                  host, host_len, NULL, 0, NI_NUMERICHOST);
-    #else
-      inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
-    #endif
-      *port= ntohs(sa4->sin_port);
-    }
-    break;
+  case AF_INET:
+  {
+    if (host_len < INET_ADDRSTRLEN + 1)
+      return 0;
+    struct sockaddr_in *sa4 = (struct sockaddr_in *)(src_addr);
+#ifdef _WIN32
+    /* Older versions of Windows do not support inet_ntop() */
+    getnameinfo((struct sockaddr *)sa4,
+                sizeof(struct sockaddr_in),
+                host,
+                host_len,
+                NULL,
+                0,
+                NI_NUMERICHOST);
+#else
+    inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
+#endif
+    *port = ntohs(sa4->sin_port);
+  }
+  break;
 
-    case AF_INET6:
-    {
-      if (host_len < INET6_ADDRSTRLEN+1)
-        return 0;
-      struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
-    #ifdef _WIN32
-      /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6),
-                  host, host_len, NULL, 0, NI_NUMERICHOST);
-    #else
-      inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
-    #endif
-      *port= ntohs(sa6->sin6_port);
-    }
-    break;
+  case AF_INET6:
+  {
+    if (host_len < INET6_ADDRSTRLEN + 1)
+      return 0;
+    struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)(src_addr);
+#ifdef _WIN32
+    /* Older versions of Windows do not support inet_ntop() */
+    getnameinfo((struct sockaddr *)sa6,
+                sizeof(struct sockaddr_in6),
+                host,
+                host_len,
+                NULL,
+                0,
+                NI_NUMERICHOST);
+#else
+    inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
+#endif
+    *port = ntohs(sa6->sin6_port);
+  }
+  break;
 
-    default:
-      break;
+  default:
+    break;
   }
 
   /* Return actual IP address string length */
-  return (strlen((const char*)host));
+  return (strlen((const char *)host));
 }
-

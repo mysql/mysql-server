@@ -171,12 +171,15 @@
 */
 
 PFS_data_cache::PFS_data_cache()
-{}
+{
+}
 
 PFS_data_cache::~PFS_data_cache()
-{}
+{
+}
 
-const char *PFS_data_cache::cache_data(const char *ptr, size_t length)
+const char *
+PFS_data_cache::cache_data(const char *ptr, size_t length)
 {
   /*
     std::string is just a sequence of bytes,
@@ -184,35 +187,41 @@ const char *PFS_data_cache::cache_data(const char *ptr, size_t length)
     Never use strlen() on the binary data.
   */
   std::string key(ptr, length);
-  std::pair<set_type::iterator,bool> ret;
+  std::pair<set_type::iterator, bool> ret;
 
-  ret= m_set.insert(key);
+  ret = m_set.insert(key);
   return (*ret.first).data();
 }
 
-void PFS_data_cache::clear()
+void
+PFS_data_cache::clear()
 {
   m_set.clear();
 }
 
 PFS_data_lock_container::PFS_data_lock_container()
   : m_logical_row_index(0), m_filter(NULL)
-{}
+{
+}
 
 PFS_data_lock_container::~PFS_data_lock_container()
-{}
+{
+}
 
-const char *PFS_data_lock_container::cache_string(const char *string)
+const char *
+PFS_data_lock_container::cache_string(const char *string)
 {
   return m_cache.cache_data(string, strlen(string));
 }
 
-const char *PFS_data_lock_container::cache_data(const char *ptr, size_t length)
+const char *
+PFS_data_lock_container::cache_data(const char *ptr, size_t length)
 {
   return m_cache.cache_data(ptr, length);
 }
 
-bool PFS_data_lock_container::accept_engine(const char *engine, size_t engine_length)
+bool
+PFS_data_lock_container::accept_engine(const char *engine, size_t engine_length)
 {
   if (m_filter != NULL)
   {
@@ -221,7 +230,9 @@ bool PFS_data_lock_container::accept_engine(const char *engine, size_t engine_le
   return true;
 }
 
-bool PFS_data_lock_container::accept_lock_id(const char *engine_lock_id, size_t engine_lock_id_length)
+bool
+PFS_data_lock_container::accept_lock_id(const char *engine_lock_id,
+                                        size_t engine_lock_id_length)
 {
   if (m_filter != NULL)
   {
@@ -230,7 +241,8 @@ bool PFS_data_lock_container::accept_lock_id(const char *engine_lock_id, size_t 
   return true;
 }
 
-bool PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id)
+bool
+PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id)
 {
   if (m_filter != NULL)
   {
@@ -239,7 +251,9 @@ bool PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id)
   return true;
 }
 
-bool PFS_data_lock_container::accept_thread_id_event_id(ulonglong thread_id, ulonglong event_id)
+bool
+PFS_data_lock_container::accept_thread_id_event_id(ulonglong thread_id,
+                                                   ulonglong event_id)
 {
   if (m_filter != NULL)
   {
@@ -248,123 +262,131 @@ bool PFS_data_lock_container::accept_thread_id_event_id(ulonglong thread_id, ulo
   return true;
 }
 
-bool PFS_data_lock_container::accept_object(const char *table_schema,
-                                            size_t table_schema_length,
-                                            const char *table_name,
-                                            size_t table_name_length,
-                                            const char *partition_name,
-                                            size_t partition_name_length,
-                                            const char *sub_partition_name,
-                                            size_t sub_partition_name_length)
+bool
+PFS_data_lock_container::accept_object(const char *table_schema,
+                                       size_t table_schema_length,
+                                       const char *table_name,
+                                       size_t table_name_length,
+                                       const char *partition_name,
+                                       size_t partition_name_length,
+                                       const char *sub_partition_name,
+                                       size_t sub_partition_name_length)
 {
   if (m_filter != NULL)
   {
-    return m_filter->match_object(table_schema, table_schema_length,
-                                  table_name, table_name_length,
-                                  partition_name, partition_name_length,
-                                  sub_partition_name, sub_partition_name_length);
+    return m_filter->match_object(table_schema,
+                                  table_schema_length,
+                                  table_name,
+                                  table_name_length,
+                                  partition_name,
+                                  partition_name_length,
+                                  sub_partition_name,
+                                  sub_partition_name_length);
   }
   return true;
 }
 
-void PFS_data_lock_container::add_lock_row(
-  const char *engine,
-  size_t engine_length MY_ATTRIBUTE((unused)),
-  const char *engine_lock_id,
-  size_t engine_lock_id_length,
-  ulonglong transaction_id,
-  ulonglong thread_id,
-  ulonglong event_id,
-  const char *table_schema,
-  size_t table_schema_length,
-  const char *table_name,
-  size_t table_name_length,
-  const char *partition_name,
-  size_t partition_name_length,
-  const char *sub_partition_name,
-  size_t sub_partition_name_length,
-  const char *index_name,
-  size_t index_name_length,
-  const void *identity,
-  const char *lock_mode,
-  const char *lock_type,
-  const char *lock_status,
-  const char *lock_data)
+void
+PFS_data_lock_container::add_lock_row(const char *engine,
+                                      size_t engine_length
+                                        MY_ATTRIBUTE((unused)),
+                                      const char *engine_lock_id,
+                                      size_t engine_lock_id_length,
+                                      ulonglong transaction_id,
+                                      ulonglong thread_id,
+                                      ulonglong event_id,
+                                      const char *table_schema,
+                                      size_t table_schema_length,
+                                      const char *table_name,
+                                      size_t table_name_length,
+                                      const char *partition_name,
+                                      size_t partition_name_length,
+                                      const char *sub_partition_name,
+                                      size_t sub_partition_name_length,
+                                      const char *index_name,
+                                      size_t index_name_length,
+                                      const void *identity,
+                                      const char *lock_mode,
+                                      const char *lock_type,
+                                      const char *lock_status,
+                                      const char *lock_data)
 {
   row_data_lock row;
 
-  row.m_engine= engine;
+  row.m_engine = engine;
 
   if (engine_lock_id != NULL)
   {
-    size_t len= engine_lock_id_length;
+    size_t len = engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_engine_lock_id))
     {
       DBUG_ASSERT(false);
-      len= sizeof(row.m_hidden_pk.m_engine_lock_id);
+      len = sizeof(row.m_hidden_pk.m_engine_lock_id);
     }
     if (len > 0)
     {
-      memcpy(row.m_hidden_pk.m_engine_lock_id,
-             engine_lock_id, len);
+      memcpy(row.m_hidden_pk.m_engine_lock_id, engine_lock_id, len);
     }
-    row.m_hidden_pk.m_engine_lock_id_length= len;
+    row.m_hidden_pk.m_engine_lock_id_length = len;
   }
   else
   {
-    row.m_hidden_pk.m_engine_lock_id_length= 0;
+    row.m_hidden_pk.m_engine_lock_id_length = 0;
   }
 
-  row.m_transaction_id= transaction_id;
-  row.m_thread_id= thread_id;
-  row.m_event_id= event_id;
+  row.m_transaction_id = transaction_id;
+  row.m_thread_id = thread_id;
+  row.m_event_id = event_id;
 
-  row.m_index_row.m_object_row.m_object_type= OBJECT_TYPE_TABLE;
+  row.m_index_row.m_object_row.m_object_type = OBJECT_TYPE_TABLE;
 
   if (table_schema_length > 0)
   {
     memcpy(row.m_index_row.m_object_row.m_schema_name,
-           table_schema, table_schema_length);
+           table_schema,
+           table_schema_length);
   }
-  row.m_index_row.m_object_row.m_schema_name_length= table_schema_length;
+  row.m_index_row.m_object_row.m_schema_name_length = table_schema_length;
 
   if (table_name_length > 0)
   {
     memcpy(row.m_index_row.m_object_row.m_object_name,
-           table_name, table_name_length);
+           table_name,
+           table_name_length);
   }
-  row.m_index_row.m_object_row.m_object_name_length= table_name_length;
+  row.m_index_row.m_object_row.m_object_name_length = table_name_length;
 
-  row.m_partition_name= partition_name;
-  row.m_partition_name_length= partition_name_length;
+  row.m_partition_name = partition_name;
+  row.m_partition_name_length = partition_name_length;
 
-  row.m_sub_partition_name= sub_partition_name;
-  row.m_sub_partition_name_length= sub_partition_name_length;
+  row.m_sub_partition_name = sub_partition_name;
+  row.m_sub_partition_name_length = sub_partition_name_length;
 
   if (index_name_length > 0)
   {
-    memcpy(row.m_index_row.m_index_name,
-           index_name, index_name_length);
+    memcpy(row.m_index_row.m_index_name, index_name, index_name_length);
   }
-  row.m_index_row.m_index_name_length= index_name_length;
+  row.m_index_row.m_index_name_length = index_name_length;
 
-  row.m_identity= identity;
-  row.m_lock_mode= lock_mode;
-  row.m_lock_type= lock_type;
-  row.m_lock_status= lock_status;
-  row.m_lock_data= lock_data;
+  row.m_identity = identity;
+  row.m_lock_mode = lock_mode;
+  row.m_lock_type = lock_type;
+  row.m_lock_status = lock_status;
+  row.m_lock_data = lock_data;
 
   m_rows.push_back(row);
 }
 
-void PFS_data_lock_container::clear()
+void
+PFS_data_lock_container::clear()
 {
   m_logical_row_index = 0;
   m_rows.clear();
   m_cache.clear();
 }
 
-void PFS_data_lock_container::shrink()
+void
+PFS_data_lock_container::shrink()
 {
   /* Keep rows numbering. */
   m_logical_row_index += m_rows.size();
@@ -373,7 +395,8 @@ void PFS_data_lock_container::shrink()
   m_cache.clear();
 }
 
-row_data_lock *PFS_data_lock_container::get_row(unsigned int index)
+row_data_lock *
+PFS_data_lock_container::get_row(unsigned int index)
 {
   if (index < m_logical_row_index)
   {
@@ -385,11 +408,11 @@ row_data_lock *PFS_data_lock_container::get_row(unsigned int index)
     return NULL;
   }
 
-  unsigned int physical_index= index - m_logical_row_index;
+  unsigned int physical_index = index - m_logical_row_index;
 
   if (physical_index < m_rows.size())
   {
-    return & m_rows[physical_index];
+    return &m_rows[physical_index];
   }
 
   return NULL;
@@ -397,22 +420,28 @@ row_data_lock *PFS_data_lock_container::get_row(unsigned int index)
 
 PFS_data_lock_wait_container::PFS_data_lock_wait_container()
   : m_logical_row_index(0), m_filter(NULL)
-{}
+{
+}
 
 PFS_data_lock_wait_container::~PFS_data_lock_wait_container()
-{}
+{
+}
 
-const char *PFS_data_lock_wait_container::cache_string(const char *string)
+const char *
+PFS_data_lock_wait_container::cache_string(const char *string)
 {
   return m_cache.cache_data(string, strlen(string));
 }
 
-const char *PFS_data_lock_wait_container::cache_data(const char *ptr, size_t length)
+const char *
+PFS_data_lock_wait_container::cache_data(const char *ptr, size_t length)
 {
   return m_cache.cache_data(ptr, length);
 }
 
-bool PFS_data_lock_wait_container::accept_engine(const char *engine, size_t engine_length)
+bool
+PFS_data_lock_wait_container::accept_engine(const char *engine,
+                                            size_t engine_length)
 {
   if (m_filter != NULL)
   {
@@ -421,25 +450,33 @@ bool PFS_data_lock_wait_container::accept_engine(const char *engine, size_t engi
   return true;
 }
 
-bool PFS_data_lock_wait_container::accept_requesting_lock_id(const char *engine_lock_id, size_t engine_lock_id_length)
+bool
+PFS_data_lock_wait_container::accept_requesting_lock_id(
+  const char *engine_lock_id, size_t engine_lock_id_length)
 {
   if (m_filter != NULL)
   {
-    return m_filter->match_requesting_lock_id(engine_lock_id, engine_lock_id_length);
+    return m_filter->match_requesting_lock_id(engine_lock_id,
+                                              engine_lock_id_length);
   }
   return true;
 }
 
-bool PFS_data_lock_wait_container::accept_blocking_lock_id(const char *engine_lock_id, size_t engine_lock_id_length)
+bool
+PFS_data_lock_wait_container::accept_blocking_lock_id(
+  const char *engine_lock_id, size_t engine_lock_id_length)
 {
   if (m_filter != NULL)
   {
-    return m_filter->match_blocking_lock_id(engine_lock_id, engine_lock_id_length);
+    return m_filter->match_blocking_lock_id(engine_lock_id,
+                                            engine_lock_id_length);
   }
   return true;
 }
 
-bool PFS_data_lock_wait_container::accept_requesting_transaction_id(ulonglong transaction_id)
+bool
+PFS_data_lock_wait_container::accept_requesting_transaction_id(
+  ulonglong transaction_id)
 {
   if (m_filter != NULL)
   {
@@ -448,7 +485,9 @@ bool PFS_data_lock_wait_container::accept_requesting_transaction_id(ulonglong tr
   return true;
 }
 
-bool PFS_data_lock_wait_container::accept_blocking_transaction_id(ulonglong transaction_id)
+bool
+PFS_data_lock_wait_container::accept_blocking_transaction_id(
+  ulonglong transaction_id)
 {
   if (m_filter != NULL)
   {
@@ -457,7 +496,9 @@ bool PFS_data_lock_wait_container::accept_blocking_transaction_id(ulonglong tran
   return true;
 }
 
-bool PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(ulonglong thread_id, ulonglong event_id)
+bool
+PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(
+  ulonglong thread_id, ulonglong event_id)
 {
   if (m_filter != NULL)
   {
@@ -466,7 +507,9 @@ bool PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(ulonglon
   return true;
 }
 
-bool PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(ulonglong thread_id, ulonglong event_id)
+bool
+PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(
+  ulonglong thread_id, ulonglong event_id)
 {
   if (m_filter != NULL)
   {
@@ -475,7 +518,8 @@ bool PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(ulonglong 
   return true;
 }
 
-void PFS_data_lock_wait_container::add_lock_wait_row(
+void
+PFS_data_lock_wait_container::add_lock_wait_row(
   const char *engine,
   size_t engine_length MY_ATTRIBUTE((unused)),
   const char *requesting_engine_lock_id,
@@ -493,68 +537,72 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
 {
   row_data_lock_wait row;
 
-  row.m_engine= engine;
+  row.m_engine = engine;
 
   if (requesting_engine_lock_id != NULL)
   {
-    size_t len= requesting_engine_lock_id_length;
+    size_t len = requesting_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_requesting_engine_lock_id))
     {
       DBUG_ASSERT(false);
-      len= sizeof(row.m_hidden_pk.m_requesting_engine_lock_id);
+      len = sizeof(row.m_hidden_pk.m_requesting_engine_lock_id);
     }
     if (len > 0)
     {
       memcpy(row.m_hidden_pk.m_requesting_engine_lock_id,
-             requesting_engine_lock_id, len);
+             requesting_engine_lock_id,
+             len);
     }
-    row.m_hidden_pk.m_requesting_engine_lock_id_length= len;
+    row.m_hidden_pk.m_requesting_engine_lock_id_length = len;
   }
   else
   {
-    row.m_hidden_pk.m_requesting_engine_lock_id_length= 0;
+    row.m_hidden_pk.m_requesting_engine_lock_id_length = 0;
   }
 
-  row.m_requesting_transaction_id= requesting_transaction_id;
-  row.m_requesting_thread_id= requesting_thread_id;
-  row.m_requesting_event_id= requesting_event_id;
-  row.m_requesting_identity= requesting_identity;
+  row.m_requesting_transaction_id = requesting_transaction_id;
+  row.m_requesting_thread_id = requesting_thread_id;
+  row.m_requesting_event_id = requesting_event_id;
+  row.m_requesting_identity = requesting_identity;
 
   if (blocking_engine_lock_id != NULL)
   {
-    size_t len= blocking_engine_lock_id_length;
+    size_t len = blocking_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_blocking_engine_lock_id))
     {
       DBUG_ASSERT(false);
-      len= sizeof(row.m_hidden_pk.m_blocking_engine_lock_id);
+      len = sizeof(row.m_hidden_pk.m_blocking_engine_lock_id);
     }
     if (len > 0)
     {
       memcpy(row.m_hidden_pk.m_blocking_engine_lock_id,
-             blocking_engine_lock_id, len);
+             blocking_engine_lock_id,
+             len);
     }
-    row.m_hidden_pk.m_blocking_engine_lock_id_length= len;
+    row.m_hidden_pk.m_blocking_engine_lock_id_length = len;
   }
   else
   {
-    row.m_hidden_pk.m_blocking_engine_lock_id_length= 0;
+    row.m_hidden_pk.m_blocking_engine_lock_id_length = 0;
   }
 
-  row.m_blocking_transaction_id= blocking_transaction_id;
-  row.m_blocking_thread_id= blocking_thread_id;
-  row.m_blocking_event_id= blocking_event_id;
-  row.m_blocking_identity= blocking_identity;
+  row.m_blocking_transaction_id = blocking_transaction_id;
+  row.m_blocking_thread_id = blocking_thread_id;
+  row.m_blocking_event_id = blocking_event_id;
+  row.m_blocking_identity = blocking_identity;
 
   m_rows.push_back(row);
 }
 
-void PFS_data_lock_wait_container::clear()
+void
+PFS_data_lock_wait_container::clear()
 {
   m_rows.clear();
   m_cache.clear();
 }
 
-void PFS_data_lock_wait_container::shrink()
+void
+PFS_data_lock_wait_container::shrink()
 {
   /* Keep rows numbering. */
   m_logical_row_index += m_rows.size();
@@ -563,7 +611,8 @@ void PFS_data_lock_wait_container::shrink()
   m_cache.clear();
 }
 
-row_data_lock_wait *PFS_data_lock_wait_container::get_row(unsigned int index)
+row_data_lock_wait *
+PFS_data_lock_wait_container::get_row(unsigned int index)
 {
   if (index < m_logical_row_index)
   {
@@ -575,13 +624,12 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(unsigned int index)
     return NULL;
   }
 
-  unsigned int physical_index= index - m_logical_row_index;
+  unsigned int physical_index = index - m_logical_row_index;
 
   if (physical_index < m_rows.size())
   {
-    return & m_rows[physical_index];
+    return &m_rows[physical_index];
   }
 
   return NULL;
 }
-
