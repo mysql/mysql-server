@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ FOREACH(white_flag ${COMPILE_DEFINITIONS_WHITELIST})
   ENDFOREACH()
 ENDFOREACH()
 
-IF(CMAKE_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Makefiles")
+IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
   SET(CMAKEBT_FLAGS "${CMAKE_C_FLAGS_${CMAKEBT}} ${CMAKE_C_FLAGS}")
   SEPARATE_ARGUMENTS(CMAKEBT_FLAGS)
