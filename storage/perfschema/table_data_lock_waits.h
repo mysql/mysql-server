@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,37 +45,42 @@ struct scan_pos_data_lock_wait
 {
   scan_pos_data_lock_wait()
   {
-    m_index_1= 0;
-    m_index_2= 0;
+    m_index_1 = 0;
+    m_index_2 = 0;
   }
 
-  inline void reset(void)
+  inline void
+  reset(void)
   {
-    m_index_1= 0;
-    m_index_2= 0;
+    m_index_1 = 0;
+    m_index_2 = 0;
   }
 
-  void set_at(const scan_pos_data_lock_wait *other)
+  void
+  set_at(const scan_pos_data_lock_wait *other)
   {
-    m_index_1= other->m_index_1;
-    m_index_2= other->m_index_2;
+    m_index_1 = other->m_index_1;
+    m_index_2 = other->m_index_2;
   }
 
-  void set_after(const scan_pos_data_lock_wait *other)
+  void
+  set_after(const scan_pos_data_lock_wait *other)
   {
-    m_index_1= other->m_index_1;
-    m_index_2= other->m_index_2 + 1;
+    m_index_1 = other->m_index_1;
+    m_index_2 = other->m_index_2 + 1;
   }
 
-  inline bool has_more_engine()
+  inline bool
+  has_more_engine()
   {
     return (m_index_1 < COUNT_DATA_LOCK_ENGINES);
   }
 
-  inline void next_engine()
+  inline void
+  next_engine()
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 
   unsigned int m_index_1;
@@ -91,7 +96,7 @@ class table_data_lock_waits : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual int rnd_next();

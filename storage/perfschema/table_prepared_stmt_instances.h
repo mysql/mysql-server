@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -81,21 +81,25 @@ class PFS_index_prepared_stmt_instances : public PFS_engine_index
 public:
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1)
     : PFS_engine_index(key_1)
-  {}
+  {
+  }
 
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1,
                                     PFS_engine_key *key_2)
     : PFS_engine_index(key_1, key_2)
-  {}
+  {
+  }
 
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1,
                                     PFS_engine_key *key_2,
                                     PFS_engine_key *key_3)
     : PFS_engine_index(key_1, key_2, key_3)
-  {}
+  {
+  }
 
   ~PFS_index_prepared_stmt_instances()
-  {}
+  {
+  }
 
   virtual bool match(const PFS_prepared_stmt *pfs) = 0;
 };
@@ -105,12 +109,13 @@ class PFS_index_prepared_stmt_instances_by_instance
 {
 public:
   PFS_index_prepared_stmt_instances_by_instance()
-    : PFS_index_prepared_stmt_instances(&m_key),
-    m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_prepared_stmt_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_prepared_stmt_instances_by_instance()
-  {}
+  {
+  }
 
   virtual bool match(const PFS_prepared_stmt *pfs);
 
@@ -124,11 +129,14 @@ class PFS_index_prepared_stmt_instances_by_owner_thread
 public:
   PFS_index_prepared_stmt_instances_by_owner_thread()
     : PFS_index_prepared_stmt_instances(&m_key_1, &m_key_2),
-    m_key_1("OWNER_THREAD_ID"), m_key_2("OWNER_EVENT_ID")
-  {}
+      m_key_1("OWNER_THREAD_ID"),
+      m_key_2("OWNER_EVENT_ID")
+  {
+  }
 
   ~PFS_index_prepared_stmt_instances_by_owner_thread()
-  {}
+  {
+  }
 
   bool match(const PFS_prepared_stmt *pfs);
 
@@ -142,12 +150,13 @@ class PFS_index_prepared_stmt_instances_by_statement_id
 {
 public:
   PFS_index_prepared_stmt_instances_by_statement_id()
-    : PFS_index_prepared_stmt_instances(&m_key),
-      m_key("STATEMENT_ID")
-  {}
+    : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_ID")
+  {
+  }
 
   ~PFS_index_prepared_stmt_instances_by_statement_id()
-  {}
+  {
+  }
 
   bool match(const PFS_prepared_stmt *pfs);
 
@@ -160,12 +169,13 @@ class PFS_index_prepared_stmt_instances_by_statement_name
 {
 public:
   PFS_index_prepared_stmt_instances_by_statement_name()
-    : PFS_index_prepared_stmt_instances(&m_key),
-      m_key("STATEMENT_NAME")
-  {}
+    : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_NAME")
+  {
+  }
 
   ~PFS_index_prepared_stmt_instances_by_statement_name()
-  {}
+  {
+  }
 
   bool match(const PFS_prepared_stmt *pfs);
 
@@ -179,12 +189,15 @@ class PFS_index_prepared_stmt_instances_by_owner_object
 public:
   PFS_index_prepared_stmt_instances_by_owner_object()
     : PFS_index_prepared_stmt_instances(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("OWNER_OBJECT_TYPE"), m_key_2("OWNER_OBJECT_SCHEMA"),
+      m_key_1("OWNER_OBJECT_TYPE"),
+      m_key_2("OWNER_OBJECT_SCHEMA"),
       m_key_3("OWNER_OBJECT_NAME")
-  {}
+  {
+  }
 
   ~PFS_index_prepared_stmt_instances_by_owner_object()
-  {}
+  {
+  }
 
   virtual bool match(const PFS_prepared_stmt *table);
 
@@ -200,7 +213,7 @@ class table_prepared_stmt_instances : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -222,10 +235,11 @@ protected:
 
 public:
   ~table_prepared_stmt_instances()
-  {}
+  {
+  }
 
 protected:
-  int make_row(PFS_prepared_stmt*);
+  int make_row(PFS_prepared_stmt *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

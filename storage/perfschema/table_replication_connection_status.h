@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 #ifndef TABLE_REPLICATION_CONNECTION_STATUS_H
 #define TABLE_REPLICATION_CONNECTION_STATUS_H
@@ -33,7 +32,7 @@
 #include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
 #include "mysql_com.h"
 #include "rpl_msr.h"
-#include "rpl_info.h"  /*CHANNEL_NAME_LENGTH */
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH */
 
 class Master_info;
 
@@ -48,14 +47,16 @@ class Master_info;
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1,
   PS_RPL_NO
 };
 #endif
 
-enum enum_rpl_connect_status_service_state {
-  PS_RPL_CONNECT_SERVICE_STATE_YES= 1,
+enum enum_rpl_connect_status_service_state
+{
+  PS_RPL_CONNECT_SERVICE_STATE_YES = 1,
   PS_RPL_CONNECT_SERVICE_STATE_NO,
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
 };
@@ -64,7 +65,8 @@ enum enum_rpl_connect_status_service_state {
   A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_connect_status {
+struct st_row_connect_status
+{
   char group_name[UUID_LENGTH];
   bool group_name_is_null;
   char channel_name[CHANNEL_NAME_LENGTH];
@@ -76,21 +78,24 @@ struct st_row_connect_status {
   enum_rpl_connect_status_service_state service_state;
   ulonglong count_received_heartbeats;
   ulonglong last_heartbeat_timestamp;
-  char* received_transaction_set;
+  char *received_transaction_set;
   int received_transaction_set_length;
   uint last_error_number;
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
 
-  st_row_connect_status() : received_transaction_set(NULL) {}
+  st_row_connect_status() : received_transaction_set(NULL)
+  {
+  }
 
-  void cleanup()
+  void
+  cleanup()
   {
     if (received_transaction_set != NULL)
     {
       my_free(received_transaction_set);
-      received_transaction_set= NULL;
+      received_transaction_set = NULL;
     }
   }
 };
@@ -100,12 +105,13 @@ struct st_row_connect_status {
 class PFS_index_rpl_connection_status : public PFS_engine_index
 {
 public:
-  PFS_index_rpl_connection_status(PFS_engine_key *key)
-    : PFS_engine_index(key)
-  {}
+  PFS_index_rpl_connection_status(PFS_engine_key *key) : PFS_engine_index(key)
+  {
+  }
 
   ~PFS_index_rpl_connection_status()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi) = 0;
@@ -117,12 +123,13 @@ class PFS_index_rpl_connection_status_by_channel
 {
 public:
   PFS_index_rpl_connection_status_by_channel()
-    : PFS_index_rpl_connection_status(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_index_rpl_connection_status(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_connection_status_by_channel()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -136,12 +143,13 @@ class PFS_index_rpl_connection_status_by_thread
 {
 public:
   PFS_index_rpl_connection_status_by_thread()
-    : PFS_index_rpl_connection_status(&m_key),
-    m_key("THREAD_ID")
-  {}
+    : PFS_index_rpl_connection_status(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_rpl_connection_status_by_thread()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -151,7 +159,7 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
-class table_replication_connection_status: public PFS_engine_table
+class table_replication_connection_status : public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
@@ -192,7 +200,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
   virtual void reset_position(void);
 
@@ -204,7 +212,6 @@ public:
 
 private:
   PFS_index_rpl_connection_status *m_opened_index;
-
 };
 
 /** @} */

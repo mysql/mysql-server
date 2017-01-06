@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 #ifndef TABLE_REPLICATION_APPLIER_STATUS_H
 #define TABLE_REPLICATION_APPLIER_STATUS_H
@@ -48,14 +47,16 @@ class Master_info;
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enum values for Service_State field*/
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1,
   PS_RPL_NO
 };
 #endif
 
 /** A row in the table. */
-struct st_row_applier_status {
+struct st_row_applier_status
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   enum_rpl_yes_no service_state;
@@ -70,12 +71,13 @@ class PFS_index_rpl_applier_status : public PFS_engine_index
 {
 public:
   PFS_index_rpl_applier_status()
-    : PFS_engine_index(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_applier_status()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -85,7 +87,7 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status */
-class table_replication_applier_status: public PFS_engine_table
+class table_replication_applier_status : public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
@@ -126,7 +128,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

@@ -37,14 +37,17 @@ struct User_variable
 {
 public:
   User_variable()
-  {}
+  {
+  }
 
-  User_variable(const User_variable& uv)
+  User_variable(const User_variable &uv)
     : m_name(uv.m_name), m_value(uv.m_value)
-  {}
+  {
+  }
 
   ~User_variable()
-  {}
+  {
+  }
 
   PFS_variable_name_row m_name;
   PFS_user_variable_value_row m_value;
@@ -60,16 +63,18 @@ public:
   {
   }
 
-  void reset()
+  void
+  reset()
   {
-    m_pfs= NULL;
-    m_thread_internal_id= 0;
+    m_pfs = NULL;
+    m_thread_internal_id = 0;
     m_array.clear();
   }
 
   void materialize(PFS_thread *pfs, THD *thd);
 
-  bool is_materialized(PFS_thread *pfs)
+  bool
+  is_materialized(PFS_thread *pfs)
   {
     DBUG_ASSERT(pfs != NULL);
     if (m_pfs != pfs)
@@ -79,12 +84,13 @@ public:
     return true;
   }
 
-  const User_variable *get(uint index) const
+  const User_variable *
+  get(uint index) const
   {
     if (index >= m_array.size())
       return NULL;
 
-    const User_variable *p= & m_array.at(index);
+    const User_variable *p = &m_array.at(index);
     return p;
   }
 
@@ -114,23 +120,24 @@ struct row_uvar_by_thread
   Index 1 on thread (0 based)
   Index 2 on user variable (0 based)
 */
-struct pos_uvar_by_thread
-: public PFS_double_index
+struct pos_uvar_by_thread : public PFS_double_index
 {
-  pos_uvar_by_thread()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_uvar_by_thread() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline void next_thread(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
+
+  inline void
+  next_thread(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -139,11 +146,14 @@ class PFS_index_uvar_by_thread : public PFS_engine_index
 public:
   PFS_index_uvar_by_thread()
     : PFS_engine_index(&m_key_1, &m_key_2),
-    m_key_1("THREAD_ID"), m_key_2("VARIABLE_NAME")
-  {}
+      m_key_1("THREAD_ID"),
+      m_key_2("VARIABLE_NAME")
+  {
+  }
 
   ~PFS_index_uvar_by_thread()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const User_variable *pfs);
@@ -161,7 +171,7 @@ class table_uvar_by_thread : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -182,7 +192,9 @@ protected:
 
 public:
   ~table_uvar_by_thread()
-  { m_THD_cache.reset(); }
+  {
+    m_THD_cache.reset();
+  }
 
 protected:
   int materialize(PFS_thread *thread);
