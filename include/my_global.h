@@ -25,7 +25,6 @@
 
 #include <assert.h>
 #include <errno.h>				/* Recommended by debian */
-#include <fcntl.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>

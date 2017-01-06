@@ -23,6 +23,8 @@
   of blocks.  For the differnet block types, look at _mi_get_block_info()
 */
 
+#include <fcntl.h>
+
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"

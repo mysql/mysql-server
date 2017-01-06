@@ -80,6 +80,7 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 #define DELETE_TYPE_REQUIRES_PREFIX 6
 
+#include <fcntl.h>
 #include <my_dir.h>
 #include <mysqld_error.h>
 #include <signal.h>

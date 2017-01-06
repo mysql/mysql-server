@@ -22,6 +22,7 @@
   MySQL Configuration Utility
 */
 
+#include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 

@@ -23,6 +23,8 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
+#include <fcntl.h>
+
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"

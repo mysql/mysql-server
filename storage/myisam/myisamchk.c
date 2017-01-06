@@ -15,6 +15,7 @@
 
 /* Describe, check and repair of MyISAM tables */
 
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <my_getopt.h>

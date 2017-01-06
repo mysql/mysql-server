@@ -52,6 +52,8 @@
 */
 
 #define FT_CORE
+#include <fcntl.h>
+
 #include "ftdefs.h"
 #include "my_dbug.h"
 

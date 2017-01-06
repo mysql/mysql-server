@@ -16,6 +16,7 @@
 
 /* Create a MyISAM table */
 
+#include <fcntl.h>
 #include <my_bit.h>
 
 #include "ftdefs.h"

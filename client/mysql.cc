@@ -30,6 +30,7 @@
  *
  **/
 
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>

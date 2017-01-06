@@ -16,6 +16,7 @@
 
 
 #define MYSQL_SERVER 1
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>

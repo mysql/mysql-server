@@ -15,6 +15,8 @@
 
 /* Create a MYMERGE_-file */
 
+#include <fcntl.h>
+
 #include "my_dbug.h"
 #include "myrg_def.h"
 #include "typelib.h"

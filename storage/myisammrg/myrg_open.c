@@ -16,6 +16,7 @@
 /* open a MyISAM MERGE table */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 
 #include "my_dbug.h"

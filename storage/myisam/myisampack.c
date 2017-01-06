@@ -16,6 +16,7 @@
 /* Pack MyISAM file */
 
 #include <assert.h>
+#include <fcntl.h>
 #include <my_getopt.h>
 #include <my_tree.h>
 #include <stdlib.h>

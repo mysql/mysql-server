@@ -20,6 +20,7 @@
    to open other files during the time we flush the cache and close this file
 */
 
+#include <fcntl.h>
 #include <stdlib.h>
 
 #include "my_dbug.h"

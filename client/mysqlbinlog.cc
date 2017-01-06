@@ -30,6 +30,7 @@
 
 #include "mysqlbinlog.h"
 
+#include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <algorithm>

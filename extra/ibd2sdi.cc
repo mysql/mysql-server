@@ -16,6 +16,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <fcntl.h>
 #include <my_config.h>
 #include <my_global.h>
 #include <stdio.h>

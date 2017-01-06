@@ -24,6 +24,7 @@ Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
+#include <fcntl.h>
 #include <math.h>
 
 #include "btr0bulk.h"

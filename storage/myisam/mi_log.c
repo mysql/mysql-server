@@ -18,6 +18,8 @@
   The log can be examined with help of the myisamlog command.
 */
 
+#include <fcntl.h>
+
 #include "my_dbug.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"
