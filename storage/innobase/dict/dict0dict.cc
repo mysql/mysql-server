@@ -4574,34 +4574,36 @@ loop:
 			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
-#ifdef INNODB_NO_NEW_DD
 		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
+#ifdef INNODB_NO_NEW_DD
 
 		error = dict_create_add_foreigns_to_dictionary(
 			local_fk_set, table, trx);
 
 		if (error == DB_SUCCESS) {
 #endif /* INNODB_NO_NEW_DD */
+#ifdef NO_NEW_DD_FK
 			table->foreign_set.insert(local_fk_set.begin(),
 						  local_fk_set.end());
 
 			std::for_each(local_fk_set.begin(),
 				      local_fk_set.end(),
 				      dict_foreign_add_to_referenced_table());
+#endif /* NO_NEW_DD_FK */
 #ifndef NO_NEW_DD_FK
 			std::for_each(local_fk_set.begin(),
 				      local_fk_set.end(),
 				      dict_foreign_free);
-#endif /* INNODB_NO_NEW_DD */
+#endif /* NO_NEW_DD_FK */
 			local_fk_set.clear();
 			dict_mem_table_fill_foreign_vcol_set(table);
 #ifdef INNODB_NO_NEW_DD
 		}
 		return(error);
 #else
-                return(DB_SUCCESS);
+		return(DB_SUCCESS);
 #endif /* INNODB_NO_NEW_DD */
 	}
 
