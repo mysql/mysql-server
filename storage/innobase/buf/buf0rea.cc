@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -291,10 +291,10 @@ buf_read_ahead_random(
 			     node = UT_LIST_GET_NEXT(chain, node)) {
 
 				size += os_file_get_size(node->handle)
-					/ page_size.logical();
+					/ page_size.physical();
 			}
 
-			ut_ad(size==space->size);
+			ut_ad(size == space->size);
 		}
 #endif /* UNIV_DEBUG */
 
