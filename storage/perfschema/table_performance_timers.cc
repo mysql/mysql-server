@@ -33,8 +33,10 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("TIMER_NAME") },
-    { C_STRING_WITH_LEN("enum(\'CYCLE\',\'NANOSECOND\',\'MICROSECOND\',"
-                        "\'MILLISECOND\',\'TICK\')") },
+    {
+      C_STRING_WITH_LEN("enum(\'CYCLE\',\'NANOSECOND\',\'MICROSECOND\',"
+      "\'MILLISECOND\',\'TICK\')")
+    },
     { NULL, 0}
   },
   {
@@ -173,21 +175,33 @@ table_performance_timers::read_row_values(TABLE *table,
         break;
       case 1: /* TIMER_FREQUENCY */
         if (m_row->m_info.routine != 0)
+        {
           set_field_ulonglong(f, m_row->m_info.frequency);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 2: /* TIMER_RESOLUTION */
         if (m_row->m_info.routine != 0)
+        {
           set_field_ulonglong(f, m_row->m_info.resolution);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* TIMER_OVERHEAD */
         if (m_row->m_info.routine != 0)
+        {
           set_field_ulonglong(f, m_row->m_info.overhead);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);

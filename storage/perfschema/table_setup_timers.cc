@@ -47,8 +47,10 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("TIMER_NAME") },
-    { C_STRING_WITH_LEN("enum(\'CYCLE\',\'NANOSECOND\',\'MICROSECOND\',"
-                        "\'MILLISECOND\',\'TICK\')") },
+    {
+      C_STRING_WITH_LEN("enum(\'CYCLE\',\'NANOSECOND\',\'MICROSECOND\',"
+      "\'MILLISECOND\',\'TICK\')")
+    },
     { NULL, 0}
   }
 };
@@ -77,7 +79,9 @@ PFS_index_setup_timers::match(row_setup_timers *row)
   if (m_fields >= 1)
   {
     if (!m_key.match(&row->m_name))
+    {
       return false;
+    }
   }
 
   return true;
@@ -224,9 +228,13 @@ table_setup_timers::update_row_values(TABLE *table,
       case 1: /* TIMER_NAME */
         value = get_field_enum(f);
         if ((value >= FIRST_TIMER_NAME) && (value <= LAST_TIMER_NAME))
+        {
           *(m_row->m_timer_name_ptr) = (enum_timer_name)value;
+        }
         else
+        {
           return HA_ERR_WRONG_COMMAND;
+        }
         break;
       default:
         DBUG_ASSERT(false);

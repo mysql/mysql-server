@@ -132,7 +132,7 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("HEARTBEAT_INTERVAL")},
     {C_STRING_WITH_LEN("double(10,3)")},
     {NULL, 0}
-   },
+  },
   {
     {C_STRING_WITH_LEN("TLS_VERSION")},
     {C_STRING_WITH_LEN("varchar(255)")},
@@ -172,7 +172,9 @@ PFS_index_rpl_connection_config::match(Master_info *mi)
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
     if (!m_key.match(row.channel_name, row.channel_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -346,9 +348,13 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   memcpy(m_row.network_interface, temp_store, m_row.network_interface_length);
 
   if (mi->is_auto_position())
+  {
     m_row.auto_position = PS_RPL_YES;
+  }
   else
+  {
     m_row.auto_position = PS_RPL_NO;
+  }
 
 #ifdef HAVE_OPENSSL
   m_row.ssl_allowed = mi->ssl ? PS_SSL_ALLOWED_YES : PS_SSL_ALLOWED_NO;
@@ -377,9 +383,13 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   memcpy(m_row.ssl_key, temp_store, m_row.ssl_key_length);
 
   if (mi->ssl_verify_server_cert)
+  {
     m_row.ssl_verify_server_certificate = PS_RPL_YES;
+  }
   else
+  {
     m_row.ssl_verify_server_certificate = PS_RPL_NO;
+  }
 
   temp_store = (char *)mi->ssl_crl;
   m_row.ssl_crl_file_length = strlen(temp_store);

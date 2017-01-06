@@ -546,7 +546,9 @@ void
 PFS_table_context::set_item(ulong n)
 {
   if (n == m_last_item)
+  {
     return;
+  }
   ulong word = n / m_word_size;
   ulong bit = n % m_word_size;
   m_map[word] |= (1UL << bit);
@@ -687,7 +689,9 @@ PFS_engine_table_share::check_all_tables(THD *thd)
   });
 
   for (current = &all_shares[0]; (*current) != NULL; current++)
+  {
     (*current)->check_one_table(thd);
+  }
 }
 
 /** Error reporting for schema integrity checks. */
@@ -752,7 +756,9 @@ PFS_engine_table_share::check_one_table(THD *thd)
     PFS_check_intact checker;
 
     if (!checker.check(thd, tables.table, m_field_def))
+    {
       m_checked = true;
+    }
     close_thread_tables(thd);
   }
   else
@@ -771,7 +777,9 @@ PFS_engine_table_share::init_all_locks(void)
   PFS_engine_table_share **current;
 
   for (current = &all_shares[0]; (*current) != NULL; current++)
+  {
     thr_lock_init((*current)->m_thr_lock_ptr);
+  }
 }
 
 /** Delete all the table share locks. */
@@ -781,7 +789,9 @@ PFS_engine_table_share::delete_all_locks(void)
   PFS_engine_table_share **current;
 
   for (current = &all_shares[0]; (*current) != NULL; current++)
+  {
     thr_lock_delete((*current)->m_thr_lock_ptr);
+  }
 }
 
 ha_rows
@@ -839,7 +849,9 @@ compare_table_names(const char *name1, const char *name2)
     to be simply my_strcasecmp(system_charset_info, name1, name2).
   */
   if (lower_case_table_names)
+  {
     return native_strcasecmp(name1, name2);
+  }
   return strcmp(name1, name2);
 }
 
@@ -858,7 +870,9 @@ PFS_engine_table::find_engine_table_share(const char *name)
   for (current = &all_shares[0]; (*current) != NULL; current++)
   {
     if (compare_table_names(name, (*current)->m_name.str) == 0)
+    {
       DBUG_RETURN(*current);
+    }
   }
 
   DBUG_RETURN(NULL);
@@ -900,7 +914,9 @@ PFS_engine_table::read_row(TABLE *table, unsigned char *buf, Field **fields)
     For robustness, reset every field.
   */
   for (fields_reset = fields; (f = *fields_reset); fields_reset++)
+  {
     f->reset();
+  }
 
   int result = read_row_values(table, buf, fields, read_all);
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
@@ -1188,7 +1204,9 @@ PFS_engine_table::index_read(KEY *key_infos,
 {
   // DBUG_ASSERT(m_index != NULL);
   if (m_index == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   // FIXME: Unclear what to do here
   DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST);
@@ -1244,7 +1262,9 @@ PFS_internal_schema_access::check(ulong want_access, ulong *) const
     ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
+  {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
 
   /*
     Proceed with regular grant tables,
@@ -1259,7 +1279,9 @@ PFS_internal_schema_access::lookup(const char *name) const
   const PFS_engine_table_share *share;
   share = PFS_engine_table::find_engine_table_share(name);
   if (share)
+  {
     return share->m_acl;
+  }
   /*
     Do not return NULL, it would mean we are not interested
     in privilege checks for unknown tables.
@@ -1297,7 +1319,9 @@ PFS_readonly_acl::check(ulong want_access, ulong *) const
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
+  {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
@@ -1310,7 +1334,9 @@ PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
   ACL_internal_access_result res =
     PFS_readonly_acl::check(want_access, save_priv);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+  {
     res = ACL_INTERNAL_ACCESS_GRANTED;
+  }
   return res;
 }
 
@@ -1325,7 +1351,9 @@ PFS_truncatable_acl::check(ulong want_access, ulong *) const
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
+  {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
@@ -1338,7 +1366,9 @@ PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
   ACL_internal_access_result res =
     PFS_truncatable_acl::check(want_access, save_priv);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+  {
     res = ACL_INTERNAL_ACCESS_GRANTED;
+  }
   return res;
 }
 
@@ -1352,7 +1382,9 @@ PFS_updatable_acl::check(ulong want_access, ulong *) const
     ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
+  {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
@@ -1367,7 +1399,9 @@ PFS_editable_acl::check(ulong want_access, ulong *) const
                                  TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
+  {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
@@ -1381,7 +1415,9 @@ PFS_unknown_acl::check(ulong want_access, ulong *) const
                                  ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
+  {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
 
   /*
     There is no point in hiding (by enforcing ACCESS_DENIED for SELECT_ACL
@@ -1411,7 +1447,9 @@ PFS_key_reader::read_uchar(enum ha_rkey_function find_flag,
     if (m_remaining_key_part_info->field->real_maybe_null())
     {
       if (m_remaining_key[0])
+      {
         isnull = true;
+      }
 
       m_remaining_key += HA_KEY_NULL_LENGTH;
       m_remaining_key_len -= HA_KEY_NULL_LENGTH;
@@ -1446,7 +1484,9 @@ PFS_key_reader::read_long_int(enum ha_rkey_function find_flag,
     if (m_remaining_key_part_info->field->real_maybe_null())
     {
       if (m_remaining_key[0])
+      {
         isnull = true;
+      }
 
       m_remaining_key += HA_KEY_NULL_LENGTH;
       m_remaining_key_len -= HA_KEY_NULL_LENGTH;
@@ -1481,7 +1521,9 @@ PFS_key_reader::read_ulonglong(enum ha_rkey_function find_flag,
     if (m_remaining_key_part_info->field->real_maybe_null())
     {
       if (m_remaining_key[0])
+      {
         isnull = true;
+      }
 
       m_remaining_key += HA_KEY_NULL_LENGTH;
       m_remaining_key_len -= HA_KEY_NULL_LENGTH;
@@ -1528,7 +1570,9 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
       length_offset++;
       data_offset++;
       if (m_remaining_key[0])
+      {
         isnull = true;
+      }
     }
 
     DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
@@ -1542,7 +1586,9 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
 
     // DBUG_ASSERT(string_len <= buffer_capacity);
     if (string_len > buffer_capacity)
+    {
       string_len = buffer_capacity;
+    }
 
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
@@ -1552,9 +1598,9 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
     const CHARSET_INFO *cs= &my_charset_utf8_bin; // FIXME
     if (cs->mbmaxlen > 1)
     {
-     size_t char_length;
-     char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
-     set_if_smaller(string_len, char_length);
+      size_t char_length;
+      char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
+      set_if_smaller(string_len, char_length);
     }
 #endif
     const uchar *end = skip_trailing_space(pos, string_len);
@@ -1598,7 +1644,9 @@ PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
       length_offset++;
       data_offset++;
       if (m_remaining_key[0])
+      {
         isnull = true;
+      }
     }
 
     DBUG_ASSERT(data_offset <= m_remaining_key_len);
@@ -1609,7 +1657,9 @@ PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
 
     // DBUG_ASSERT(string_len <= buffer_capacity);
     if (string_len > buffer_capacity)  // FIXME
+    {
       string_len = buffer_capacity;
+    }
 
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
