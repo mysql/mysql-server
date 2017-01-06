@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -420,6 +420,23 @@ bool Query_result_union_direct::send_eof()
 }
 
 
+/// RAII class to automate saving/restoring of current_select()
+class Change_current_select
+{
+public:
+  Change_current_select(THD *thd_arg) :
+  thd(thd_arg), saved_select(thd->lex->current_select())
+  {}
+  void restore()
+  { thd->lex->set_current_select(saved_select); }
+  ~Change_current_select()
+  { restore(); }
+private:
+  THD *thd;
+  SELECT_LEX *saved_select;
+};
+
+
 /**
   Prepare the fake_select_lex query block
 
@@ -515,7 +532,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   DBUG_ENTER("SELECT_LEX_UNIT::prepare");
 
   DBUG_ASSERT(!is_prepared());
-  SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
+  Change_current_select save_select(thd);
 
   Query_result *tmp_result;
   bool instantiate_tmp_table= false;
@@ -612,7 +629,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (sl == first_recursive)
     {
       // create_result_table() depends on current_select()
-      thd_arg->lex->set_current_select(lex_select_save);
+      save_select.restore();
       /*
         All next query blocks will read the temporary table, which we must
         thus create now:
@@ -785,8 +802,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     }
   }
 
-  thd_arg->lex->set_current_select(lex_select_save);
-
   // Query blocks are prepared, update the state
   set_prepared();
 
@@ -812,7 +827,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd)
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
 
-  SELECT_LEX *save_select= thd->lex->current_select();
+  Change_current_select save_select(thd);
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
@@ -865,8 +880,6 @@ bool SELECT_LEX_UNIT::optimize(THD *thd)
       DBUG_RETURN(true);
   }
   set_optimized();    // All query blocks optimized, update the state
-  thd->lex->set_current_select(save_select);
-
   DBUG_RETURN(false);
 }
 
@@ -1217,7 +1230,12 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
   if (is_executed() && !uncacheable)
     DBUG_RETURN(false);
 
-  SELECT_LEX *lex_select_save= thd->lex->current_select();
+  /*
+    Even if we return "true" the statement might continue
+    (e.g. ER_SUBQUERY_1_ROW in stmt with IGNORE), so we want to restore
+    current_select():
+  */
+  Change_current_select save_select(thd);
 
   if (is_executed())
   {
@@ -1302,7 +1320,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
       if (table->hash_field) // Prepare for access method of JOIN::exec
         table->file->ha_index_or_rnd_end();
       if (set_limit(thd, fake_select_lex))
-        DBUG_RETURN(status);                     /* purecov: inspected */
+        DBUG_RETURN(true);                      /* purecov: inspected */
       JOIN *join= fake_select_lex->join;
       if (recursive_executor.prepare_for_scan())
         DBUG_RETURN(true);                      /* purecov: inspected */
@@ -1331,7 +1349,6 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
     thd->current_found_rows= (ulonglong)table->file->stats.records;
   }
 
-  thd->lex->set_current_select(lex_select_save);
   DBUG_RETURN(status);
 }
 
