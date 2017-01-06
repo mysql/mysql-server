@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "data0data.h"
 #include "que0types.h"
 #include "dict0types.h"
+#include "dict0dd.h"
 #include "trx0types.h"
 #include "row0types.h"
 #include "btr0pcur.h"
@@ -509,16 +510,20 @@ row_drop_database_for_mysql(
 	trx_t*		trx,
 	ulint*		found);
 
-/*********************************************************************//**
-Renames a table for MySQL.
+/** Renames a table for MySQL.
+@param[in]      old_name        old table name
+@param[in]      new_name        new table name
+@param[in]      dd_table        dd::Table for new table
+@param[in,out]  trx             transaction
+@param[in]      commit          whether to commit trx
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
-/*=======================*/
-	const char*	old_name,	/*!< in: old table name */
-	const char*	new_name,	/*!< in: new table name */
-	trx_t*		trx,		/*!< in/out: transaction */
-	bool		commit)		/*!< in: whether to commit trx */
+	const char*	old_name,
+	const char*	new_name,
+	dd::Table*	dd_table,
+	trx_t*		trx,
+	bool		commit)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**

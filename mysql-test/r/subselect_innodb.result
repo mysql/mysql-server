@@ -270,8 +270,6 @@ INSERT INTO t4 VALUES("c373e9f5ad079174ff17444553544200", "Discussion", NULL, NU
 INSERT INTO t4 VALUES("c373e9f5ad0791da7e2b444553544200", "Books", "list of recommended books", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<props autocheckin=\"false\" autopublish=\"false\" binary=\"choice\" categories=\"none\" cleanup=\"false\" folder=\"none\"><![CDATA[Doc type for cm tests]]><![CDATA[Doc type for book tests]]></props>\r\n", "2003-06-09 10:51:40", "admin", NULL);
 ALTER TABLE t2 ADD  FOREIGN KEY FK_DCMNTS_DCTYPES ( DOCTYPEID)
 REFERENCES t4 (DOCTYPEID );
-ALTER TABLE t2 ADD  FOREIGN KEY FK_DCMNTS_FLDRS ( FOLDERID)
-REFERENCES t3 (FOLDERID );
 ALTER TABLE t3 ADD  FOREIGN KEY FK_FLDRS_PRNTID ( PARENTID)
 REFERENCES t3 (FOLDERID );
 ANALYZE TABLE t1;

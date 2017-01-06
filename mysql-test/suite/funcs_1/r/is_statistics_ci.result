@@ -103,11 +103,11 @@ def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_topic	mysql	name
 def	mysql	help_topic	mysql	PRIMARY
+def	mysql	innodb_dynamic_metadata	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
-def	mysql	innodb_table_metadata	mysql	PRIMARY
 def	mysql	innodb_table_stats	mysql	PRIMARY
 def	mysql	innodb_table_stats	mysql	PRIMARY
 def	mysql	plugin	mysql	PRIMARY

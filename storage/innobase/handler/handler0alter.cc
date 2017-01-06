@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -7694,7 +7694,6 @@ innobase_update_foreign_try(
 				 fk->id);
 			DBUG_RETURN(true);
 		}
-#ifdef INNODB_NO_NEW_DD
 		if (!fk->foreign_index) {
 			fk->foreign_index = dict_foreign_find_index(
 				ctx->new_table, ctx->col_names,
@@ -7709,23 +7708,6 @@ innobase_update_foreign_try(
 				DBUG_RETURN(true);
 			}
 		}
-
-		/* The fk->foreign_col_names[] uses renamed column
-		names, while the columns in ctx->old_table have not
-		been renamed yet. */
-		error = dict_create_add_foreign_to_dictionary(
-			ctx->old_table->name.m_name, fk, trx);
-
-		DBUG_EXECUTE_IF(
-			"innodb_test_cannot_add_fk_system",
-			error = DB_ERROR;);
-
-		if (error != DB_SUCCESS) {
-			my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0),
-				 fk->id);
-			DBUG_RETURN(true);
-		}
-#endif /* INNODB_NO_NEW_DD */
 	}
 #ifdef INNODB_NO_NEW_DD
 	for (i = 0; i < ctx->num_to_drop_fk; i++) {
@@ -7751,7 +7733,8 @@ dberr_t
 innobase_update_foreign_cache(
 /*==========================*/
 	ha_innobase_inplace_ctx*	ctx,
-	THD*				user_thd)
+	THD*				user_thd,
+	dd::Table*			dd_table)
 {
 	dict_table_t*	user_table;
 	dberr_t		err = DB_SUCCESS;
@@ -7787,17 +7770,17 @@ innobase_update_foreign_cache(
 			dict_foreign_remove_from_cache(fk);
 		}
 	}
-
 #ifdef INNODB_NO_NEW_DD
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
 	dict_names_t	fk_tables;
 
-	err = dict_load_foreigns(user_table->name.m_name,
-				 ctx->col_names, false, true,
-				 DICT_ERR_IGNORE_NONE,
-				 fk_tables);
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(user_thd);
+        dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+	err = dd_table_load_fk(
+		client, user_table->name.m_name, ctx->col_names,
+		user_table, dd_table, user_thd, true, true, &fk_tables);
 
 	if (err == DB_CANNOT_ADD_CONSTRAINT) {
 		fk_tables.clear();
@@ -7805,10 +7788,10 @@ innobase_update_foreign_cache(
 		/* It is possible there are existing foreign key are
 		loaded with "foreign_key checks" off,
 		so let's retry the loading with charset_check is off */
-		err = dict_load_foreigns(user_table->name.m_name,
-					 ctx->col_names, false, false,
-					 DICT_ERR_IGNORE_NONE,
-					 fk_tables);
+		err = dd_table_load_fk(
+			client, user_table->name.m_name, ctx->col_names,
+			user_table, dd_table, user_thd, true, false,
+			&fk_tables);
 
 		/* The load with "charset_check" off is successful, warn
 		the user that the foreign key has loaded with mis-matched
@@ -8980,12 +8963,15 @@ ha_innobase::commit_inplace_alter_table_impl(
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
 
-			error = innobase_update_foreign_cache(ctx, m_user_thd);
+			error = innobase_update_foreign_cache(
+				ctx, m_user_thd, &new_dd_tab->table());
+
 			if (error != DB_SUCCESS) {
 				goto foreign_fail;
 			}
 		} else {
-			error = innobase_update_foreign_cache(ctx, m_user_thd);
+			error = innobase_update_foreign_cache(
+				ctx, m_user_thd, &new_dd_tab->table());
 
 			if (error != DB_SUCCESS) {
 foreign_fail:
@@ -9935,7 +9921,8 @@ alter_part::rename_table(
 
 	row_mysql_lock_data_dictionary(m_trx);
 
-	error = row_rename_table_for_mysql(norm_from, norm_to, m_trx, TRUE);
+	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
+					   m_trx, TRUE);
 
 	row_mysql_unlock_data_dictionary(m_trx);
 
@@ -12175,7 +12162,8 @@ rename_table_for_exchange(
 
         row_mysql_lock_data_dictionary(trx);
 
-        error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
+        error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
+					   trx, TRUE);
 
 	row_mysql_unlock_data_dictionary(trx);
 

@@ -25,6 +25,8 @@ Created  10/2016 Jimmy Yamg
 
 #include "sql_table.h"
 #include "dict0crea.h"
+#include "sql_base.h"
+#include "field.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]      partition       partition or subpartition
@@ -302,4 +304,117 @@ dd_table_open_on_name_in_mem(
 	}
 
 	return(table);
+}
+
+/** Check whether there exist a column named as "FTS_DOC_ID", which is
+reserved for InnoDB FTS Doc ID
+@param[in]	thd		MySQL thread handle
+@param[in]	form		information on table
+				columns and indexes
+@param[out]	doc_id_col	Doc ID column number if
+				there exist a FTS_DOC_ID column,
+				ULINT_UNDEFINED if column is of the
+				wrong type/name/size
+@return true if there exist a "FTS_DOC_ID" column */
+UNIV_INLINE
+bool
+create_table_check_doc_id_col(
+	THD*		thd,
+	const TABLE*	form,
+	ulint*		doc_id_col)
+{
+	for (ulint i = 0; i < form->s->fields; i++) {
+		const Field*	field;
+		ulint		col_type;
+		ulint		col_len;
+		ulint		unsigned_type;
+
+		field = form->field[i];
+		if (!field->stored_in_db)
+		  continue;
+
+		col_type = get_innobase_type_from_mysql_type(
+			&unsigned_type, field);
+
+		col_len = field->pack_length();
+
+		if (innobase_strcasecmp(field->field_name,
+					FTS_DOC_ID_COL_NAME) == 0) {
+
+			/* Note the name is case sensitive due to
+			our internal query parser */
+			if (col_type == DATA_INT
+			    && !field->real_maybe_null()
+			    && col_len == sizeof(doc_id_t)
+			    && (strcmp(field->field_name,
+				      FTS_DOC_ID_COL_NAME) == 0)) {
+				*doc_id_col = i;
+			} else {
+				push_warning_printf(
+					thd,
+					Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: FTS_DOC_ID column must be"
+					" of BIGINT NOT NULL type, and named"
+					" in all capitalized characters");
+				my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+					 field->field_name);
+				*doc_id_col = ULINT_UNDEFINED;
+			}
+
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/** Return a display name for the row format
+@param[in]      row_format      Row Format
+@return row format name */
+UNIV_INLINE
+const char*
+get_row_format_name(enum row_type row_format)
+{
+        switch (row_format) {
+        case ROW_TYPE_COMPACT:
+                return("ROW_FORMAT=COMPACT");
+        case ROW_TYPE_COMPRESSED:
+                return("ROW_FORMAT=COMPRESSED");
+        case ROW_TYPE_DYNAMIC:
+                return("ROW_FORMAT=DYNAMIC");
+        case ROW_TYPE_REDUNDANT:
+                return("ROW_FORMAT=REDUNDANT");
+        case ROW_TYPE_DEFAULT:
+                return("ROW_FORMAT=DEFAULT");
+        case ROW_TYPE_FIXED:
+                return("ROW_FORMAT=FIXED");
+        case ROW_TYPE_PAGED:
+                return("ROW_FORMAT=PAGED");
+        case ROW_TYPE_NOT_USED:
+                break;
+        }
+        return("ROW_FORMAT");
+}
+
+/** Acquire a metadata lock.
+@param[in,out]	thd	current thread
+@param[out]	mdl	metadata lock
+@param[in]	db	schema name
+@param[in]	table	table name
+@retval false if acquired
+@retval true if failed (my_error() will have been called) */
+UNIV_INLINE
+bool
+dd_mdl_acquire(
+	THD*		thd,
+	MDL_ticket**	mdl,
+	const char*	db,
+	char*		table)
+{
+        bool	ret = false;
+
+        ret = dd::acquire_shared_table_mdl(thd, db, table, false, mdl);
+
+        return(ret);
 }

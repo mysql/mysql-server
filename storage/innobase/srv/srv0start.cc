@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -2248,7 +2248,7 @@ struct metadata_applier
         @param[in]      table   table to visit */
         void operator()(dict_table_t* table) const
         {
-                ut_ad(dict_sys->table_metadata != NULL);
+                ut_ad(dict_sys->dynamic_metadata != NULL);
 		ib_uint64_t	autoinc = table->autoinc;
                 dict_table_load_dynamic_metadata(table);
 		/* TODO: Do it in a better way. This judgement is for

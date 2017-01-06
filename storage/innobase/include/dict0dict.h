@@ -1452,8 +1452,8 @@ struct dict_sys_t{
 	dict_table_t*	table_stats;
 	/** Permanent handle to mysql.innodb_index_stats */
 	dict_table_t*	index_stats;
-	/** Permanent handle to mysql.innodb_table_metadata */
-	dict_table_t*	table_metadata;
+	/** Permanent handle to mysql.innodb_dynamic_metadata */
+	dict_table_t*	dynamic_metadata;
 
 	/*=============================*/
 	UT_LIST_BASE_NODE_T(dict_table_t)
@@ -1624,7 +1624,7 @@ void
 dict_close(void);
 /*============*/
 
-/** Wrapper for the mysql.innodb_table_metadata used to buffer the persistent
+/** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent
 dynamic metadata.
 This should be a table with only clustered index, no delete-marked records,
 no locking, no undo logging, no purge, no adaptive hash index.
@@ -1717,10 +1717,10 @@ private:
 
 private:
 
-	/** Column number of mysql.innodb_table_metadata.table_id */
+	/** Column number of mysql.innodb_dynamic_metadata.table_id */
 	static constexpr unsigned	TABLE_ID_COL_NO = 0;
 
-	/** Column number of mysql.innodb_table_metadata.metadata */
+	/** Column number of mysql.innodb_dynamic_metadata.metadata */
 	static constexpr unsigned	METADATA_COL_NO = 1;
 
 	/** Number of user columns */
@@ -1730,10 +1730,10 @@ private:
 	static constexpr unsigned	N_COLS = N_USER_COLS + DATA_N_SYS_COLS;
 
 	/** Clustered index field number of
-        mysql.innodb_table_metadata.table_id */
+        mysql.innodb_dynamic_metadata.table_id */
         static constexpr unsigned	TABLE_ID_FIELD_NO = TABLE_ID_COL_NO;
 	/** Clustered index field number of
-	mysql.innodb_table_metadata.metadata */
+	mysql.innodb_dynamic_metadata.metadata */
 	static constexpr unsigned	METADATA_FIELD_NO = METADATA_COL_NO + 2;
 
 	/** Number of fields in the clustered index */
@@ -2071,6 +2071,18 @@ UNIV_INLINE
 uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
+
+/** Check whether the dict_table_t is a partition.
+A partitioned table on the SQL level is composed of InnoDB tables,
+where each InnoDB table is a [sub]partition including its secondary indexes
+which belongs to the partition.
+@param[in]      table   Table to check.
+@return true if the dict_table_t is a partition else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*     table);
+
 
 #endif /* !UNIV_HOTBACKUP */
 

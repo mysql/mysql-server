@@ -318,7 +318,7 @@ send Mysqlx.Crud.Insert {
 Mysqlx.Error {
   severity: ERROR
   code: 1452
-  msg: "Cannot add or update a child row: a foreign key constraint fails (`xplugintest`.`categories_child`, CONSTRAINT `categories_child_ibfk_1` FOREIGN KEY (`col1`) REFERENCES `categories` (`categoryid`))"
+  msg: "Cannot add or update a child row: a foreign key constraint fails (`xplugintest`.`categories_child`, CONSTRAINT `categories_child_ibfk_1` FOREIGN KEY (`col1`) REFERENCES `categories` (`categoryid`) ON DELETE NO ACTION ON UPDATE NO ACTION)"
   sql_state: "23000"
 }
 

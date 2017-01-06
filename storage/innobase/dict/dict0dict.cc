@@ -3487,23 +3487,6 @@ dict_index_build_internal_fts(
 }
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
-/** Check whether the dict_table_t is a partition.
-A partitioned table on the SQL level is composed of InnoDB tables,
-where each InnoDB table is a [sub]partition including its secondary indexes
-which belongs to the partition.
-@param[in]	table	Table to check.
-@return true if the dict_table_t is a partition else false. */
-UNIV_INLINE
-bool
-dict_table_is_partition(
-	const dict_table_t*	table)
-{
-	/* Check both P and p on all platforms in case it was moved to/from
-	WIN. */
-	return(strstr(table->name.m_name, "#p#")
-	       || strstr(table->name.m_name, "#P#"));
-}
-
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
 @return TRUE if table is referenced by a foreign key */
@@ -3684,6 +3667,7 @@ dict_foreign_add_to_cache(
 	dict_index_t*	index;
 	ibool		added_to_referenced_list= FALSE;
 	FILE*		ef			= dict_foreign_err_file;
+	ulint		found_in_cache		= false;
 
 	DBUG_ENTER("dict_foreign_add_to_cache");
 	DBUG_PRINT("dict_foreign_add_to_cache", ("id: %s", foreign->id));
@@ -3699,6 +3683,7 @@ dict_foreign_add_to_cache(
 
 	if (for_table) {
 		for_in_cache = dict_foreign_find(for_table, foreign);
+		found_in_cache = true;
 	}
 
 	if (!for_in_cache && ref_table) {
@@ -3731,10 +3716,9 @@ dict_foreign_add_to_cache(
 				"referenced table do not match"
 				" the ones in table.");
 
-                       if (for_in_cache == foreign) {
-                                mem_heap_free(foreign->heap);
-                        }
-
+			if (for_in_cache == foreign && !found_in_cache) {
+				mem_heap_free(foreign->heap);
+			}
 
 			DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
 		}
@@ -3773,7 +3757,7 @@ dict_foreign_add_to_cache(
 				"or one of the ON ... SET NULL columns"
 				" is declared NOT NULL.");
 
-			if (for_in_cache == foreign) {
+			if (for_in_cache == foreign && !found_in_cache) {
 				if (added_to_referenced_list) {
 					const dict_foreign_set::size_type
 						n = ref_table->referenced_set
@@ -4600,12 +4584,17 @@ loop:
 
 		if (error == DB_SUCCESS) {
 #endif /* INNODB_NO_NEW_DD */
-
 			table->foreign_set.insert(local_fk_set.begin(),
 						  local_fk_set.end());
+
 			std::for_each(local_fk_set.begin(),
 				      local_fk_set.end(),
 				      dict_foreign_add_to_referenced_table());
+#ifndef NO_NEW_DD_FK
+			std::for_each(local_fk_set.begin(),
+				      local_fk_set.end(),
+				      dict_foreign_free);
+#endif /* INNODB_NO_NEW_DD */
 			local_fk_set.clear();
 			dict_mem_table_fill_foreign_vcol_set(table);
 #ifdef INNODB_NO_NEW_DD
@@ -6542,8 +6531,8 @@ dict_close(void)
 	if (dict_sys->index_stats) {
 		dict_table_close(dict_sys->index_stats, true, false);
 	}
-	if (dict_sys->table_metadata) {
-		dict_table_close(dict_sys->table_metadata, true, false);
+	if (dict_sys->dynamic_metadata) {
+		dict_table_close(dict_sys->dynamic_metadata, true, false);
 	}
 
 	/* Free the hash elements. We don't remove them from the table
@@ -7180,9 +7169,8 @@ DDTableBuffer::create_tuples()
 void
 DDTableBuffer::init()
 {
-	ut_ad(dict_table_is_comp(dict_sys->table_metadata));
-	m_index = dict_sys->table_metadata->first_index();
-
+	ut_ad(dict_table_is_comp(dict_sys->dynamic_metadata));
+	m_index = dict_sys->dynamic_metadata->first_index();
 	ut_ad(m_index->next() == NULL);
 	ut_ad(m_index->n_uniq == 1);
 	/* We don't need AHI for this table */

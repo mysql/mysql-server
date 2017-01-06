@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -56,19 +56,7 @@ class MDL_ticket;
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
-/** InnoDB private keys for dd::Tablespace */
-enum dd_space_keys {
-	/** Tablespace flags */
-	DD_SPACE_FLAGS,
-	/** Tablespace identifier */
-	DD_SPACE_ID,
-	/** Sentinel */
-	DD_SPACE__LAST
-};
-
-/** InnoDB private key strings for dd::Tablespace.
-@see dd_space_keys */
-extern const char* const	dd_space_key_strings[DD_SPACE__LAST];
+static const char innobase_hton_name[]= "InnoDB";
 
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
@@ -82,8 +70,33 @@ enum dd_table_keys {
 	DD_TABLE__LAST
 };
 
+/** InnoDB private keys for dd::Tablespace */
+enum dd_space_keys {
+	/** Tablespace flags */
+	DD_SPACE_FLAGS,
+	/** Tablespace identifier */
+	DD_SPACE_ID,
+	/** Sentinel */
+	DD_SPACE__LAST
+};
+
+/** InnoDB implicit tablespace name or prefix, which should be same to
+dict_sys_t::file_per_table_name */
+static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
+
+/** InnoDB private key strings for dd::Tablespace.
+@see dd_space_keys */
+const char* const dd_space_key_strings[DD_SPACE__LAST] = {
+        "flags",
+        "id"
+};
+
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
-extern const char* const	dd_table_key_strings[DD_TABLE__LAST];
+const char* const dd_table_key_strings[DD_TABLE__LAST] = {
+        "autoinc",
+        "data_directory",
+        "version"
+};
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
 enum dd_index_keys {
@@ -97,7 +110,13 @@ enum dd_index_keys {
 	DD_INDEX__LAST
 };
 
-static const char innobase_hton_name[]= "InnoDB";
+/** InnoDB private key strings for dd::Index or dd::Partition_index.
+@see dd_index_keys */
+const char* const dd_index_key_strings[DD_INDEX__LAST] = {
+        "id",
+        "root",
+        "trx_id"
+};
 
 /** InnoDB private key strings for dd::Index or dd::Partition_index.
 @see dd_index_keys */
@@ -145,7 +164,6 @@ dd_first_index(const dd::Partition* partition)
         return(dd_first<dd::Partition,dd::Partition_index>(partition));
 }
 
-#if 1 // WL#7743/runtime TODO: implement dd::Partition::is_stored()
 /** Determine if a partition is materialized.
 @param[in]      part            partition
 @return whether the partition is materialized */
@@ -155,7 +173,6 @@ inline bool dd_part_is_stored(
         return(part->table().subpartition_type() == dd::Table::ST_NONE
                || part->level() == 1);
 }
-#endif
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]      table   non-partitioned table
@@ -192,6 +209,7 @@ dd_set_autoinc(
 @param[in]	table	table name
 @retval false if acquired, or trylock timed out
 @retval true if failed (my_error() will have been called) */
+UNIV_INLINE
 bool
 dd_mdl_acquire(
 	THD*			thd,
@@ -207,35 +225,74 @@ dd_mdl_release(
 	THD*		thd,
 	MDL_ticket**	mdl);
 
+/** Load foreign key constraint info for the dd::Table object.
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	col_names	column names, or NULL
+@param[in]	dict_locked	True if dict_sys->mutex is already held,
+				otherwise false
+@return DB_SUCESS	if successfully load FK constraint */
+dberr_t
+dd_table_load_fk_from_dd(
+	dict_table_t*		m_table,
+	const dd::Table*	dd_table,
+	const char**		col_names,
+	bool			dict_locked);
+
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
 void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]	client		data dictionary client
+@param[in]	tbl_name	Table Name
+@param[in]	col_names	column names, or NULL
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	thd		thread THD
+@param[in]	dict_locked	True if dict_sys->mutex is already held,
+				otherwise false
+@param[in]	char_charsets	whether to check charset compatibility
+@param[in,out]	fk_tables	name list for tables that refer to this table
+@return DB_SUCESS	if successfully load FK constraint */
+dberr_t
+dd_table_load_fk(
+	dd::cache::Dictionary_client*	client,
+	const char*			tbl_name,
+	const char**			col_names,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
+	THD*				thd,
+	bool				dict_locked,
+	bool				check_charsets,
+	dict_names_t*			fk_tables);
+
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
 based on a Global DD object.
-@param[in,out]  client          data dictionary client
-@param[in]      dd_table        Global DD table object
-@param[in]      dd_part         Global DD partition or subpartition, or NULL
-@param[in]      tbl_name        table name, or NULL if not known
-@param[in,out]  uncached        NULL if the table should be added to the cache;
-                                if not, *uncached=true will be assigned
-                                when ib_table was allocated but not cached
-                                (used during delete_table and rename_table)
-@param[out]     table           InnoDB table (NULL if not found or loadable)
-@param[in]      skip_mdl        whether meta-data locking is skipped
+@param[in,out]	client		data dictionary client
+@param[in]	dd_table	Global DD table object
+@param[in]	dd_part		Global DD partition or subpartition, or NULL
+@param[in]	tbl_name	table name, or NULL if not known
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	table		InnoDB table (NULL if not found or loadable)
+@param[in]	skip_mdl	whether meta-data locking is skipped
 @return error code
-@retval 0       on success */
+@retval 0	on success */
 int
 dd_table_open_on_dd_obj(
-        dd::cache::Dictionary_client*   client,
-        const dd::Table&                dd_table,
-        const dd::Partition*            dd_part,
-        const char*                     tbl_name,
-        bool*                           uncached,
-        dict_table_t*&                  table,
-        bool                            skip_mdl,
-        THD*                            thd);
+	dd::cache::Dictionary_client*	client,
+	const dd::Table&		dd_table,
+	const dd::Partition*		dd_part,
+	const char*			tbl_name,
+	bool*				uncached,
+	dict_table_t*&			table,
+	bool				skip_mdl,
+	THD*				thd);
 
 /** Open a persistent InnoDB table based on table id.
 @param[in]	table_id	table identifier
@@ -264,13 +321,13 @@ dd_table_close(
 
 /** Set the discard flag for a dd table.
 @param[in,out]	thd	current thread
-@param[in]	name	InnoDB table name
+@param[in]	table	InnoDB table
 @param[in]	discard	discard flag
 @retval false if fail. */
 bool
-dd_table_set_discard_flag(
+dd_table_discard_tablespace(
 	THD*			thd,
-	const char*		name,
+	dict_table_t*		table,
 	bool			discard);
 
 /** Open an internal handle to a persistent InnoDB table by name.
@@ -339,6 +396,16 @@ dd_open_table(
 	dict_table_t*&			ib_table,
 	const Table*			dd_table,
 	bool				skip_mdl,
+	THD*				thd);
+
+/** Open foreign tables reference a table.
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+void
+dd_open_fk_tables(
+	dd::cache::Dictionary_client*	client,
+	dict_names_t&			fk_list,
 	THD*				thd);
 
 /** Get dd tablespace by dd space id
@@ -428,6 +495,31 @@ dd_set_hidden_unique_index(
         dd::Index*              index,
         const char*             name,
         const dd::Column*       column);
+
+/** Check whether there exist a column named as "FTS_DOC_ID", which is
+reserved for InnoDB FTS Doc ID
+@param[in]      thd             MySQL thread handle
+@param[in]      form            information on table
+                                columns and indexes
+@param[out]     doc_id_col      Doc ID column number if
+                                there exist a FTS_DOC_ID column,
+                                ULINT_UNDEFINED if column is of the
+                                wrong type/name/size
+@return true if there exist a "FTS_DOC_ID" column */
+UNIV_INLINE
+bool
+create_table_check_doc_id_col(
+	THD*		thd,   
+	const TABLE*	form,  
+	ulint*		doc_id_col);
+
+/** Return a display name for the row format
+@param[in]      row_format      Row Format
+@return row format name */
+UNIV_INLINE
+const char*
+get_row_format_name(
+	enum row_type row_format);
 
 #include "dict0dd.ic"
 #endif

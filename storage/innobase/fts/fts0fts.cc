@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1533,7 +1533,7 @@ fts_rename_one_aux_table(
 	fts_table_new_name[table_new_name_len] = 0;
 
 	return(row_rename_table_for_mysql(
-		fts_table_old_name, fts_table_new_name, trx, false));
+		fts_table_old_name, fts_table_new_name, nullptr, trx, false));
 }
 
 /****************************************************************//**
@@ -6400,8 +6400,8 @@ fts_rename_one_aux_table_to_hex_format(
 		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 	}
 
-	error = row_rename_table_for_mysql(aux_table->name, new_name, trx,
-					   FALSE);
+	error = row_rename_table_for_mysql(aux_table->name, new_name, nullptr,
+					   trx, FALSE);
 
 	if (error != DB_SUCCESS) {
 		ib::warn() << "Failed to rename aux table '"
@@ -6544,7 +6544,8 @@ fts_rename_aux_tables_to_hex_format_low(
 			DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS_AUX_HEX_NAME);
 			err = row_rename_table_for_mysql(table->name.m_name,
 							 aux_table->name,
-							 trx_bg, FALSE);
+							 nullptr, trx_bg,
+							 FALSE);
 
 			trx_bg->dict_operation_lock_mode = 0;
 			dd_table_close(table, thd, &mdl, true);

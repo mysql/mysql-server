@@ -312,7 +312,7 @@ col_1_int	col_2_varchar
 3	a3
 # Enter Invalid value: PK-FK relationship violation
 INSERT INTO t1_fk VALUES (100,'a100');
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1_fk`, CONSTRAINT `t1_fk_ibfk_1` FOREIGN KEY (`col_2_varchar`) REFERENCES `t1` (`col_2_varchar`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1_fk`, CONSTRAINT `t1_fk_ibfk_1` FOREIGN KEY (`col_2_varchar`) REFERENCES `t1` (`col_2_varchar`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SET AUTOCOMMIT = 0;
 INSERT INTO t1_fk VALUES (4,'a4'),(5,'a5');
 ROLLBACK;

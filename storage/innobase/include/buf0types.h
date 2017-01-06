@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -150,6 +150,11 @@ typedef rw_lock_t BPageLock;
 /** Page identifier. */
 class page_id_t {
 public:
+
+	/** Default constructor */
+	page_id_t() : m_space(), m_page_no(), m_fold()
+	{
+	}
 
 	/** Constructor from (space, page_no).
 	@param[in]	space	tablespace id

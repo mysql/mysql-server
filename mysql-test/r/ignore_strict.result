@@ -79,28 +79,28 @@ CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = In
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1), (2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 INSERT IGNORE INTO t3 VALUES (1), (2);
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE t3 SET c=2 where c=1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t3 SET c=2 where c=1;
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE FROM t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE IGNORE FROM t1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t1;
 a
 1
 UPDATE t2 SET b=b+5;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t2 SET b=b+5;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t2;
 b
 1
@@ -289,28 +289,28 @@ CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = In
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1), (2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 INSERT IGNORE INTO t3 VALUES (1), (2);
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE t3 SET c=2 where c=1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t3 SET c=2 where c=1;
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE FROM t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE IGNORE FROM t1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t1;
 a
 1
 UPDATE t2 SET b=b+5;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t2 SET b=b+5;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t2;
 b
 1
@@ -698,28 +698,28 @@ CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = In
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1), (2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 INSERT IGNORE INTO t3 VALUES (1), (2);
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE t3 SET c=2 where c=1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t3 SET c=2 where c=1;
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE FROM t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE IGNORE FROM t1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t1;
 a
 1
 UPDATE t2 SET b=b+5;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t2 SET b=b+5;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t2;
 b
 1
@@ -736,12 +736,12 @@ UPDATE IGNORE t1,t3 SET t1.a=5 where t1.a=t3.c;
 affected rows: 0
 info: Rows matched: 1  Changed: 0  Warnings: 1
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 UPDATE IGNORE t2,t3 SET t2.b=5 where t2.b=t3.c;
 affected rows: 0
 info: Rows matched: 1  Changed: 0  Warnings: 1
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DROP TABLE t3,t2,t1;
 # Test cases to increase Code Coverage
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
@@ -751,11 +751,11 @@ INSERT INTO t1 VALUES(1),(2);
 INSERT INTO t2 VALUES (3),(4);
 INSERT INTO t3 VALUES(3),(4);
 DELETE t1.*,t2.* FROM t1,t2;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DELETE IGNORE t1.*,t2.* FROM t1,t2;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM t1;
 a
 SELECT * FROM t2;
@@ -767,10 +767,10 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (b INT PRIMARY KEY, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(2) ON DUPLICATE KEY UPDATE b=b-1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 INSERT IGNORE INTO t2 VALUES(2) ON DUPLICATE KEY UPDATE b=b-1;
 Warnings:
-Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 DROP table t2,t1;
 #
 # Bug#14786621 ASSERTION FAILED: THD->IS_ERROR() || KILL:

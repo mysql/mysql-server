@@ -2290,9 +2290,7 @@ row_import_cleanup(
 
 	/* Set the TABLESPACE DISCARD flag in the table definition
 	on disk. */
-	dd_table_set_discard_flag(thd,
-				  prebuilt->table->name.m_name,
-				  false);
+	dd_table_discard_tablespace(thd, prebuilt->table, false);
 
 	return(err);
 }

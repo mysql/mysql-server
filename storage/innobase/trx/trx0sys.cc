@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,8 +57,8 @@ ReadView::check_trx_id_sanity(
 	trx_id_t		id,
 	const table_name_t&	name)
 {
-	if (&name == &dict_sys->table_metadata->name) {
-		/* The table mysql.innodb_table_metadata uses a
+	if (&name == &dict_sys->dynamic_metadata->name) {
+		/* The table mysql.innodb_dynamic_metadata uses a
 		constant DB_TRX_ID=~0. */
 		ut_ad(id == (1ULL << 48) - 1);
 		return;

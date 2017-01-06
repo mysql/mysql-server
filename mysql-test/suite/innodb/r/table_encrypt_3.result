@@ -1251,7 +1251,7 @@ c11	c22	right(c33, 20)
 INSERT INTO tde_db.t_encrypt2(f1,f2) VALUES(2,"general tablespace option");
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 INSERT INTO tde_db.t_encrypt2(f1,f2) VALUES(8,"general tablespace option");
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`tde_db`.`t_encrypt2`, CONSTRAINT `t_encrypt2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t_encrypt` (`c1`) ON UPDATE CASCADE)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`tde_db`.`t_encrypt2`, CONSTRAINT `t_encrypt2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t_encrypt` (`c1`) ON DELETE NO ACTION ON UPDATE CASCADE)
 SELECT f1,f2 FROM tde_db.t_encrypt2;
 f1	f2
 1	transparanet tablespace encryption

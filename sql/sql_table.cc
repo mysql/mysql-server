@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12432,6 +12432,23 @@ end_inplace_noop:
   if ((old_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       old_db_type->post_ddl)
     old_db_type->post_ddl(thd);
+
+  {
+    TABLE_LIST table_list;
+    table_list.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
+                              alter_ctx.new_name, strlen(alter_ctx.new_name),
+                              alter_ctx.new_alias, TL_READ);
+    table_list.mdl_request.ticket= alter_ctx.is_table_renamed() ?
+                                   target_mdl_request.ticket : mdl_ticket;
+
+    Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+
+    if (open_table(thd, &table_list, &ot_ctx))
+      DBUG_RETURN(true);
+
+    DBUG_ASSERT(table_list.table == thd->open_tables);
+    close_thread_table(thd, &thd->open_tables);
+  }
 
 end_inplace:
 
