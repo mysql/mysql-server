@@ -13273,7 +13273,7 @@ create_table_info_t::create_table(
 			innobase_table = dd_table_open_on_name_in_mem(
 				m_table_name, true, DICT_ERR_IGNORE_NONE);
 			err = dd_table_load_fk(
-				client, m_table_name, nullptr,
+				client, m_table_name,
 				innobase_table, dd_table, m_thd, true,
 				true, nullptr);
 			dd_table_close(innobase_table, NULL, NULL, true);

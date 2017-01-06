@@ -2124,7 +2124,6 @@ dd_tablespace_is_implicit(
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
-@param[in]	col_names	column names, or NULL
 @param[in]	dict_locked	True if dict_sys->mutex is already held,
 				otherwise false
 @return DB_SUCESS 	if successfully load FK constraint */
@@ -2132,7 +2131,6 @@ dberr_t
 dd_table_load_fk_from_dd(
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
-	const char**			col_names,
 	bool				dict_locked)
 {
 	dberr_t	err = DB_SUCCESS;
@@ -2252,7 +2250,7 @@ dd_table_load_fk_from_dd(
 		/* Fill in foreign->foreign_table and index, then add to
 		dict_table_t */
 		err = dict_foreign_add_to_cache(
-			foreign, col_names, FALSE, DICT_ERR_IGNORE_NONE);
+			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);
 		ut_ad(err == DB_SUCCESS);
 		if (!dict_locked) {
 			mutex_exit(&dict_sys->mutex);
@@ -2269,7 +2267,6 @@ dd_table_load_fk_from_dd(
 the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
 @param[in]	tbl_name	Table Name
-@param[in]	col_names	column names, or NULL
 @param[in,out]	uncached	NULL if the table should be added to the cache;
 				if not, *uncached=true will be assigned
 				when ib_table was allocated but not cached
@@ -2286,7 +2283,6 @@ dberr_t
 dd_table_load_fk(
 	dd::cache::Dictionary_client*	client,
 	const char*			tbl_name,
-	const char**			col_names,
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
 	THD*				thd,
@@ -2296,8 +2292,7 @@ dd_table_load_fk(
 {
 	dberr_t	err = DB_SUCCESS;
 
-	err = dd_table_load_fk_from_dd(m_table, dd_table, col_names,
-				       dict_locked);
+	err = dd_table_load_fk_from_dd(m_table, dd_table, dict_locked);
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
 	if (!strstr(tbl_name, "mysql") && fk_tables != nullptr) {
@@ -2344,7 +2339,7 @@ dd_table_load_fk(
 						ut_ad(fk->referenced_table == m_table);
 					} else {
 						err = dict_foreign_add_to_cache(
-							fk, col_names,
+							fk, NULL,
 							check_charsets,
 							DICT_ERR_IGNORE_NONE);
 					}
@@ -2559,7 +2554,7 @@ dd_open_table_one(
 	/* Load foreign key info. It could also register child table(s) that
 	refers to current table */
 	if (exist == NULL) {
-		dd_table_load_fk(client, norm_name, nullptr,
+		dd_table_load_fk(client, norm_name,
 				 m_table, &dd_table->table(), thd, false,
 				 true, &fk_list);
 	}

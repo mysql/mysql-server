@@ -7742,8 +7742,7 @@ dberr_t
 innobase_update_foreign_cache(
 /*==========================*/
 	ha_innobase_inplace_ctx*	ctx,
-	THD*				user_thd,
-	dd::Table*			dd_table)
+	THD*				user_thd)
 {
 	dict_table_t*	user_table;
 	dberr_t		err = DB_SUCCESS;
@@ -7780,16 +7779,17 @@ innobase_update_foreign_cache(
 		}
 	}
 #ifdef INNODB_DD_TABLE
+	/* NewDD TODO: Replace this with dd_table_load_fk(), etc. */
+
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
 	dict_names_t	fk_tables;
 
-	dd::cache::Dictionary_client*	client = dd::get_dd_client(user_thd);
-        dd::cache::Dictionary_client::Auto_releaser	releaser(client);
-	err = dd_table_load_fk(
-		client, user_table->name.m_name, ctx->col_names,
-		user_table, dd_table, user_thd, true, true, &fk_tables);
+	err = dict_load_foreigns(user_table->name.m_name,
+				 ctx->col_names, false, true,
+				 DICT_ERR_IGNORE_NONE,
+				 fk_tables);
 
 	if (err == DB_CANNOT_ADD_CONSTRAINT) {
 		fk_tables.clear();
@@ -7797,10 +7797,10 @@ innobase_update_foreign_cache(
 		/* It is possible there are existing foreign key are
 		loaded with "foreign_key checks" off,
 		so let's retry the loading with charset_check is off */
-		err = dd_table_load_fk(
-			client, user_table->name.m_name, ctx->col_names,
-			user_table, dd_table, user_thd, true, false,
-			&fk_tables);
+		err = dict_load_foreigns(user_table->name.m_name,
+					 ctx->col_names, false, false,
+					 DICT_ERR_IGNORE_NONE,
+					 fk_tables);
 
 		/* The load with "charset_check" off is successful, warn
 		the user that the foreign key has loaded with mis-matched
@@ -8971,15 +8971,12 @@ ha_innobase::commit_inplace_alter_table_impl(
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
 
-			error = innobase_update_foreign_cache(
-				ctx, m_user_thd, &new_dd_tab->table());
-
+			error = innobase_update_foreign_cache(ctx, m_user_thd);
 			if (error != DB_SUCCESS) {
 				goto foreign_fail;
 			}
 		} else {
-			error = innobase_update_foreign_cache(
-				ctx, m_user_thd, &new_dd_tab->table());
+			error = innobase_update_foreign_cache(ctx, m_user_thd);
 
 			if (error != DB_SUCCESS) {
 foreign_fail:
