@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -610,12 +611,15 @@ trx_rollback_or_clean_all_recovered(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	my_thread_init();
+
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(trx_rollback_clean_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
 	trx_rollback_or_clean_recovered(TRUE);
 
+	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 
