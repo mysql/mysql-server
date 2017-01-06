@@ -39,7 +39,9 @@ PFS_index_global_variables::match(const System_variable *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -228,7 +230,9 @@ int
 table_global_variables::make_row(const System_variable *system_var)
 {
   if (system_var->is_null())
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
   m_row.m_variable_value.make_row(system_var);

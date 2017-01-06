@@ -77,7 +77,9 @@ PFS_index_hosts_by_host::match(PFS_host *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -137,7 +139,9 @@ table_hosts::make_row(PFS_host *pfs)
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(pfs))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   PFS_connection_stat_visitor visitor;
   PFS_connection_iterator::visit_host(pfs,
@@ -147,7 +151,9 @@ table_hosts::make_row(PFS_host *pfs)
                                       &visitor);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_connection_stat.set(&visitor.m_stat);
   return 0;

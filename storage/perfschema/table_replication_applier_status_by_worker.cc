@@ -118,7 +118,9 @@ PFS_index_rpl_applier_status_by_worker_by_channel::match(Master_info *mi)
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
     if (!m_key.match(row.channel_name, row.channel_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -148,10 +150,14 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
     mysql_mutex_unlock(&mi->rli->data_lock);
 
     if (row.thread_id_is_null)
+    {
       return false;
+    }
 
     if (!m_key.match(row.thread_id))
+    {
       return false;
+    }
   }
 
   return true;
@@ -274,7 +280,9 @@ table_replication_applier_status_by_worker::rnd_pos(
   mi = channel_map.get_mi_at_pos(m_pos.m_index_1);
 
   if (!mi || !mi->rli || !mi->host[0])
+  {
     goto end;
+  }
 
   DBUG_ASSERT(m_pos.m_index_1 < mi->rli->get_worker_count());
   /*
@@ -421,15 +429,23 @@ table_replication_applier_status_by_worker::make_row(Master_info *mi)
       m_row.thread_id_is_null = false;
     }
     else
+    {
       m_row.thread_id_is_null = true;
+    }
   }
   else
+  {
     m_row.thread_id_is_null = true;
+  }
 
   if (mi->rli->slave_running)
+  {
     m_row.service_state = PS_RPL_YES;
+  }
   else
+  {
     m_row.service_state = PS_RPL_NO;
+  }
 
   if (mi->rli->currently_executing_gtid.type == GTID_GROUP)
   {
@@ -505,15 +521,23 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
       m_row.thread_id_is_null = false;
     }
     else /* no instrumentation found */
+    {
       m_row.thread_id_is_null = true;
+    }
   }
   else
+  {
     m_row.thread_id_is_null = true;
+  }
 
   if (w->running_status == Slave_worker::RUNNING)
+  {
     m_row.service_state = PS_RPL_YES;
+  }
   else
+  {
     m_row.service_state = PS_RPL_NO;
+  }
 
   m_row.last_error_number = (unsigned int)w->last_error().number;
 
@@ -590,9 +614,13 @@ table_replication_applier_status_by_worker::read_row_values(
         break;
       case 2: /*thread_id*/
         if (m_row.thread_id_is_null)
+        {
           f->set_null();
+        }
         else
+        {
           set_field_ulonglong(f, m_row.thread_id);
+        }
         break;
       case 3: /*service_state*/
         set_field_enum(f, m_row.service_state);

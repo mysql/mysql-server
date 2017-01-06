@@ -86,7 +86,9 @@ update_derived_flags()
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   update_table_share_derived_flags(thread);
   update_program_share_derived_flags(thread);
@@ -100,19 +102,25 @@ PFS_index_setup_objects::match(PFS_setup_object *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs->get_object_type()))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -124,19 +132,25 @@ PFS_index_setup_objects::match(row_setup_objects *row)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(row->m_object_type))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(row->m_schema_name, row->m_schema_name_length))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(row->m_object_name, row->m_object_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -193,15 +207,21 @@ table_setup_objects::write_row(TABLE *table, unsigned char *, Field **fields)
   /* Reject illegal enum values in OBJECT_TYPE */
   if (object_type < FIRST_OBJECT_TYPE || object_type > LAST_OBJECT_TYPE ||
       object_type == OBJECT_TYPE_TEMPORARY_TABLE)
+  {
     return HA_ERR_NO_REFERENCED_ROW;
+  }
 
   /* Reject illegal enum values in ENABLED */
   if ((enabled_value != ENUM_YES) && (enabled_value != ENUM_NO))
+  {
     return HA_ERR_NO_REFERENCED_ROW;
+  }
 
   /* Reject illegal enum values in TIMED */
   if ((timed_value != ENUM_YES) && (timed_value != ENUM_NO))
+  {
     return HA_ERR_NO_REFERENCED_ROW;
+  }
 
   enabled = (enabled_value == ENUM_YES) ? true : false;
   timed = (timed_value == ENUM_YES) ? true : false;
@@ -209,7 +229,9 @@ table_setup_objects::write_row(TABLE *table, unsigned char *, Field **fields)
   result = insert_setup_object(
     object_type, object_schema, object_name, enabled, timed);
   if (result == 0)
+  {
     result = update_derived_flags();
+  }
   return result;
 }
 
@@ -218,7 +240,9 @@ table_setup_objects::delete_all_rows(void)
 {
   int result = reset_setup_object();
   if (result == 0)
+  {
     result = update_derived_flags();
+  }
   return result;
 }
 
@@ -326,7 +350,9 @@ table_setup_objects::make_row(PFS_setup_object *pfs)
   m_row.m_timed_ptr = &pfs->m_timed;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -357,14 +383,18 @@ table_setup_objects::read_row_values(TABLE *table,
           set_field_varchar_utf8(
             f, m_row.m_schema_name, m_row.m_schema_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 2: /* OBJECT_NAME */
         if (m_row.m_object_name_length)
           set_field_varchar_utf8(
             f, m_row.m_object_name, m_row.m_object_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* ENABLED */
         set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
@@ -405,14 +435,18 @@ table_setup_objects::update_row_values(TABLE *table,
         value = (enum_yes_no)get_field_enum(f);
         /* Reject illegal enum values in ENABLED */
         if ((value != ENUM_YES) && (value != ENUM_NO))
+        {
           return HA_ERR_NO_REFERENCED_ROW;
+        }
         *m_row.m_enabled_ptr = (value == ENUM_YES) ? true : false;
         break;
       case 4: /* TIMED */
         value = (enum_yes_no)get_field_enum(f);
         /* Reject illegal enum values in TIMED */
         if ((value != ENUM_YES) && (value != ENUM_NO))
+        {
           return HA_ERR_NO_REFERENCED_ROW;
+        }
         *m_row.m_timed_ptr = (value == ENUM_YES) ? true : false;
         break;
       default:
@@ -436,6 +470,8 @@ table_setup_objects::delete_row_values(TABLE *, const unsigned char *, Field **)
   int result = delete_setup_object(object_type, &object_schema, &object_name);
 
   if (result == 0)
+  {
     result = update_derived_flags();
+  }
   return result;
 }

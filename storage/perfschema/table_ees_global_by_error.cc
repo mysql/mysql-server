@@ -97,7 +97,9 @@ PFS_index_ees_global_by_error::match_error_index(uint error_index)
   if (m_fields >= 1)
   {
     if (!m_key.match_error_index(error_index))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -168,7 +170,9 @@ table_ees_global_by_error::rnd_pos(const void *pos)
   for (; m_pos.has_more_error(); m_pos.next_error())
   {
     if (!make_row(m_pos.m_index))
+    {
       return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;

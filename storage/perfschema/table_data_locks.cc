@@ -327,7 +327,9 @@ table_data_locks::read_row_values(TABLE *table,
   Field *f;
 
   if (unlikely(m_row == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 2);

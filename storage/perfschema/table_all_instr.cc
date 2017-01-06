@@ -179,7 +179,9 @@ table_all_instr::index_next(void)
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
     if (!m_opened_index->match_view(m_pos.m_index_1))
+    {
       continue;
+    }
 
     switch (m_pos.m_index_1)
     {

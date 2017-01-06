@@ -102,7 +102,9 @@ PFS_index_ews_global_by_event_name::match(PFS_instr_class *instr_class)
   if (m_fields >= 1)
   {
     if (!m_key.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -277,9 +279,13 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
     DBUG_ASSERT(m_pos.m_index_2 >= 1);
     DBUG_ASSERT(m_pos.m_index_2 <= 2);
     if (m_pos.m_index_2 == 1)
+    {
       return make_table_io_row(&global_table_io_class);
+    }
     else
+    {
       return make_table_lock_row(&global_table_lock_class);
+    }
     break;
   case pos_ews_global_by_event_name::VIEW_SOCKET:
     socket_class = find_socket_class(m_pos.m_index_2);
@@ -335,7 +341,9 @@ table_ews_global_by_event_name::index_next(void)
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
     if (!m_opened_index->match_view(m_pos.m_index_1))
+    {
       continue;
+    }
 
     switch (m_pos.m_index_1)
     {
@@ -410,9 +418,13 @@ table_ews_global_by_event_name::index_next(void)
           {
             m_next_pos.set_after(&m_pos);
             if (m_pos.m_index_2 == 1)
+            {
               return make_table_io_row(table_class);
+            }
             else
+            {
               return make_table_lock_row(table_class);
+            }
           }
           m_pos.set_after(&m_pos);
         }

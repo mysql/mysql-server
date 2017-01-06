@@ -39,7 +39,9 @@ int
 init_prepared_stmt(const PFS_global_param *param)
 {
   if (global_prepared_stmt_container.init(param->m_prepared_stmt_sizing))
+  {
     return 1;
+  }
 
   reset_prepared_stmt_instances();
   return 0;
@@ -100,11 +102,15 @@ create_prepared_stmt(void *identity,
     {
       pfs->m_stmt_name_length = stmt_name_length;
       if (pfs->m_stmt_name_length > PS_NAME_LENGTH)
+      {
         pfs->m_stmt_name_length = PS_NAME_LENGTH;
+      }
       strncpy(pfs->m_stmt_name, stmt_name, pfs->m_stmt_name_length);
     }
     else
+    {
       pfs->m_stmt_name_length = 0;
+    }
 
     pfs->m_stmt_id = stmt_id;
     pfs->m_owner_thread_id = thread->m_thread_internal_id;
@@ -132,9 +138,13 @@ create_prepared_stmt(void *identity,
     if (pfs_stmt)
     {
       if (pfs_program)
+      {
         pfs->m_owner_event_id = pfs_stmt->m_nesting_event_id;
+      }
       else
+      {
         pfs->m_owner_event_id = pfs_stmt->m_event_id;
+      }
     }
 
     /* Insert this record. */

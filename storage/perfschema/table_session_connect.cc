@@ -58,7 +58,9 @@ PFS_index_session_connect::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -70,7 +72,9 @@ PFS_index_session_connect::match(row_session_connect_attrs *row)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(row->m_attr_name, row->m_attr_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -180,10 +184,14 @@ parse_length_encoded_string(const char **ptr,
 
   /* we don't tolerate NULL as a length */
   if (data_length == NULL_LENGTH)
+  {
     return true;
+  }
 
   if (*ptr - start_ptr + data_length > input_length)
+  {
     return true;
+  }
 
   copy_length = well_formed_copy_nchars(&my_charset_utf8_bin,
                                         dest,
@@ -256,10 +264,14 @@ read_nth_attr(const char *connect_attrs,
                                     connect_attrs_cs,
                                     32) ||
         !copy_length)
+    {
       return false;
+    }
 
     if (idx == ordinal)
+    {
       *attr_name_length = copy_length;
+    }
 
     /* read the value */
     if (parse_length_encoded_string(&ptr,
@@ -270,13 +282,19 @@ read_nth_attr(const char *connect_attrs,
                                     connect_attrs_length,
                                     connect_attrs_cs,
                                     1024))
+    {
       return false;
+    }
 
     if (idx == ordinal)
+    {
       *attr_value_length = copy_length;
+    }
 
     if (idx == ordinal)
+    {
       return true;
+    }
   }
 
   return false;
@@ -297,23 +315,31 @@ table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 
   safe_class = sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /* Filtering threads must be done under the protection of the optimistic lock.
    */
   if (!thread_fits(pfs))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /* Make a safe copy of the session attributes */
 
   if (m_copy_session_connect_attrs == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_copy_session_connect_attrs_length = pfs->m_session_connect_attrs_length;
 
   if (m_copy_session_connect_attrs_length >
       session_connect_attrs_size_per_thread)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   memcpy(m_copy_session_connect_attrs,
          pfs->m_session_connect_attrs,
@@ -321,13 +347,19 @@ table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 
   cs = get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
   if (cs == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs->m_session_lock.end_optimistic_lock(&session_lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /*
     Now we have a safe copy of the data,
@@ -348,7 +380,9 @@ table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   {
     /* we don't expect internal threads to have connection attributes */
     if (pfs->m_processlist_id == 0)
+    {
       return HA_ERR_RECORD_DELETED;
+    }
 
     m_row.m_ordinal_position = ordinal;
     m_row.m_process_id = pfs->m_processlist_id;
@@ -379,9 +413,13 @@ table_session_connect::read_row_values(TABLE *table,
       {
       case FO_PROCESS_ID:
         if (m_row.m_process_id != 0)
+        {
           set_field_ulong(f, m_row.m_process_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case FO_ATTR_NAME:
         set_field_varchar_utf8(f, m_row.m_attr_name, m_row.m_attr_name_length);
@@ -391,7 +429,9 @@ table_session_connect::read_row_values(TABLE *table,
           set_field_varchar_utf8(
             f, m_row.m_attr_value, m_row.m_attr_value_length);
         else
+        {
           f->set_null();
+        }
         break;
       case FO_ORDINAL_POSITION:
         set_field_ulong(f, m_row.m_ordinal_position);

@@ -299,7 +299,9 @@ PFS_index_events_statements::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -310,7 +312,9 @@ PFS_index_events_statements::match(PFS_events *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -341,7 +345,9 @@ table_events_statements_common::make_row_part_1(
   PFS_statement_class *unsafe = (PFS_statement_class *)statement->m_class;
   PFS_statement_class *klass = sanitize_statement_class(unsafe);
   if (unlikely(klass == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_thread_internal_id = statement->m_thread_internal_id;
   m_row.m_event_id = statement->m_event_id;
@@ -389,7 +395,9 @@ table_events_statements_common::make_row_part_1(
   m_row.m_sqltext.set_charset(cs);
   m_row.m_sqltext.length(0);
   if (valid_length > 0)
+  {
     m_row.m_sqltext.append(statement->m_sqltext, (uint32)valid_length, cs);
+  }
 
   /* Indicate that sqltext is truncated or not well-formed. */
   if (statement->m_sqltext_truncated ||
@@ -427,7 +435,9 @@ table_events_statements_common::make_row_part_1(
 
   safe_source_file = statement->m_source_file;
   if (unlikely(safe_source_file == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   base = base_name(safe_source_file);
   m_row.m_source_length = my_snprintf(m_row.m_source,
@@ -436,7 +446,9 @@ table_events_statements_common::make_row_part_1(
                                       base,
                                       statement->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
+  {
     m_row.m_source_length = sizeof(m_row.m_source);
+  }
 
   memcpy(m_row.m_message_text,
          statement->m_message_text,
@@ -497,7 +509,9 @@ table_events_statements_common::make_row_part_2(
     compute_digest_text(digest, &m_row.m_digest.m_digest_text);
 
     if (m_row.m_digest.m_digest_text.length() == 0)
+    {
       m_row.m_digest.m_digest_length = 0;
+    }
   }
   else
   {
@@ -537,9 +551,13 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 2: /* END_EVENT_ID */
         if (m_row.m_end_event_id > 0)
+        {
           set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
@@ -549,41 +567,61 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 5: /* TIMER_START */
         if (m_row.m_timer_start != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_start);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 6: /* TIMER_END */
         if (m_row.m_timer_end != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_end);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 7: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_wait);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 8: /* LOCK_TIME */
         if (m_row.m_lock_time != 0)
+        {
           set_field_ulonglong(f, m_row.m_lock_time);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 9: /* SQL_TEXT */
         if (m_row.m_sqltext.length())
           set_field_longtext_utf8(
             f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
         else
+        {
           f->set_null();
+        }
         break;
       case 10: /* DIGEST */
         if (m_row.m_digest.m_digest_length > 0)
           set_field_varchar_utf8(
             f, m_row.m_digest.m_digest, m_row.m_digest.m_digest_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 11: /* DIGEST_TEXT */
         if (m_row.m_digest.m_digest_text.length() > 0)
@@ -591,34 +629,46 @@ table_events_statements_common::read_row_values(TABLE *table,
                                   m_row.m_digest.m_digest_text.ptr(),
                                   m_row.m_digest.m_digest_text.length());
         else
+        {
           f->set_null();
+        }
         break;
       case 12: /* CURRENT_SCHEMA */
         if (m_row.m_current_schema_name_length)
           set_field_varchar_utf8(
             f, m_row.m_current_schema_name, m_row.m_current_schema_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 13: /* OBJECT_TYPE */
         if (m_row.m_object_name_length > 0)
+        {
           set_field_object_type(f, m_row.m_object_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 14: /* OBJECT_SCHEMA */
         if (m_row.m_schema_name_length)
           set_field_varchar_utf8(
             f, m_row.m_schema_name, m_row.m_schema_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 15: /* OBJECT_NAME */
         if (m_row.m_object_name_length)
           set_field_varchar_utf8(
             f, m_row.m_object_name, m_row.m_object_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 16: /* OBJECT_INSTANCE_BEGIN */
         f->set_null();
@@ -628,16 +678,24 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 18: /* RETURNED_SQLSTATE */
         if (m_row.m_sqlstate[0] != 0)
+        {
           set_field_varchar_utf8(f, m_row.m_sqlstate, SQLSTATE_LENGTH);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 19: /* MESSAGE_TEXT */
         len = strlen(m_row.m_message_text);
         if (len)
+        {
           set_field_varchar_utf8(f, m_row.m_message_text, len);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 20: /* ERRORS */
         set_field_ulonglong(f, m_row.m_error_count);
@@ -695,15 +753,23 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 38: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_nesting_event_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 39: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_enum(f, m_row.m_nesting_event_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 40: /* NESTING_EVENT_LEVEL */
         set_field_ulong(f, m_row.m_nesting_event_level);
@@ -759,13 +825,17 @@ table_events_statements_current::rnd_next(void)
       {
         /* Display the last top level statement, when completed */
         if (m_pos.m_index_2 >= 1)
+        {
           continue;
+        }
       }
       else
       {
         /* Display all pending statements, when in progress */
         if (m_pos.m_index_2 >= safe_events_statements_count)
+        {
           continue;
+        }
       }
 
       statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
@@ -795,13 +865,17 @@ table_events_statements_current::rnd_pos(const void *pos)
     {
       /* Display the last top level statement, when completed */
       if (m_pos.m_index_2 >= 1)
+      {
         return HA_ERR_RECORD_DELETED;
+      }
     }
     else
     {
       /* Display all pending statements, when in progress */
       if (m_pos.m_index_2 >= safe_events_statements_count)
+      {
         return HA_ERR_RECORD_DELETED;
+      }
     }
 
     DBUG_ASSERT(m_pos.m_index_2 < statement_stack_max);
@@ -839,13 +913,17 @@ table_events_statements_current::index_next(void)
           {
             /* Display the last top level statement, when completed */
             if (m_pos.m_index_2 >= 1)
+            {
               break;
+            }
           }
           else
           {
             /* Display all pending statements, when in progress */
             if (m_pos.m_index_2 >= safe_events_statements_count)
+            {
               break;
+            }
           }
 
           statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
@@ -884,7 +962,9 @@ table_events_statements_current::make_row(PFS_thread *pfs_thread,
   pfs_thread->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
 
   if (table_events_statements_common::make_row_part_1(statement, &digest) != 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs_thread->m_stmt_lock.end_optimistic_lock(&stmt_lock) ||
       !pfs_thread->m_lock.end_optimistic_lock(&lock))
@@ -954,7 +1034,9 @@ table_events_statements_history::rnd_next(void)
   bool has_more_thread = true;
 
   if (events_statements_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -1004,7 +1086,9 @@ table_events_statements_history::rnd_pos(const void *pos)
 
     if (!pfs_thread->m_statements_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
 
     statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
     if (statement->m_class != NULL)
@@ -1024,7 +1108,9 @@ table_events_statements_history::index_next(void)
   bool has_more_thread = true;
 
   if (events_statements_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -1081,7 +1167,9 @@ table_events_statements_history::make_row(PFS_thread *pfs_thread,
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
   if (table_events_statements_common::make_row_part_1(statement, &digest) != 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs_thread->m_lock.end_optimistic_lock(&lock))
   {
@@ -1150,10 +1238,14 @@ table_events_statements_history_long::rnd_next(void)
   uint limit;
 
   if (events_statements_history_long_size == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   if (events_statements_history_long_full)
+  {
     limit = events_statements_history_long_size;
+  }
   else
     limit = events_statements_history_long_index.m_u32 %
             events_statements_history_long_size;
@@ -1180,23 +1272,31 @@ table_events_statements_history_long::rnd_pos(const void *pos)
   uint limit;
 
   if (events_statements_history_long_size == 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   set_position(pos);
 
   if (events_statements_history_long_full)
+  {
     limit = events_statements_history_long_size;
+  }
   else
     limit = events_statements_history_long_index.m_u32 %
             events_statements_history_long_size;
 
   if (m_pos.m_index >= limit)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   statement = &events_statements_history_long_array[m_pos.m_index];
 
   if (statement->m_class == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_row(statement);
 }
@@ -1208,7 +1308,9 @@ table_events_statements_history_long::make_row(PFS_events_statements *statement)
 
   digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   if (table_events_statements_common::make_row_part_1(statement, &digest) != 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return table_events_statements_common::make_row_part_2(&digest);
 }

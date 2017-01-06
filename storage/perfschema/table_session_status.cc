@@ -39,7 +39,9 @@ PFS_index_session_status::match(const Status_variable *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -235,10 +237,14 @@ table_session_status::make_row(const Status_variable *status_var)
 {
   if (m_row.m_variable_name.make_row(status_var->m_name,
                                      status_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(status_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

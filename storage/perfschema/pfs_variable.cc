@@ -37,7 +37,9 @@ Find_THD_variable::operator()(THD *thd)
 {
   // TODO: filter bg threads?
   if (thd != m_unsafe_thd)
+  {
     return false;
+  }
 
   /* Hold this lock to keep THD during materialization. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -166,7 +168,9 @@ PFS_system_variable_cache::do_materialize_global(void)
      during materialization.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_GLOBAL, true);
+  }
 
   /* Resolve the value for each SHOW_VAR in the array, add to cache. */
   for (Show_var_array::iterator show_var = m_show_var_array.begin();
@@ -232,7 +236,9 @@ PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd)
      while this thread is materialized.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_SESSION, false);
+  }
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
@@ -332,7 +338,9 @@ PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
 
   /* Use a temporary mem_root to avoid depleting THD mem_root. */
   if (m_use_mem_root)
+  {
     set_mem_root();
+  }
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(pfs_thread)) != NULL)
@@ -361,7 +369,9 @@ PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
 
   /* Mark mem_root blocks as free. */
   if (m_use_mem_root)
+  {
     clear_mem_root();
+  }
 
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return ret;
@@ -439,7 +449,9 @@ PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd)
      while this thread is materialized.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_SESSION, true);
+  }
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
@@ -496,7 +508,9 @@ PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd)
      while this thread is materialized.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_SESSION, false);
+  }
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
@@ -604,7 +618,9 @@ System_variable::init(THD *target_thd,
                       enum_var_type query_scope)
 {
   if (show_var == NULL || show_var->name == NULL)
+  {
     return;
+  }
 
   enum_mysql_show_type show_var_type = show_var->type;
   DBUG_ASSERT(show_var_type == SHOW_SYS);
@@ -615,7 +631,9 @@ System_variable::init(THD *target_thd,
 
   /* Block remote target thread from updating this system variable. */
   if (target_thd != current_thread)
+  {
     mysql_mutex_lock(&target_thd->LOCK_thd_sysvar);
+  }
   /* Block system variable additions or deletions. */
   mysql_mutex_lock(&LOCK_global_system_variables);
 
@@ -641,12 +659,16 @@ System_variable::init(THD *target_thd,
 
   /* Returned value may reference a string other than m_value_str. */
   if (value != m_value_str)
+  {
     memcpy(m_value_str, value, m_value_length);
+  }
   m_value_str[m_value_length] = 0;
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (target_thd != current_thread)
+  {
     mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
+  }
 
 #ifndef EMBEDDED_LIBRARY
   if (show_var_type != SHOW_FUNC && query_scope == OPT_GLOBAL &&
@@ -655,7 +677,9 @@ System_variable::init(THD *target_thd,
                          m_name,
                          value,
                          (uint)m_value_length))
+  {
     return;
+  }
 #endif
 
   m_initialized = true;
@@ -668,7 +692,9 @@ void
 System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
 {
   if (show_var == NULL || show_var->name == NULL)
+  {
     return;
+  }
 
   THD *current_thread = current_thd;
 
@@ -677,7 +703,9 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
 
   /* Block remote target thread from updating this system variable. */
   if (target_thd != current_thread)
+  {
     mysql_mutex_lock(&target_thd->LOCK_thd_sysvar);
+  }
   /* Block system variable additions or deletions. */
   mysql_mutex_lock(&LOCK_global_system_variables);
 
@@ -717,7 +745,9 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (target_thd != current_thread)
+  {
     mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
+  }
 
   m_initialized = true;
 }
@@ -742,13 +772,19 @@ int
 PFS_status_variable_cache::materialize_user(PFS_user *pfs_user)
 {
   if (!pfs_user)
+  {
     return 1;
+  }
 
   if (is_materialized(pfs_user))
+  {
     return 0;
+  }
 
   if (!pfs_user->m_lock.is_populated())
+  {
     return 1;
+  }
 
   /* Set callback function. */
   m_sum_client_status = sum_user_status;
@@ -762,13 +798,19 @@ int
 PFS_status_variable_cache::materialize_host(PFS_host *pfs_host)
 {
   if (!pfs_host)
+  {
     return 1;
+  }
 
   if (is_materialized(pfs_host))
+  {
     return 0;
+  }
 
   if (!pfs_host->m_lock.is_populated())
+  {
     return 1;
+  }
 
   /* Set callback function. */
   m_sum_client_status = sum_host_status;
@@ -782,13 +824,19 @@ int
 PFS_status_variable_cache::materialize_account(PFS_account *pfs_account)
 {
   if (!pfs_account)
+  {
     return 1;
+  }
 
   if (is_materialized(pfs_account))
+  {
     return 0;
+  }
 
   if (!pfs_account->m_lock.is_populated())
+  {
     return 1;
+  }
 
   /* Set callback function. */
   m_sum_client_status = sum_account_status;
@@ -812,9 +860,13 @@ PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope, bool strict)
   case SHOW_SCOPE_SESSION:
     /* Ignore session-only vars if aggregating by user, host or account. */
     if (m_aggregate)
+    {
       return false;
+    }
     else
+    {
       return (m_query_scope == OPT_SESSION);
+    }
     break;
   case SHOW_SCOPE_ALL:
     return (m_query_scope == OPT_GLOBAL || m_query_scope == OPT_SESSION);
@@ -843,7 +895,9 @@ PFS_status_variable_cache::filter_by_name(const SHOW_VAR *show_var)
     const char *prefix = show_var->name;
     /* Exclude COM counters if not a SHOW STATUS command. */
     if (!my_strcasecmp(system_charset_info, prefix, "Com") && !m_show_command)
+    {
       return true;
+    }
   }
   else
   {
@@ -929,16 +983,22 @@ PFS_status_variable_cache::filter_show_var(const SHOW_VAR *show_var,
 {
   /* Match the variable scope with the query scope. */
   if (!match_scope(show_var->scope, strict))
+  {
     return true;
+  }
 
   /* Exclude specific status variables by name or prefix. */
   if (filter_by_name(show_var))
+  {
     return true;
+  }
 
   /* For user, host or account, ignore variables having non-aggregatable types.
    */
   if (m_aggregate && !can_aggregate(show_var->type))
+  {
     return true;
+  }
 
   return false;
 }
@@ -966,7 +1026,9 @@ PFS_status_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
 
     /* Check if this status var should be excluded from the query. */
     if (filter_show_var(&show_var, strict))
+    {
       continue;
+    }
 
     if (show_var.type == SHOW_ARRAY)
     {
@@ -1009,7 +1071,9 @@ PFS_status_variable_cache::expand_show_var_array(const SHOW_VAR *show_var_array,
     SHOW_VAR show_var = *show_var_ptr;
 
     if (filter_show_var(&show_var, strict))
+    {
       continue;
+    }
 
     if (show_var.type == SHOW_ARRAY)
     {
@@ -1079,12 +1143,16 @@ PFS_status_variable_cache::do_initialize_session(void)
 {
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
+  {
     mysql_mutex_lock(&LOCK_status);
+  }
 
   bool ret = init_show_var_array(OPT_SESSION, true);
 
   if (m_current_thd->fill_status_recursion_level-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_status);
+  }
 
   return ret;
 }
@@ -1098,9 +1166,13 @@ PFS_status_variable_cache::set_status_vars(void)
 {
   System_status_var *status_vars;
   if (m_safe_thd == m_current_thd && m_current_thd->initial_status_var != NULL)
+  {
     status_vars = m_current_thd->initial_status_var;
+  }
   else
+  {
     status_vars = &m_safe_thd->status_var;
+  }
 
   return status_vars;
 }
@@ -1118,7 +1190,9 @@ PFS_status_variable_cache::do_materialize_global(void)
 
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
+  {
     mysql_mutex_lock(&LOCK_status);
+  }
 
   /*
      Build array of SHOW_VARs from global status array. Do this within
@@ -1126,7 +1200,9 @@ PFS_status_variable_cache::do_materialize_global(void)
      materialization.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_GLOBAL, true);
+  }
 
   /*
     Collect totals for all active threads. Start with global status vars as a
@@ -1147,7 +1223,9 @@ PFS_status_variable_cache::do_materialize_global(void)
     m_current_thd, m_show_var_array.begin(), &status_totals, "", false, true);
 
   if (m_current_thd->fill_status_recursion_level-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_status);
+  }
 
   m_materialized = true;
   DEBUG_SYNC(m_current_thd, "after_materialize_global_status_array");
@@ -1171,7 +1249,9 @@ PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd)
 
   /* Avoid recursive acquisition of LOCK_status. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
+  {
     mysql_mutex_lock(&LOCK_status);
+  }
 
   /*
      Build array of SHOW_VARs from global status array. Do this within
@@ -1179,7 +1259,9 @@ PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd)
      thread is materialized.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_SESSION, false);
+  }
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
@@ -1200,7 +1282,9 @@ PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd)
   }
 
   if (m_current_thd->fill_status_recursion_level-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_status);
+  }
   return ret;
 }
 
@@ -1220,7 +1304,9 @@ PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd)
 
   /* Avoid recursive acquisition of LOCK_status. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
+  {
     mysql_mutex_lock(&LOCK_status);
+  }
 
   /*
      Build array of SHOW_VARs from global status array. Do this within
@@ -1228,7 +1314,9 @@ PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd)
      thread is materialized.
    */
   if (!m_external_init)
+  {
     init_show_var_array(OPT_SESSION, true);
+  }
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
@@ -1249,7 +1337,9 @@ PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd)
   }
 
   if (m_current_thd->fill_status_recursion_level-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_status);
+  }
   return ret;
 }
 
@@ -1269,7 +1359,9 @@ PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
 
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
+  {
     mysql_mutex_lock(&LOCK_status);
+  }
 
   /* The SHOW_VAR array must be initialized externally. */
   DBUG_ASSERT(m_initialized);
@@ -1293,7 +1385,9 @@ PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
   }
 
   if (m_current_thd->fill_status_recursion_level-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_status);
+  }
   return ret;
 }
 
@@ -1315,7 +1409,9 @@ PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client)
 
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
+  {
     mysql_mutex_lock(&LOCK_status);
+  }
 
   /* The SHOW_VAR array must be initialized externally. */
   DBUG_ASSERT(m_initialized);
@@ -1334,7 +1430,9 @@ PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client)
     m_current_thd, m_show_var_array.begin(), &status_totals, "", false, true);
 
   if (m_current_thd->fill_status_recursion_level-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_status);
+  }
 
   m_materialized = true;
   return 0;
@@ -1388,7 +1486,9 @@ PFS_status_variable_cache::manifest(THD *thd,
       init_show_var_array().
     */
     if (nested_array && filter_show_var(show_var_ptr, strict))
+    {
       continue;
+    }
 
     if (show_var_ptr->type == SHOW_ARRAY)
     {
@@ -1413,7 +1513,9 @@ PFS_status_variable_cache::manifest(THD *thd,
         done in init_show_var_array().
       */
       if (nested_array)
+      {
         show_var.name = make_show_var_name(prefix, show_var_ptr->name);
+      }
 
       /* Convert status value to string format. Add to the cache. */
       Status_variable status_var(&show_var, status_vars, m_query_scope);
@@ -1449,7 +1551,9 @@ Status_variable::init(const SHOW_VAR *show_var,
                       enum_var_type query_scope)
 {
   if (show_var == NULL || show_var->name == NULL)
+  {
     return;
+  }
   m_name = show_var->name;
   m_name_length = strlen(m_name);
   m_type = show_var->type;
@@ -1469,7 +1573,9 @@ Status_variable::init(const SHOW_VAR *show_var,
 
   /* Returned value may reference a string other than m_value_str. */
   if (value != m_value_str)
+  {
     memcpy(m_value_str, value, m_value_length);
+  }
   m_value_str[m_value_length] = 0;
 
   m_initialized = true;

@@ -181,7 +181,9 @@ PFS_index_socket_summary_by_event_name::match(const PFS_socket_class *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }

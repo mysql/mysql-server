@@ -203,7 +203,9 @@ PFS_index_host_cache_by_ip::match(const row_host_cache *row)
   if (m_fields >= 1)
   {
     if (!m_key.match(row->m_ip, row->m_ip_length))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -214,7 +216,9 @@ PFS_index_host_cache_by_host::match(const row_host_cache *row)
   if (m_fields >= 1)
   {
     if (!m_key.match(row->m_hostname, row->m_hostname_length))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -321,7 +325,9 @@ table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   strcpy(row->m_ip, entry->ip_key);
   row->m_hostname_length = entry->m_hostname_length;
   if (row->m_hostname_length > 0)
+  {
     strncpy(row->m_hostname, entry->m_hostname, row->m_hostname_length);
+  }
   row->m_host_validated = entry->m_host_validated;
   row->m_sum_connect_errors = entry->m_errors.m_connect;
   row->m_count_host_blocked_errors = entry->m_errors.m_host_blocked;
@@ -476,7 +482,9 @@ table_host_cache::read_row_values(TABLE *table,
           set_field_varchar_utf8(
             f, m_row->m_hostname, m_row->m_hostname_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 2: /* HOST_VALIDATED */
         set_field_enum(f, m_row->m_host_validated ? ENUM_YES : ENUM_NO);
@@ -556,15 +564,23 @@ table_host_cache::read_row_values(TABLE *table,
         break;
       case 27: /* FIRST_ERROR_SEEN */
         if (m_row->m_first_error_seen != 0)
+        {
           set_field_timestamp(f, m_row->m_first_error_seen);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 28: /* LAST_ERROR_SEEN */
         if (m_row->m_last_error_seen != 0)
+        {
           set_field_timestamp(f, m_row->m_last_error_seen);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);

@@ -445,7 +445,9 @@ PFS_builtin_memory_class*
 find_builtin_memory_class(PFS_builtin_memory_key key)
 {
   if (key == 0)
+  {
     return NULL;
+  }
 
   return all_builtin_memory[key - 1];
 }

@@ -97,7 +97,9 @@ PFS_index_ews_by_user_by_event_name::match(PFS_user *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -223,7 +225,9 @@ table_ews_by_user_by_event_name::rnd_pos(const void *pos)
 
   user = global_user_container.get(m_pos.m_index_1);
   if (user == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   switch (m_pos.m_index_2)
   {
@@ -292,7 +296,9 @@ table_ews_by_user_by_event_name::index_next(void)
         for (; m_pos.has_more_view(); m_pos.next_view())
         {
           if (!m_opened_index->match_view(m_pos.m_index_2))
+          {
             continue;
+          }
 
           do
           {
@@ -358,7 +364,9 @@ table_ews_by_user_by_event_name::make_row(PFS_user *user,
   user->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(user))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -370,7 +378,9 @@ table_ews_by_user_by_event_name::make_row(PFS_user *user,
                                       &visitor);
 
   if (!user->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);

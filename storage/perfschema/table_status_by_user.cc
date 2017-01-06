@@ -81,7 +81,9 @@ PFS_index_status_by_user::match(PFS_user *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -93,7 +95,9 @@ PFS_index_status_by_user::match(const Status_variable *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -295,17 +299,25 @@ table_status_by_user::make_row(PFS_user *user,
   user->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(user))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_name.make_row(status_var->m_name,
                                      status_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(status_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!user->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

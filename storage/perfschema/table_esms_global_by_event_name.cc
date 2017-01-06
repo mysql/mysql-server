@@ -185,12 +185,16 @@ bool
 PFS_index_esms_global_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (instr_class->is_mutable())
+  {
     return false;
+  }
 
   if (m_fields >= 1)
   {
     if (!m_key.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -243,7 +247,9 @@ table_esms_global_by_event_name::rnd_next(void)
   PFS_statement_class *statement_class;
 
   if (global_instr_class_statements_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   m_pos.set_at(&m_next_pos);
 
@@ -265,7 +271,9 @@ table_esms_global_by_event_name::rnd_pos(const void *pos)
   set_position(pos);
 
   if (global_instr_class_statements_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   statement_class = find_statement_class(m_pos.m_index);
   if (statement_class)
@@ -295,7 +303,9 @@ table_esms_global_by_event_name::index_next(void)
   PFS_statement_class *statement_class;
 
   if (global_instr_class_statements_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   m_pos.set_at(&m_next_pos);
 
@@ -323,7 +333,9 @@ int
 table_esms_global_by_event_name::make_row(PFS_statement_class *klass)
 {
   if (klass->is_mutable())
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 

@@ -191,7 +191,9 @@ PFS_index_file_summary_by_instance_by_instance::match(const PFS_file *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -202,7 +204,9 @@ PFS_index_file_summary_by_instance_by_file_name::match(const PFS_file *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -213,7 +217,9 @@ PFS_index_file_summary_by_instance_by_event_name::match(const PFS_file *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -351,7 +357,9 @@ table_file_summary_by_instance::make_row(PFS_file *pfs)
 
   safe_class = sanitize_file_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_filename = pfs->m_filename;
   m_row.m_filename_length = pfs->m_filename_length;
@@ -364,7 +372,9 @@ table_file_summary_by_instance::make_row(PFS_file *pfs)
   m_row.m_io_stat.set(normalizer, &pfs->m_file_stat.m_io_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

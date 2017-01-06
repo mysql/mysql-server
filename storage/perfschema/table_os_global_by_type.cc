@@ -101,19 +101,25 @@ PFS_index_os_global_by_type::match(PFS_table_share *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(OBJECT_TYPE_TABLE))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -125,19 +131,25 @@ PFS_index_os_global_by_type::match(PFS_program *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -345,7 +357,9 @@ table_os_global_by_type::make_program_row(PFS_program *pfs_program)
   m_row.m_stat.set(normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
 
   if (!pfs_program->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -367,7 +381,9 @@ table_os_global_by_type::make_table_row(PFS_table_share *share)
   share->sum(&cumulated_stat, safe_key_count);
 
   if (!share->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (share->get_refcount() > 0)
   {

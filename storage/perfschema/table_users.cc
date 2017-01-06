@@ -77,7 +77,9 @@ PFS_index_users_by_user::match(PFS_user *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -137,7 +139,9 @@ table_users::make_row(PFS_user *pfs)
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(pfs))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   PFS_connection_stat_visitor visitor;
   PFS_connection_iterator::visit_user(pfs,
@@ -147,7 +151,9 @@ table_users::make_row(PFS_user *pfs)
                                       &visitor);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_connection_stat.set(&visitor.m_stat);
   return 0;

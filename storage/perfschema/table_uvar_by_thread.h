@@ -78,9 +78,13 @@ public:
   {
     DBUG_ASSERT(pfs != NULL);
     if (m_pfs != pfs)
+    {
       return false;
+    }
     if (m_thread_internal_id != pfs->m_thread_internal_id)
+    {
       return false;
+    }
     return true;
   }
 
@@ -88,7 +92,9 @@ public:
   get(uint index) const
   {
     if (index >= m_array.size())
+    {
       return NULL;
+    }
 
     const User_variable *p = &m_array.at(index);
     return p;

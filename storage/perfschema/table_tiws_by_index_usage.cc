@@ -256,24 +256,32 @@ PFS_index_tiws_by_index_usage::match(PFS_table_share *pfs)
   PFS_object_row object_row;
 
   if (object_row.make_row(pfs))
+  {
     return false;
+  }
 
   if (m_fields >= 1)
   {
     if (!m_key_1.match(&object_row))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(&object_row))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(&object_row))
+    {
       return false;
+    }
   }
 
   return true;
@@ -287,12 +295,16 @@ PFS_index_tiws_by_index_usage::match(PFS_table_share *share, uint index)
 
   if (index_row.make_index_name(pfs_index,
                                 index)) /* andles pfs_index == NULL */
+  {
     return false;
+  }
 
   if (m_fields >= 4)
   {
     if (!m_key_4.match(&index_row))
+    {
       return false;
+    }
   }
 
   return true;
@@ -479,7 +491,9 @@ table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share, uint index)
   {
     pfs_index = pfs_share->find_index_stat(index);
     if (pfs_index == NULL)
+    {
       return HA_ERR_RECORD_DELETED;
+    }
   }
   else
   {
@@ -487,10 +501,14 @@ table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share, uint index)
   }
 
   if (m_row.m_index.make_row(pfs_share, pfs_index, index))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs_share->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 

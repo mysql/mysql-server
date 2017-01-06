@@ -193,7 +193,9 @@ PFS_index_esms_by_host_by_event_name::match(PFS_host *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -202,12 +204,16 @@ bool
 PFS_index_esms_by_host_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (instr_class->is_mutable())
+  {
     return false;
+  }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -354,12 +360,16 @@ table_esms_by_host_by_event_name::make_row(PFS_host *host,
   pfs_optimistic_state lock;
 
   if (klass->is_mutable())
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(host))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -371,7 +381,9 @@ table_esms_by_host_by_event_name::make_row(PFS_host *host,
                                       &visitor);
 
   if (!host->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 

@@ -48,7 +48,9 @@ int
 init_user(const PFS_global_param *param)
 {
   if (global_user_container.init(param->m_user_sizing))
+  {
     return 1;
+  }
 
   return 0;
 }
@@ -113,7 +115,9 @@ get_user_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_user_hash_pins == NULL))
   {
     if (!user_hash_inited)
+    {
       return NULL;
+    }
     thread->m_user_hash_pins = lf_hash_get_pins(&user_hash);
   }
   return thread->m_user_hash_pins;
@@ -174,9 +178,13 @@ search:
   {
     pfs->m_key = key;
     if (username_length > 0)
+    {
       pfs->m_username = &pfs->m_key.m_hash_key[0];
+    }
     else
+    {
       pfs->m_username = NULL;
+    }
     pfs->m_username_length = username_length;
 
     pfs->init_refcount();
@@ -308,7 +316,9 @@ purge_user(PFS_thread *thread, PFS_user *user)
 {
   LF_PINS *pins = get_user_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return;
+  }
 
   PFS_user **entry;
   entry = reinterpret_cast<PFS_user **>(lf_hash_search(
@@ -340,7 +350,9 @@ public:
   {
     pfs->aggregate(true);
     if (pfs->get_refcount() == 0)
+    {
       purge_user(m_thread, pfs);
+    }
   }
 
 private:
@@ -353,7 +365,9 @@ purge_all_user(void)
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return;
+  }
 
   Proc_purge_user proc(thread);
   global_user_container.apply(proc);

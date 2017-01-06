@@ -110,7 +110,9 @@ PFS_index_metadata_locks_by_instance::match(const PFS_metadata_lock *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -122,24 +124,32 @@ PFS_index_metadata_locks_by_object::match(const PFS_metadata_lock *pfs)
   PFS_object_row object_row;
 
   if (object_row.make_row(&pfs->m_mdl_key))
+  {
     return false;
+  }
 
   if (m_fields >= 1)
   {
     if (!m_key_1.match(&object_row))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(&object_row))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(&object_row))
+    {
       return false;
+    }
   }
 
   return true;
@@ -151,13 +161,17 @@ PFS_index_metadata_locks_by_owner::match(const PFS_metadata_lock *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -295,7 +309,9 @@ table_metadata_locks::make_row(PFS_metadata_lock *pfs)
     m_row.m_source_length = my_snprintf(
       m_row.m_source, sizeof(m_row.m_source), "%s:%d", base, pfs->m_src_line);
     if (m_row.m_source_length > sizeof(m_row.m_source))
+    {
       m_row.m_source_length = sizeof(m_row.m_source);
+    }
   }
   else
   {
@@ -306,10 +322,14 @@ table_metadata_locks::make_row(PFS_metadata_lock *pfs)
   m_row.m_owner_event_id = static_cast<ulong>(pfs->m_owner_event_id);
 
   if (m_row.m_object.make_row(&pfs->m_mdl_key))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -354,15 +374,23 @@ table_metadata_locks::read_row_values(TABLE *table,
         break;
       case 8: /* OWNER_THREAD_ID */
         if (m_row.m_owner_thread_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_owner_thread_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 9: /* OWNER_EVENT_ID */
         if (m_row.m_owner_event_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_owner_event_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);

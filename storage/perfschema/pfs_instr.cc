@@ -133,16 +133,24 @@ init_instruments(const PFS_global_param *param)
   thread_internal_id_counter.m_u64 = 0;
 
   if (global_mutex_container.init(param->m_mutex_sizing))
+  {
     return 1;
+  }
 
   if (global_rwlock_container.init(param->m_rwlock_sizing))
+  {
     return 1;
+  }
 
   if (global_cond_container.init(param->m_cond_sizing))
+  {
     return 1;
+  }
 
   if (global_file_container.init(param->m_file_sizing))
+  {
     return 1;
+  }
 
   if (file_handle_max > 0)
   {
@@ -152,20 +160,30 @@ init_instruments(const PFS_global_param *param)
                                          PFS_file *,
                                          MYF(MY_ZEROFILL));
     if (unlikely(file_handle_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (global_table_container.init(param->m_table_sizing))
+  {
     return 1;
+  }
 
   if (global_socket_container.init(param->m_socket_sizing))
+  {
     return 1;
+  }
 
   if (global_mdl_container.init(param->m_metadata_lock_sizing))
+  {
     return 1;
+  }
 
   if (global_thread_container.init(param->m_thread_sizing))
+  {
     return 1;
+  }
 
   if (stage_class_max > 0)
   {
@@ -176,10 +194,14 @@ init_instruments(const PFS_global_param *param)
                        PFS_stage_stat,
                        MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_stages_array == NULL))
+    {
       return 1;
+    }
 
     for (index = 0; index < stage_class_max; index++)
+    {
       global_instr_class_stages_array[index].reset();
+    }
   }
 
   if (statement_class_max > 0)
@@ -191,10 +213,14 @@ init_instruments(const PFS_global_param *param)
                        PFS_statement_stat,
                        MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_statements_array == NULL))
+    {
       return 1;
+    }
 
     for (index = 0; index < statement_class_max; index++)
+    {
       global_instr_class_statements_array[index].reset();
+    }
   }
 
   if (memory_class_max > 0)
@@ -206,10 +232,14 @@ init_instruments(const PFS_global_param *param)
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_memory_array == NULL))
+    {
       return 1;
+    }
 
     for (index = 0; index < memory_class_max; index++)
+    {
       global_instr_class_memory_array[index].reset();
+    }
   }
 
   return 0;
@@ -327,7 +357,9 @@ create_mutex(PFS_mutex_class *klass, const void *identity)
     pfs->m_last_locked = 0;
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton())
+    {
       klass->m_singleton = pfs;
+    }
   }
 
   return pfs;
@@ -346,7 +378,9 @@ destroy_mutex(PFS_mutex *pfs)
   klass->m_mutex_stat.aggregate(&pfs->m_mutex_stat);
   pfs->m_mutex_stat.reset();
   if (klass->is_singleton())
+  {
     klass->m_singleton = NULL;
+  }
 
   global_mutex_container.deallocate(pfs);
 }
@@ -377,7 +411,9 @@ create_rwlock(PFS_rwlock_class *klass, const void *identity)
     pfs->m_last_read = 0;
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton())
+    {
       klass->m_singleton = pfs;
+    }
   }
 
   return pfs;
@@ -396,7 +432,9 @@ destroy_rwlock(PFS_rwlock *pfs)
   klass->m_rwlock_stat.aggregate(&pfs->m_rwlock_stat);
   pfs->m_rwlock_stat.reset();
   if (klass->is_singleton())
+  {
     klass->m_singleton = NULL;
+  }
 
   global_rwlock_container.deallocate(pfs);
 }
@@ -423,7 +461,9 @@ create_cond(PFS_cond_class *klass, const void *identity)
     pfs->m_cond_stat.reset();
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton())
+    {
       klass->m_singleton = pfs;
+    }
   }
 
   return pfs;
@@ -442,7 +482,9 @@ destroy_cond(PFS_cond *pfs)
   klass->m_cond_stat.aggregate(&pfs->m_cond_stat);
   pfs->m_cond_stat.reset();
   if (klass->is_singleton())
+  {
     klass->m_singleton = NULL;
+  }
 
   global_cond_container.deallocate(pfs);
 }
@@ -764,7 +806,9 @@ get_filename_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_filename_hash_pins == NULL))
   {
     if (!filename_hash_inited)
+    {
       return NULL;
+    }
     thread->m_filename_hash_pins = lf_hash_get_pins(&filename_hash);
   }
   return thread->m_filename_hash_pins;
@@ -815,7 +859,9 @@ find_or_create_file(PFS_thread *thread,
     safe_filename = safe_buffer;
   }
   else
+  {
     safe_filename = filename;
+  }
 
   /*
     Normalize the file name to avoid duplicates when using aliases:
@@ -869,9 +915,13 @@ find_or_create_file(PFS_thread *thread,
   char *ptr = buffer + strlen(buffer);
   char *buf_end = &buffer[sizeof(buffer) - 1];
   if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR))
+  {
     *ptr++ = FN_LIBCHAR;
+  }
   if (buf_end > ptr)
+  {
     strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  }
   *buf_end = '\0';
 
   normalized_filename = buffer;
@@ -922,7 +972,9 @@ search:
     if (likely(res == 0))
     {
       if (klass->is_singleton())
+      {
         klass->m_singleton = pfs;
+      }
       return pfs;
     }
 
@@ -976,14 +1028,18 @@ destroy_file(PFS_thread *thread, PFS_file *pfs)
   pfs->m_file_stat.reset();
 
   if (klass->is_singleton())
+  {
     klass->m_singleton = NULL;
+  }
 
   LF_PINS *pins = get_filename_hash_pins(thread);
   DBUG_ASSERT(pins != NULL);
 
   lf_hash_delete(&filename_hash, pins, pfs->m_filename, pfs->m_filename_length);
   if (klass->is_singleton())
+  {
     klass->m_singleton = NULL;
+  }
 
   global_file_container.deallocate(pfs);
 }
@@ -1193,10 +1249,14 @@ create_socket(PFS_socket_class *klass,
   uint addr_len_used = addr_len;
 
   if (fd != NULL)
+  {
     fd_used = *fd;
+  }
 
   if (addr_len_used > sizeof(sockaddr_storage))
+  {
     addr_len_used = sizeof(sockaddr_storage);
+  }
 
   pfs = global_socket_container.allocate(&dirty_state);
 
@@ -1226,7 +1286,9 @@ create_socket(PFS_socket_class *klass,
     pfs->m_lock.dirty_to_allocated(&dirty_state);
 
     if (klass->is_singleton())
+    {
       klass->m_singleton = pfs;
+    }
   }
 
   return pfs;
@@ -1246,7 +1308,9 @@ destroy_socket(PFS_socket *pfs)
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 
   if (klass->is_singleton())
+  {
     klass->m_singleton = NULL;
+  }
 
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
   PFS_thread *thread = pfs->m_thread_owner;
@@ -1686,7 +1750,9 @@ aggregate_thread_status(PFS_thread *thread,
   THD *thd = thread->m_thd;
 
   if (thd == NULL)
+  {
     return;
+  }
 
   System_status_var *status_var = get_thd_status_var(thd);
 
@@ -1775,7 +1841,9 @@ aggregate_thread_waits(PFS_thread *thread,
                        PFS_host *safe_host)
 {
   if (thread->read_instr_class_waits_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_account != NULL))
   {
@@ -1836,7 +1904,9 @@ aggregate_thread_stages(PFS_thread *thread,
                         PFS_host *safe_host)
 {
   if (thread->read_instr_class_stages_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_account != NULL))
   {
@@ -1904,7 +1974,9 @@ aggregate_thread_statements(PFS_thread *thread,
                             PFS_host *safe_host)
 {
   if (thread->read_instr_class_statements_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_account != NULL))
   {
@@ -1973,7 +2045,9 @@ aggregate_thread_transactions(PFS_thread *thread,
                               PFS_host *safe_host)
 {
   if (thread->read_instr_class_transactions_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_account != NULL))
   {
@@ -2045,7 +2119,9 @@ aggregate_thread_errors(PFS_thread *thread,
                         PFS_host *safe_host)
 {
   if (thread->read_instr_class_errors_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_account != NULL))
   {
@@ -2113,7 +2189,9 @@ aggregate_thread_memory(bool alive,
                         PFS_host *safe_host)
 {
   if (thread->read_instr_class_memory_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_account != NULL))
   {

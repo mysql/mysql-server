@@ -117,7 +117,9 @@ PFS_index_mems_global_by_event_name::match(PFS_instr_class *instr_class)
   if (m_fields >= 1)
   {
     if (!m_key.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -165,7 +167,9 @@ table_mems_global_by_event_name::rnd_next(void)
 
   /* Do not advertise hard coded instruments when disabled. */
   if (!pfs_initialized)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
@@ -201,7 +205,9 @@ table_mems_global_by_event_name::rnd_pos(const void *pos)
 
   /* Do not advertise hard coded instruments when disabled. */
   if (!pfs_initialized)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
 
@@ -245,7 +251,9 @@ table_mems_global_by_event_name::index_next(void)
 
   /* Do not advertise hard coded instruments when disabled. */
   if (!pfs_initialized)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {

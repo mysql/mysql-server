@@ -48,7 +48,9 @@ check_performance_schema()
 
   THD *thd = new THD();
   if (thd == NULL)
+  {
     DBUG_VOID_RETURN;
+  }
 
   thd->thread_stack = (char *)&thd;
   thd->store_globals();

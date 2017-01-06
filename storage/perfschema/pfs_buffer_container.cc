@@ -120,7 +120,9 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                                     PFS_account,
                                     MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
+    {
       return 1;
+    }
   }
 
   if (waits_sizing > 0)
@@ -132,10 +134,14 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                        PFS_single_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < waits_sizing; index++)
+    {
       array->m_instr_class_waits_array[index].reset();
+    }
   }
 
   if (stages_sizing > 0)
@@ -147,10 +153,14 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                        PFS_stage_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < stages_sizing; index++)
+    {
       array->m_instr_class_stages_array[index].reset();
+    }
   }
 
   if (statements_sizing > 0)
@@ -162,10 +172,14 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                        PFS_statement_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < statements_sizing; index++)
+    {
       array->m_instr_class_statements_array[index].reset();
+    }
   }
 
   if (transactions_sizing > 0)
@@ -177,10 +191,14 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                        PFS_transaction_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < transactions_sizing; index++)
+    {
       array->m_instr_class_transactions_array[index].reset();
+    }
   }
 
   if (errors_sizing > 0)
@@ -192,7 +210,9 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                        PFS_error_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_errors_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
@@ -208,10 +228,14 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < memory_sizing; index++)
+    {
       array->m_instr_class_memory_array[index].reset();
+    }
   }
 
   for (index = 0; index < size; index++)
@@ -325,7 +349,9 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
     array->m_ptr = PFS_MALLOC_ARRAY(
       &builtin_memory_host, size, sizeof(PFS_host), PFS_host, MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
+    {
       return 1;
+    }
   }
 
   if (waits_sizing > 0)
@@ -337,10 +363,14 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
                        PFS_single_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < waits_sizing; index++)
+    {
       array->m_instr_class_waits_array[index].reset();
+    }
   }
 
   if (stages_sizing > 0)
@@ -352,10 +382,14 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
                        PFS_stage_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < stages_sizing; index++)
+    {
       array->m_instr_class_stages_array[index].reset();
+    }
   }
 
   if (statements_sizing > 0)
@@ -367,10 +401,14 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
                        PFS_statement_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < statements_sizing; index++)
+    {
       array->m_instr_class_statements_array[index].reset();
+    }
   }
 
   if (transactions_sizing > 0)
@@ -382,10 +420,14 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
                        PFS_transaction_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < transactions_sizing; index++)
+    {
       array->m_instr_class_transactions_array[index].reset();
+    }
   }
 
   if (errors_sizing > 0)
@@ -397,7 +439,9 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
                        PFS_error_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_errors_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
@@ -413,10 +457,14 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < memory_sizing; index++)
+    {
       array->m_instr_class_memory_array[index].reset();
+    }
   }
 
   for (index = 0; index < size; index++)
@@ -565,7 +613,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                                     PFS_thread,
                                     MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
+    {
       return 1;
+    }
   }
 
   if (waits_sizing > 0)
@@ -577,10 +627,14 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_single_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < waits_sizing; index++)
+    {
       array->m_instr_class_waits_array[index].reset();
+    }
   }
 
   if (stages_sizing > 0)
@@ -592,10 +646,14 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_stage_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < stages_sizing; index++)
+    {
       array->m_instr_class_stages_array[index].reset();
+    }
   }
 
   if (statements_sizing > 0)
@@ -607,10 +665,14 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_statement_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < statements_sizing; index++)
+    {
       array->m_instr_class_statements_array[index].reset();
+    }
   }
 
   if (transactions_sizing > 0)
@@ -622,10 +684,14 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_transaction_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < transactions_sizing; index++)
+    {
       array->m_instr_class_transactions_array[index].reset();
+    }
   }
 
   if (errors_sizing > 0)
@@ -637,7 +703,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_error_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_errors_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
@@ -653,10 +721,14 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < memory_sizing; index++)
+    {
       array->m_instr_class_memory_array[index].reset();
+    }
   }
 
   if (waits_history_sizing > 0)
@@ -668,7 +740,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_events_waits,
                        MYF(MY_ZEROFILL));
     if (unlikely(array->m_waits_history_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (stages_history_sizing > 0)
@@ -680,7 +754,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_events_stages,
                        MYF(MY_ZEROFILL));
     if (unlikely(array->m_stages_history_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (statements_history_sizing > 0)
@@ -692,7 +768,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_events_statements,
                        MYF(MY_ZEROFILL));
     if (unlikely(array->m_statements_history_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (statements_stack_sizing > 0)
@@ -704,7 +782,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_events_statements,
                        MYF(MY_ZEROFILL));
     if (unlikely(array->m_statements_stack_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (transactions_history_sizing > 0)
@@ -716,7 +796,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                        PFS_events_transactions,
                        MYF(MY_ZEROFILL));
     if (unlikely(array->m_transactions_history_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (session_connect_attrs_sizing > 0)
@@ -726,7 +808,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                          session_connect_attrs_sizing,
                          MYF(MY_ZEROFILL));
     if (unlikely(array->m_session_connect_attrs_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (current_sqltext_sizing > 0)
@@ -736,7 +820,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                          current_sqltext_sizing,
                          MYF(MY_ZEROFILL));
     if (unlikely(array->m_current_stmts_text_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (history_sqltext_sizing > 0)
@@ -746,7 +832,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
                          history_sqltext_sizing,
                          MYF(MY_ZEROFILL));
     if (unlikely(array->m_history_stmts_text_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (current_digest_tokens_sizing > 0)
@@ -756,7 +844,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
       current_digest_tokens_sizing,
       MYF(MY_ZEROFILL));
     if (unlikely(array->m_current_stmts_digest_token_array == NULL))
+    {
       return 1;
+    }
   }
 
   if (history_digest_tokens_sizing > 0)
@@ -766,7 +856,9 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
       history_digest_tokens_sizing,
       MYF(MY_ZEROFILL));
     if (unlikely(array->m_history_stmts_digest_token_array == NULL))
+    {
       return 1;
+    }
   }
 
   for (index = 0; index < size; index++)
@@ -995,7 +1087,9 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
     array->m_ptr = PFS_MALLOC_ARRAY(
       &builtin_memory_user, size, sizeof(PFS_user), PFS_user, MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
+    {
       return 1;
+    }
   }
 
   if (waits_sizing > 0)
@@ -1007,10 +1101,14 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
                        PFS_single_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < waits_sizing; index++)
+    {
       array->m_instr_class_waits_array[index].reset();
+    }
   }
 
   if (stages_sizing > 0)
@@ -1022,10 +1120,14 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
                        PFS_stage_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < stages_sizing; index++)
+    {
       array->m_instr_class_stages_array[index].reset();
+    }
   }
 
   if (statements_sizing > 0)
@@ -1037,10 +1139,14 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
                        PFS_statement_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < statements_sizing; index++)
+    {
       array->m_instr_class_statements_array[index].reset();
+    }
   }
 
   if (transactions_sizing > 0)
@@ -1052,10 +1158,14 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
                        PFS_transaction_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < transactions_sizing; index++)
+    {
       array->m_instr_class_transactions_array[index].reset();
+    }
   }
 
   if (errors_sizing > 0)
@@ -1067,7 +1177,9 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
                        PFS_error_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_errors_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
@@ -1083,10 +1195,14 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
+    {
       return 1;
+    }
 
     for (index = 0; index < memory_sizing; index++)
+    {
       array->m_instr_class_memory_array[index].reset();
+    }
   }
 
   for (index = 0; index < size; index++)

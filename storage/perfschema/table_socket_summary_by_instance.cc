@@ -186,7 +186,9 @@ PFS_index_socket_summary_by_instance_by_instance::match(const PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -197,7 +199,9 @@ PFS_index_socket_summary_by_instance_by_event_name::match(const PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -327,7 +331,9 @@ table_socket_summary_by_instance::make_row(PFS_socket *pfs)
 
   safe_class = sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(safe_class);
   m_row.m_identity = pfs->m_identity;
@@ -338,7 +344,9 @@ table_socket_summary_by_instance::make_row(PFS_socket *pfs)
   m_row.m_io_stat.set(normalizer, &pfs->m_socket_stat.m_io_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

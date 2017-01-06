@@ -252,19 +252,25 @@ PFS_index_tiws_by_table::match(const PFS_table_share *share)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(OBJECT_TYPE_TABLE))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(share))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(share))
+    {
       return false;
+    }
   }
 
   return true;
@@ -402,13 +408,17 @@ table_tiws_by_table::make_row(PFS_table_share *share)
   share->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_object.make_row(share))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   PFS_table_io_stat_visitor visitor;
   PFS_object_iterator::visit_tables(share, &visitor);
 
   if (!share->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 

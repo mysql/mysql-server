@@ -238,7 +238,9 @@ pfs_automated_sizing(PFS_global_param *param)
 #ifndef HAVE_PSI_SP_INTERFACE
     param->m_program_sizing = 0;
     if (param->m_statement_stack_sizing > 1)
+    {
       param->m_statement_stack_sizing = 1;
+    }
 #endif
 
 #ifndef HAVE_PSI_PS_INTERFACE

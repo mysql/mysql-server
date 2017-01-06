@@ -191,7 +191,9 @@ PFS_index_esms_by_thread_by_event_name::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -200,12 +202,16 @@ bool
 PFS_index_esms_by_thread_by_event_name::match(PFS_statement_class *klass)
 {
   if (klass->is_mutable())
+  {
     return false;
+  }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(klass))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -348,7 +354,9 @@ table_esms_by_thread_by_event_name::make_row(PFS_thread *thread,
   pfs_optimistic_state lock;
 
   if (klass->is_mutable())
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -361,7 +369,9 @@ table_esms_by_thread_by_event_name::make_row(PFS_thread *thread,
   PFS_connection_iterator::visit_thread(thread, &visitor);
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;

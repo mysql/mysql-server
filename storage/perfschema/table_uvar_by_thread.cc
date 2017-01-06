@@ -44,10 +44,14 @@ public:
   operator()(THD *thd)
   {
     if (thd != m_unsafe_thd)
+    {
       return false;
+    }
 
     if (thd->user_vars.records == 0)
+    {
       return false;
+    }
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
     return true;
@@ -79,7 +83,9 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
     sql_uvar = reinterpret_cast<user_var_entry *>(
       my_hash_element(&thd->user_vars, index));
     if (sql_uvar == NULL)
+    {
       break;
+    }
 
     /*
       m_array is a container of objects (not pointers)
@@ -170,7 +176,9 @@ PFS_index_uvar_by_thread::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -181,7 +189,9 @@ PFS_index_uvar_by_thread::match(const User_variable *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(&pfs->m_name))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -327,19 +337,27 @@ int
 table_uvar_by_thread::materialize(PFS_thread *thread)
 {
   if (m_THD_cache.is_materialized(thread))
+  {
     return 0;
+  }
 
   if (!thread->m_lock.is_populated())
+  {
     return 1;
+  }
 
   THD *unsafe_thd = thread->m_thd;
   if (unsafe_thd == NULL)
+  {
     return 1;
+  }
 
   Find_thd_user_var finder(unsafe_thd);
   THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
   if (safe_thd == NULL)
+  {
     return 1;
+  }
 
   m_THD_cache.materialize(thread, safe_thd);
   mysql_mutex_unlock(&safe_thd->LOCK_thd_data);
@@ -361,7 +379,9 @@ table_uvar_by_thread::make_row(PFS_thread *thread, const User_variable *uvar)
   m_row.m_variable_value = &uvar->m_value;
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

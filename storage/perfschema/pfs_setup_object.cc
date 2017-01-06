@@ -112,7 +112,9 @@ get_setup_object_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_setup_object_hash_pins == NULL))
   {
     if (!setup_object_hash_inited)
+    {
       return NULL;
+    }
     thread->m_setup_object_hash_pins = lf_hash_get_pins(&setup_object_hash);
   }
   return thread->m_setup_object_hash_pins;
@@ -152,11 +154,15 @@ insert_setup_object(enum_object_type object_type,
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   PFS_setup_object *pfs;
   pfs_dirty_state dirty_state;
@@ -189,7 +195,9 @@ insert_setup_object(enum_object_type object_type,
     global_setup_object_container.deallocate(pfs);
 
     if (res > 0)
+    {
       return HA_ERR_FOUND_DUPP_KEY;
+    }
     /* OOM in lf_hash_insert */
     return HA_ERR_OUT_OF_MEM;
   }
@@ -204,11 +212,15 @@ delete_setup_object(enum_object_type object_type,
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   PFS_setup_object_key key;
   set_setup_object_key(&key,
@@ -262,11 +274,15 @@ reset_setup_object()
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   Proc_reset_setup_object proc(pins);
   // FIXME: delete helper instead

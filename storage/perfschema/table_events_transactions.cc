@@ -214,7 +214,9 @@ PFS_index_events_transactions::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -225,7 +227,9 @@ PFS_index_events_transactions::match(PFS_events *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -250,7 +254,9 @@ table_events_transactions_common::make_row(PFS_events_transactions *transaction)
   PFS_transaction_class *unsafe = (PFS_transaction_class *)transaction->m_class;
   PFS_transaction_class *klass = sanitize_transaction_class(unsafe);
   if (unlikely(klass == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_thread_internal_id = transaction->m_thread_internal_id;
   m_row.m_event_id = transaction->m_event_id;
@@ -277,7 +283,9 @@ table_events_transactions_common::make_row(PFS_events_transactions *transaction)
 
   safe_source_file = transaction->m_source_file;
   if (unlikely(safe_source_file == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   base = base_name(safe_source_file);
   m_row.m_source_length = (uint)my_snprintf(m_row.m_source,
@@ -286,7 +294,9 @@ table_events_transactions_common::make_row(PFS_events_transactions *transaction)
                                             base,
                                             transaction->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
+  {
     m_row.m_source_length = sizeof(m_row.m_source);
+  }
 
   /* A GTID consists of the SID (source id) and GNO (transaction number).
      The SID is stored in transaction->m_sid and the GNO is stored in
@@ -428,9 +438,13 @@ table_events_transactions_common::read_row_values(TABLE *table,
         break;
       case 2: /* END_EVENT_ID */
         if (m_row.m_end_event_id > 0)
+        {
           set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
@@ -440,59 +454,91 @@ table_events_transactions_common::read_row_values(TABLE *table,
         break;
       case 5: /* TRX_ID */
         if (m_row.m_trxid != 0)
+        {
           set_field_ulonglong(f, m_row.m_trxid);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 6: /* GTID */
         set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
         break;
       case 7: /* XID_FORMAT_ID */
         if (!m_row.m_xa || m_row.m_xid.is_null())
+        {
           f->set_null();
+        }
         else
+        {
           set_field_long(f, m_row.m_xid.formatID);
+        }
         break;
       case 8: /* XID_GTRID */
         if (!m_row.m_xa || m_row.m_xid.is_null() ||
             m_row.m_xid.gtrid_length <= 0)
+        {
           f->set_null();
+        }
         else
+        {
           xid_store_gtrid(f, &m_row.m_xid);
+        }
         break;
       case 9: /* XID_BQUAL */
         if (!m_row.m_xa || m_row.m_xid.is_null() ||
             m_row.m_xid.bqual_length <= 0)
+        {
           f->set_null();
+        }
         else
+        {
           xid_store_bqual(f, &m_row.m_xid);
+        }
         break;
       case 10: /* XA STATE */
         if (!m_row.m_xa || m_row.m_xid.is_null())
+        {
           f->set_null();
+        }
         else
+        {
           set_field_xa_state(f, m_row.m_xa_state);
+        }
         break;
       case 11: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
       case 12: /* TIMER_START */
         if (m_row.m_timer_start != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_start);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 13: /* TIMER_END */
         if (m_row.m_timer_end != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_end);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 14: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_wait);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 15: /* ACCESS_MODE */
         set_field_enum(
@@ -518,15 +564,23 @@ table_events_transactions_common::read_row_values(TABLE *table,
         break;
       case 22: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_nesting_event_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 23: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_enum(f, m_row.m_nesting_event_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);
@@ -692,7 +746,9 @@ table_events_transactions_history::rnd_next(void)
   bool has_more_thread = true;
 
   if (events_transactions_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -741,7 +797,9 @@ table_events_transactions_history::rnd_pos(const void *pos)
   {
     if (!pfs_thread->m_transactions_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
 
     transaction = &pfs_thread->m_transactions_history[m_pos.m_index_2];
     if (transaction->m_class != NULL)
@@ -774,7 +832,9 @@ table_events_transactions_history::index_next(void)
   bool has_more_thread = true;
 
   if (events_transactions_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -865,10 +925,14 @@ table_events_transactions_history_long::rnd_next(void)
   uint limit;
 
   if (events_transactions_history_long_size == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   if (events_transactions_history_long_full)
+  {
     limit = events_transactions_history_long_size;
+  }
   else
     limit = events_transactions_history_long_index.m_u32 %
             events_transactions_history_long_size;
@@ -895,23 +959,31 @@ table_events_transactions_history_long::rnd_pos(const void *pos)
   uint limit;
 
   if (events_transactions_history_long_size == 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   set_position(pos);
 
   if (events_transactions_history_long_full)
+  {
     limit = events_transactions_history_long_size;
+  }
   else
     limit = events_transactions_history_long_index.m_u32 %
             events_transactions_history_long_size;
 
   if (m_pos.m_index >= limit)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   transaction = &events_transactions_history_long_array[m_pos.m_index];
 
   if (transaction->m_class == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_row(transaction);
 }

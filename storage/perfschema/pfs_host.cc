@@ -49,7 +49,9 @@ int
 init_host(const PFS_global_param *param)
 {
   if (global_host_container.init(param->m_host_sizing))
+  {
     return 1;
+  }
 
   return 0;
 }
@@ -114,7 +116,9 @@ get_host_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_host_hash_pins == NULL))
   {
     if (!host_hash_inited)
+    {
       return NULL;
+    }
     thread->m_host_hash_pins = lf_hash_get_pins(&host_hash);
   }
   return thread->m_host_hash_pins;
@@ -178,9 +182,13 @@ search:
   {
     pfs->m_key = key;
     if (hostname_length > 0)
+    {
       pfs->m_hostname = &pfs->m_key.m_hash_key[0];
+    }
     else
+    {
       pfs->m_hostname = NULL;
+    }
     pfs->m_hostname_length = hostname_length;
 
     pfs->init_refcount();
@@ -238,7 +246,9 @@ void
 PFS_host::aggregate_stages()
 {
   if (read_instr_class_stages_stats() == NULL)
+  {
     return;
+  }
 
   /*
     Aggregate EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME to:
@@ -252,7 +262,9 @@ void
 PFS_host::aggregate_statements()
 {
   if (read_instr_class_statements_stats() == NULL)
+  {
     return;
+  }
 
   /*
     Aggregate EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME to:
@@ -266,7 +278,9 @@ void
 PFS_host::aggregate_transactions()
 {
   if (read_instr_class_transactions_stats() == NULL)
+  {
     return;
+  }
 
   /*
     Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME to:
@@ -280,7 +294,9 @@ void
 PFS_host::aggregate_errors()
 {
   if (read_instr_class_errors_stats() == NULL)
+  {
     return;
+  }
 
   /*
     Aggregate EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR to:
@@ -293,7 +309,9 @@ void
 PFS_host::aggregate_memory(bool alive)
 {
   if (read_instr_class_memory_stats() == NULL)
+  {
     return;
+  }
 
   /*
     Aggregate MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME to:
@@ -340,7 +358,9 @@ PFS_host::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
   remaining_delta = stat->apply_delta(delta, &delta_buffer);
 
   if (remaining_delta != NULL)
+  {
     carry_global_memory_stat_delta(remaining_delta, index);
+  }
 }
 
 PFS_host *
@@ -354,7 +374,9 @@ purge_host(PFS_thread *thread, PFS_host *host)
 {
   LF_PINS *pins = get_host_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return;
+  }
 
   PFS_host **entry;
   entry = reinterpret_cast<PFS_host **>(lf_hash_search(
@@ -386,7 +408,9 @@ public:
   {
     pfs->aggregate(true);
     if (pfs->get_refcount() == 0)
+    {
       purge_host(m_thread, pfs);
+    }
   }
 
 private:
@@ -399,7 +423,9 @@ purge_all_host(void)
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return;
+  }
 
   Proc_purge_host proc(thread);
   global_host_container.apply(proc);

@@ -81,13 +81,17 @@ PFS_index_accounts_by_user_host::match(PFS_account *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -140,7 +144,9 @@ table_accounts::make_row(PFS_account *pfs)
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(pfs))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   PFS_connection_stat_visitor visitor;
   PFS_connection_iterator::visit_account(pfs,
@@ -149,7 +155,9 @@ table_accounts::make_row(PFS_account *pfs)
                                          &visitor);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_connection_stat.set(&visitor.m_stat);
   return 0;

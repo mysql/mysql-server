@@ -152,7 +152,9 @@ PFS_index_events_stages::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -164,7 +166,9 @@ PFS_index_events_stages::match(PFS_events_stages *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -191,7 +195,9 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
   PFS_stage_class *unsafe = (PFS_stage_class *)stage->m_class;
   PFS_stage_class *klass = sanitize_stage_class(unsafe);
   if (unlikely(klass == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_thread_internal_id = stage->m_thread_internal_id;
   m_row.m_event_id = stage->m_event_id;
@@ -219,7 +225,9 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
 
   safe_source_file = stage->m_source_file;
   if (unlikely(safe_source_file == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   base = base_name(safe_source_file);
   m_row.m_source_length = my_snprintf(m_row.m_source,
@@ -228,7 +236,9 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
                                       base,
                                       stage->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
+  {
     m_row.m_source_length = sizeof(m_row.m_source);
+  }
 
   if (klass->is_progress())
   {
@@ -271,9 +281,13 @@ table_events_stages_common::read_row_values(TABLE *table,
         break;
       case 2: /* END_EVENT_ID */
         if (m_row.m_end_event_id > 0)
+        {
           set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
@@ -283,45 +297,73 @@ table_events_stages_common::read_row_values(TABLE *table,
         break;
       case 5: /* TIMER_START */
         if (m_row.m_timer_start != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_start);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 6: /* TIMER_END */
         if (m_row.m_timer_end != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_end);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 7: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_wait);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 8: /* WORK_COMPLETED */
         if (m_row.m_progress)
+        {
           set_field_ulonglong(f, m_row.m_work_completed);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 9: /* WORK_ESTIMATED */
         if (m_row.m_progress)
+        {
           set_field_ulonglong(f, m_row.m_work_estimated);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 10: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_nesting_event_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 11: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_enum(f, m_row.m_nesting_event_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);
@@ -484,7 +526,9 @@ table_events_stages_history::rnd_next(void)
   bool has_more_thread = true;
 
   if (events_stages_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -534,7 +578,9 @@ table_events_stages_history::rnd_pos(const void *pos)
   {
     if (!pfs_thread->m_stages_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_stages_history_index))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
 
     stage = &pfs_thread->m_stages_history[m_pos.m_index_2];
 
@@ -568,7 +614,9 @@ table_events_stages_history::index_next(void)
   bool has_more_thread = true;
 
   if (events_stages_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -657,10 +705,14 @@ table_events_stages_history_long::rnd_next(void)
   uint limit;
 
   if (events_stages_history_long_size == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   if (events_stages_history_long_full)
+  {
     limit = events_stages_history_long_size;
+  }
   else
     limit =
       events_stages_history_long_index.m_u32 % events_stages_history_long_size;
@@ -687,23 +739,31 @@ table_events_stages_history_long::rnd_pos(const void *pos)
   uint limit;
 
   if (events_stages_history_long_size == 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   set_position(pos);
 
   if (events_stages_history_long_full)
+  {
     limit = events_stages_history_long_size;
+  }
   else
     limit =
       events_stages_history_long_index.m_u32 % events_stages_history_long_size;
 
   if (m_pos.m_index > limit)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   stage = &events_stages_history_long_array[m_pos.m_index];
 
   if (stage->m_class == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_row(stage);
 }

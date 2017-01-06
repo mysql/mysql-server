@@ -154,7 +154,9 @@ PFS_index_threads_by_thread_id::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -166,7 +168,9 @@ PFS_index_threads_by_processlist_id::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -178,7 +182,9 @@ PFS_index_threads_by_name::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -190,13 +196,17 @@ PFS_index_threads_by_user_host::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -208,7 +218,9 @@ PFS_index_threads_by_host::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -220,7 +232,9 @@ PFS_index_threads_by_thread_os_id::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -274,7 +288,9 @@ table_threads::make_row(PFS_thread *pfs)
 
   safe_class = sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_thread_internal_id = pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id = pfs->m_parent_thread_internal_id;
@@ -288,17 +304,25 @@ table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_username_length = pfs->m_username_length;
   if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_username_length != 0)
+  {
     memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
+  }
 
   m_row.m_hostname_length = pfs->m_hostname_length;
   if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname)))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_hostname_length != 0)
+  {
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+  }
 
   if (!pfs->m_session_lock.end_optimistic_lock(&session_lock))
   {
@@ -320,10 +344,14 @@ table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_dbname_length = pfs->m_dbname_length;
   if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_dbname_length != 0)
+  {
     memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
+  }
 
   m_row.m_processlist_info_ptr = &pfs->m_processlist_info[0];
   m_row.m_processlist_info_length = pfs->m_processlist_info_length;
@@ -346,7 +374,9 @@ table_threads::make_row(PFS_thread *pfs)
   /* Dirty read, sanitize the command. */
   m_row.m_command = pfs->m_command;
   if ((m_row.m_command < 0) || (m_row.m_command > COM_END))
+  {
     m_row.m_command = COM_END;
+  }
 
   m_row.m_start_time = pfs->m_start_time;
 
@@ -369,7 +399,9 @@ table_threads::make_row(PFS_thread *pfs)
   m_row.m_psi = pfs;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -403,33 +435,53 @@ table_threads::read_row_values(TABLE *table,
         break;
       case 2: /* TYPE */
         if (m_row.m_processlist_id != 0)
+        {
           set_field_varchar_utf8(f, "FOREGROUND", 10);
+        }
         else
+        {
           set_field_varchar_utf8(f, "BACKGROUND", 10);
+        }
         break;
       case 3: /* PROCESSLIST_ID */
         if (m_row.m_processlist_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_processlist_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 4: /* PROCESSLIST_USER */
         if (m_row.m_username_length > 0)
+        {
           set_field_varchar_utf8(f, m_row.m_username, m_row.m_username_length);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 5: /* PROCESSLIST_HOST */
         if (m_row.m_hostname_length > 0)
+        {
           set_field_varchar_utf8(f, m_row.m_hostname, m_row.m_hostname_length);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 6: /* PROCESSLIST_DB */
         if (m_row.m_dbname_length > 0)
+        {
           set_field_varchar_utf8(f, m_row.m_dbname, m_row.m_dbname_length);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 7: /* PROCESSLIST_COMMAND */
         if (m_row.m_processlist_id != 0)
@@ -437,7 +489,9 @@ table_threads::read_row_values(TABLE *table,
                                  command_name[m_row.m_command].str,
                                  (uint)command_name[m_row.m_command].length);
         else
+        {
           f->set_null();
+        }
         break;
       case 8: /* PROCESSLIST_TIME */
         if (m_row.m_start_time)
@@ -448,7 +502,9 @@ table_threads::read_row_values(TABLE *table,
           set_field_ulonglong(f, elapsed);
         }
         else
+        {
           f->set_null();
+        }
         break;
       case 9: /* PROCESSLIST_STATE */
         /* This column's datatype is declared as varchar(64). Thread's state
@@ -462,20 +518,28 @@ table_threads::read_row_values(TABLE *table,
           set_field_varchar_utf8(
             f, m_row.m_processlist_state_ptr, m_row.m_processlist_state_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 10: /* PROCESSLIST_INFO */
         if (m_row.m_processlist_info_length > 0)
           set_field_longtext_utf8(
             f, m_row.m_processlist_info_ptr, m_row.m_processlist_info_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 11: /* PARENT_THREAD_ID */
         if (m_row.m_parent_thread_internal_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_parent_thread_internal_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 12: /* ROLE */
         f->set_null();
@@ -489,15 +553,23 @@ table_threads::read_row_values(TABLE *table,
       case 15: /* CONNECTION_TYPE */
         get_vio_type_name(m_row.m_connection_type, &str, &len);
         if (len > 0)
+        {
           set_field_varchar_utf8(f, str, len);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 16: /* THREAD_OS_ID */
         if (m_row.m_thread_os_id > 0)
+        {
           set_field_ulonglong(f, m_row.m_thread_os_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);

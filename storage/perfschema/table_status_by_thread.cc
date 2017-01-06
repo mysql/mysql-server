@@ -39,7 +39,9 @@ PFS_index_status_by_thread::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -51,7 +53,9 @@ PFS_index_status_by_thread::match(const Status_variable *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -285,7 +289,9 @@ table_status_by_thread::make_row(PFS_thread *thread,
 {
   pfs_optimistic_state lock;
   if (status_var->is_null())
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -294,13 +300,19 @@ table_status_by_thread::make_row(PFS_thread *thread,
 
   if (m_row.m_variable_name.make_row(status_var->m_name,
                                      status_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(status_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

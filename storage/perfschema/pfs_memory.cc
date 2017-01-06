@@ -97,5 +97,7 @@ reset_memory_global()
     global_instr_class_memory_array + memory_class_max;
 
   for (; stat < stat_last; stat++)
+  {
     stat->rebase();
+  }
 }

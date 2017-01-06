@@ -98,7 +98,9 @@ PFS_index_ews_by_host_by_event_name::match(PFS_host *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -224,7 +226,9 @@ table_ews_by_host_by_event_name::rnd_pos(const void *pos)
 
   host = global_host_container.get(m_pos.m_index_1);
   if (host == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   switch (m_pos.m_index_2)
   {
@@ -294,7 +298,9 @@ table_ews_by_host_by_event_name::index_next(void)
         for (; m_pos.has_more_view(); m_pos.next_view())
         {
           if (!m_opened_index->match_view(m_pos.m_index_2))
+          {
             continue;
+          }
 
           do
           {
@@ -360,7 +366,9 @@ table_ews_by_host_by_event_name::make_row(PFS_host *host,
   host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(host))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -372,7 +380,9 @@ table_ews_by_host_by_event_name::make_row(PFS_host *host,
                                       &visitor);
 
   if (!host->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);

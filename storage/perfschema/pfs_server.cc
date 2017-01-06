@@ -69,25 +69,45 @@ pre_initialize_performance_schema()
   global_table_lock_stat.reset();
 
   if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_VG, NULL))  // global_variables
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SV, NULL))  // session_variables
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_VBT, NULL))  // variables_by_thread
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SG, NULL))  // global_status
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SS, NULL))  // session_status
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SBT, NULL))  // status_by_thread
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SBU, NULL))  // status_by_user
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SBH, NULL))  // status_by_host
+  {
     return;
+  }
   if (my_create_thread_local_key(&THR_PFS_SBA, NULL))  // status_by_account
+  {
     return;
+  }
 
   THR_PFS_initialized = true;
 }
@@ -276,7 +296,9 @@ destroy_pfs_thread(void* key)
     the memory pointed by pfs is already released.
   */
   if (pfs_initialized)
+  {
     destroy_thread(pfs);
+  }
 }
 
 static void
@@ -429,7 +451,9 @@ void
 cleanup_instrument_config()
 {
   if (pfs_instr_config_array != NULL)
+  {
     my_free_container_pointers(*pfs_instr_config_array);
+  }
   delete pfs_instr_config_array;
   pfs_instr_config_array = NULL;
 }
@@ -456,7 +480,9 @@ add_pfs_instr_to_array(const char* name, const char* value)
     sizeof(PFS_instr_config) + name_length + 1 + value_length + 1,
     MYF(MY_WME));
   if (!e)
+  {
     return 1;
+  }
 
   /* Copy the instrument name */
   e->m_name = (char*)e + sizeof(PFS_instr_config);

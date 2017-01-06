@@ -64,7 +64,9 @@ init_error(const PFS_global_param *param)
   for (int i = 0; i < total_error_count + 1; i++)
   {
     if (error_names_array[i].error_index != 0)
+    {
       pfs_to_server_error_map[error_names_array[i].error_index] = i;
+    }
   }
 
   return 0;
@@ -143,7 +145,9 @@ lookup_error_stat_index(uint mysql_errno)
   uint index = 0;
 
   if (mysql_errno < (uint)errmsg_section_start[0])
+  {
     return error_names_array[0].error_index;
+  }
 
   for (uint i = 0; i < NUM_SECTIONS; i++)
   {

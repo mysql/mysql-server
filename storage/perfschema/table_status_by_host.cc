@@ -80,7 +80,9 @@ PFS_index_status_by_host::match(PFS_host *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -92,7 +94,9 @@ PFS_index_status_by_host::match(const Status_variable *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -295,17 +299,25 @@ table_status_by_host::make_row(PFS_host *pfs_host,
   pfs_host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(pfs_host))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_name.make_row(status_var->m_name,
                                      status_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(status_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs_host->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

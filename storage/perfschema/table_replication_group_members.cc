@@ -186,7 +186,9 @@ table_replication_group_members::rnd_next(void)
 {
 #ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < get_row_count(); m_pos.next())
   {
@@ -203,7 +205,9 @@ table_replication_group_members::rnd_pos(const void* pos MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < get_row_count());
@@ -278,9 +282,13 @@ table_replication_group_members::read_row_values(
         break;
       case 3: /** member_port */
         if (m_row.member_port > 0)
+        {
           set_field_ulong(f, m_row.member_port);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 4: /** member_state */
         set_field_char_utf8(f, m_row.member_state, m_row.member_state_length);

@@ -102,7 +102,9 @@ PFS_index_ees_by_host_by_error::match(PFS_host *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -113,7 +115,9 @@ PFS_index_ees_by_host_by_error::match_error_index(uint error_index)
   if (m_fields >= 2)
   {
     if (!m_key_2.match_error_index(error_index))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -196,7 +200,9 @@ table_ees_by_host_by_error::rnd_pos(const void *pos)
     for (; m_pos.has_more_error(); m_pos.next_error())
     {
       if (!make_row(host, m_pos.m_index_2))
+      {
         return 0;
+      }
     }
   }
 
@@ -254,7 +260,9 @@ table_ees_by_host_by_error::make_row(PFS_host *host, int error_index)
   host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(host))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   PFS_connection_error_visitor visitor(klass, error_index);
   PFS_connection_iterator::visit_host(host,
@@ -264,7 +272,9 @@ table_ees_by_host_by_error::make_row(PFS_host *host, int error_index)
                                       &visitor);
 
   if (!host->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(&visitor.m_stat, error_index);
 

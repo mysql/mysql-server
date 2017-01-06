@@ -36,7 +36,7 @@ THR_LOCK table_mems_by_account_by_event_name::m_table_lock;
 /* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
- {
+  {
     { C_STRING_WITH_LEN("USER") },
     { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
     { NULL, 0}
@@ -127,13 +127,17 @@ PFS_index_mems_by_account_by_event_name::match(PFS_account *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -144,7 +148,9 @@ PFS_index_mems_by_account_by_event_name::match(PFS_instr_class *instr_class)
   if (m_fields >= 3)
   {
     if (!m_key_3.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -296,7 +302,9 @@ table_mems_by_account_by_event_name::make_row(PFS_account *account,
   account->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(account))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -307,7 +315,9 @@ table_mems_by_account_by_event_name::make_row(PFS_account *account,
                                          &visitor);
 
   if (!account->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(&visitor.m_stat);
 

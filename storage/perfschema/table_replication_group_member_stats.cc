@@ -85,7 +85,9 @@ set_transactions_committed(void* const context,
     static_cast<struct st_row_group_member_stats*>(context);
 
   if (row->trx_committed != NULL)
+  {
     my_free(row->trx_committed);
+  }
 
   row->trx_committed_length = length;
   row->trx_committed = (char*)my_malloc(PSI_NOT_INSTRUMENTED, length, MYF(0));
@@ -251,7 +253,9 @@ table_replication_group_member_stats::get_row_count()
 
 #ifdef HAVE_REPLICATION
   if (is_group_replication_plugin_loaded())
+  {
     row_count = 1;
+  }
 #endif /* HAVE_REPLICATION */
 
   return row_count;
@@ -262,7 +266,9 @@ table_replication_group_member_stats::rnd_next(void)
 {
 #ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   m_pos.set_at(&m_next_pos);
   if (m_pos.m_index == 0)
@@ -281,7 +287,9 @@ table_replication_group_member_stats::rnd_pos(
 {
 #ifdef HAVE_REPLICATION
   if (get_row_count() == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < 1);

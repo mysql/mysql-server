@@ -240,7 +240,9 @@ PFS_index_prepared_stmt_instances_by_instance::match(
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -252,13 +254,17 @@ PFS_index_prepared_stmt_instances_by_owner_thread::match(
   if (m_fields >= 1)
   {
     if (!m_key_1.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match_owner(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -270,7 +276,9 @@ PFS_index_prepared_stmt_instances_by_statement_id::match(
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -282,7 +290,9 @@ PFS_index_prepared_stmt_instances_by_statement_name::match(
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -294,19 +304,25 @@ PFS_index_prepared_stmt_instances_by_owner_object::match(
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -455,7 +471,9 @@ table_prepared_stmt_instances::make_row(PFS_prepared_stmt *prepared_stmt)
 
   m_row.m_sql_text_length = prepared_stmt->m_sqltext_length;
   if (m_row.m_sql_text_length > 0)
+  {
     memcpy(m_row.m_sql_text, prepared_stmt->m_sqltext, m_row.m_sql_text_length);
+  }
 
   m_row.m_owner_object_type = prepared_stmt->m_owner_object_type;
 
@@ -481,7 +499,9 @@ table_prepared_stmt_instances::make_row(PFS_prepared_stmt *prepared_stmt)
   m_row.m_execute_stat.set(normalizer, &prepared_stmt->m_execute_stat);
 
   if (!prepared_stmt->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -517,42 +537,60 @@ table_prepared_stmt_instances::read_row_values(TABLE *table,
           set_field_varchar_utf8(
             f, m_row.m_stmt_name, m_row.m_stmt_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* SQL_TEXT */
         if (m_row.m_sql_text_length > 0)
+        {
           set_field_longtext_utf8(f, m_row.m_sql_text, m_row.m_sql_text_length);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 4: /* OWNER_THREAD_ID */
         set_field_ulonglong(f, m_row.m_owner_thread_id);
         break;
       case 5: /* OWNER_EVENT_ID */
         if (m_row.m_owner_event_id > 0)
+        {
           set_field_ulonglong(f, m_row.m_owner_event_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 6: /* OWNER_OBJECT_TYPE */
         if (m_row.m_owner_object_type != 0)
+        {
           set_field_enum(f, m_row.m_owner_object_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 7: /* OWNER_OBJECT_SCHEMA */
         if (m_row.m_owner_object_schema_length > 0)
           set_field_varchar_utf8(
             f, m_row.m_owner_object_schema, m_row.m_owner_object_schema_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 8: /* OWNER_OBJECT_NAME */
         if (m_row.m_owner_object_name_length > 0)
           set_field_varchar_utf8(
             f, m_row.m_owner_object_name, m_row.m_owner_object_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 9: /* TIMER_PREPARE */
         m_row.m_prepare_stat.set_field(1, f);

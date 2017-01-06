@@ -1206,10 +1206,9 @@ public:
   bool match(const char *engine_lock_id, size_t length);
 };
 
-class PFS_key_ip
-  : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>  // FIXME
-                                                     // <INET6_ADDRSTRLEN+1>
-                                                     // fails on freebsd
+class PFS_key_ip : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>  // FIXME
+// <INET6_ADDRSTRLEN+1>
+// fails on freebsd
 {
 public:
   PFS_key_ip(const char *name) : PFS_key_string(name)

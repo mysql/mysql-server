@@ -39,7 +39,9 @@ PFS_index_global_status::match(const Status_variable *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -231,7 +233,9 @@ int
 table_global_status::make_row(const Status_variable *status_var)
 {
   if (status_var->is_null())
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
   m_row.m_variable_value.make_row(status_var);

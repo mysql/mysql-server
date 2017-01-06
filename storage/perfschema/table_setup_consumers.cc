@@ -132,7 +132,9 @@ PFS_index_setup_consumers::match(row_setup_consumers *row)
   if (m_fields >= 1)
   {
     if (!m_key.match(&row->m_name))
+    {
       return false;
+    }
   }
 
   return true;
@@ -289,10 +291,14 @@ table_setup_consumers::update_row_values(TABLE *table,
   }
 
   if (m_row->m_instrument_refresh)
+  {
     update_instruments_derived_flags();
+  }
 
   if (m_row->m_thread_refresh)
+  {
     update_thread_derived_flags();
+  }
 
   return 0;
 }

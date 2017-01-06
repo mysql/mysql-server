@@ -37,7 +37,9 @@ PFS_index_events_waits::match(PFS_thread *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -49,7 +51,9 @@ PFS_index_events_waits::match(PFS_events_waits *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -230,7 +234,9 @@ table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
 
   safe_table_share = sanitize_table_share(wait->m_weak_table_share);
   if (unlikely(safe_table_share == NULL))
+  {
     return 1;
+  }
 
   if (wait->m_object_type == OBJECT_TYPE_TABLE)
   {
@@ -250,7 +256,9 @@ table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
     if (unlikely(
           (m_row.m_object_schema_length == 0) ||
           (m_row.m_object_schema_length > sizeof(m_row.m_object_schema))))
+    {
       return 1;
+    }
     memcpy(m_row.m_object_schema,
            safe_table_share->m_schema_name,
            m_row.m_object_schema_length);
@@ -259,7 +267,9 @@ table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
     m_row.m_object_name_length = safe_table_share->m_table_name_length;
     if (unlikely((m_row.m_object_name_length == 0) ||
                  (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+    {
       return 1;
+    }
     memcpy(m_row.m_object_name,
            safe_table_share->m_table_name,
            m_row.m_object_name_length);
@@ -278,7 +288,9 @@ table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
 
         if (unlikely((m_row.m_index_name_length == 0) ||
                      (m_row.m_index_name_length > sizeof(m_row.m_index_name))))
+        {
           return 1;
+        }
 
         memcpy(m_row.m_index_name,
                index_stat->m_key.m_name,
@@ -312,7 +324,9 @@ table_events_waits_common::make_file_object_columns(PFS_events_waits *wait)
 
   safe_file = sanitize_file(wait->m_weak_file);
   if (unlikely(safe_file == NULL))
+  {
     return 1;
+  }
 
   m_row.m_object_type = "FILE";
   m_row.m_object_type_length = 4;
@@ -325,7 +339,9 @@ table_events_waits_common::make_file_object_columns(PFS_events_waits *wait)
     m_row.m_object_name_length = safe_file->m_filename_length;
     if (unlikely((m_row.m_object_name_length == 0) ||
                  (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+    {
       return 1;
+    }
     memcpy(
       m_row.m_object_name, safe_file->m_filename, m_row.m_object_name_length);
   }
@@ -346,7 +362,9 @@ table_events_waits_common::make_socket_object_columns(PFS_events_waits *wait)
 
   safe_socket = sanitize_socket(wait->m_weak_socket);
   if (unlikely(safe_socket == NULL))
+  {
     return 1;
+  }
 
   m_row.m_object_type = "SOCKET";
   m_row.m_object_type_length = 6;
@@ -378,7 +396,9 @@ table_events_waits_common::make_socket_object_columns(PFS_events_waits *wait)
 
     if (unlikely((m_row.m_object_name_length == 0) ||
                  (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+    {
       return 1;
+    }
 
     char *name = m_row.m_object_name;
     memcpy(name, ip_str, ip_len);
@@ -402,7 +422,9 @@ table_events_waits_common::make_metadata_lock_object_columns(
 
   safe_metadata_lock = sanitize_metadata_lock(wait->m_weak_metadata_lock);
   if (unlikely(safe_metadata_lock == NULL))
+  {
     return 1;
+  }
 
   if (safe_metadata_lock->get_version() == wait->m_weak_version)
   {
@@ -491,15 +513,21 @@ table_events_waits_common::make_metadata_lock_object_columns(
     }
 
     if (m_row.m_object_schema_length > sizeof(m_row.m_object_schema))
+    {
       return 1;
+    }
     if (m_row.m_object_schema_length > 0)
       memcpy(
         m_row.m_object_schema, mdl->db_name(), m_row.m_object_schema_length);
 
     if (m_row.m_object_name_length > sizeof(m_row.m_object_name))
+    {
       return 1;
+    }
     if (m_row.m_object_name_length > 0)
+    {
       memcpy(m_row.m_object_name, mdl->name(), m_row.m_object_name_length);
+    }
 
     m_row.m_object_instance_addr = (intptr)wait->m_object_instance_addr;
   }
@@ -558,7 +586,9 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
   {
   case WAIT_CLASS_METADATA:
     if (make_metadata_lock_object_columns(wait))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
     safe_class = sanitize_metadata_class(wait->m_class);
     break;
   case WAIT_CLASS_IDLE:
@@ -584,17 +614,23 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
     break;
   case WAIT_CLASS_TABLE:
     if (make_table_object_columns(wait))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
     safe_class = sanitize_table_class(wait->m_class);
     break;
   case WAIT_CLASS_FILE:
     if (make_file_object_columns(wait))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
     safe_class = sanitize_file_class((PFS_file_class *)wait->m_class);
     break;
   case WAIT_CLASS_SOCKET:
     if (make_socket_object_columns(wait))
+    {
       return HA_ERR_RECORD_DELETED;
+    }
     safe_class = sanitize_socket_class((PFS_socket_class *)wait->m_class);
     break;
   case NO_WAIT_CLASS:
@@ -603,7 +639,9 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
   }
 
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_thread_internal_id = wait->m_thread_internal_id;
   m_row.m_event_id = wait->m_event_id;
@@ -637,13 +675,17 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
   */
   safe_source_file = wait->m_source_file;
   if (unlikely(safe_source_file == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   base = base_name(wait->m_source_file);
   m_row.m_source_length = my_snprintf(
     m_row.m_source, sizeof(m_row.m_source), "%s:%d", base, wait->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
+  {
     m_row.m_source_length = sizeof(m_row.m_source);
+  }
   m_row.m_operation = wait->m_operation;
   m_row.m_number_of_bytes = wait->m_number_of_bytes;
   m_row.m_flags = wait->m_flags;
@@ -781,9 +823,13 @@ table_events_waits_common::read_row_values(TABLE *table,
         break;
       case 2: /* END_EVENT_ID */
         if (m_row.m_end_event_id > 0)
+        {
           set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
@@ -793,21 +839,33 @@ table_events_waits_common::read_row_values(TABLE *table,
         break;
       case 5: /* TIMER_START */
         if (m_row.m_timer_start != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_start);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 6: /* TIMER_END */
         if (m_row.m_timer_end != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_end);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 7: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
+        {
           set_field_ulonglong(f, m_row.m_timer_wait);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 8: /* SPINS */
         f->set_null();
@@ -819,7 +877,9 @@ table_events_waits_common::read_row_values(TABLE *table,
             f, m_row.m_object_schema, m_row.m_object_schema_length);
         }
         else
+        {
           f->set_null();
+        }
         break;
       case 10: /* OBJECT_NAME */
         if (m_row.m_object_name_length > 0)
@@ -828,7 +888,9 @@ table_events_waits_common::read_row_values(TABLE *table,
             f, m_row.m_object_name, m_row.m_object_name_length);
         }
         else
+        {
           f->set_null();
+        }
         break;
       case 11: /* INDEX_NAME */
         if (m_row.m_index_name_length > 0)
@@ -837,7 +899,9 @@ table_events_waits_common::read_row_values(TABLE *table,
             f, m_row.m_index_name, m_row.m_index_name_length);
         }
         else
+        {
           f->set_null();
+        }
         break;
       case 12: /* OBJECT_TYPE */
         if (m_row.m_object_type_length > 0)
@@ -846,22 +910,32 @@ table_events_waits_common::read_row_values(TABLE *table,
             f, m_row.m_object_type, m_row.m_object_type_length);
         }
         else
+        {
           f->set_null();
+        }
         break;
       case 13: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, m_row.m_object_instance_addr);
         break;
       case 14: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_ulonglong(f, m_row.m_nesting_event_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 15: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
+        {
           set_field_enum(f, m_row.m_nesting_event_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 16: /* OPERATION */
         operation = &operation_names_map[(int)m_row.m_operation - 1];
@@ -879,9 +953,13 @@ table_events_waits_common::read_row_values(TABLE *table,
             (m_row.m_operation == OPERATION_TYPE_TABLE_WRITE_ROW) ||
             (m_row.m_operation == OPERATION_TYPE_TABLE_UPDATE_ROW) ||
             (m_row.m_operation == OPERATION_TYPE_TABLE_DELETE_ROW))
+        {
           set_field_ulonglong(f, m_row.m_number_of_bytes);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 18: /* FLAGS */
         f->set_null();
@@ -926,7 +1004,9 @@ table_events_waits_current::get_wait(PFS_thread *pfs_thread,
 
 #ifdef ONLY_SHOW_ONE_WAIT
   if (index_2 >= 1)
+  {
     return NULL;
+  }
 #else
   /* m_events_waits_stack[0] is a dummy record */
   PFS_events_waits *top_wait =
@@ -939,13 +1019,17 @@ table_events_waits_current::get_wait(PFS_thread *pfs_thread,
   {
     /* Display the last top level wait, when completed */
     if (m_pos.m_index_2 >= 1)
+    {
       return NULL;
+    }
   }
   else
   {
     /* Display all pending waits, when in progress */
     if (wait >= safe_current)
+    {
       return NULL;
+    }
   }
 #endif
 
@@ -1066,10 +1150,14 @@ table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *wait)
   thread->m_lock.begin_optimistic_lock(&lock);
 
   if (table_events_waits_common::make_row(wait))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -1140,7 +1228,9 @@ table_events_waits_history::rnd_next(void)
   bool has_more_thread = true;
 
   if (events_waits_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -1203,7 +1293,9 @@ table_events_waits_history::index_next(void)
   bool has_more_thread = true;
 
   if (events_waits_history_per_thread == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
@@ -1245,10 +1337,14 @@ table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *wait)
   thread->m_lock.begin_optimistic_lock(&lock);
 
   if (table_events_waits_common::make_row(wait))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -1292,10 +1388,14 @@ table_events_waits_history_long::rnd_next(void)
   uint limit;
 
   if (events_waits_history_long_size == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   if (events_waits_history_long_full)
+  {
     limit = events_waits_history_long_size;
+  }
   else
     limit =
       events_waits_history_long_index.m_u32 % events_waits_history_long_size;
@@ -1322,23 +1422,31 @@ table_events_waits_history_long::rnd_pos(const void *pos)
   uint limit;
 
   if (events_waits_history_long_size == 0)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   set_position(pos);
 
   if (events_waits_history_long_full)
+  {
     limit = events_waits_history_long_size;
+  }
   else
     limit =
       events_waits_history_long_index.m_u32 % events_waits_history_long_size;
 
   if (m_pos.m_index >= limit)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   wait = &events_waits_history_long_array[m_pos.m_index];
 
   if (wait->m_wait_class == NO_WAIT_CLASS)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_row(wait);
 }

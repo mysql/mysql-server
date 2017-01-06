@@ -55,7 +55,9 @@ table_session_account_connect_attrs::thread_fits(PFS_thread *thread)
   PFS_thread *current_thread = PFS_thread::get_current_thread();
   /* The current thread may not have instrumentation attached. */
   if (current_thread == NULL)
+  {
     return false;
+  }
 
   /* The thread we compare to, by definition, has some instrumentation. */
   DBUG_ASSERT(thread != NULL);
@@ -65,15 +67,21 @@ table_session_account_connect_attrs::thread_fits(PFS_thread *thread)
 
   if ((thread->m_username_length != username_length) ||
       (thread->m_hostname_length != hostname_length))
+  {
     return false;
+  }
 
   if (memcmp(thread->m_username, current_thread->m_username, username_length) !=
       0)
+  {
     return false;
+  }
 
   if (memcmp(thread->m_hostname, current_thread->m_hostname, hostname_length) !=
       0)
+  {
     return false;
+  }
 
   return true;
 }

@@ -43,9 +43,13 @@ PFS_host_row::make_row(PFS_host *pfs)
 {
   m_hostname_length = pfs->m_hostname_length;
   if (m_hostname_length > sizeof(m_hostname))
+  {
     return 1;
+  }
   if (m_hostname_length > 0)
+  {
     memcpy(m_hostname, pfs->m_hostname, sizeof(m_hostname));
+  }
   return 0;
 }
 
@@ -53,9 +57,13 @@ void
 PFS_host_row::set_field(Field *f)
 {
   if (m_hostname_length > 0)
+  {
     PFS_engine_table::set_field_char_utf8(f, m_hostname, m_hostname_length);
+  }
   else
+  {
     f->set_null();
+  }
 }
 
 int
@@ -63,9 +71,13 @@ PFS_user_row::make_row(PFS_user *pfs)
 {
   m_username_length = pfs->m_username_length;
   if (m_username_length > sizeof(m_username))
+  {
     return 1;
+  }
   if (m_username_length > 0)
+  {
     memcpy(m_username, pfs->m_username, sizeof(m_username));
+  }
   return 0;
 }
 
@@ -73,9 +85,13 @@ void
 PFS_user_row::set_field(Field *f)
 {
   if (m_username_length > 0)
+  {
     PFS_engine_table::set_field_char_utf8(f, m_username, m_username_length);
+  }
   else
+  {
     f->set_null();
+  }
 }
 
 int
@@ -83,15 +99,23 @@ PFS_account_row::make_row(PFS_account *pfs)
 {
   m_username_length = pfs->m_username_length;
   if (m_username_length > sizeof(m_username))
+  {
     return 1;
+  }
   if (m_username_length > 0)
+  {
     memcpy(m_username, pfs->m_username, sizeof(m_username));
+  }
 
   m_hostname_length = pfs->m_hostname_length;
   if (m_hostname_length > sizeof(m_hostname))
+  {
     return 1;
+  }
   if (m_hostname_length > 0)
+  {
     memcpy(m_hostname, pfs->m_hostname, sizeof(m_hostname));
+  }
 
   return 0;
 }
@@ -103,15 +127,23 @@ PFS_account_row::set_field(uint index, Field *f)
   {
   case 0: /* USER */
     if (m_username_length > 0)
+    {
       PFS_engine_table::set_field_char_utf8(f, m_username, m_username_length);
+    }
     else
+    {
       f->set_null();
+    }
     break;
   case 1: /* HOST */
     if (m_hostname_length > 0)
+    {
       PFS_engine_table::set_field_char_utf8(f, m_hostname, m_hostname_length);
+    }
     else
+    {
       f->set_null();
+    }
     break;
   default:
     DBUG_ASSERT(false);
@@ -124,14 +156,18 @@ PFS_digest_row::make_row(PFS_statements_digest_stat *pfs)
 {
   m_schema_name_length = pfs->m_digest_key.m_schema_name_length;
   if (m_schema_name_length > sizeof(m_schema_name))
+  {
     m_schema_name_length = 0;
+  }
   if (m_schema_name_length > 0)
     memcpy(
       m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
 
   size_t safe_byte_count = pfs->m_digest_storage.m_byte_count;
   if (safe_byte_count > pfs_max_digest_length)
+  {
     safe_byte_count = 0;
+  }
 
   /*
     "0" value for byte_count indicates special entry i.e. aggregated
@@ -154,7 +190,9 @@ PFS_digest_row::make_row(PFS_statements_digest_stat *pfs)
     compute_digest_text(&pfs->m_digest_storage, &m_digest_text);
 
     if (m_digest_text.length() == 0)
+    {
       m_digest_length = 0;
+    }
   }
   else
   {
@@ -174,20 +212,28 @@ PFS_digest_row::set_field(uint index, Field *f)
       PFS_engine_table::set_field_varchar_utf8(
         f, m_schema_name, m_schema_name_length);
     else
+    {
       f->set_null();
+    }
     break;
   case 1: /* DIGEST */
     if (m_digest_length > 0)
+    {
       PFS_engine_table::set_field_varchar_utf8(f, m_digest, m_digest_length);
+    }
     else
+    {
       f->set_null();
+    }
     break;
   case 2: /* DIGEST_TEXT */
     if (m_digest_text.length() > 0)
       PFS_engine_table::set_field_longtext_utf8(
         f, m_digest_text.ptr(), (uint)m_digest_text.length());
     else
+    {
       f->set_null();
+    }
     break;
   default:
     DBUG_ASSERT(false);
@@ -202,15 +248,23 @@ PFS_object_row::make_row(PFS_table_share *pfs)
 
   m_schema_name_length = pfs->m_schema_name_length;
   if (m_schema_name_length > sizeof(m_schema_name))
+  {
     return 1;
+  }
   if (m_schema_name_length > 0)
+  {
     memcpy(m_schema_name, pfs->m_schema_name, sizeof(m_schema_name));
+  }
 
   m_object_name_length = pfs->m_table_name_length;
   if (m_object_name_length > sizeof(m_object_name))
+  {
     return 1;
+  }
   if (m_object_name_length > 0)
+  {
     memcpy(m_object_name, pfs->m_table_name, sizeof(m_object_name));
+  }
 
   return 0;
 }
@@ -222,15 +276,23 @@ PFS_object_row::make_row(PFS_program *pfs)
 
   m_schema_name_length = pfs->m_schema_name_length;
   if (m_schema_name_length > sizeof(m_schema_name))
+  {
     return 1;
+  }
   if (m_schema_name_length > 0)
+  {
     memcpy(m_schema_name, pfs->m_schema_name, sizeof(m_schema_name));
+  }
 
   m_object_name_length = pfs->m_object_name_length;
   if (m_object_name_length > sizeof(m_object_name))
+  {
     return 1;
+  }
   if (m_object_name_length > 0)
+  {
     memcpy(m_object_name, pfs->m_object_name, sizeof(m_object_name));
+  }
 
   return 0;
 }
@@ -309,14 +371,22 @@ PFS_object_row::make_row(const MDL_key *mdl)
   }
 
   if (m_schema_name_length > sizeof(m_schema_name))
+  {
     return 1;
+  }
   if (m_schema_name_length > 0)
+  {
     memcpy(m_schema_name, mdl->db_name(), m_schema_name_length);
+  }
 
   if (m_object_name_length > sizeof(m_object_name))
+  {
     return 1;
+  }
   if (m_object_name_length > 0)
+  {
     memcpy(m_object_name, mdl->name(), m_object_name_length);
+  }
 
   return 0;
 }
@@ -349,23 +419,31 @@ PFS_object_row::set_nullable_field(uint index, Field *f)
   {
   case 0: /* OBJECT_TYPE */
     if (m_object_type != NO_OBJECT_TYPE)
+    {
       set_field_object_type(f, m_object_type);
+    }
     else
+    {
       f->set_null();
+    }
     break;
   case 1: /* SCHEMA_NAME */
     if (m_schema_name_length > 0)
       PFS_engine_table::set_field_varchar_utf8(
         f, m_schema_name, m_schema_name_length);
     else
+    {
       f->set_null();
+    }
     break;
   case 2: /* OBJECT_NAME */
     if (m_object_name_length > 0)
       PFS_engine_table::set_field_varchar_utf8(
         f, m_object_name, m_object_name_length);
     else
+    {
       f->set_null();
+    }
     break;
   default:
     DBUG_ASSERT(false);
@@ -393,7 +471,9 @@ PFS_index_row::make_index_name(PFS_table_share_index *pfs_index,
   {
     m_index_name_length = pfs_index->m_key.m_name_length;
     if (m_index_name_length > sizeof(m_index_name))
+    {
       return 1;
+    }
 
     memcpy(m_index_name, pfs_index->m_key.m_name, sizeof(m_index_name));
   }
@@ -411,10 +491,14 @@ PFS_index_row::make_row(PFS_table_share *pfs,
                         uint table_index)
 {
   if (m_object_row.make_row(pfs))
+  {
     return 1;
+  }
 
   if (make_index_name(pfs_index, table_index))
+  {
     return 1;
+  }
 
   return 0;
 }
@@ -434,7 +518,9 @@ PFS_index_row::set_field(uint index, Field *f)
       PFS_engine_table::set_field_varchar_utf8(
         f, m_index_name, m_index_name_length);
     else
+    {
       f->set_null();
+    }
     break;
   default:
     DBUG_ASSERT(false);
@@ -555,23 +641,31 @@ PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_error)
   {
   case 0: /* ERROR NUMBER */
     if (temp_error)
+    {
       PFS_engine_table::set_field_long(f, temp_error->mysql_errno);
+    }
     else /* NULL ROW */
+    {
       f->set_null();
+    }
     break;
   case 1: /* ERROR NAME */
     if (temp_error)
       PFS_engine_table::set_field_varchar_utf8(
         f, temp_error->name, (uint)strlen(temp_error->name));
     else /* NULL ROW */
+    {
       f->set_null();
+    }
     break;
   case 2: /* SQLSTATE */
     if (temp_error)
       PFS_engine_table::set_field_varchar_utf8(
         f, temp_error->odbc_state, (uint)strlen(temp_error->odbc_state));
     else /* NULL ROW */
+    {
       f->set_null();
+    }
     break;
   case 3: /* SUM_ERROR_RAISED */
     PFS_engine_table::set_field_ulonglong(f, m_count);
@@ -875,7 +969,9 @@ PFS_variable_name_row::make_row(const char *str, size_t length)
 
   m_length = (uint)MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
   if (m_length > 0)
+  {
     memcpy(m_str, str, length);
+  }
   m_str[m_length] = '\0';
 
   return 0;
@@ -1045,13 +1141,19 @@ PFS_key_string<SIZE>::do_match(bool record_null,
   if (m_find_flag == HA_READ_KEY_EXACT)
   {
     if (m_is_null)
+    {
       return record_null;
+    }
 
     if (record_null)
+    {
       return false;
+    }
 
     if (m_key_value_length != record_string_length)
+    {
       return false;
+    }
 
     return (
       native_strncasecmp(record_string, m_key_value, m_key_value_length) == 0);
@@ -1098,13 +1200,19 @@ PFS_key_string<SIZE>::do_match_prefix(bool record_null,
                                       size_t record_string_length)
 {
   if (m_is_null)
+  {
     return record_null;
+  }
 
   if (record_null)
+  {
     return false;
+  }
 
   if (record_string_length > m_key_value_length)
+  {
     return false;
+  }
 
   return (
     native_strncasecmp(record_string, m_key_value, record_string_length) == 0);
@@ -1129,7 +1237,9 @@ PFS_key_thread_id::match_owner(const PFS_table *pfs)
   PFS_thread *thread = sanitize_thread(pfs->m_thread_owner);
 
   if (thread == NULL)
+  {
     return do_match(true, 0);
+  }
 
   return do_match(false, thread->m_thread_internal_id);
 }
@@ -1140,7 +1250,9 @@ PFS_key_thread_id::match_owner(const PFS_socket *pfs)
   PFS_thread *thread = sanitize_thread(pfs->m_thread_owner);
 
   if (thread == NULL)
+  {
     return do_match(true, 0);
+  }
 
   return do_match(false, thread->m_thread_internal_id);
 }
@@ -1151,7 +1263,9 @@ PFS_key_thread_id::match_owner(const PFS_mutex *pfs)
   PFS_thread *thread = sanitize_thread(pfs->m_owner);
 
   if (thread == NULL)
+  {
     return do_match(true, 0);
+  }
 
   return do_match(false, thread->m_thread_internal_id);
 }
@@ -1174,7 +1288,9 @@ PFS_key_thread_id::match_writer(const PFS_rwlock *pfs)
   PFS_thread *thread = sanitize_thread(pfs->m_writer);
 
   if (thread == NULL)
+  {
     return do_match(true, 0);
+  }
 
   return do_match(false, thread->m_thread_internal_id);
 }
@@ -1297,7 +1413,9 @@ PFS_key_thread_name::match(const PFS_thread *pfs)
 {
   PFS_thread_class *klass = sanitize_thread_class(pfs->m_class);
   if (klass == NULL)
+  {
     return false;
+  }
 
   return match(klass);
 }
@@ -1319,7 +1437,9 @@ PFS_key_event_name::match(const PFS_mutex *pfs)
 {
   PFS_mutex_class *safe_class = sanitize_mutex_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return false;
+  }
 
   return do_match(false, safe_class->m_name, safe_class->m_name_length);
 }
@@ -1329,7 +1449,9 @@ PFS_key_event_name::match(const PFS_rwlock *pfs)
 {
   PFS_rwlock_class *safe_class = sanitize_rwlock_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return false;
+  }
   return do_match(false, safe_class->m_name, safe_class->m_name_length);
 }
 
@@ -1338,7 +1460,9 @@ PFS_key_event_name::match(const PFS_cond *pfs)
 {
   PFS_cond_class *safe_class = sanitize_cond_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return false;
+  }
   return do_match(false, safe_class->m_name, safe_class->m_name_length);
 }
 
@@ -1347,7 +1471,9 @@ PFS_key_event_name::match(const PFS_file *pfs)
 {
   PFS_file_class *safe_class = sanitize_file_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return false;
+  }
   return do_match(false, safe_class->m_name, safe_class->m_name_length);
 }
 
@@ -1356,7 +1482,9 @@ PFS_key_event_name::match(const PFS_socket *pfs)
 {
   PFS_socket_class *safe_class = sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return false;
+  }
   return do_match(false, safe_class->m_name, safe_class->m_name_length);
 }
 

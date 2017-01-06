@@ -180,7 +180,9 @@ PFS_index_rpl_connection_status_by_channel::match(Master_info *mi)
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
     if (!m_key.match(row.channel_name, row.channel_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -211,10 +213,14 @@ PFS_index_rpl_connection_status_by_thread::match(Master_info *mi)
     mysql_mutex_unlock(&mi->rli->run_lock);
 
     if (row.thread_id_is_null)
+    {
       return false;
+    }
 
     if (!m_key.match(row.thread_id))
+    {
       return false;
+    }
   }
 
   return true;
@@ -417,13 +423,19 @@ table_replication_connection_status::make_row(Master_info *mi)
     }
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+    {
       m_row.service_state = PS_RPL_CONNECT_SERVICE_STATE_YES;
+    }
     else
     {
       if (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT)
+      {
         m_row.service_state = PS_RPL_CONNECT_SERVICE_STATE_CONNECTING;
+      }
       else
+      {
         m_row.service_state = PS_RPL_CONNECT_SERVICE_STATE_NO;
+      }
     }
   }
 
@@ -489,7 +501,9 @@ end:
   mysql_mutex_unlock(&mi->data_lock);
 
   if (error)
+  {
     DBUG_RETURN(HA_ERR_RECORD_DELETED);
+  }
 
   DBUG_RETURN(0);
 }
@@ -519,21 +533,33 @@ table_replication_connection_status::read_row_values(
         break;
       case 1: /** group_name */
         if (m_row.group_name_is_null)
+        {
           f->set_null();
+        }
         else
+        {
           set_field_char_utf8(f, m_row.group_name, UUID_LENGTH);
+        }
         break;
       case 2: /** source_uuid */
         if (m_row.source_uuid_is_null)
+        {
           f->set_null();
+        }
         else
+        {
           set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        }
         break;
       case 3: /** thread_id */
         if (m_row.thread_id_is_null)
+        {
           f->set_null();
+        }
         else
+        {
           set_field_ulonglong(f, m_row.thread_id);
+        }
         break;
       case 4: /** service_state */
         set_field_enum(f, m_row.service_state);

@@ -85,13 +85,17 @@ PFS_index_status_by_account::match(PFS_account *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -102,7 +106,9 @@ PFS_index_status_by_account::match(const Status_variable *pfs)
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -304,17 +310,25 @@ table_status_by_account::make_row(PFS_account *pfs_account,
   pfs_account->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(pfs_account))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_name.make_row(status_var->m_name,
                                      status_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(status_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs_account->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

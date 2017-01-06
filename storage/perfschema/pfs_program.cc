@@ -46,7 +46,9 @@ int
 init_program(const PFS_global_param *param)
 {
   if (global_program_container.init(param->m_program_sizing))
+  {
     return 1;
+  }
 
   reset_esms_by_program();
   return 0;
@@ -179,7 +181,9 @@ get_program_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_program_hash_pins == NULL))
   {
     if (!program_hash_inited)
+    {
       return NULL;
+    }
     thread->m_program_hash_pins = lf_hash_get_pins(&program_hash);
   }
   return thread->m_program_hash_pins;
@@ -300,7 +304,9 @@ drop_program(PFS_thread *thread,
 {
   LF_PINS *pins = get_program_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return;
+  }
 
   /* Prepare program key */
   PFS_program_key key;

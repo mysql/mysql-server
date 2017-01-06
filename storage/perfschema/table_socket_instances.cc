@@ -95,7 +95,9 @@ PFS_index_socket_instances_by_instance::match(const PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -106,7 +108,9 @@ PFS_index_socket_instances_by_thread::match(const PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match_owner(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -117,7 +121,9 @@ PFS_index_socket_instances_by_socket::match(const PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -128,13 +134,17 @@ PFS_index_socket_instances_by_ip_port::match(const PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -263,7 +273,9 @@ table_socket_instances::make_row(PFS_socket *pfs)
 
   safe_class = sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /** Extract ip address and port from raw address */
   m_row.m_ip_length = pfs_get_socket_address(m_row.m_ip,
@@ -285,10 +297,14 @@ table_socket_instances::make_row(PFS_socket *pfs)
     m_row.m_thread_id_set = true;
   }
   else
+  {
     m_row.m_thread_id_set = false;
+  }
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -320,9 +336,13 @@ table_socket_instances::read_row_values(TABLE *table,
         break;
       case 2: /* THREAD_ID */
         if (m_row.m_thread_id_set)
+        {
           set_field_ulonglong(f, m_row.m_thread_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* SOCKET_ID */
         set_field_ulong(f, m_row.m_fd);

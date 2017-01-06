@@ -63,7 +63,9 @@ init_events_transactions_history_long(
   PFS_atomic::store_u32(&events_transactions_history_long_index.m_u32, 0);
 
   if (events_transactions_history_long_size == 0)
+  {
     return 0;
+  }
 
   events_transactions_history_long_array =
     PFS_MALLOC_ARRAY(&builtin_memory_transactions_history_long,
@@ -103,7 +105,9 @@ insert_events_transactions_history(PFS_thread *thread,
                                    PFS_events_transactions *transaction)
 {
   if (unlikely(events_transactions_history_per_thread == 0))
+  {
     return;
+  }
 
   DBUG_ASSERT(thread->m_transactions_history != NULL);
 
@@ -136,7 +140,9 @@ void
 insert_events_transactions_history_long(PFS_events_transactions *transaction)
 {
   if (unlikely(events_transactions_history_long_size == 0))
+  {
     return;
+  }
 
   DBUG_ASSERT(events_transactions_history_long_array != NULL);
 
@@ -145,7 +151,9 @@ insert_events_transactions_history_long(PFS_events_transactions *transaction)
 
   index = index % events_transactions_history_long_size;
   if (index == 0)
+  {
     events_transactions_history_long_full = true;
+  }
 
   /* See related comment in insert_events_transactions_history. */
   copy_events_transactions(&events_transactions_history_long_array[index],
@@ -175,7 +183,9 @@ fct_reset_events_transactions_history(PFS_thread *pfs_thread)
   pfs_thread->m_transactions_history_index = 0;
   pfs_thread->m_transactions_history_full = false;
   for (; pfs < pfs_last; pfs++)
+  {
     pfs->m_class = NULL;
+  }
 }
 
 /** Reset table EVENTS_TRANSACTIONS_HISTORY data. */
@@ -196,7 +206,9 @@ reset_events_transactions_history_long(void)
   PFS_events_transactions *pfs_last =
     pfs + events_transactions_history_long_size;
   for (; pfs < pfs_last; pfs++)
+  {
     pfs->m_class = NULL;
+  }
 }
 
 static void
@@ -274,7 +286,9 @@ bool
 xid_printable(PSI_xid *xid, size_t offset, size_t length)
 {
   if (xid->is_null())
+  {
     return false;
+  }
 
   DBUG_ASSERT(offset + length <= MYSQL_XIDDATASIZE);
 
@@ -283,7 +297,9 @@ xid_printable(PSI_xid *xid, size_t offset, size_t length)
   for (size_t i = 0; i < length; i++, c++)
   {
     if (*c < 32 || *c > 127)
+    {
       return false;
+    }
   }
 
   return true;

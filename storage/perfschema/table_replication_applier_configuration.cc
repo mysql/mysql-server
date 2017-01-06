@@ -88,7 +88,9 @@ PFS_index_rpl_applier_config::match(Master_info *mi)
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
     if (!m_key.match(row.channel_name, row.channel_name_length))
+    {
       return false;
+    }
   }
 
   return true;

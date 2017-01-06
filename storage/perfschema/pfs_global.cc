@@ -60,19 +60,25 @@ pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
   if (unlikely(posix_memalign(&ptr, PFS_ALIGNEMENT, size)))
+  {
     return NULL;
+  }
 #else
 #ifdef HAVE_MEMALIGN
   /* Solaris */
   ptr = memalign(PFS_ALIGNEMENT, size);
   if (unlikely(ptr == NULL))
+  {
     return NULL;
+  }
 #else
 #ifdef HAVE_ALIGNED_MALLOC
   /* Windows */
   ptr = _aligned_malloc(size, PFS_ALIGNEMENT);
   if (unlikely(ptr == NULL))
+  {
     return NULL;
+  }
 #else
 #error "Missing implementation for PFS_ALIGNENT"
 #endif /* HAVE_ALIGNED_MALLOC */
@@ -82,13 +88,17 @@ pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
   /* Everything else */
   ptr = malloc(size);
   if (unlikely(ptr == NULL))
+  {
     return NULL;
+  }
 #endif
 
   klass->count_alloc(size);
 
   if (flags & MY_ZEROFILL)
+  {
     memset(ptr, 0, size);
+  }
   return ptr;
 }
 
@@ -96,7 +106,9 @@ void
 pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr)
 {
   if (ptr == NULL)
+  {
     return;
+  }
 
 #ifdef HAVE_POSIX_MEMALIGN
   /* Allocated with posix_memalign() */
@@ -140,7 +152,9 @@ pfs_malloc_array(PFS_builtin_memory_class *klass,
   size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size))
+  {
     return NULL;
+  }
   return pfs_malloc(klass, array_size, flags);
 }
 
@@ -158,7 +172,9 @@ pfs_free_array(PFS_builtin_memory_class *klass,
                void *ptr)
 {
   if (ptr == NULL)
+  {
     return;
+  }
   size_t array_size = n * size;
   /* Overflow should have been detected by pfs_malloc_array. */
   DBUG_ASSERT(!is_overflow(array_size, n, size));
@@ -176,9 +192,13 @@ bool
 is_overflow(size_t product, size_t n1, size_t n2)
 {
   if (n1 != 0 && (product / n1 != n2))
+  {
     return true;
+  }
   else
+  {
     return false;
+  }
 }
 
 void
@@ -219,7 +239,9 @@ pfs_get_socket_address(char *host,
   case AF_INET:
   {
     if (host_len < INET_ADDRSTRLEN + 1)
+    {
       return 0;
+    }
     struct sockaddr_in *sa4 = (struct sockaddr_in *)(src_addr);
 #ifdef _WIN32
     /* Older versions of Windows do not support inet_ntop() */
@@ -240,7 +262,9 @@ pfs_get_socket_address(char *host,
   case AF_INET6:
   {
     if (host_len < INET6_ADDRSTRLEN + 1)
+    {
       return 0;
+    }
     struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)(src_addr);
 #ifdef _WIN32
     /* Older versions of Windows do not support inet_ntop() */

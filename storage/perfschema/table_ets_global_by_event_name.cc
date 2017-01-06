@@ -142,7 +142,9 @@ PFS_index_ets_global_by_event_name::match(PFS_instr_class *instr_class)
   if (m_fields >= 1)
   {
     if (!m_key.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }

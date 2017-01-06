@@ -95,7 +95,9 @@ PFS_index_events_waits_summary_by_instance::match(PFS_mutex *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -106,7 +108,9 @@ PFS_index_events_waits_summary_by_instance::match(PFS_rwlock *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -117,7 +121,9 @@ PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -128,7 +134,9 @@ PFS_index_events_waits_summary_by_instance::match(PFS_file *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -139,7 +147,9 @@ PFS_index_events_waits_summary_by_instance::match(PFS_socket *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -152,7 +162,9 @@ PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs)
     PFS_mutex_class *safe_class;
     safe_class = sanitize_mutex_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
+    {
       return false;
+    }
     return m_key.match(safe_class);
   }
   return true;
@@ -166,7 +178,9 @@ PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs)
     PFS_rwlock_class *safe_class;
     safe_class = sanitize_rwlock_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
+    {
       return false;
+    }
     return m_key.match(safe_class);
   }
   return true;
@@ -180,7 +194,9 @@ PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs)
     PFS_cond_class *safe_class;
     safe_class = sanitize_cond_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
+    {
       return false;
+    }
     return m_key.match(safe_class);
   }
   return true;
@@ -194,7 +210,9 @@ PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs)
     PFS_file_class *safe_class;
     safe_class = sanitize_file_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
+    {
       return false;
+    }
     return m_key.match(safe_class);
   }
   return true;
@@ -208,7 +226,9 @@ PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs)
     PFS_socket_class *safe_class;
     safe_class = sanitize_socket_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
+    {
       return false;
+    }
     return m_key.match(safe_class);
   }
   return true;
@@ -286,7 +306,9 @@ table_events_waits_summary_by_instance::make_instr_row(
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -301,7 +323,9 @@ table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
   PFS_mutex_class *safe_class;
   safe_class = sanitize_mutex_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_instr_row(
     pfs, safe_class, pfs->m_identity, &pfs->m_mutex_stat.m_wait_stat);
@@ -317,7 +341,9 @@ table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
   PFS_rwlock_class *safe_class;
   safe_class = sanitize_rwlock_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_instr_row(
     pfs, safe_class, pfs->m_identity, &pfs->m_rwlock_stat.m_wait_stat);
@@ -333,7 +359,9 @@ table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
   PFS_cond_class *safe_class;
   safe_class = sanitize_cond_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return make_instr_row(
     pfs, safe_class, pfs->m_identity, &pfs->m_cond_stat.m_wait_stat);
@@ -349,7 +377,9 @@ table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
   PFS_file_class *safe_class;
   safe_class = sanitize_file_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   PFS_single_stat sum;
   pfs->m_file_stat.m_io_stat.sum_waits(&sum);
@@ -370,7 +400,9 @@ table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
   PFS_socket_class *safe_class;
   safe_class = sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   /*
     Consolidate wait times and byte counts for individual operations. This is

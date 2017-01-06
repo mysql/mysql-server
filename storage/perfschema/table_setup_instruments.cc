@@ -127,7 +127,9 @@ table_setup_instruments::rnd_next(void)
 
   /* Do not advertise hard coded instruments when disabled. */
   if (!pfs_initialized)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
@@ -174,9 +176,13 @@ table_setup_instruments::rnd_next(void)
       update_timed = false;
       pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
       if (pfs_builtin != NULL)
+      {
         instr_class = &pfs_builtin->m_class;
+      }
       else
+      {
         instr_class = NULL;
+      }
       break;
     case pos_setup_instruments::VIEW_MEMORY:
       update_timed = false;
@@ -211,7 +217,9 @@ table_setup_instruments::rnd_pos(const void *pos)
 
   /* Do not advertise hard coded instruments when disabled. */
   if (!pfs_initialized)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
 
@@ -258,9 +266,13 @@ table_setup_instruments::rnd_pos(const void *pos)
     update_timed = false;
     pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
     if (pfs_builtin != NULL)
+    {
       instr_class = &pfs_builtin->m_class;
+    }
     else
+    {
       instr_class = NULL;
+    }
     break;
   case pos_setup_instruments::VIEW_MEMORY:
     update_timed = false;
@@ -306,12 +318,16 @@ table_setup_instruments::index_next(void)
 
   /* Do not advertise hard coded instruments when disabled. */
   if (!pfs_initialized)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
     if (!m_opened_index->match_view(m_pos.m_index_1))
+    {
       continue;
+    }
 
     do
     {
@@ -358,9 +374,13 @@ table_setup_instruments::index_next(void)
         update_timed = false;
         pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
         if (pfs_builtin != NULL)
+        {
           instr_class = &pfs_builtin->m_class;
+        }
         else
+        {
           instr_class = NULL;
+        }
         break;
       case pos_setup_instruments::VIEW_MEMORY:
         update_timed = false;

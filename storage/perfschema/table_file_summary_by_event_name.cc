@@ -181,7 +181,9 @@ PFS_index_file_summary_by_event_name::match(const PFS_file_class *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }

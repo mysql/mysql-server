@@ -86,19 +86,25 @@ PFS_index_setup_actors::match(PFS_setup_actor *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -154,15 +160,21 @@ table_setup_actors::write_row(TABLE *table, unsigned char *, Field **fields)
 
   /* Reject illegal enum values in ENABLED */
   if ((enabled_value != ENUM_YES) && (enabled_value != ENUM_NO))
+  {
     return HA_ERR_NO_REFERENCED_ROW;
+  }
 
   /* Reject illegal enum values in HISTORY */
   if ((history_value != ENUM_YES) && (history_value != ENUM_NO))
+  {
     return HA_ERR_NO_REFERENCED_ROW;
+  }
 
   /* Reject if any of user/host/role is not provided */
   if (user->length() == 0 || host->length() == 0 || role->length() == 0)
+  {
     return HA_ERR_WRONG_COMMAND;
+  }
 
   enabled = (enabled_value == ENUM_YES) ? true : false;
   history = (history_value == ENUM_YES) ? true : false;
@@ -277,28 +289,36 @@ table_setup_actors::make_row(PFS_setup_actor *pfs)
 
   if (unlikely((m_row.m_hostname_length == 0) ||
                (m_row.m_hostname_length > sizeof(m_row.m_hostname))))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
   m_row.m_username_length = pfs->m_username_length;
 
   if (unlikely((m_row.m_username_length == 0) ||
                (m_row.m_username_length > sizeof(m_row.m_username))))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
   m_row.m_rolename_length = pfs->m_rolename_length;
 
   if (unlikely((m_row.m_rolename_length == 0) ||
                (m_row.m_rolename_length > sizeof(m_row.m_rolename))))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   memcpy(m_row.m_rolename, pfs->m_rolename, m_row.m_rolename_length);
   m_row.m_enabled_ptr = &pfs->m_enabled;
   m_row.m_history_ptr = &pfs->m_history;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -368,14 +388,18 @@ table_setup_actors::update_row_values(TABLE *table,
         value = (enum_yes_no)get_field_enum(f);
         /* Reject illegal enum values in ENABLED */
         if ((value != ENUM_YES) && (value != ENUM_NO))
+        {
           return HA_ERR_NO_REFERENCED_ROW;
+        }
         *m_row.m_enabled_ptr = (value == ENUM_YES) ? true : false;
         break;
       case 4: /* HISTORY */
         value = (enum_yes_no)get_field_enum(f);
         /* Reject illegal enum values in HISTORY */
         if ((value != ENUM_YES) && (value != ENUM_NO))
+        {
           return HA_ERR_NO_REFERENCED_ROW;
+        }
         *m_row.m_history_ptr = (value == ENUM_YES) ? true : false;
         break;
       default:

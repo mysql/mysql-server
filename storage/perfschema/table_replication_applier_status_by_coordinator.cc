@@ -109,7 +109,9 @@ PFS_index_rpl_applier_status_by_coord_by_channel::match(Master_info *mi)
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
     if (!m_key.match(row.channel_name, row.channel_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -139,10 +141,14 @@ PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi)
     mysql_mutex_unlock(&mi->rli->data_lock);
 
     if (row.thread_id_is_null)
+    {
       return false;
+    }
 
     if (!m_key.match(row.thread_id))
+    {
       return false;
+    }
   }
 
   return true;
@@ -332,15 +338,23 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
       m_row.thread_id_is_null = false;
     }
     else
+    {
       m_row.thread_id_is_null = true;
+    }
   }
   else
+  {
     m_row.thread_id_is_null = true;
+  }
 
   if (mi->rli->slave_running)
+  {
     m_row.service_state = PS_RPL_YES;
+  }
   else
+  {
     m_row.service_state = PS_RPL_NO;
+  }
 
   mysql_mutex_lock(&mi->rli->err_lock);
 
@@ -391,9 +405,13 @@ table_replication_applier_status_by_coordinator::read_row_values(
         break;
       case 1: /*thread_id*/
         if (!m_row.thread_id_is_null)
+        {
           set_field_ulonglong(f, m_row.thread_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 2: /*service_state*/
         set_field_enum(f, m_row.service_state);

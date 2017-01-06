@@ -51,7 +51,9 @@ int
 init_account(const PFS_global_param *param)
 {
   if (global_account_container.init(param->m_account_sizing))
+  {
     return 1;
+  }
 
   return 0;
 }
@@ -116,7 +118,9 @@ get_account_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_account_hash_pins == NULL))
   {
     if (!account_hash_inited)
+    {
       return NULL;
+    }
     thread->m_account_hash_pins = lf_hash_get_pins(&account_hash);
   }
   return thread->m_account_hash_pins;
@@ -191,15 +195,23 @@ search:
   {
     pfs->m_key = key;
     if (username_length > 0)
+    {
       pfs->m_username = &pfs->m_key.m_hash_key[0];
+    }
     else
+    {
       pfs->m_username = NULL;
+    }
     pfs->m_username_length = username_length;
 
     if (hostname_length > 0)
+    {
       pfs->m_hostname = &pfs->m_key.m_hash_key[username_length + 1];
+    }
     else
+    {
       pfs->m_hostname = NULL;
+    }
     pfs->m_hostname_length = hostname_length;
 
     pfs->m_user = find_or_create_user(thread, username, username_length);
@@ -280,7 +292,9 @@ void
 PFS_account::aggregate_waits(PFS_user *safe_user, PFS_host *safe_host)
 {
   if (read_instr_class_waits_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_user != NULL && safe_host != NULL))
   {
@@ -327,7 +341,9 @@ void
 PFS_account::aggregate_stages(PFS_user *safe_user, PFS_host *safe_host)
 {
   if (read_instr_class_stages_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_user != NULL && safe_host != NULL))
   {
@@ -381,7 +397,9 @@ void
 PFS_account::aggregate_statements(PFS_user *safe_user, PFS_host *safe_host)
 {
   if (read_instr_class_statements_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_user != NULL && safe_host != NULL))
   {
@@ -435,7 +453,9 @@ void
 PFS_account::aggregate_transactions(PFS_user *safe_user, PFS_host *safe_host)
 {
   if (read_instr_class_transactions_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_user != NULL && safe_host != NULL))
   {
@@ -492,7 +512,9 @@ void
 PFS_account::aggregate_errors(PFS_user *safe_user, PFS_host *safe_host)
 {
   if (read_instr_class_errors_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_user != NULL && safe_host != NULL))
   {
@@ -547,7 +569,9 @@ PFS_account::aggregate_memory(bool alive,
                               PFS_host *safe_host)
 {
   if (read_instr_class_memory_stats() == NULL)
+  {
     return;
+  }
 
   if (likely(safe_user != NULL && safe_host != NULL))
   {
@@ -697,7 +721,9 @@ PFS_account::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
   remaining_delta = stat->apply_delta(delta, &delta_buffer);
 
   if (remaining_delta == NULL)
+  {
     return;
+  }
 
   if (m_user != NULL)
   {
@@ -725,7 +751,9 @@ purge_account(PFS_thread *thread, PFS_account *account)
 {
   LF_PINS *pins = get_account_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return;
+  }
 
   PFS_account **entry;
   entry = reinterpret_cast<PFS_account **>(
@@ -775,7 +803,9 @@ public:
     pfs->aggregate(true, user, host);
 
     if (pfs->get_refcount() == 0)
+    {
       purge_account(m_thread, pfs);
+    }
   }
 
 private:
@@ -788,7 +818,9 @@ purge_all_account(void)
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return;
+  }
 
   Proc_purge_account proc(thread);
   global_account_container.apply(proc);

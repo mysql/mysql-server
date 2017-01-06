@@ -224,19 +224,25 @@ PFS_index_esms_by_program::match(PFS_program *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs->m_type))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -369,7 +375,9 @@ table_esms_by_program::make_row(PFS_program *program)
   m_row.m_stmt_stat.set(normalizer, &program->m_stmt_stat);
 
   if (!program->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -397,23 +405,31 @@ table_esms_by_program::read_row_values(TABLE *table,
       {
       case 0: /* OBJECT_TYPE */
         if (m_row.m_object_type != 0)
+        {
           set_field_enum(f, m_row.m_object_type);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 1: /* OBJECT_SCHEMA */
         if (m_row.m_schema_name_length > 0)
           set_field_varchar_utf8(
             f, m_row.m_schema_name, m_row.m_schema_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 2: /* OBJECT_NAME */
         if (m_row.m_object_name_length > 0)
           set_field_varchar_utf8(
             f, m_row.m_object_name, m_row.m_object_name_length);
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* COUNT_STAR */
       case 4: /* SUM_TIMER_WAIT */

@@ -209,7 +209,9 @@ PFS_index_esms_by_digest::match(PFS_statements_digest_stat *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
@@ -256,7 +258,9 @@ table_esms_by_digest::rnd_next(void)
   PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < digest_max; m_pos.next())
   {
@@ -280,7 +284,9 @@ table_esms_by_digest::rnd_pos(const void *pos)
   PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   digest_stat = &statements_digest_stat_array[m_pos.m_index];
@@ -313,7 +319,9 @@ table_esms_by_digest::index_next(void)
   PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < digest_max; m_pos.next())
   {

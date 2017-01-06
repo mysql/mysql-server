@@ -97,7 +97,9 @@ PFS_index_rpl_applier_status::match(Master_info *mi)
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
     if (!m_key.match(row.channel_name, row.channel_name_length))
+    {
       return false;
+    }
   }
 
   return true;
@@ -258,9 +260,13 @@ table_replication_applier_status::make_row(Master_info *mi)
   mysql_mutex_lock(&mi->rli->data_lock);
 
   if (mi->rli->slave_running)
+  {
     m_row.service_state = PS_RPL_YES;
+  }
   else
+  {
     m_row.service_state = PS_RPL_NO;
+  }
 
   m_row.remaining_delay = 0;
   if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
@@ -270,7 +276,9 @@ table_replication_applier_status::make_row(Master_info *mi)
     m_row.remaining_delay_is_set = true;
   }
   else
+  {
     m_row.remaining_delay_is_set = false;
+  }
 
   m_row.count_transactions_retries = mi->rli->retried_trans;
 
@@ -308,9 +316,13 @@ table_replication_applier_status::read_row_values(
         break;
       case 2: /* remaining_delay */
         if (m_row.remaining_delay_is_set)
+        {
           set_field_ulong(f, m_row.remaining_delay);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* total number of times transactions were retried */
         set_field_ulonglong(f, m_row.count_transactions_retries);

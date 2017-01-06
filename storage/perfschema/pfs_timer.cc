@@ -82,31 +82,41 @@ init_timers(void)
     cycle_to_pico =
       round_to_ulong(pico_frequency / (double)pfs_timer_info.cycles.frequency);
   else
+  {
     cycle_to_pico = 0;
+  }
 
   if (pfs_timer_info.nanoseconds.frequency > 0)
     nanosec_to_pico = round_to_ulong(
       pico_frequency / (double)pfs_timer_info.nanoseconds.frequency);
   else
+  {
     nanosec_to_pico = 0;
+  }
 
   if (pfs_timer_info.microseconds.frequency > 0)
     microsec_to_pico = round_to_ulong(
       pico_frequency / (double)pfs_timer_info.microseconds.frequency);
   else
+  {
     microsec_to_pico = 0;
+  }
 
   if (pfs_timer_info.milliseconds.frequency > 0)
     millisec_to_pico = round_to_ulong(
       pico_frequency / (double)pfs_timer_info.milliseconds.frequency);
   else
+  {
     millisec_to_pico = 0;
+  }
 
   if (pfs_timer_info.ticks.frequency > 0)
     tick_to_pico = round_to_ulonglong(pico_frequency /
                                       (double)pfs_timer_info.ticks.frequency);
   else
+  {
     tick_to_pico = 0;
+  }
 
   to_pico_data[TIMER_NAME_CYCLE].m_v0 = cycle_v0;
   to_pico_data[TIMER_NAME_CYCLE].m_factor = cycle_to_pico;

@@ -97,7 +97,9 @@ PFS_index_esgs_by_user_by_event_name::match(PFS_user *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -108,7 +110,9 @@ PFS_index_esgs_by_user_by_event_name::match(PFS_instr_class *instr_class)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -257,7 +261,9 @@ table_esgs_by_user_by_event_name::make_row(PFS_user *user,
   user->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(user))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -269,7 +275,9 @@ table_esgs_by_user_by_event_name::make_row(PFS_user *user,
                                       &visitor);
 
   if (!user->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 

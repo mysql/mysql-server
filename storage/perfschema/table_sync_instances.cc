@@ -76,7 +76,9 @@ PFS_index_mutex_instances_by_instance::match(PFS_mutex *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -87,7 +89,9 @@ PFS_index_mutex_instances_by_name::match(PFS_mutex *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -98,7 +102,9 @@ PFS_index_mutex_instances_by_thread_id::match(PFS_mutex *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match_owner(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -223,7 +229,9 @@ table_mutex_instances::make_row(PFS_mutex *pfs)
 
   safe_class = sanitize_mutex_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_name = safe_class->m_name;
   m_row.m_name_length = safe_class->m_name_length;
@@ -237,10 +245,14 @@ table_mutex_instances::make_row(PFS_mutex *pfs)
     m_row.m_locked = true;
   }
   else
+  {
     m_row.m_locked = false;
+  }
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -271,9 +283,13 @@ table_mutex_instances::read_row_values(TABLE *table,
         break;
       case 2: /* LOCKED_BY_THREAD_ID */
         if (m_row.m_locked)
+        {
           set_field_ulonglong(f, m_row.m_locked_by_thread_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);
@@ -321,7 +337,9 @@ PFS_index_rwlock_instances_by_instance::match(PFS_rwlock *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -332,7 +350,9 @@ PFS_index_rwlock_instances_by_name::match(PFS_rwlock *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -343,7 +363,9 @@ PFS_index_rwlock_instances_by_thread_id::match(PFS_rwlock *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match_writer(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -469,7 +491,9 @@ table_rwlock_instances::make_row(PFS_rwlock *pfs)
 
   safe_class = sanitize_rwlock_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_name = safe_class->m_name;
   m_row.m_name_length = safe_class->m_name_length;
@@ -490,7 +514,9 @@ table_rwlock_instances::make_row(PFS_rwlock *pfs)
   }
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
@@ -521,9 +547,13 @@ table_rwlock_instances::read_row_values(TABLE *table,
         break;
       case 2: /* WRITE_LOCKED_BY_THREAD_ID */
         if (m_row.m_write_locked)
+        {
           set_field_ulonglong(f, m_row.m_write_locked_by_thread_id);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* READ_LOCKED_BY_COUNT */
         set_field_ulong(f, m_row.m_readers);
@@ -568,7 +598,9 @@ PFS_index_cond_instances_by_instance::match(PFS_cond *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -579,7 +611,9 @@ PFS_index_cond_instances_by_name::match(PFS_cond *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -702,14 +736,18 @@ table_cond_instances::make_row(PFS_cond *pfs)
 
   safe_class = sanitize_cond_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_name = safe_class->m_name;
   m_row.m_name_length = safe_class->m_name_length;
   m_row.m_identity = pfs->m_identity;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

@@ -63,7 +63,9 @@ init_events_waits_history_long(uint events_waits_history_long_sizing)
   PFS_atomic::store_u32(&events_waits_history_long_index.m_u32, 0);
 
   if (events_waits_history_long_size == 0)
+  {
     return 0;
+  }
 
   events_waits_history_long_array =
     PFS_MALLOC_ARRAY(&builtin_memory_waits_history_long,
@@ -101,7 +103,9 @@ void
 insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait)
 {
   if (unlikely(events_waits_history_per_thread == 0))
+  {
     return;
+  }
 
   uint index = thread->m_waits_history_index;
 
@@ -132,13 +136,17 @@ void
 insert_events_waits_history_long(PFS_events_waits *wait)
 {
   if (unlikely(events_waits_history_long_size == 0))
+  {
     return;
+  }
 
   uint index = PFS_atomic::add_u32(&events_waits_history_long_index.m_u32, 1);
 
   index = index % events_waits_history_long_size;
   if (index == 0)
+  {
     events_waits_history_long_full = true;
+  }
 
   /* See related comment in insert_events_waits_history. */
   copy_events_waits(&events_waits_history_long_array[index], wait);
@@ -151,7 +159,9 @@ fct_reset_events_waits_current(PFS_thread *pfs_thread)
   PFS_events_waits *pfs_wait_last = pfs_wait + WAIT_STACK_SIZE;
 
   for (; pfs_wait < pfs_wait_last; pfs_wait++)
+  {
     pfs_wait->m_wait_class = NO_WAIT_CLASS;
+  }
 }
 
 /** Reset table EVENTS_WAITS_CURRENT data. */
@@ -170,7 +180,9 @@ fct_reset_events_waits_history(PFS_thread *pfs_thread)
   pfs_thread->m_waits_history_index = 0;
   pfs_thread->m_waits_history_full = false;
   for (; wait < wait_last; wait++)
+  {
     wait->m_wait_class = NO_WAIT_CLASS;
+  }
 }
 
 /** Reset table EVENTS_WAITS_HISTORY data. */
@@ -190,7 +202,9 @@ reset_events_waits_history_long(void)
   PFS_events_waits *wait = events_waits_history_long_array;
   PFS_events_waits *wait_last = wait + events_waits_history_long_size;
   for (; wait < wait_last; wait++)
+  {
     wait->m_wait_class = NO_WAIT_CLASS;
+  }
 }
 
 static void

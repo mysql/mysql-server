@@ -38,7 +38,9 @@ install_default_setup(PSI_thread_bootstrap *thread_boot)
     (PSI_thread_service_t *)thread_boot->get_interface(
       PSI_CURRENT_THREAD_VERSION);
   if (psi == NULL)
+  {
     return;
+  }
 
   psi->register_thread(pfs_category, &thread_info, 1);
   PSI_thread *psi_thread = psi->new_thread(thread_key, NULL, 0);

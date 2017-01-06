@@ -112,7 +112,9 @@ get_setup_actor_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_setup_actor_hash_pins == NULL))
   {
     if (!setup_actor_hash_inited)
+    {
       return NULL;
+    }
     thread->m_setup_actor_hash_pins = lf_hash_get_pins(&setup_actor_hash);
   }
   return thread->m_setup_actor_hash_pins;
@@ -155,11 +157,15 @@ insert_setup_actor(const String *user,
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   PFS_setup_actor *pfs;
   pfs_dirty_state dirty_state;
@@ -195,7 +201,9 @@ insert_setup_actor(const String *user,
     global_setup_actor_container.deallocate(pfs);
 
     if (res > 0)
+    {
       return HA_ERR_FOUND_DUPP_KEY;
+    }
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -207,11 +215,15 @@ delete_setup_actor(const String *user, const String *host, const String *role)
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   PFS_setup_actor_key key;
   set_setup_actor_key(&key,
@@ -267,11 +279,15 @@ reset_setup_actor()
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   Proc_reset_setup_actor proc(pins);
   // FIXME: delete helper instead
@@ -359,7 +375,9 @@ update_setup_actors_derived_flags()
 {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return HA_ERR_OUT_OF_MEM;
+  }
 
   update_accounts_derived_flags(thread);
   return 0;

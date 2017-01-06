@@ -72,7 +72,9 @@ init_digest(const PFS_global_param *param)
   digest_full = false;
 
   if (digest_max == 0)
+  {
     return 0;
+  }
 
   statements_digest_stat_array =
     PFS_MALLOC_ARRAY(&builtin_memory_digest,
@@ -190,7 +192,9 @@ get_digest_hash_pins(PFS_thread *thread)
   if (unlikely(thread->m_digest_hash_pins == NULL))
   {
     if (!digest_hash_inited)
+    {
       return NULL;
+    }
     thread->m_digest_hash_pins = lf_hash_get_pins(&digest_hash);
   }
   return thread->m_digest_hash_pins;
@@ -205,14 +209,20 @@ find_or_create_digest(PFS_thread *thread,
   DBUG_ASSERT(digest_storage != NULL);
 
   if (statements_digest_stat_array == NULL)
+  {
     return NULL;
+  }
 
   if (digest_storage->m_byte_count <= 0)
+  {
     return NULL;
+  }
 
   LF_PINS *pins = get_digest_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return NULL;
+  }
 
   /*
     Note: the LF_HASH key is a block of memory,
@@ -226,7 +236,9 @@ find_or_create_digest(PFS_thread *thread,
   /* Add the current schema to the key */
   hash_key.m_schema_name_length = schema_name_length;
   if (schema_name_length > 0)
+  {
     memcpy(hash_key.m_schema_name, schema_name, schema_name_length);
+  }
 
   int res;
   uint retry_count = 0;
@@ -263,7 +275,9 @@ search:
     digest_lost++;
 
     if (pfs->m_first_seen == 0)
+    {
       pfs->m_first_seen = now;
+    }
     pfs->m_last_seen = now;
     return &pfs->m_stat;
   }
@@ -330,7 +344,9 @@ search:
   pfs = &statements_digest_stat_array[0];
 
   if (pfs->m_first_seen == 0)
+  {
     pfs->m_first_seen = now;
+  }
   pfs->m_last_seen = now;
   return &pfs->m_stat;
 }
@@ -340,7 +356,9 @@ purge_digest(PFS_thread *thread, PFS_digest_key *hash_key)
 {
   LF_PINS *pins = get_digest_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
     return;
+  }
 
   PFS_statements_digest_stat **entry;
 
@@ -385,11 +403,15 @@ reset_esms_by_digest()
   uint index;
 
   if (statements_digest_stat_array == NULL)
+  {
     return;
+  }
 
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
+  {
     return;
+  }
 
   /* Reset statements_digest_stat_array. */
   for (index = 0; index < digest_max; index++)

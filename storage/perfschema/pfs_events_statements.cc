@@ -64,7 +64,9 @@ init_events_statements_history_long(
   PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
 
   if (events_statements_history_long_size == 0)
+  {
     return 0;
+  }
 
   events_statements_history_long_array =
     PFS_MALLOC_ARRAY(&builtin_memory_statements_history_long,
@@ -191,7 +193,9 @@ insert_events_statements_history(PFS_thread *thread,
                                  PFS_events_statements *statement)
 {
   if (unlikely(events_statements_history_per_thread == 0))
+  {
     return;
+  }
 
   DBUG_ASSERT(thread->m_statements_history != NULL);
 
@@ -224,7 +228,9 @@ void
 insert_events_statements_history_long(PFS_events_statements *statement)
 {
   if (unlikely(events_statements_history_long_size == 0))
+  {
     return;
+  }
 
   DBUG_ASSERT(events_statements_history_long_array != NULL);
 
@@ -233,7 +239,9 @@ insert_events_statements_history_long(PFS_events_statements *statement)
 
   index = index % events_statements_history_long_size;
   if (index == 0)
+  {
     events_statements_history_long_full = true;
+  }
 
   /* See related comment in insert_events_statements_history. */
   copy_events_statements(&events_statements_history_long_array[index],
@@ -247,7 +255,9 @@ fct_reset_events_statements_current(PFS_thread *pfs_thread)
   PFS_events_statements *pfs_stmt_last = pfs_stmt + statement_stack_max;
 
   for (; pfs_stmt < pfs_stmt_last; pfs_stmt++)
+  {
     pfs_stmt->m_class = NULL;
+  }
 }
 
 /** Reset table EVENTS_STATEMENTS_CURRENT data. */
@@ -266,7 +276,9 @@ fct_reset_events_statements_history(PFS_thread *pfs_thread)
   pfs_thread->m_statements_history_index = 0;
   pfs_thread->m_statements_history_full = false;
   for (; pfs < pfs_last; pfs++)
+  {
     pfs->m_class = NULL;
+  }
 }
 
 /** Reset table EVENTS_STATEMENTS_HISTORY data. */
@@ -286,7 +298,9 @@ reset_events_statements_history_long(void)
   PFS_events_statements *pfs = events_statements_history_long_array;
   PFS_events_statements *pfs_last = pfs + events_statements_history_long_size;
   for (; pfs < pfs_last; pfs++)
+  {
     pfs->m_class = NULL;
+  }
 }
 
 static void
@@ -355,5 +369,7 @@ reset_events_statements_global()
     global_instr_class_statements_array + statement_class_max;
 
   for (; stat < stat_last; stat++)
+  {
     stat->reset();
+  }
 }

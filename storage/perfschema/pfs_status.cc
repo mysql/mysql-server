@@ -131,7 +131,9 @@ static void
 fct_reset_status_by_user(PFS_user *user)
 {
   if (user->m_lock.is_populated())
+  {
     user->aggregate_status();
+  }
 }
 
 /** Reset table STATUS_BY_USER data. */
@@ -145,7 +147,9 @@ static void
 fct_reset_status_by_host(PFS_host *host)
 {
   if (host->m_lock.is_populated())
+  {
     host->aggregate_status();
+  }
 }
 
 /** Reset table STATUS_BY_HOST data. */

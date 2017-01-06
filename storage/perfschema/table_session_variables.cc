@@ -39,7 +39,9 @@ PFS_index_session_variables::match(const System_variable *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -239,10 +241,14 @@ table_session_variables::make_row(const System_variable *system_var)
 {
   if (m_row.m_variable_name.make_row(system_var->m_name,
                                      system_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(system_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

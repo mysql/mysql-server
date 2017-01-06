@@ -101,7 +101,9 @@ PFS_index_table_handles_by_object::match(PFS_table *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match(OBJECT_TYPE_TABLE))
+    {
       return false;
+    }
   }
 
   PFS_table_share *share = sanitize_table_share(pfs->m_share);
@@ -109,13 +111,17 @@ PFS_index_table_handles_by_object::match(PFS_table *pfs)
   if (m_fields >= 2)
   {
     if (!m_key_2.match(share))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(share))
+    {
       return false;
+    }
   }
 
   return true;
@@ -127,7 +133,9 @@ PFS_index_table_handles_by_instance::match(PFS_table *pfs)
   if (m_fields >= 1)
   {
     if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -139,13 +147,17 @@ PFS_index_table_handles_by_owner::match(PFS_table *pfs)
   if (m_fields >= 1)
   {
     if (!m_key_1.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -278,10 +290,14 @@ table_table_handles::make_row(PFS_table *table)
 
   share = sanitize_table_share(table->m_share);
   if (share == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_object.make_row(share))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_identity = table->m_identity;
 
@@ -301,7 +317,9 @@ table_table_handles::make_row(PFS_table *table)
   m_row.m_external_lock = table->m_external_lock;
 
   if (!table->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

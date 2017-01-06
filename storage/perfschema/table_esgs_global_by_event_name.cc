@@ -92,7 +92,9 @@ PFS_index_esgs_global_by_event_name::match(PFS_instr_class *instr_class)
   if (m_fields >= 1)
   {
     if (!m_key.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
@@ -145,7 +147,9 @@ table_esgs_global_by_event_name::rnd_next(void)
   PFS_stage_class *stage_class;
 
   if (global_instr_class_stages_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   m_pos.set_at(&m_next_pos);
 
@@ -167,7 +171,9 @@ table_esgs_global_by_event_name::rnd_pos(const void *pos)
   set_position(pos);
 
   if (global_instr_class_stages_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   stage_class = find_stage_class(m_pos.m_index);
   if (stage_class)
@@ -197,7 +203,9 @@ table_esgs_global_by_event_name::index_next(void)
   PFS_stage_class *stage_class;
 
   if (global_instr_class_stages_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   m_pos.set_at(&m_next_pos);
 

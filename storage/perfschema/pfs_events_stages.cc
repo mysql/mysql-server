@@ -60,7 +60,9 @@ init_events_stages_history_long(uint events_stages_history_long_sizing)
   PFS_atomic::store_u32(&events_stages_history_long_index.m_u32, 0);
 
   if (events_stages_history_long_size == 0)
+  {
     return 0;
+  }
 
   events_stages_history_long_array =
     PFS_MALLOC_ARRAY(&builtin_memory_stages_history_long,
@@ -98,7 +100,9 @@ void
 insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage)
 {
   if (unlikely(events_stages_history_per_thread == 0))
+  {
     return;
+  }
 
   DBUG_ASSERT(thread->m_stages_history != NULL);
 
@@ -131,7 +135,9 @@ void
 insert_events_stages_history_long(PFS_events_stages *stage)
 {
   if (unlikely(events_stages_history_long_size == 0))
+  {
     return;
+  }
 
   DBUG_ASSERT(events_stages_history_long_array != NULL);
 
@@ -139,7 +145,9 @@ insert_events_stages_history_long(PFS_events_stages *stage)
 
   index = index % events_stages_history_long_size;
   if (index == 0)
+  {
     events_stages_history_long_full = true;
+  }
 
   /* See related comment in insert_events_stages_history. */
   copy_events_stages(&events_stages_history_long_array[index], stage);
@@ -167,7 +175,9 @@ fct_reset_events_stages_history(PFS_thread *pfs_thread)
   pfs_thread->m_stages_history_index = 0;
   pfs_thread->m_stages_history_full = false;
   for (; pfs < pfs_last; pfs++)
+  {
     pfs->m_class = NULL;
+  }
 }
 
 /** Reset table EVENTS_STAGES_HISTORY data. */
@@ -187,7 +197,9 @@ reset_events_stages_history_long(void)
   PFS_events_stages *pfs = events_stages_history_long_array;
   PFS_events_stages *pfs_last = pfs + events_stages_history_long_size;
   for (; pfs < pfs_last; pfs++)
+  {
     pfs->m_class = NULL;
+  }
 }
 
 static void
@@ -255,5 +267,7 @@ reset_events_stages_global()
   PFS_stage_stat *stat_last = global_instr_class_stages_array + stage_class_max;
 
   for (; stat < stat_last; stat++)
+  {
     stat->reset();
+  }
 }
