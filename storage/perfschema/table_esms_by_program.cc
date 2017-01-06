@@ -35,6 +35,7 @@
 
 THR_LOCK table_esms_by_program::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -198,15 +199,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_esms_by_program::m_field_def=
-{ 32, field_types };
+table_esms_by_program::m_field_def = {32, field_types};
 
-PFS_engine_table_share
-table_esms_by_program::m_share=
-{
-  { C_STRING_WITH_LEN("events_statements_summary_by_program") },
+PFS_engine_table_share table_esms_by_program::m_share = {
+  {C_STRING_WITH_LEN("events_statements_summary_by_program")},
   &pfs_truncatable_acl,
   table_esms_by_program::create,
   NULL, /* write_row */
@@ -219,7 +218,8 @@ table_esms_by_program::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_esms_by_program::match(PFS_program *pfs)
+bool
+PFS_index_esms_by_program::match(PFS_program *pfs)
 {
   if (m_fields >= 1)
   {
@@ -242,7 +242,7 @@ bool PFS_index_esms_by_program::match(PFS_program *pfs)
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_esms_by_program::create(void)
 {
   return new table_esms_by_program();
@@ -262,23 +262,25 @@ table_esms_by_program::get_row_count(void)
 }
 
 table_esms_by_program::table_esms_by_program()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(0), m_next_pos(0)
-{}
-
-void table_esms_by_program::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-  m_pos= 0;
-  m_next_pos= 0;
 }
 
-int table_esms_by_program::rnd_next(void)
+void
+table_esms_by_program::reset_position(void)
 {
-  PFS_program* pfs;
+  m_pos = 0;
+  m_next_pos = 0;
+}
+
+int
+table_esms_by_program::rnd_next(void)
+{
+  PFS_program *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_program_iterator it= global_program_container.iterate(m_pos.m_index);
-  pfs= it.scan_next(& m_pos.m_index);
+  PFS_program_iterator it = global_program_container.iterate(m_pos.m_index);
+  pfs = it.scan_next(&m_pos.m_index);
   if (pfs != NULL)
   {
     m_next_pos.set_after(&m_pos);
@@ -291,11 +293,11 @@ int table_esms_by_program::rnd_next(void)
 int
 table_esms_by_program::rnd_pos(const void *pos)
 {
-  PFS_program* pfs;
+  PFS_program *pfs;
 
   set_position(pos);
 
-  pfs= global_program_container.get(m_pos.m_index);
+  pfs = global_program_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
     return make_row(pfs);
@@ -304,26 +306,26 @@ table_esms_by_program::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_by_program::index_init(uint idx, bool)
+int
+table_esms_by_program::index_init(uint idx, bool)
 {
-  PFS_index_esms_by_program *result= NULL;
+  PFS_index_esms_by_program *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_esms_by_program);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_esms_by_program);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_esms_by_program::index_next(void)
+int
+table_esms_by_program::index_next(void)
 {
-  PFS_program* pfs;
-  bool has_more_program= true;
+  PFS_program *pfs;
+  bool has_more_program = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_program;
-       m_pos.next())
+  for (m_pos.set_at(&m_next_pos); has_more_program; m_pos.next())
   {
-    pfs= global_program_container.get(m_pos.m_index, &has_more_program);
+    pfs = global_program_container.get(m_pos.m_index, &has_more_program);
 
     if (pfs != NULL)
     {
@@ -341,30 +343,30 @@ int table_esms_by_program::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_esms_by_program
-::make_row(PFS_program* program)
+int
+table_esms_by_program::make_row(PFS_program *program)
 {
   pfs_optimistic_state lock;
 
   program->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type= program->m_type;
+  m_row.m_object_type = program->m_type;
 
-  m_row.m_object_name_length= program->m_object_name_length;
-  if(m_row.m_object_name_length > 0)
-    memcpy(m_row.m_object_name, program->m_object_name,
-           m_row.m_object_name_length);
+  m_row.m_object_name_length = program->m_object_name_length;
+  if (m_row.m_object_name_length > 0)
+    memcpy(
+      m_row.m_object_name, program->m_object_name, m_row.m_object_name_length);
 
-  m_row.m_schema_name_length= program->m_schema_name_length;
-  if(m_row.m_schema_name_length > 0)
-    memcpy(m_row.m_schema_name, program->m_schema_name,
-           m_row.m_schema_name_length);
+  m_row.m_schema_name_length = program->m_schema_name_length;
+  if (m_row.m_schema_name_length > 0)
+    memcpy(
+      m_row.m_schema_name, program->m_schema_name, m_row.m_schema_name_length);
 
-  time_normalizer *normalizer= time_normalizer::get(statement_timer);
+  time_normalizer *normalizer = time_normalizer::get(statement_timer);
   /* Get stored program's over all stats. */
   m_row.m_sp_stat.set(normalizer, &program->m_sp_stat);
   /* Get sub statements' stats. */
-  m_row.m_stmt_stat.set(normalizer, & program->m_stmt_stat);
+  m_row.m_stmt_stat.set(normalizer, &program->m_stmt_stat);
 
   if (!program->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;
@@ -372,9 +374,11 @@ int table_esms_by_program
   return 0;
 }
 
-int table_esms_by_program
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_esms_by_program::read_row_values(TABLE *table,
+                                       unsigned char *buf,
+                                       Field **fields,
+                                       bool read_all)
 {
   Field *f;
 
@@ -383,31 +387,31 @@ int table_esms_by_program
     in the table.
   */
   DBUG_ASSERT(table->s->null_bytes == 0);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* OBJECT_TYPE */
-        if(m_row.m_object_type != 0)
+        if (m_row.m_object_type != 0)
           set_field_enum(f, m_row.m_object_type);
         else
           f->set_null();
         break;
       case 1: /* OBJECT_SCHEMA */
-        if(m_row.m_schema_name_length > 0)
-          set_field_varchar_utf8(f, m_row.m_schema_name,
-                                 m_row.m_schema_name_length);
+        if (m_row.m_schema_name_length > 0)
+          set_field_varchar_utf8(
+            f, m_row.m_schema_name, m_row.m_schema_name_length);
         else
           f->set_null();
         break;
       case 2: /* OBJECT_NAME */
-        if(m_row.m_object_name_length > 0)
-          set_field_varchar_utf8(f, m_row.m_object_name,
-                                 m_row.m_object_name_length);
+        if (m_row.m_object_name_length > 0)
+          set_field_varchar_utf8(
+            f, m_row.m_object_name, m_row.m_object_name_length);
         else
           f->set_null();
         break;

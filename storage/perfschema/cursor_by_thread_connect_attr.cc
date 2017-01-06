@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,30 +32,31 @@ cursor_by_thread_connect_attr::get_row_count(void)
     (which is a number of bytes, not attributes)
   */
   return global_thread_container.get_row_count() *
-    session_connect_attrs_size_per_thread;
+         session_connect_attrs_size_per_thread;
 }
 
 cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
-  const PFS_engine_table_share *share) :
-  PFS_engine_table(share, &m_pos)
-{}
+  const PFS_engine_table_share *share)
+  : PFS_engine_table(share, &m_pos)
+{
+}
 
-void cursor_by_thread_connect_attr::reset_position(void)
+void
+cursor_by_thread_connect_attr::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int cursor_by_thread_connect_attr::rnd_next(void)
+int
+cursor_by_thread_connect_attr::rnd_next(void)
 {
   PFS_thread *thread;
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
       if (!make_row(thread, m_pos.m_index_2))
@@ -69,13 +70,14 @@ int cursor_by_thread_connect_attr::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int cursor_by_thread_connect_attr::rnd_pos(const void *pos)
+int
+cursor_by_thread_connect_attr::rnd_pos(const void *pos)
 {
   PFS_thread *thread;
 
   set_position(pos);
 
-  thread= global_thread_container.get(m_pos.m_index_1);
+  thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != NULL)
   {
     return make_row(thread, m_pos.m_index_2);

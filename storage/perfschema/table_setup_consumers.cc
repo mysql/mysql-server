@@ -29,102 +29,71 @@
 
 #define COUNT_SETUP_CONSUMERS 15
 
-static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
-{
-  {
-    { C_STRING_WITH_LEN("events_stages_current") },
-    &flag_events_stages_current,
-    false,
-    false
-  },
-  {
-    { C_STRING_WITH_LEN("events_stages_history") },
-    &flag_events_stages_history,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_stages_history_long") },
-    &flag_events_stages_history_long,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_statements_current") },
-    &flag_events_statements_current,
-    false,
-    false
-  },
-  {
-    { C_STRING_WITH_LEN("events_statements_history") },
-    &flag_events_statements_history,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_statements_history_long") },
-    &flag_events_statements_history_long,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_transactions_current") },
-    &flag_events_transactions_current,
-    false,
-    false
-  },
-  {
-    { C_STRING_WITH_LEN("events_transactions_history") },
-    &flag_events_transactions_history,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_transactions_history_long") },
-    &flag_events_transactions_history_long,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_waits_current") },
-    &flag_events_waits_current,
-    false,
-    false
-  },
-  {
-    { C_STRING_WITH_LEN("events_waits_history") },
-    &flag_events_waits_history,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("events_waits_history_long") },
-    &flag_events_waits_history_long,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("global_instrumentation") },
-    &flag_global_instrumentation,
-    true,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("thread_instrumentation") },
-    &flag_thread_instrumentation,
-    false,
-    true
-  },
-  {
-    { C_STRING_WITH_LEN("statements_digest") },
-    &flag_statements_digest,
-    false,
-    false
-  }
-};
+static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS] = {
+  {{C_STRING_WITH_LEN("events_stages_current")},
+   &flag_events_stages_current,
+   false,
+   false},
+  {{C_STRING_WITH_LEN("events_stages_history")},
+   &flag_events_stages_history,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_stages_history_long")},
+   &flag_events_stages_history_long,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_statements_current")},
+   &flag_events_statements_current,
+   false,
+   false},
+  {{C_STRING_WITH_LEN("events_statements_history")},
+   &flag_events_statements_history,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_statements_history_long")},
+   &flag_events_statements_history_long,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_transactions_current")},
+   &flag_events_transactions_current,
+   false,
+   false},
+  {{C_STRING_WITH_LEN("events_transactions_history")},
+   &flag_events_transactions_history,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_transactions_history_long")},
+   &flag_events_transactions_history_long,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_waits_current")},
+   &flag_events_waits_current,
+   false,
+   false},
+  {{C_STRING_WITH_LEN("events_waits_history")},
+   &flag_events_waits_history,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("events_waits_history_long")},
+   &flag_events_waits_history_long,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("global_instrumentation")},
+   &flag_global_instrumentation,
+   true,
+   true},
+  {{C_STRING_WITH_LEN("thread_instrumentation")},
+   &flag_thread_instrumentation,
+   false,
+   true},
+  {{C_STRING_WITH_LEN("statements_digest")},
+   &flag_statements_digest,
+   false,
+   false}};
 
 THR_LOCK table_setup_consumers::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -138,15 +107,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_setup_consumers::m_field_def=
-{ 2, field_types };
+table_setup_consumers::m_field_def = {2, field_types};
 
-PFS_engine_table_share
-table_setup_consumers::m_share=
-{
-  { C_STRING_WITH_LEN("setup_consumers") },
+PFS_engine_table_share table_setup_consumers::m_share = {
+  {C_STRING_WITH_LEN("setup_consumers")},
   &pfs_updatable_acl,
   table_setup_consumers::create,
   NULL, /* write_row */
@@ -159,7 +126,8 @@ table_setup_consumers::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_setup_consumers::match(row_setup_consumers *row)
+bool
+PFS_index_setup_consumers::match(row_setup_consumers *row)
 {
   if (m_fields >= 1)
   {
@@ -170,7 +138,8 @@ bool PFS_index_setup_consumers::match(row_setup_consumers *row)
   return true;
 }
 
-PFS_engine_table* table_setup_consumers::create(void)
+PFS_engine_table *
+table_setup_consumers::create(void)
 {
   return new table_setup_consumers();
 }
@@ -182,17 +151,19 @@ table_setup_consumers::get_row_count(void)
 }
 
 table_setup_consumers::table_setup_consumers()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row(NULL), m_pos(0), m_next_pos(0)
-{}
-
-void table_setup_consumers::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
 }
 
-int table_setup_consumers::rnd_next(void)
+void
+table_setup_consumers::reset_position(void)
+{
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
+}
+
+int
+table_setup_consumers::rnd_next(void)
 {
   int result;
 
@@ -200,44 +171,46 @@ int table_setup_consumers::rnd_next(void)
 
   if (m_pos.m_index < COUNT_SETUP_CONSUMERS)
   {
-    m_row= &all_setup_consumers_data[m_pos.m_index];
+    m_row = &all_setup_consumers_data[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
-    result= 0;
+    result = 0;
   }
   else
   {
-    m_row= NULL;
-    result= HA_ERR_END_OF_FILE;
+    m_row = NULL;
+    result = HA_ERR_END_OF_FILE;
   }
 
   return result;
 }
 
-int table_setup_consumers::rnd_pos(const void *pos)
+int
+table_setup_consumers::rnd_pos(const void *pos)
 {
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < COUNT_SETUP_CONSUMERS);
-  m_row= &all_setup_consumers_data[m_pos.m_index];
+  m_row = &all_setup_consumers_data[m_pos.m_index];
   return 0;
 }
 
-int table_setup_consumers::index_init(uint idx, bool)
+int
+table_setup_consumers::index_init(uint idx, bool)
 {
-  PFS_index_setup_consumers *result= NULL;
+  PFS_index_setup_consumers *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_setup_consumers);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_setup_consumers);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_setup_consumers::index_next(void)
+int
+table_setup_consumers::index_next(void)
 {
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < COUNT_SETUP_CONSUMERS;
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < COUNT_SETUP_CONSUMERS;
        m_pos.next())
   {
-    m_row= &all_setup_consumers_data[m_pos.m_index];
+    m_row = &all_setup_consumers_data[m_pos.m_index];
 
     if (m_opened_index->match(m_row))
     {
@@ -246,27 +219,28 @@ int table_setup_consumers::index_next(void)
     }
   }
 
-  m_row= NULL;
+  m_row = NULL;
   return HA_ERR_END_OF_FILE;
 }
 
-int table_setup_consumers::read_row_values(TABLE *table,
-                                           unsigned char *,
-                                           Field **fields,
-                                           bool read_all)
+int
+table_setup_consumers::read_row_values(TABLE *table,
+                                       unsigned char *,
+                                       Field **fields,
+                                       bool read_all)
 {
   Field *f;
 
   DBUG_ASSERT(m_row);
 
-/* Set the null bits */
+  /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         set_field_varchar_utf8(f, m_row->m_name.str, m_row->m_name.length);
@@ -283,28 +257,29 @@ int table_setup_consumers::read_row_values(TABLE *table,
   return 0;
 }
 
-int table_setup_consumers::update_row_values(TABLE *table,
-                                             const unsigned char *,
-                                             unsigned char *,
-                                             Field **fields)
+int
+table_setup_consumers::update_row_values(TABLE *table,
+                                         const unsigned char *,
+                                         unsigned char *,
+                                         Field **fields)
 {
   Field *f;
   enum_yes_no value;
 
   DBUG_ASSERT(m_row);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (bitmap_is_set(table->write_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
       {
-        value= (enum_yes_no) get_field_enum(f);
-        *m_row->m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        value = (enum_yes_no)get_field_enum(f);
+        *m_row->m_enabled_ptr = (value == ENUM_YES) ? true : false;
         break;
       }
       default:
@@ -321,5 +296,3 @@ int table_setup_consumers::update_row_values(TABLE *table,
 
   return 0;
 }
-
-

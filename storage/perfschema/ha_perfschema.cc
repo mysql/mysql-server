@@ -1318,6 +1318,7 @@ struct st_mysql_storage_engine pfs_storage_engine=
 
 const char* pfs_engine_name= "PERFORMANCE_SCHEMA";
 
+/* clang-format off */
 mysql_declare_plugin(perfschema)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -1335,6 +1336,7 @@ mysql_declare_plugin(perfschema)
   0,                                            /* flags */
 }
 mysql_declare_plugin_end;
+/* clang-format on */
 
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
   : handler(hton, share), m_table_share(NULL), m_table(NULL)

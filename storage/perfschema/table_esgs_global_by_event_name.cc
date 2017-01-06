@@ -33,6 +33,7 @@
 
 THR_LOCK table_esgs_global_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -66,15 +67,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_esgs_global_by_event_name::m_field_def=
-{ 6, field_types };
+table_esgs_global_by_event_name::m_field_def = {6, field_types};
 
-PFS_engine_table_share
-table_esgs_global_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_stages_summary_global_by_event_name") },
+PFS_engine_table_share table_esgs_global_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_stages_summary_global_by_event_name")},
   &pfs_truncatable_acl,
   table_esgs_global_by_event_name::create,
   NULL, /* write_row */
@@ -87,7 +86,8 @@ table_esgs_global_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_esgs_global_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_esgs_global_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 1)
   {
@@ -97,7 +97,7 @@ bool PFS_index_esgs_global_by_event_name::match(PFS_instr_class *instr_class)
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_esgs_global_by_event_name::create(void)
 {
   return new table_esgs_global_by_event_name();
@@ -121,23 +121,26 @@ table_esgs_global_by_event_name::get_row_count(void)
 }
 
 table_esgs_global_by_event_name::table_esgs_global_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(1), m_next_pos(1)
-{}
-
-void table_esgs_global_by_event_name::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1)
 {
-  m_pos= 1;
-  m_next_pos= 1;
 }
 
-int table_esgs_global_by_event_name::rnd_init(bool)
+void
+table_esgs_global_by_event_name::reset_position(void)
 {
-  m_normalizer= time_normalizer::get(stage_timer);
+  m_pos = 1;
+  m_next_pos = 1;
+}
+
+int
+table_esgs_global_by_event_name::rnd_init(bool)
+{
+  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
-int table_esgs_global_by_event_name::rnd_next(void)
+int
+table_esgs_global_by_event_name::rnd_next(void)
 {
   PFS_stage_class *stage_class;
 
@@ -146,7 +149,7 @@ int table_esgs_global_by_event_name::rnd_next(void)
 
   m_pos.set_at(&m_next_pos);
 
-  stage_class= find_stage_class(m_pos.m_index);
+  stage_class = find_stage_class(m_pos.m_index);
   if (stage_class)
   {
     m_next_pos.set_after(&m_pos);
@@ -166,7 +169,7 @@ table_esgs_global_by_event_name::rnd_pos(const void *pos)
   if (global_instr_class_stages_array == NULL)
     return HA_ERR_END_OF_FILE;
 
-  stage_class=find_stage_class(m_pos.m_index);
+  stage_class = find_stage_class(m_pos.m_index);
   if (stage_class)
   {
     return make_row(stage_class);
@@ -175,19 +178,21 @@ table_esgs_global_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esgs_global_by_event_name::index_init(uint idx, bool)
+int
+table_esgs_global_by_event_name::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(stage_timer);
+  m_normalizer = time_normalizer::get(stage_timer);
 
-  PFS_index_esgs_global_by_event_name *result= NULL;
+  PFS_index_esgs_global_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_esgs_global_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_esgs_global_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_esgs_global_by_event_name::index_next(void)
+int
+table_esgs_global_by_event_name::index_next(void)
 {
   PFS_stage_class *stage_class;
 
@@ -198,7 +203,7 @@ int table_esgs_global_by_event_name::index_next(void)
 
   do
   {
-    stage_class= find_stage_class(m_pos.m_index);
+    stage_class = find_stage_class(m_pos.m_index);
     if (stage_class)
     {
       if (m_opened_index->match(stage_class))
@@ -216,8 +221,8 @@ int table_esgs_global_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_esgs_global_by_event_name
-::make_row(PFS_stage_class *klass)
+int
+table_esgs_global_by_event_name::make_row(PFS_stage_class *klass)
 {
   m_row.m_event_name.make_row(klass);
 
@@ -234,20 +239,22 @@ int table_esgs_global_by_event_name
   return 0;
 }
 
-int table_esgs_global_by_event_name
-::read_row_values(TABLE *table, unsigned char *, Field **fields,
-                  bool read_all)
+int
+table_esgs_global_by_event_name::read_row_values(TABLE *table,
+                                                 unsigned char *,
+                                                 Field **fields,
+                                                 bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         m_row.m_event_name.set_field(f);

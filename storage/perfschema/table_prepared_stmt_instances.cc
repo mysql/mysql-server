@@ -35,6 +35,7 @@
 
 THR_LOCK table_prepared_stmt_instances::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -213,15 +214,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_prepared_stmt_instances::m_field_def=
-{ 35, field_types };
+table_prepared_stmt_instances::m_field_def = {35, field_types};
 
-PFS_engine_table_share
-table_prepared_stmt_instances::m_share=
-{
-  { C_STRING_WITH_LEN("prepared_statements_instances") },
+PFS_engine_table_share table_prepared_stmt_instances::m_share = {
+  {C_STRING_WITH_LEN("prepared_statements_instances")},
   &pfs_truncatable_acl,
   table_prepared_stmt_instances::create,
   NULL, /* write_row */
@@ -234,7 +233,9 @@ table_prepared_stmt_instances::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_prepared_stmt_instances_by_instance::match(const PFS_prepared_stmt *pfs)
+bool
+PFS_index_prepared_stmt_instances_by_instance::match(
+  const PFS_prepared_stmt *pfs)
 {
   if (m_fields >= 1)
   {
@@ -244,7 +245,9 @@ bool PFS_index_prepared_stmt_instances_by_instance::match(const PFS_prepared_stm
   return true;
 }
 
-bool PFS_index_prepared_stmt_instances_by_owner_thread::match(const  PFS_prepared_stmt *pfs)
+bool
+PFS_index_prepared_stmt_instances_by_owner_thread::match(
+  const PFS_prepared_stmt *pfs)
 {
   if (m_fields >= 1)
   {
@@ -260,7 +263,9 @@ bool PFS_index_prepared_stmt_instances_by_owner_thread::match(const  PFS_prepare
   return true;
 }
 
-bool PFS_index_prepared_stmt_instances_by_statement_id::match(const  PFS_prepared_stmt *pfs)
+bool
+PFS_index_prepared_stmt_instances_by_statement_id::match(
+  const PFS_prepared_stmt *pfs)
 {
   if (m_fields >= 1)
   {
@@ -270,7 +275,9 @@ bool PFS_index_prepared_stmt_instances_by_statement_id::match(const  PFS_prepare
   return true;
 }
 
-bool PFS_index_prepared_stmt_instances_by_statement_name::match(const  PFS_prepared_stmt *pfs)
+bool
+PFS_index_prepared_stmt_instances_by_statement_name::match(
+  const PFS_prepared_stmt *pfs)
 {
   if (m_fields >= 1)
   {
@@ -280,7 +287,9 @@ bool PFS_index_prepared_stmt_instances_by_statement_name::match(const  PFS_prepa
   return true;
 }
 
-bool PFS_index_prepared_stmt_instances_by_owner_object::match(const  PFS_prepared_stmt *pfs)
+bool
+PFS_index_prepared_stmt_instances_by_owner_object::match(
+  const PFS_prepared_stmt *pfs)
 {
   if (m_fields >= 1)
   {
@@ -302,8 +311,7 @@ bool PFS_index_prepared_stmt_instances_by_owner_object::match(const  PFS_prepare
   return true;
 }
 
-
-PFS_engine_table*
+PFS_engine_table *
 table_prepared_stmt_instances::create(void)
 {
   return new table_prepared_stmt_instances();
@@ -323,23 +331,26 @@ table_prepared_stmt_instances::get_row_count(void)
 }
 
 table_prepared_stmt_instances::table_prepared_stmt_instances()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(0), m_next_pos(0)
-{}
-
-void table_prepared_stmt_instances::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-  m_pos= 0;
-  m_next_pos= 0;
 }
 
-int table_prepared_stmt_instances::rnd_next(void)
+void
+table_prepared_stmt_instances::reset_position(void)
 {
-  PFS_prepared_stmt* pfs;
+  m_pos = 0;
+  m_next_pos = 0;
+}
+
+int
+table_prepared_stmt_instances::rnd_next(void)
+{
+  PFS_prepared_stmt *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_prepared_stmt_iterator it= global_prepared_stmt_container.iterate(m_pos.m_index);
-  pfs= it.scan_next(& m_pos.m_index);
+  PFS_prepared_stmt_iterator it =
+    global_prepared_stmt_container.iterate(m_pos.m_index);
+  pfs = it.scan_next(&m_pos.m_index);
   if (pfs != NULL)
   {
     m_next_pos.set_after(&m_pos);
@@ -352,11 +363,11 @@ int table_prepared_stmt_instances::rnd_next(void)
 int
 table_prepared_stmt_instances::rnd_pos(const void *pos)
 {
-  PFS_prepared_stmt* pfs;
+  PFS_prepared_stmt *pfs;
 
   set_position(pos);
 
-  pfs= global_prepared_stmt_container.get(m_pos.m_index);
+  pfs = global_prepared_stmt_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
     return make_row(pfs);
@@ -365,45 +376,45 @@ table_prepared_stmt_instances::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_prepared_stmt_instances::index_init(uint idx, bool)
+int
+table_prepared_stmt_instances::index_init(uint idx, bool)
 {
-  PFS_index_prepared_stmt_instances *result= NULL;
+  PFS_index_prepared_stmt_instances *result = NULL;
 
-  switch(idx)
+  switch (idx)
   {
   case 0:
-    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_instance);
+    result = PFS_NEW(PFS_index_prepared_stmt_instances_by_instance);
     break;
   case 1:
-    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_thread);
+    result = PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_thread);
     break;
   case 2:
-    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_statement_id);
+    result = PFS_NEW(PFS_index_prepared_stmt_instances_by_statement_id);
     break;
   case 3:
-    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_statement_name);
+    result = PFS_NEW(PFS_index_prepared_stmt_instances_by_statement_name);
     break;
   case 4:
-    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_object);
+    result = PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_object);
     break;
   default:
     DBUG_ASSERT(false);
     break;
   }
 
-  m_opened_index= result;
-  m_index= result;
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_prepared_stmt_instances::index_next(void)
+int
+table_prepared_stmt_instances::index_next(void)
 {
-  PFS_prepared_stmt* pfs;
-  bool has_more= true;
+  PFS_prepared_stmt *pfs;
+  bool has_more = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more;
-       m_pos.next())
+  for (m_pos.set_at(&m_next_pos); has_more; m_pos.next())
   {
     pfs = global_prepared_stmt_container.get(m_pos.m_index, &has_more);
 
@@ -423,58 +434,63 @@ int table_prepared_stmt_instances::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
+int
+table_prepared_stmt_instances::make_row(PFS_prepared_stmt *prepared_stmt)
 {
   pfs_optimistic_state lock;
 
   prepared_stmt->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_identity= prepared_stmt->m_identity;
+  m_row.m_identity = prepared_stmt->m_identity;
 
-  m_row.m_stmt_id= prepared_stmt->m_stmt_id;
+  m_row.m_stmt_id = prepared_stmt->m_stmt_id;
 
-  m_row.m_owner_thread_id= prepared_stmt->m_owner_thread_id;
-  m_row.m_owner_event_id= prepared_stmt->m_owner_event_id;
+  m_row.m_owner_thread_id = prepared_stmt->m_owner_thread_id;
+  m_row.m_owner_event_id = prepared_stmt->m_owner_event_id;
 
-  m_row.m_stmt_name_length= prepared_stmt->m_stmt_name_length;
-  if(m_row.m_stmt_name_length > 0)
-    memcpy(m_row.m_stmt_name, prepared_stmt->m_stmt_name,
-           m_row.m_stmt_name_length);
+  m_row.m_stmt_name_length = prepared_stmt->m_stmt_name_length;
+  if (m_row.m_stmt_name_length > 0)
+    memcpy(
+      m_row.m_stmt_name, prepared_stmt->m_stmt_name, m_row.m_stmt_name_length);
 
-  m_row.m_sql_text_length= prepared_stmt->m_sqltext_length;
-  if(m_row.m_sql_text_length > 0)
-    memcpy(m_row.m_sql_text, prepared_stmt->m_sqltext,
-           m_row.m_sql_text_length);
+  m_row.m_sql_text_length = prepared_stmt->m_sqltext_length;
+  if (m_row.m_sql_text_length > 0)
+    memcpy(m_row.m_sql_text, prepared_stmt->m_sqltext, m_row.m_sql_text_length);
 
-  m_row.m_owner_object_type= prepared_stmt->m_owner_object_type;
+  m_row.m_owner_object_type = prepared_stmt->m_owner_object_type;
 
-  m_row.m_owner_object_name_length= prepared_stmt->m_owner_object_name_length;
-  if(m_row.m_owner_object_name_length > 0)
-    memcpy(m_row.m_owner_object_name, prepared_stmt->m_owner_object_name,
+  m_row.m_owner_object_name_length = prepared_stmt->m_owner_object_name_length;
+  if (m_row.m_owner_object_name_length > 0)
+    memcpy(m_row.m_owner_object_name,
+           prepared_stmt->m_owner_object_name,
            m_row.m_owner_object_name_length);
 
-  m_row.m_owner_object_schema_length= prepared_stmt->m_owner_object_schema_length;
-  if(m_row.m_owner_object_schema_length > 0)
-    memcpy(m_row.m_owner_object_schema, prepared_stmt->m_owner_object_schema,
+  m_row.m_owner_object_schema_length =
+    prepared_stmt->m_owner_object_schema_length;
+  if (m_row.m_owner_object_schema_length > 0)
+    memcpy(m_row.m_owner_object_schema,
+           prepared_stmt->m_owner_object_schema,
            m_row.m_owner_object_schema_length);
 
-  time_normalizer *normalizer= time_normalizer::get(statement_timer);
+  time_normalizer *normalizer = time_normalizer::get(statement_timer);
   /* Get prepared statement prepare stats. */
-  m_row.m_prepare_stat.set(normalizer, & prepared_stmt->m_prepare_stat);
+  m_row.m_prepare_stat.set(normalizer, &prepared_stmt->m_prepare_stat);
   /* Get prepared statement reprepare stats. */
-  m_row.m_reprepare_stat.set(normalizer, & prepared_stmt->m_reprepare_stat);
+  m_row.m_reprepare_stat.set(normalizer, &prepared_stmt->m_reprepare_stat);
   /* Get prepared statement execute stats. */
-  m_row.m_execute_stat.set(normalizer, & prepared_stmt->m_execute_stat);
+  m_row.m_execute_stat.set(normalizer, &prepared_stmt->m_execute_stat);
 
   if (!prepared_stmt->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;
 
-  return 0; 
+  return 0;
 }
 
-int table_prepared_stmt_instances
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_prepared_stmt_instances::read_row_values(TABLE *table,
+                                               unsigned char *buf,
+                                               Field **fields,
+                                               bool read_all)
 {
   Field *f;
 
@@ -482,13 +498,13 @@ int table_prepared_stmt_instances
     Set the null bits.
   */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* OBJECT_INSTANCE_BEGIN */
         set_field_ulonglong(f, (intptr)m_row.m_identity);
@@ -497,16 +513,15 @@ int table_prepared_stmt_instances
         set_field_ulonglong(f, m_row.m_stmt_id);
         break;
       case 2: /* STATEMENT_NAME */
-        if(m_row.m_stmt_name_length > 0)
-          set_field_varchar_utf8(f, m_row.m_stmt_name,
-                                 m_row.m_stmt_name_length);
+        if (m_row.m_stmt_name_length > 0)
+          set_field_varchar_utf8(
+            f, m_row.m_stmt_name, m_row.m_stmt_name_length);
         else
           f->set_null();
         break;
       case 3: /* SQL_TEXT */
-        if(m_row.m_sql_text_length > 0)
-          set_field_longtext_utf8(f, m_row.m_sql_text,
-                                 m_row.m_sql_text_length);
+        if (m_row.m_sql_text_length > 0)
+          set_field_longtext_utf8(f, m_row.m_sql_text, m_row.m_sql_text_length);
         else
           f->set_null();
         break;
@@ -514,35 +529,35 @@ int table_prepared_stmt_instances
         set_field_ulonglong(f, m_row.m_owner_thread_id);
         break;
       case 5: /* OWNER_EVENT_ID */
-        if(m_row.m_owner_event_id > 0)
+        if (m_row.m_owner_event_id > 0)
           set_field_ulonglong(f, m_row.m_owner_event_id);
         else
           f->set_null();
         break;
       case 6: /* OWNER_OBJECT_TYPE */
-        if(m_row.m_owner_object_type != 0)
+        if (m_row.m_owner_object_type != 0)
           set_field_enum(f, m_row.m_owner_object_type);
         else
           f->set_null();
         break;
       case 7: /* OWNER_OBJECT_SCHEMA */
-        if(m_row.m_owner_object_schema_length > 0)
-          set_field_varchar_utf8(f, m_row.m_owner_object_schema,
-                                 m_row.m_owner_object_schema_length);
+        if (m_row.m_owner_object_schema_length > 0)
+          set_field_varchar_utf8(
+            f, m_row.m_owner_object_schema, m_row.m_owner_object_schema_length);
         else
           f->set_null();
         break;
       case 8: /* OWNER_OBJECT_NAME */
-        if(m_row.m_owner_object_name_length > 0)
-          set_field_varchar_utf8(f, m_row.m_owner_object_name,
-                                 m_row.m_owner_object_name_length);
+        if (m_row.m_owner_object_name_length > 0)
+          set_field_varchar_utf8(
+            f, m_row.m_owner_object_name, m_row.m_owner_object_name_length);
         else
           f->set_null();
         break;
-      case 9:    /* TIMER_PREPARE */
+      case 9: /* TIMER_PREPARE */
         m_row.m_prepare_stat.set_field(1, f);
         break;
-      case 10:   /* COUNT_REPREPARE */
+      case 10: /* COUNT_REPREPARE */
         m_row.m_reprepare_stat.set_field(0, f);
         break;
       default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
@@ -554,4 +569,3 @@ int table_prepared_stmt_instances
 
   return 0;
 }
-

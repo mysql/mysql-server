@@ -33,6 +33,7 @@
 
 THR_LOCK table_mems_global_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -91,15 +92,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_mems_global_by_event_name::m_field_def=
-{ 11, field_types };
+table_mems_global_by_event_name::m_field_def = {11, field_types};
 
-PFS_engine_table_share
-table_mems_global_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("memory_summary_global_by_event_name") },
+PFS_engine_table_share table_mems_global_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("memory_summary_global_by_event_name")},
   &pfs_readonly_acl,
   table_mems_global_by_event_name::create,
   NULL, /* write_row */
@@ -112,7 +111,8 @@ table_mems_global_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_mems_global_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_mems_global_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 1)
   {
@@ -122,7 +122,8 @@ bool PFS_index_mems_global_by_event_name::match(PFS_instr_class *instr_class)
   return true;
 }
 
-PFS_engine_table* table_mems_global_by_event_name::create(void)
+PFS_engine_table *
+table_mems_global_by_event_name::create(void)
 {
   return new table_mems_global_by_event_name();
 }
@@ -145,17 +146,19 @@ table_mems_global_by_event_name::get_row_count(void)
 }
 
 table_mems_global_by_event_name::table_mems_global_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-  m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_mems_global_by_event_name::reset_position(void)
+void
+table_mems_global_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_mems_global_by_event_name::rnd_next(void)
+int
+table_mems_global_by_event_name::rnd_next(void)
 {
   PFS_memory_class *pfs;
   PFS_builtin_memory_class *pfs_builtin;
@@ -164,14 +167,12 @@ int table_mems_global_by_event_name::rnd_next(void)
   if (!pfs_initialized)
     return HA_ERR_END_OF_FILE;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_view();
-       m_pos.next_view())
+  for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
     switch (m_pos.m_index_1)
     {
     case pos_mems_global_by_event_name::VIEW_BUILTIN_MEMORY:
-      pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+      pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
       if (pfs_builtin != NULL)
       {
         m_next_pos.set_after(&m_pos);
@@ -179,7 +180,7 @@ int table_mems_global_by_event_name::rnd_next(void)
       }
       break;
     case pos_mems_global_by_event_name::VIEW_MEMORY:
-      pfs= find_memory_class(m_pos.m_index_2);
+      pfs = find_memory_class(m_pos.m_index_2);
       if (pfs != NULL)
       {
         m_next_pos.set_after(&m_pos);
@@ -192,7 +193,8 @@ int table_mems_global_by_event_name::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_mems_global_by_event_name::rnd_pos(const void *pos)
+int
+table_mems_global_by_event_name::rnd_pos(const void *pos)
 {
   PFS_builtin_memory_class *pfs_builtin;
   PFS_memory_class *pfs;
@@ -203,17 +205,17 @@ int table_mems_global_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  switch(m_pos.m_index_1)
+  switch (m_pos.m_index_1)
   {
   case pos_mems_global_by_event_name::VIEW_BUILTIN_MEMORY:
-    pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+    pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
     if (pfs_builtin != NULL)
     {
       return make_row(pfs_builtin);
     }
     break;
   case pos_mems_global_by_event_name::VIEW_MEMORY:
-    pfs= find_memory_class(m_pos.m_index_2);
+    pfs = find_memory_class(m_pos.m_index_2);
     if (pfs != NULL)
     {
       return make_row(pfs);
@@ -224,17 +226,19 @@ int table_mems_global_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_mems_global_by_event_name::index_init(uint idx, bool)
+int
+table_mems_global_by_event_name::index_init(uint idx, bool)
 {
-  PFS_index_mems_global_by_event_name *result= NULL;
+  PFS_index_mems_global_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_mems_global_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_mems_global_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_mems_global_by_event_name::index_next(void)
+int
+table_mems_global_by_event_name::index_next(void)
 {
   PFS_memory_class *pfs;
   PFS_builtin_memory_class *pfs_builtin;
@@ -243,16 +247,14 @@ int table_mems_global_by_event_name::index_next(void)
   if (!pfs_initialized)
     return HA_ERR_END_OF_FILE;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_view();
-       m_pos.next_view())
+  for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
   {
     switch (m_pos.m_index_1)
     {
     case pos_mems_global_by_event_name::VIEW_BUILTIN_MEMORY:
       do
       {
-        pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+        pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
         if (pfs_builtin != NULL)
         {
           if (m_opened_index->match(&pfs_builtin->m_class))
@@ -271,7 +273,7 @@ int table_mems_global_by_event_name::index_next(void)
     case pos_mems_global_by_event_name::VIEW_MEMORY:
       do
       {
-        pfs= find_memory_class(m_pos.m_index_2);
+        pfs = find_memory_class(m_pos.m_index_2);
         if (pfs != NULL)
         {
           if (m_opened_index->match(pfs))
@@ -292,7 +294,8 @@ int table_mems_global_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_mems_global_by_event_name::make_row(PFS_memory_class *klass)
+int
+table_mems_global_by_event_name::make_row(PFS_memory_class *klass)
 {
   m_row.m_event_name.make_row(klass);
 
@@ -317,33 +320,35 @@ int table_mems_global_by_event_name::make_row(PFS_memory_class *klass)
                                           &visitor);
   }
 
-  m_row.m_stat.set(& visitor.m_stat);
+  m_row.m_stat.set(&visitor.m_stat);
 
   return 0;
 }
 
-int table_mems_global_by_event_name::make_row(PFS_builtin_memory_class *klass)
+int
+table_mems_global_by_event_name::make_row(PFS_builtin_memory_class *klass)
 {
-  m_row.m_event_name.make_row(& klass->m_class);
+  m_row.m_event_name.make_row(&klass->m_class);
   m_row.m_stat.set(&klass->m_stat);
   return 0;
 }
 
-int table_mems_global_by_event_name::read_row_values(TABLE *table,
-                                                    unsigned char *,
-                                                    Field **fields,
-                                                    bool read_all)
+int
+table_mems_global_by_event_name::read_row_values(TABLE *table,
+                                                 unsigned char *,
+                                                 Field **fields,
+                                                 bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* EVENT_NAME */
         m_row.m_event_name.set_field(f);
@@ -357,4 +362,3 @@ int table_mems_global_by_event_name::read_row_values(TABLE *table,
 
   return 0;
 }
-

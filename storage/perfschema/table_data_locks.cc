@@ -31,6 +31,7 @@
 
 THR_LOCK table_data_locks::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -109,15 +110,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_data_locks::m_field_def=
-{ 15, field_types };
+table_data_locks::m_field_def = {15, field_types};
 
-PFS_engine_table_share
-table_data_locks::m_share=
-{
-  { C_STRING_WITH_LEN("data_locks") },
+PFS_engine_table_share table_data_locks::m_share = {
+  {C_STRING_WITH_LEN("data_locks")},
   &pfs_readonly_acl,
   table_data_locks::create,
   NULL, /* write_row */
@@ -130,7 +129,8 @@ table_data_locks::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table* table_data_locks::create(void)
+PFS_engine_table *
+table_data_locks::create(void)
 {
   return new table_data_locks();
 }
@@ -144,17 +144,20 @@ table_data_locks::get_row_count(void)
 
 table_data_locks::table_data_locks()
   : PFS_engine_table(&m_share, &m_pk_pos),
-  m_row(NULL), m_pos(), m_next_pos(), m_pk_pos()
+    m_row(NULL),
+    m_pos(),
+    m_next_pos(),
+    m_pk_pos()
 {
-  for (unsigned int i= 0; i < COUNT_DATA_LOCK_ENGINES; i++)
+  for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++)
   {
-    m_iterator[i]= NULL;
+    m_iterator[i] = NULL;
   }
 }
 
 table_data_locks::~table_data_locks()
 {
-  for (unsigned int i= 0; i < COUNT_DATA_LOCK_ENGINES; i++)
+  for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++)
   {
     if (m_iterator[i] != NULL)
     {
@@ -163,7 +166,8 @@ table_data_locks::~table_data_locks()
   }
 }
 
-void table_data_locks::reset_position(void)
+void
+table_data_locks::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
@@ -171,15 +175,14 @@ void table_data_locks::reset_position(void)
   m_container.clear();
 }
 
-int table_data_locks::rnd_next(void)
+int
+table_data_locks::rnd_next(void)
 {
   row_data_lock *data;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_engine();
-       m_pos.next_engine())
+  for (m_pos.set_at(&m_next_pos); m_pos.has_more_engine(); m_pos.next_engine())
   {
-    unsigned int index= m_pos.m_index_1;
+    unsigned int index = m_pos.m_index_1;
 
     if (m_iterator[index] == NULL)
     {
@@ -188,7 +191,8 @@ int table_data_locks::rnd_next(void)
         continue;
       }
 
-      m_iterator[index]= g_data_lock_inspector[index]->create_data_lock_iterator();
+      m_iterator[index] =
+        g_data_lock_inspector[index]->create_data_lock_iterator();
 
       if (m_iterator[index] == NULL)
       {
@@ -196,17 +200,17 @@ int table_data_locks::rnd_next(void)
       }
     }
 
-    bool iterator_done= false;
-    PSI_engine_data_lock_iterator *it= m_iterator[index];
+    bool iterator_done = false;
+    PSI_engine_data_lock_iterator *it = m_iterator[index];
 
-    for ( ; ; )
+    for (;;)
     {
-      data= m_container.get_row(m_pos.m_index_2);
+      data = m_container.get_row(m_pos.m_index_2);
       if (data != NULL)
       {
-        m_row= data;
-        m_next_pos.set_after(& m_pos);
-        m_pk_pos.set(& m_row->m_hidden_pk);
+        m_row = data;
+        m_next_pos.set_after(&m_pos);
+        m_pk_pos.set(&m_row->m_hidden_pk);
         return 0;
       }
 
@@ -219,14 +223,15 @@ int table_data_locks::rnd_next(void)
       /*
         TODO: avoid requesting column LOCK_DATA is not used.
       */
-      iterator_done= it->scan(& m_container, true);
+      iterator_done = it->scan(&m_container, true);
     }
   }
 
   return HA_ERR_END_OF_FILE;
 }
 
-int table_data_locks::rnd_pos(const void *pos)
+int
+table_data_locks::rnd_pos(const void *pos)
 {
   row_data_lock *data;
 
@@ -238,7 +243,7 @@ int table_data_locks::rnd_pos(const void *pos)
   */
   static_assert(COUNT_DATA_LOCK_ENGINES == 1,
                 "We don't support multiple engines yet.");
-  unsigned int index= 0;
+  unsigned int index = 0;
 
   if (m_iterator[index] == NULL)
   {
@@ -247,7 +252,8 @@ int table_data_locks::rnd_pos(const void *pos)
       return HA_ERR_RECORD_DELETED;
     }
 
-    m_iterator[index]= g_data_lock_inspector[index]->create_data_lock_iterator();
+    m_iterator[index] =
+      g_data_lock_inspector[index]->create_data_lock_iterator();
 
     if (m_iterator[index] == NULL)
     {
@@ -255,65 +261,68 @@ int table_data_locks::rnd_pos(const void *pos)
     }
   }
 
-  PSI_engine_data_lock_iterator *it= m_iterator[index];
+  PSI_engine_data_lock_iterator *it = m_iterator[index];
 
   m_container.clear();
   /*
     TODO: avoid requesting column LOCK_DATA is not used.
   */
-  it->fetch(& m_container,
+  it->fetch(&m_container,
             m_pk_pos.m_engine_lock_id,
             m_pk_pos.m_engine_lock_id_length,
             true);
-  data= m_container.get_row(0);
+  data = m_container.get_row(0);
   if (data != NULL)
   {
-    m_row= data;
+    m_row = data;
     return 0;
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_data_locks::index_init(uint idx, bool)
+int
+table_data_locks::index_init(uint idx, bool)
 {
-  PFS_index_data_locks *result= NULL;
+  PFS_index_data_locks *result = NULL;
 
-  switch(idx)
+  switch (idx)
   {
   case 0:
-    result= PFS_NEW(PFS_index_data_locks_by_lock_id);
+    result = PFS_NEW(PFS_index_data_locks_by_lock_id);
     break;
   case 1:
-    result= PFS_NEW(PFS_index_data_locks_by_transaction_id);
+    result = PFS_NEW(PFS_index_data_locks_by_transaction_id);
     break;
   case 2:
-    result= PFS_NEW(PFS_index_data_locks_by_thread_id);
+    result = PFS_NEW(PFS_index_data_locks_by_thread_id);
     break;
   case 3:
-    result= PFS_NEW(PFS_index_data_locks_by_object);
+    result = PFS_NEW(PFS_index_data_locks_by_object);
     break;
   default:
     DBUG_ASSERT(false);
     break;
   }
 
-  m_opened_index= result;
-  m_index= result;
+  m_opened_index = result;
+  m_index = result;
 
   m_container.set_filter(m_opened_index);
   return 0;
 }
 
-int table_data_locks::index_next()
+int
+table_data_locks::index_next()
 {
   return rnd_next();
 }
 
-int table_data_locks::read_row_values(TABLE *table,
-                                     unsigned char *buf,
-                                     Field **fields,
-                                     bool read_all)
+int
+table_data_locks::read_row_values(TABLE *table,
+                                  unsigned char *buf,
+                                  Field **fields,
+                                  bool read_all)
 {
   Field *f;
 
@@ -322,14 +331,14 @@ int table_data_locks::read_row_values(TABLE *table,
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 2);
-  buf[0]= 0;
-  buf[1]= 0;
+  buf[0] = 0;
+  buf[1] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* ENGINE */
         set_field_varchar_utf8(f, m_row->m_engine);
@@ -378,9 +387,8 @@ int table_data_locks::read_row_values(TABLE *table,
       case 7: /* PARTITION_NAME */
         if (m_row->m_partition_name_length > 0)
         {
-          set_field_varchar_utf8(f,
-                                 m_row->m_partition_name,
-                                 m_row->m_partition_name_length);
+          set_field_varchar_utf8(
+            f, m_row->m_partition_name, m_row->m_partition_name_length);
         }
         else
         {
@@ -390,9 +398,8 @@ int table_data_locks::read_row_values(TABLE *table,
       case 8: /* SUBPARTITION_NAME */
         if (m_row->m_sub_partition_name_length > 0)
         {
-          set_field_varchar_utf8(f,
-                                 m_row->m_sub_partition_name,
-                                 m_row->m_sub_partition_name_length);
+          set_field_varchar_utf8(
+            f, m_row->m_sub_partition_name, m_row->m_sub_partition_name_length);
         }
         else
         {
@@ -403,7 +410,7 @@ int table_data_locks::read_row_values(TABLE *table,
         m_row->m_index_row.set_field(3, f);
         break;
       case 10: /* OBJECT_INSTANCE_BEGIN */
-        set_field_ulonglong(f, (intptr) m_row->m_identity);
+        set_field_ulonglong(f, (intptr)m_row->m_identity);
         break;
       case 11: /* LOCK_TYPE */
         set_field_varchar_utf8(f, m_row->m_lock_type);
@@ -432,4 +439,3 @@ int table_data_locks::read_row_values(TABLE *table,
 
   return 0;
 }
-

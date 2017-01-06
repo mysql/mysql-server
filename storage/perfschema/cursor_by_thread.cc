@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 /**
   @file storage/perfschema/cursor_by_thread.cc
@@ -30,23 +31,25 @@ cursor_by_thread::get_row_count(void)
 }
 
 cursor_by_thread::cursor_by_thread(const PFS_engine_table_share *share)
-  : PFS_engine_table(share, &m_pos),
-    m_pos(0), m_next_pos(0)
-{}
-
-void cursor_by_thread::reset_position(void)
+  : PFS_engine_table(share, &m_pos), m_pos(0), m_next_pos(0)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
 }
 
-int cursor_by_thread::rnd_next(void)
+void
+cursor_by_thread::reset_position(void)
+{
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
+}
+
+int
+cursor_by_thread::rnd_next(void)
 {
   PFS_thread *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_thread_iterator it= global_thread_container.iterate(m_pos.m_index);
-  pfs= it.scan_next(& m_pos.m_index);
+  PFS_thread_iterator it = global_thread_container.iterate(m_pos.m_index);
+  pfs = it.scan_next(&m_pos.m_index);
   if (pfs != NULL)
   {
     m_next_pos.set_after(&m_pos);
@@ -63,7 +66,7 @@ cursor_by_thread::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  pfs= global_thread_container.get(m_pos.m_index);
+  pfs = global_thread_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
     return make_row(pfs);
@@ -72,16 +75,17 @@ cursor_by_thread::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int cursor_by_thread::index_next()
+int
+cursor_by_thread::index_next()
 {
   PFS_thread *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_thread_iterator it= global_thread_container.iterate(m_pos.m_index);
+  PFS_thread_iterator it = global_thread_container.iterate(m_pos.m_index);
 
   do
   {
-    pfs= it.scan_next(& m_pos.m_index);
+    pfs = it.scan_next(&m_pos.m_index);
     if (pfs != NULL)
     {
       if (m_opened_index->match(pfs))
@@ -97,4 +101,3 @@ int cursor_by_thread::index_next()
 
   return HA_ERR_END_OF_FILE;
 }
-

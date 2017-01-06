@@ -30,6 +30,7 @@
 
 THR_LOCK table_events_waits_summary_by_instance::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE ews_by_instance_field_types[]=
 {
   {
@@ -68,15 +69,14 @@ static const TABLE_FIELD_TYPE ews_by_instance_field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_events_waits_summary_by_instance::m_field_def=
-{ 7, ews_by_instance_field_types };
+table_events_waits_summary_by_instance::m_field_def = {
+  7, ews_by_instance_field_types};
 
-PFS_engine_table_share
-table_events_waits_summary_by_instance::m_share=
-{
-  { C_STRING_WITH_LEN("events_waits_summary_by_instance") },
+PFS_engine_table_share table_events_waits_summary_by_instance::m_share = {
+  {C_STRING_WITH_LEN("events_waits_summary_by_instance")},
   &pfs_truncatable_acl,
   table_events_waits_summary_by_instance::create,
   NULL, /* write_row */
@@ -89,7 +89,8 @@ table_events_waits_summary_by_instance::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_events_waits_summary_by_instance::match(PFS_mutex *pfs)
+bool
+PFS_index_events_waits_summary_by_instance::match(PFS_mutex *pfs)
 {
   if (m_fields >= 1)
   {
@@ -99,7 +100,8 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_mutex *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_instance::match(PFS_rwlock *pfs)
+bool
+PFS_index_events_waits_summary_by_instance::match(PFS_rwlock *pfs)
 {
   if (m_fields >= 1)
   {
@@ -109,7 +111,8 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_rwlock *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs)
+bool
+PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs)
 {
   if (m_fields >= 1)
   {
@@ -119,7 +122,8 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_instance::match(PFS_file *pfs)
+bool
+PFS_index_events_waits_summary_by_instance::match(PFS_file *pfs)
 {
   if (m_fields >= 1)
   {
@@ -129,7 +133,8 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_file *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_instance::match(PFS_socket *pfs)
+bool
+PFS_index_events_waits_summary_by_instance::match(PFS_socket *pfs)
 {
   if (m_fields >= 1)
   {
@@ -139,12 +144,13 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_socket *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs)
+bool
+PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs)
 {
   if (m_fields >= 1)
   {
     PFS_mutex_class *safe_class;
-    safe_class= sanitize_mutex_class(pfs->m_class);
+    safe_class = sanitize_mutex_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
       return false;
     return m_key.match(safe_class);
@@ -152,12 +158,13 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs)
+bool
+PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs)
 {
   if (m_fields >= 1)
   {
     PFS_rwlock_class *safe_class;
-    safe_class= sanitize_rwlock_class(pfs->m_class);
+    safe_class = sanitize_rwlock_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
       return false;
     return m_key.match(safe_class);
@@ -165,12 +172,13 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs)
+bool
+PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs)
 {
   if (m_fields >= 1)
   {
     PFS_cond_class *safe_class;
-    safe_class= sanitize_cond_class(pfs->m_class);
+    safe_class = sanitize_cond_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
       return false;
     return m_key.match(safe_class);
@@ -178,12 +186,13 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs)
+bool
+PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs)
 {
   if (m_fields >= 1)
   {
     PFS_file_class *safe_class;
-    safe_class= sanitize_file_class(pfs->m_class);
+    safe_class = sanitize_file_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
       return false;
     return m_key.match(safe_class);
@@ -191,12 +200,13 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs)
+bool
+PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs)
 {
   if (m_fields >= 1)
   {
     PFS_socket_class *safe_class;
-    safe_class= sanitize_socket_class(pfs->m_class);
+    safe_class = sanitize_socket_class(pfs->m_class);
     if (unlikely(safe_class == NULL))
       return false;
     return m_key.match(safe_class);
@@ -204,7 +214,8 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs)
   return true;
 }
 
-bool PFS_index_events_waits_summary_by_event_name::match_view(uint view)
+bool
+PFS_index_events_waits_summary_by_event_name::match_view(uint view)
 {
   if (m_fields >= 1)
   {
@@ -213,46 +224,51 @@ bool PFS_index_events_waits_summary_by_event_name::match_view(uint view)
   return true;
 }
 
-PFS_engine_table* table_events_waits_summary_by_instance::create(void)
+PFS_engine_table *
+table_events_waits_summary_by_instance::create(void)
 {
   return new table_events_waits_summary_by_instance();
 }
 
-int table_events_waits_summary_by_instance::delete_all_rows(void)
+int
+table_events_waits_summary_by_instance::delete_all_rows(void)
 {
   reset_events_waits_by_instance();
   return 0;
 }
 
-table_events_waits_summary_by_instance
-::table_events_waits_summary_by_instance()
+table_events_waits_summary_by_instance::table_events_waits_summary_by_instance()
   : table_all_instr(&m_share)
-{}
-
-int table_events_waits_summary_by_instance::index_init(uint idx, bool)
 {
-  PFS_index_all_instr *result= NULL;
-  switch(idx)
+}
+
+int
+table_events_waits_summary_by_instance::index_init(uint idx, bool)
+{
+  PFS_index_all_instr *result = NULL;
+  switch (idx)
   {
   case 0:
-    result= PFS_NEW(PFS_index_events_waits_summary_by_instance);
+    result = PFS_NEW(PFS_index_events_waits_summary_by_instance);
     break;
   case 1:
-    result= PFS_NEW(PFS_index_events_waits_summary_by_event_name);
+    result = PFS_NEW(PFS_index_events_waits_summary_by_event_name);
     break;
   default:
     DBUG_ASSERT(false);
     break;
   }
-  m_opened_index= result;
-  m_index= result;
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_events_waits_summary_by_instance
-::make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
-                 const void *object_instance_begin,
-                 PFS_single_stat *pfs_stat)
+int
+table_events_waits_summary_by_instance::make_instr_row(
+  PFS_instr *pfs,
+  PFS_instr_class *klass,
+  const void *object_instance_begin,
+  PFS_single_stat *pfs_stat)
 {
   pfs_optimistic_state lock;
 
@@ -262,9 +278,9 @@ int table_events_waits_summary_by_instance
   */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
-  m_row.m_object_instance_addr= (intptr) object_instance_begin;
+  m_row.m_name = klass->m_name;
+  m_row.m_name_length = klass->m_name_length;
+  m_row.m_object_instance_addr = (intptr)object_instance_begin;
 
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, pfs_stat);
@@ -273,64 +289,68 @@ int table_events_waits_summary_by_instance
     return HA_ERR_RECORD_DELETED;
 
   return 0;
-} 
+}
 
 /**
   Build a row, for mutex statistics in a thread.
   @param pfs              the mutex this cursor is reading
 */
-int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
+int
+table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
 {
   PFS_mutex_class *safe_class;
-  safe_class= sanitize_mutex_class(pfs->m_class);
+  safe_class = sanitize_mutex_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return HA_ERR_RECORD_DELETED;
-  
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
-                        &pfs->m_mutex_stat.m_wait_stat);
+
+  return make_instr_row(
+    pfs, safe_class, pfs->m_identity, &pfs->m_mutex_stat.m_wait_stat);
 }
 
 /**
   Build a row, for rwlock statistics in a thread.
   @param pfs              the rwlock this cursor is reading
 */
-int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
+int
+table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
 {
   PFS_rwlock_class *safe_class;
-  safe_class= sanitize_rwlock_class(pfs->m_class);
+  safe_class = sanitize_rwlock_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return HA_ERR_RECORD_DELETED;
-  
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
-                        &pfs->m_rwlock_stat.m_wait_stat);
+
+  return make_instr_row(
+    pfs, safe_class, pfs->m_identity, &pfs->m_rwlock_stat.m_wait_stat);
 }
 
 /**
   Build a row, for condition statistics in a thread.
   @param pfs              the condition this cursor is reading
 */
-int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
+int
+table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
 {
   PFS_cond_class *safe_class;
-  safe_class= sanitize_cond_class(pfs->m_class);
+  safe_class = sanitize_cond_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return HA_ERR_RECORD_DELETED;
-  
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
-                        &pfs->m_cond_stat.m_wait_stat);
+
+  return make_instr_row(
+    pfs, safe_class, pfs->m_identity, &pfs->m_cond_stat.m_wait_stat);
 }
 
 /**
   Build a row, for file statistics in a thread.
   @param pfs              the file this cursor is reading
 */
-int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
+int
+table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
 {
   PFS_file_class *safe_class;
-  safe_class= sanitize_file_class(pfs->m_class);
+  safe_class = sanitize_file_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return HA_ERR_RECORD_DELETED;
-  
+
   PFS_single_stat sum;
   pfs->m_file_stat.m_io_stat.sum_waits(&sum);
   /*
@@ -344,13 +364,14 @@ int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
   Build a row, for socket statistics in a thread.
   @param pfs              the socket this cursor is reading
 */
-int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
+int
+table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
 {
   PFS_socket_class *safe_class;
-  safe_class= sanitize_socket_class(pfs->m_class);
+  safe_class = sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return HA_ERR_RECORD_DELETED;
-  
+
   /*
     Consolidate wait times and byte counts for individual operations. This is
     done by the consumer in order to reduce overhead on the socket instrument.
@@ -365,20 +386,22 @@ int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
   return make_instr_row(pfs, safe_class, pfs, &pfs_stat);
 }
 
-int table_events_waits_summary_by_instance
-::read_row_values(TABLE *table, unsigned char *, Field **fields,
-                  bool read_all)
+int
+table_events_waits_summary_by_instance::read_row_values(TABLE *table,
+                                                        unsigned char *,
+                                                        Field **fields,
+                                                        bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
@@ -409,4 +432,3 @@ int table_events_waits_summary_by_instance
 
   return 0;
 }
-

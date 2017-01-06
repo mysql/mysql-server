@@ -24,6 +24,7 @@
 #include "my_dbug.h"
 #include "pfs_buffer_container.h"
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -47,11 +48,12 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
-TABLE_FIELD_DEF table_session_connect::m_field_def=
-{ 4, field_types };
+TABLE_FIELD_DEF table_session_connect::m_field_def = {4, field_types};
 
-bool PFS_index_session_connect::match(PFS_thread *pfs)
+bool
+PFS_index_session_connect::match(PFS_thread *pfs)
 {
   if (m_fields >= 1)
   {
@@ -62,7 +64,8 @@ bool PFS_index_session_connect::match(PFS_thread *pfs)
   return true;
 }
 
-bool PFS_index_session_connect::match(row_session_connect_attrs *row)
+bool
+PFS_index_session_connect::match(row_session_connect_attrs *row)
 {
   if (m_fields >= 2)
   {
@@ -73,20 +76,20 @@ bool PFS_index_session_connect::match(row_session_connect_attrs *row)
   return true;
 }
 
-table_session_connect::table_session_connect(const PFS_engine_table_share *share)
- : cursor_by_thread_connect_attr(share)
+table_session_connect::table_session_connect(
+  const PFS_engine_table_share *share)
+  : cursor_by_thread_connect_attr(share)
 {
   if (session_connect_attrs_size_per_thread > 0)
   {
-    m_copy_session_connect_attrs= (char *) my_malloc(PSI_INSTRUMENT_ME,
-                                             session_connect_attrs_size_per_thread,
-                                             MYF(0));
+    m_copy_session_connect_attrs = (char *)my_malloc(
+      PSI_INSTRUMENT_ME, session_connect_attrs_size_per_thread, MYF(0));
   }
   else
   {
-    m_copy_session_connect_attrs= NULL;
+    m_copy_session_connect_attrs = NULL;
   }
-  m_copy_session_connect_attrs_length= 0;
+  m_copy_session_connect_attrs_length = 0;
 }
 
 table_session_connect::~table_session_connect()
@@ -94,25 +97,25 @@ table_session_connect::~table_session_connect()
   my_free(m_copy_session_connect_attrs);
 }
 
-int table_session_connect::index_init(uint idx, bool)
+int
+table_session_connect::index_init(uint idx, bool)
 {
   DBUG_ASSERT(idx == 0);
-  m_opened_index= PFS_NEW(PFS_index_session_connect);
-  m_index= m_opened_index;
+  m_opened_index = PFS_NEW(PFS_index_session_connect);
+  m_index = m_opened_index;
   return 0;
 }
 
-int table_session_connect::index_next(void)
+int
+table_session_connect::index_next(void)
 {
   PFS_thread *thread;
-  bool has_more_thread= true;
-  int rc= 0;
+  bool has_more_thread = true;
+  int rc = 0;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
       if (m_opened_index->match(thread))
@@ -125,7 +128,7 @@ int table_session_connect::index_next(void)
             This is simpler, as parsing the session attributes encoded string
             is done only once.
           */
-          rc= make_row(thread, m_pos.m_index_2);
+          rc = make_row(thread, m_pos.m_index_2);
 
           if (rc == 0)
           {
@@ -159,18 +162,21 @@ int table_session_connect::index_next(void)
     @retval true    parsing failed
     @retval false   parsing succeeded
 */
-static bool parse_length_encoded_string(const char **ptr,
-                 char *dest, uint dest_size,
-                 uint *copied_len,
-                 const char *start_ptr, uint input_length,
-                 const CHARSET_INFO *from_cs,
-                 uint nchars_max)
+static bool
+parse_length_encoded_string(const char **ptr,
+                            char *dest,
+                            uint dest_size,
+                            uint *copied_len,
+                            const char *start_ptr,
+                            uint input_length,
+                            const CHARSET_INFO *from_cs,
+                            uint nchars_max)
 {
   ulong copy_length, data_length;
-  const char *well_formed_error_pos= NULL, *cannot_convert_error_pos= NULL,
-        *from_end_pos= NULL;
+  const char *well_formed_error_pos = NULL, *cannot_convert_error_pos = NULL,
+             *from_end_pos = NULL;
 
-  copy_length= data_length= net_field_length((uchar **) ptr);
+  copy_length = data_length = net_field_length((uchar **)ptr);
 
   /* we don't tolerate NULL as a length */
   if (data_length == NULL_LENGTH)
@@ -179,13 +185,18 @@ static bool parse_length_encoded_string(const char **ptr,
   if (*ptr - start_ptr + data_length > input_length)
     return true;
 
-  copy_length= well_formed_copy_nchars(&my_charset_utf8_bin, dest, dest_size,
-                                       from_cs, *ptr, data_length, nchars_max,
-                                       &well_formed_error_pos,
-                                       &cannot_convert_error_pos,
-                                       &from_end_pos);
-  *copied_len= copy_length;
-  (*ptr)+= data_length;
+  copy_length = well_formed_copy_nchars(&my_charset_utf8_bin,
+                                        dest,
+                                        dest_size,
+                                        from_cs,
+                                        *ptr,
+                                        data_length,
+                                        nchars_max,
+                                        &well_formed_error_pos,
+                                        &cannot_convert_error_pos,
+                                        &from_end_pos);
+  *copied_len = copy_length;
+  (*ptr) += data_length;
 
   return false;
 }
@@ -214,47 +225,55 @@ static bool parse_length_encoded_string(const char **ptr,
     @retval true    requested attribute pair is found and copied
     @retval false   error. Either because of parsing or too few attributes.
 */
-bool read_nth_attr(const char *connect_attrs,
-                   uint connect_attrs_length,
-                   const CHARSET_INFO *connect_attrs_cs,
-                   uint ordinal,
-                   char *attr_name, uint max_attr_name,
-                   uint *attr_name_length,
-                   char *attr_value, uint max_attr_value,
-                   uint *attr_value_length)
+bool
+read_nth_attr(const char *connect_attrs,
+              uint connect_attrs_length,
+              const CHARSET_INFO *connect_attrs_cs,
+              uint ordinal,
+              char *attr_name,
+              uint max_attr_name,
+              uint *attr_name_length,
+              char *attr_value,
+              uint max_attr_value,
+              uint *attr_value_length)
 {
   uint idx;
   const char *ptr;
 
-  for (ptr= connect_attrs, idx= 0;
+  for (ptr = connect_attrs, idx = 0;
        (uint)(ptr - connect_attrs) < connect_attrs_length && idx <= ordinal;
-      idx++)
+       idx++)
   {
     uint copy_length;
 
     /* read the key */
     if (parse_length_encoded_string(&ptr,
-                                    attr_name, max_attr_name, &copy_length,
+                                    attr_name,
+                                    max_attr_name,
+                                    &copy_length,
                                     connect_attrs,
                                     connect_attrs_length,
-                                    connect_attrs_cs, 32) ||
-        !copy_length
-        )
+                                    connect_attrs_cs,
+                                    32) ||
+        !copy_length)
       return false;
 
     if (idx == ordinal)
-      *attr_name_length= copy_length;
+      *attr_name_length = copy_length;
 
     /* read the value */
     if (parse_length_encoded_string(&ptr,
-                                    attr_value, max_attr_value, &copy_length,
+                                    attr_value,
+                                    max_attr_value,
+                                    &copy_length,
                                     connect_attrs,
                                     connect_attrs_length,
-                                    connect_attrs_cs, 1024))
+                                    connect_attrs_cs,
+                                    1024))
       return false;
 
     if (idx == ordinal)
-      *attr_value_length= copy_length;
+      *attr_value_length = copy_length;
 
     if (idx == ordinal)
       return true;
@@ -263,7 +282,8 @@ bool read_nth_attr(const char *connect_attrs,
   return false;
 }
 
-int table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
+int
+table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 {
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
@@ -275,38 +295,40 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   /* Protect this reader against writing on session attributes */
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
-  safe_class= sanitize_thread_class(pfs->m_class);
+  safe_class = sanitize_thread_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return HA_ERR_RECORD_DELETED;
 
-  /* Filtering threads must be done under the protection of the optimistic lock. */
+  /* Filtering threads must be done under the protection of the optimistic lock.
+   */
   if (!thread_fits(pfs))
     return HA_ERR_RECORD_DELETED;
-  
+
   /* Make a safe copy of the session attributes */
 
   if (m_copy_session_connect_attrs == NULL)
     return HA_ERR_RECORD_DELETED;
-  
-  m_copy_session_connect_attrs_length= pfs->m_session_connect_attrs_length;
 
-  if (m_copy_session_connect_attrs_length > session_connect_attrs_size_per_thread)
+  m_copy_session_connect_attrs_length = pfs->m_session_connect_attrs_length;
+
+  if (m_copy_session_connect_attrs_length >
+      session_connect_attrs_size_per_thread)
     return HA_ERR_RECORD_DELETED;
-  
+
   memcpy(m_copy_session_connect_attrs,
          pfs->m_session_connect_attrs,
          m_copy_session_connect_attrs_length);
 
-  cs= get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
+  cs = get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
   if (cs == NULL)
     return HA_ERR_RECORD_DELETED;
-  
-  if (!pfs->m_session_lock.end_optimistic_lock(& session_lock))
+
+  if (!pfs->m_session_lock.end_optimistic_lock(&session_lock))
     return HA_ERR_RECORD_DELETED;
-  
-  if (!pfs->m_lock.end_optimistic_lock(& lock))
+
+  if (!pfs->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;
-  
+
   /*
     Now we have a safe copy of the data,
     that will not change while parsing it
@@ -317,17 +339,19 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
                     m_copy_session_connect_attrs_length,
                     cs,
                     ordinal,
-                    m_row.m_attr_name, (uint) sizeof(m_row.m_attr_name),
+                    m_row.m_attr_name,
+                    (uint)sizeof(m_row.m_attr_name),
                     &m_row.m_attr_name_length,
-                    m_row.m_attr_value, (uint) sizeof(m_row.m_attr_value),
+                    m_row.m_attr_value,
+                    (uint)sizeof(m_row.m_attr_value),
                     &m_row.m_attr_value_length))
   {
     /* we don't expect internal threads to have connection attributes */
     if (pfs->m_processlist_id == 0)
       return HA_ERR_RECORD_DELETED;
-    
-    m_row.m_ordinal_position= ordinal;
-    m_row.m_process_id= pfs->m_processlist_id;
+
+    m_row.m_ordinal_position = ordinal;
+    m_row.m_process_id = pfs->m_processlist_id;
 
     return 0;
   }
@@ -335,22 +359,23 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_session_connect::read_row_values(TABLE *table,
-                                         unsigned char *buf,
-                                         Field **fields,
-                                         bool read_all)
+int
+table_session_connect::read_row_values(TABLE *table,
+                                       unsigned char *buf,
+                                       Field **fields,
+                                       bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case FO_PROCESS_ID:
         if (m_row.m_process_id != 0)
@@ -359,13 +384,12 @@ int table_session_connect::read_row_values(TABLE *table,
           f->set_null();
         break;
       case FO_ATTR_NAME:
-        set_field_varchar_utf8(f, m_row.m_attr_name,
-                               m_row.m_attr_name_length);
+        set_field_varchar_utf8(f, m_row.m_attr_name, m_row.m_attr_name_length);
         break;
       case FO_ATTR_VALUE:
         if (m_row.m_attr_value_length)
-          set_field_varchar_utf8(f, m_row.m_attr_value,
-                                 m_row.m_attr_value_length);
+          set_field_varchar_utf8(
+            f, m_row.m_attr_value, m_row.m_attr_value_length);
         else
           f->set_null();
         break;
@@ -381,8 +405,7 @@ int table_session_connect::read_row_values(TABLE *table,
 }
 
 bool
-table_session_connect::thread_fits(PFS_thread*)
+table_session_connect::thread_fits(PFS_thread *)
 {
   return true;
 }
-

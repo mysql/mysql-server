@@ -28,32 +28,16 @@
 
 #define COUNT_SETUP_TIMERS 5
 
-static row_setup_timers all_setup_timers_data[COUNT_SETUP_TIMERS]=
-{
-  {
-    { C_STRING_WITH_LEN("idle") },
-    &idle_timer
-  },
-  {
-    { C_STRING_WITH_LEN("wait") },
-    &wait_timer
-  },
-  {
-    { C_STRING_WITH_LEN("stage") },
-    &stage_timer
-  },
-  {
-    { C_STRING_WITH_LEN("statement") },
-    &statement_timer
-  },
-  {
-    { C_STRING_WITH_LEN("transaction") },
-    &transaction_timer
-  }
-};
+static row_setup_timers all_setup_timers_data[COUNT_SETUP_TIMERS] = {
+  {{C_STRING_WITH_LEN("idle")}, &idle_timer},
+  {{C_STRING_WITH_LEN("wait")}, &wait_timer},
+  {{C_STRING_WITH_LEN("stage")}, &stage_timer},
+  {{C_STRING_WITH_LEN("statement")}, &statement_timer},
+  {{C_STRING_WITH_LEN("transaction")}, &transaction_timer}};
 
 THR_LOCK table_setup_timers::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -68,15 +52,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_setup_timers::m_field_def=
-{ 2, field_types };
+table_setup_timers::m_field_def = {2, field_types};
 
-PFS_engine_table_share
-table_setup_timers::m_share=
-{
-  { C_STRING_WITH_LEN("setup_timers") },
+PFS_engine_table_share table_setup_timers::m_share = {
+  {C_STRING_WITH_LEN("setup_timers")},
   &pfs_updatable_acl,
   table_setup_timers::create,
   NULL, /* write_row */
@@ -89,7 +71,8 @@ table_setup_timers::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_setup_timers::match(row_setup_timers *row)
+bool
+PFS_index_setup_timers::match(row_setup_timers *row)
 {
   if (m_fields >= 1)
   {
@@ -100,7 +83,8 @@ bool PFS_index_setup_timers::match(row_setup_timers *row)
   return true;
 }
 
-PFS_engine_table* table_setup_timers::create(void)
+PFS_engine_table *
+table_setup_timers::create(void)
 {
   return new table_setup_timers();
 }
@@ -112,17 +96,19 @@ table_setup_timers::get_row_count(void)
 }
 
 table_setup_timers::table_setup_timers()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row(NULL), m_pos(0), m_next_pos(0)
-{}
-
-void table_setup_timers::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
 }
 
-int table_setup_timers::rnd_next(void)
+void
+table_setup_timers::reset_position(void)
+{
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
+}
+
+int
+table_setup_timers::rnd_next(void)
 {
   int result;
 
@@ -130,44 +116,46 @@ int table_setup_timers::rnd_next(void)
 
   if (m_pos.m_index < COUNT_SETUP_TIMERS)
   {
-    m_row= &all_setup_timers_data[m_pos.m_index];
+    m_row = &all_setup_timers_data[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
-    result= 0;
+    result = 0;
   }
   else
   {
-    m_row= NULL;
-    result= HA_ERR_END_OF_FILE;
+    m_row = NULL;
+    result = HA_ERR_END_OF_FILE;
   }
 
   return result;
 }
 
-int table_setup_timers::rnd_pos(const void *pos)
+int
+table_setup_timers::rnd_pos(const void *pos)
 {
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < COUNT_SETUP_TIMERS);
-  m_row= &all_setup_timers_data[m_pos.m_index];
+  m_row = &all_setup_timers_data[m_pos.m_index];
   return 0;
 }
 
-int table_setup_timers::index_init(uint idx, bool)
+int
+table_setup_timers::index_init(uint idx, bool)
 {
-  PFS_index_setup_timers *result= NULL;
+  PFS_index_setup_timers *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_setup_timers);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_setup_timers);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_setup_timers::index_next(void)
+int
+table_setup_timers::index_next(void)
 {
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < COUNT_SETUP_TIMERS;
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < COUNT_SETUP_TIMERS;
        m_pos.next())
   {
-    m_row= &all_setup_timers_data[m_pos.m_index];
+    m_row = &all_setup_timers_data[m_pos.m_index];
 
     if (m_opened_index->match(m_row))
     {
@@ -176,14 +164,15 @@ int table_setup_timers::index_next(void)
     }
   }
 
-  m_row= NULL;
+  m_row = NULL;
   return HA_ERR_END_OF_FILE;
 }
 
-int table_setup_timers::read_row_values(TABLE *table,
-                                        unsigned char *,
-                                        Field **fields,
-                                        bool read_all)
+int
+table_setup_timers::read_row_values(TABLE *table,
+                                    unsigned char *,
+                                    Field **fields,
+                                    bool read_all)
 {
   Field *f;
 
@@ -192,11 +181,11 @@ int table_setup_timers::read_row_values(TABLE *table,
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         set_field_varchar_utf8(f, m_row->m_name.str, m_row->m_name.length);
@@ -213,28 +202,29 @@ int table_setup_timers::read_row_values(TABLE *table,
   return 0;
 }
 
-int table_setup_timers::update_row_values(TABLE *table,
-                                          const unsigned char *,
-                                          unsigned char *,
-                                          Field **fields)
+int
+table_setup_timers::update_row_values(TABLE *table,
+                                      const unsigned char *,
+                                      unsigned char *,
+                                      Field **fields)
 {
   Field *f;
   longlong value;
 
   DBUG_ASSERT(m_row);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (bitmap_is_set(table->write_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         return HA_ERR_WRONG_COMMAND;
       case 1: /* TIMER_NAME */
-        value= get_field_enum(f);
+        value = get_field_enum(f);
         if ((value >= FIRST_TIMER_NAME) && (value <= LAST_TIMER_NAME))
-          *(m_row->m_timer_name_ptr)= (enum_timer_name) value;
+          *(m_row->m_timer_name_ptr) = (enum_timer_name)value;
         else
           return HA_ERR_WRONG_COMMAND;
         break;
@@ -246,4 +236,3 @@ int table_setup_timers::update_row_values(TABLE *table,
 
   return 0;
 }
-

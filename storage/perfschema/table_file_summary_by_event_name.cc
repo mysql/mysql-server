@@ -31,6 +31,7 @@
 
 THR_LOCK table_file_summary_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -155,15 +156,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_file_summary_by_event_name::m_field_def=
-{ 23, field_types };
+table_file_summary_by_event_name::m_field_def = {23, field_types};
 
-PFS_engine_table_share
-table_file_summary_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("file_summary_by_event_name") },
+PFS_engine_table_share table_file_summary_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("file_summary_by_event_name")},
   &pfs_truncatable_acl,
   table_file_summary_by_event_name::create,
   NULL, /* write_row */
@@ -176,7 +175,8 @@ table_file_summary_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_file_summary_by_event_name::match(const PFS_file_class *pfs)
+bool
+PFS_index_file_summary_by_event_name::match(const PFS_file_class *pfs)
 {
   if (m_fields >= 1)
   {
@@ -186,12 +186,14 @@ bool PFS_index_file_summary_by_event_name::match(const PFS_file_class *pfs)
   return true;
 }
 
-PFS_engine_table* table_file_summary_by_event_name::create(void)
+PFS_engine_table *
+table_file_summary_by_event_name::create(void)
 {
   return new table_file_summary_by_event_name();
 }
 
-int table_file_summary_by_event_name::delete_all_rows(void)
+int
+table_file_summary_by_event_name::delete_all_rows(void)
 {
   reset_file_instance_io();
   reset_file_class_io();
@@ -205,23 +207,25 @@ table_file_summary_by_event_name::get_row_count(void)
 }
 
 table_file_summary_by_event_name::table_file_summary_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-  m_pos(1), m_next_pos(1)
-{}
-
-void table_file_summary_by_event_name::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1)
 {
-  m_pos.m_index= 1;
-  m_next_pos.m_index= 1;
 }
 
-int table_file_summary_by_event_name::rnd_next(void)
+void
+table_file_summary_by_event_name::reset_position(void)
+{
+  m_pos.m_index = 1;
+  m_next_pos.m_index = 1;
+}
+
+int
+table_file_summary_by_event_name::rnd_next(void)
 {
   PFS_file_class *file_class;
 
   m_pos.set_at(&m_next_pos);
 
-  file_class= find_file_class(m_pos.m_index);
+  file_class = find_file_class(m_pos.m_index);
   if (file_class)
   {
     m_next_pos.set_after(&m_pos);
@@ -231,13 +235,14 @@ int table_file_summary_by_event_name::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_file_summary_by_event_name::rnd_pos(const void *pos)
+int
+table_file_summary_by_event_name::rnd_pos(const void *pos)
 {
   PFS_file_class *file_class;
 
   set_position(pos);
 
-  file_class= find_file_class(m_pos.m_index);
+  file_class = find_file_class(m_pos.m_index);
   if (file_class)
   {
     make_row(file_class);
@@ -247,17 +252,19 @@ int table_file_summary_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_file_summary_by_event_name::index_init(uint idx, bool)
+int
+table_file_summary_by_event_name::index_init(uint idx, bool)
 {
-  PFS_index_file_summary_by_event_name *result= NULL;
+  PFS_index_file_summary_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_file_summary_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_file_summary_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_file_summary_by_event_name::index_next(void)
+int
+table_file_summary_by_event_name::index_next(void)
 {
   PFS_file_class *file_class;
 
@@ -265,7 +272,7 @@ int table_file_summary_by_event_name::index_next(void)
 
   do
   {
-    file_class= find_file_class(m_pos.m_index);
+    file_class = find_file_class(m_pos.m_index);
     if (file_class)
     {
       if (m_opened_index->match(file_class))
@@ -288,14 +295,15 @@ int table_file_summary_by_event_name::index_next(void)
   @param file_class            the file class the cursor is reading
   @return 0 or HA_ERR_RECORD_DELETED
 */
-int table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
+int
+table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
 {
   m_row.m_event_name.make_row(file_class);
 
   PFS_instance_file_io_stat_visitor visitor;
   PFS_instance_iterator::visit_file_instances(file_class, &visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  time_normalizer *normalizer = time_normalizer::get(wait_timer);
 
   /* Collect timer and byte count stats */
   m_row.m_io_stat.set(normalizer, &visitor.m_file_io_stat);
@@ -303,51 +311,52 @@ int table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
   return 0;
 }
 
-int table_file_summary_by_event_name::read_row_values(TABLE *table,
-                                                      unsigned char *,
-                                                      Field **fields,
-                                                      bool read_all)
+int
+table_file_summary_by_event_name::read_row_values(TABLE *table,
+                                                  unsigned char *,
+                                                  Field **fields,
+                                                  bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
-      case  0: /* EVENT_NAME */
+      case 0: /* EVENT_NAME */
         m_row.m_event_name.set_field(f);
         break;
-      case  1: /* COUNT_STAR */
+      case 1: /* COUNT_STAR */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_count);
         break;
-      case  2: /* SUM_TIMER_WAIT */
+      case 2: /* SUM_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_sum);
         break;
-      case  3: /* MIN_TIMER_WAIT */
+      case 3: /* MIN_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_min);
         break;
-      case  4: /* AVG_TIMER_WAIT */
+      case 4: /* AVG_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_avg);
         break;
-      case  5: /* MAX_TIMER_WAIT */
+      case 5: /* MAX_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_max);
         break;
 
-      case  6: /* COUNT_READ */
+      case 6: /* COUNT_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_count);
         break;
-      case  7: /* SUM_TIMER_READ */
+      case 7: /* SUM_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_sum);
         break;
-      case  8: /* MIN_TIMER_READ */
+      case 8: /* MIN_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_min);
         break;
-      case  9: /* AVG_TIMER_READ */
+      case 9: /* AVG_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_avg);
         break;
       case 10: /* MAX_TIMER_READ */
@@ -396,8 +405,8 @@ int table_file_summary_by_event_name::read_row_values(TABLE *table,
         DBUG_ASSERT(false);
         break;
       }
-    } // if
-  } // for
+    }  // if
+  }    // for
 
   return 0;
 }

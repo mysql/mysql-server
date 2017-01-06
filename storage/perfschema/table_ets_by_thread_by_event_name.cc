@@ -32,6 +32,7 @@
 
 THR_LOCK table_ets_by_thread_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -120,15 +121,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_ets_by_thread_by_event_name::m_field_def=
-{ 17, field_types };
+table_ets_by_thread_by_event_name::m_field_def = {17, field_types};
 
-PFS_engine_table_share
-table_ets_by_thread_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_transactions_summary_by_thread_by_event_name") },
+PFS_engine_table_share table_ets_by_thread_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_transactions_summary_by_thread_by_event_name")},
   &pfs_truncatable_acl,
   table_ets_by_thread_by_event_name::create,
   NULL, /* write_row */
@@ -141,7 +140,8 @@ table_ets_by_thread_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_ets_by_thread_by_event_name::match(PFS_thread *pfs)
+bool
+PFS_index_ets_by_thread_by_event_name::match(PFS_thread *pfs)
 {
   if (m_fields >= 1)
   {
@@ -151,7 +151,8 @@ bool PFS_index_ets_by_thread_by_event_name::match(PFS_thread *pfs)
   return true;
 }
 
-bool PFS_index_ets_by_thread_by_event_name::match(PFS_transaction_class *klass)
+bool
+PFS_index_ets_by_thread_by_event_name::match(PFS_transaction_class *klass)
 {
   if (m_fields >= 2)
   {
@@ -161,7 +162,7 @@ bool PFS_index_ets_by_thread_by_event_name::match(PFS_transaction_class *klass)
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_ets_by_thread_by_event_name::create(void)
 {
   return new table_ets_by_thread_by_event_name();
@@ -181,36 +182,37 @@ table_ets_by_thread_by_event_name::get_row_count(void)
 }
 
 table_ets_by_thread_by_event_name::table_ets_by_thread_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_ets_by_thread_by_event_name::reset_position(void)
+void
+table_ets_by_thread_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_ets_by_thread_by_event_name::rnd_init(bool)
+int
+table_ets_by_thread_by_event_name::rnd_init(bool)
 {
-  m_normalizer= time_normalizer::get(transaction_timer);
+  m_normalizer = time_normalizer::get(transaction_timer);
   return 0;
 }
 
-int table_ets_by_thread_by_event_name::rnd_next(void)
+int
+table_ets_by_thread_by_event_name::rnd_next(void)
 {
   PFS_thread *thread;
   PFS_transaction_class *transaction_class;
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
-      transaction_class= find_transaction_class(m_pos.m_index_2);
+      transaction_class = find_transaction_class(m_pos.m_index_2);
       if (transaction_class)
       {
         m_next_pos.set_after(&m_pos);
@@ -230,10 +232,10 @@ table_ets_by_thread_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  thread= global_thread_container.get(m_pos.m_index_1);
+  thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != NULL)
   {
-    transaction_class= find_transaction_class(m_pos.m_index_2);
+    transaction_class = find_transaction_class(m_pos.m_index_2);
     if (transaction_class)
     {
       return make_row(thread, transaction_class);
@@ -243,34 +245,34 @@ table_ets_by_thread_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ets_by_thread_by_event_name::index_init(uint idx, bool)
+int
+table_ets_by_thread_by_event_name::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(transaction_timer);
+  m_normalizer = time_normalizer::get(transaction_timer);
 
   DBUG_ASSERT(idx == 0);
-  m_opened_index= PFS_NEW(PFS_index_ets_by_thread_by_event_name);
-  m_index= m_opened_index;
+  m_opened_index = PFS_NEW(PFS_index_ets_by_thread_by_event_name);
+  m_index = m_opened_index;
   return 0;
 }
 
-int table_ets_by_thread_by_event_name::index_next(void)
+int
+table_ets_by_thread_by_event_name::index_next(void)
 {
   PFS_thread *thread;
   PFS_transaction_class *transaction_class;
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
       if (m_opened_index->match(thread))
       {
         do
         {
-          transaction_class= find_transaction_class(m_pos.m_index_2);
+          transaction_class = find_transaction_class(m_pos.m_index_2);
           if (transaction_class != NULL)
           {
             if (m_opened_index->match(transaction_class))
@@ -291,15 +293,16 @@ int table_ets_by_thread_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_ets_by_thread_by_event_name
-::make_row(PFS_thread *thread, PFS_transaction_class *klass)
+int
+table_ets_by_thread_by_event_name::make_row(PFS_thread *thread,
+                                            PFS_transaction_class *klass)
 {
   pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_thread_internal_id= thread->m_thread_internal_id;
+  m_row.m_thread_internal_id = thread->m_thread_internal_id;
 
   m_row.m_event_name.make_row(klass);
 
@@ -308,26 +311,28 @@ int table_ets_by_thread_by_event_name
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;
-  
+
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
   return 0;
 }
 
-int table_ets_by_thread_by_event_name
-::read_row_values(TABLE *table, unsigned char *, Field **fields,
-                  bool read_all)
+int
+table_ets_by_thread_by_event_name::read_row_values(TABLE *table,
+                                                   unsigned char *,
+                                                   Field **fields,
+                                                   bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* THREAD_ID */
         set_field_ulonglong(f, m_row.m_thread_internal_id);
@@ -341,7 +346,7 @@ int table_ets_by_thread_by_event_name
           COUNT_READ_WRITE, SUM/MIN/AVG/MAX_TIMER_READ_WRITE
           COUNT_READ_ONLY, SUM/MIN/AVG/MAX_TIMER_READ_ONLY
         */
-        m_row.m_stat.set_field(f->field_index-2, f);
+        m_row.m_stat.set_field(f->field_index - 2, f);
         break;
       }
     }
@@ -349,4 +354,3 @@ int table_ets_by_thread_by_event_name
 
   return 0;
 }
-

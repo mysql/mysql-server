@@ -33,6 +33,7 @@
 
 THR_LOCK table_mems_by_host_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -96,15 +97,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_mems_by_host_by_event_name::m_field_def=
-{ 12, field_types };
+table_mems_by_host_by_event_name::m_field_def = {12, field_types};
 
-PFS_engine_table_share
-table_mems_by_host_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("memory_summary_by_host_by_event_name") },
+PFS_engine_table_share table_mems_by_host_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("memory_summary_by_host_by_event_name")},
   &pfs_readonly_acl,
   table_mems_by_host_by_event_name::create,
   NULL, /* write_row */
@@ -117,7 +116,8 @@ table_mems_by_host_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_mems_by_host_by_event_name::match(PFS_host *pfs)
+bool
+PFS_index_mems_by_host_by_event_name::match(PFS_host *pfs)
 {
   if (m_fields >= 1)
   {
@@ -127,7 +127,8 @@ bool PFS_index_mems_by_host_by_event_name::match(PFS_host *pfs)
   return true;
 }
 
-bool PFS_index_mems_by_host_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_mems_by_host_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 2)
   {
@@ -137,7 +138,8 @@ bool PFS_index_mems_by_host_by_event_name::match(PFS_instr_class *instr_class)
   return true;
 }
 
-PFS_engine_table* table_mems_by_host_by_event_name::create(void)
+PFS_engine_table *
+table_mems_by_host_by_event_name::create(void)
 {
   return new table_mems_by_host_by_event_name();
 }
@@ -158,32 +160,32 @@ table_mems_by_host_by_event_name::get_row_count(void)
 }
 
 table_mems_by_host_by_event_name::table_mems_by_host_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-  m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_mems_by_host_by_event_name::reset_position(void)
+void
+table_mems_by_host_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_mems_by_host_by_event_name::rnd_next(void)
+int
+table_mems_by_host_by_event_name::rnd_next(void)
 {
   PFS_host *host;
   PFS_memory_class *memory_class;
-  bool has_more_host= true;
+  bool has_more_host = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_host;
-       m_pos.next_host())
+  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host())
   {
-    host= global_host_container.get(m_pos.m_index_1, & has_more_host);
+    host = global_host_container.get(m_pos.m_index_1, &has_more_host);
     if (host != NULL)
     {
       do
       {
-        memory_class= find_memory_class(m_pos.m_index_2);
+        memory_class = find_memory_class(m_pos.m_index_2);
         if (memory_class != NULL)
         {
           if (!memory_class->is_global())
@@ -193,28 +195,28 @@ int table_mems_by_host_by_event_name::rnd_next(void)
           }
           m_pos.next_class();
         }
-      }
-      while (memory_class != NULL);
+      } while (memory_class != NULL);
     }
   }
 
   return HA_ERR_END_OF_FILE;
 }
 
-int table_mems_by_host_by_event_name::rnd_pos(const void *pos)
+int
+table_mems_by_host_by_event_name::rnd_pos(const void *pos)
 {
   PFS_host *host;
   PFS_memory_class *memory_class;
 
   set_position(pos);
 
-  host= global_host_container.get(m_pos.m_index_1);
+  host = global_host_container.get(m_pos.m_index_1);
   if (host != NULL)
   {
-    memory_class= find_memory_class(m_pos.m_index_2);
+    memory_class = find_memory_class(m_pos.m_index_2);
     if (memory_class != NULL)
     {
-      if (! memory_class->is_global())
+      if (!memory_class->is_global())
       {
         return make_row(host, memory_class);
       }
@@ -224,34 +226,34 @@ int table_mems_by_host_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_mems_by_host_by_event_name::index_init(uint idx, bool)
+int
+table_mems_by_host_by_event_name::index_init(uint idx, bool)
 {
-  PFS_index_mems_by_host_by_event_name *result= NULL;
+  PFS_index_mems_by_host_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_mems_by_host_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_mems_by_host_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_mems_by_host_by_event_name::index_next(void)
+int
+table_mems_by_host_by_event_name::index_next(void)
 {
   PFS_host *host;
   PFS_memory_class *memory_class;
-  bool has_more_host= true;
+  bool has_more_host = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_host;
-       m_pos.next_host())
+  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host())
   {
-    host= global_host_container.get(m_pos.m_index_1, &has_more_host);
+    host = global_host_container.get(m_pos.m_index_1, &has_more_host);
     if (host != NULL)
     {
       if (m_opened_index->match(host))
       {
         do
         {
-          memory_class= find_memory_class(m_pos.m_index_2);
+          memory_class = find_memory_class(m_pos.m_index_2);
           if (memory_class != NULL)
           {
             if (!memory_class->is_global())
@@ -267,8 +269,7 @@ int table_mems_by_host_by_event_name::index_next(void)
             }
             m_pos.next_class();
           }
-        }
-        while (memory_class != NULL);
+        } while (memory_class != NULL);
       }
     }
   }
@@ -276,8 +277,9 @@ int table_mems_by_host_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_mems_by_host_by_event_name
-::make_row(PFS_host *host, PFS_memory_class *klass)
+int
+table_mems_by_host_by_event_name::make_row(PFS_host *host,
+                                           PFS_memory_class *klass)
 {
   pfs_optimistic_state lock;
 
@@ -285,7 +287,7 @@ int table_mems_by_host_by_event_name
 
   if (m_row.m_host.make_row(host))
     return HA_ERR_RECORD_DELETED;
-  
+
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_memory_visitor visitor(klass);
@@ -297,28 +299,29 @@ int table_mems_by_host_by_event_name
 
   if (!host->m_lock.end_optimistic_lock(&lock))
     return HA_ERR_RECORD_DELETED;
-  
-  m_row.m_stat.set(& visitor.m_stat);
+
+  m_row.m_stat.set(&visitor.m_stat);
 
   return 0;
 }
 
-int table_mems_by_host_by_event_name::read_row_values(TABLE *table,
-                                                    unsigned char *buf,
-                                                    Field **fields,
-                                                    bool read_all)
+int
+table_mems_by_host_by_event_name::read_row_values(TABLE *table,
+                                                  unsigned char *buf,
+                                                  Field **fields,
+                                                  bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* HOST */
         m_row.m_host.set_field(f);
@@ -335,4 +338,3 @@ int table_mems_by_host_by_event_name::read_row_values(TABLE *table,
 
   return 0;
 }
-
