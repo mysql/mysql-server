@@ -2451,16 +2451,16 @@ void SELECT_LEX_UNIT::exclude_level()
         removed, we must also exclude the Name_resolution_context
         belonging to this level. Do this by looping through inner
         subqueries and changing their contexts' outer context pointers
-        to point to the outer context of the removed SELECT_LEX.
+        to point to the outer select's context.
       */
       for (SELECT_LEX *s= u->first_select(); s; s= s->next_select())
       {
         if (s->context.outer_context == &sl->context)
-          s->context.outer_context= sl->context.outer_context;
+          s->context.outer_context= &sl->outer_select()->context;
       }
       if (u->fake_select_lex &&
           u->fake_select_lex->context.outer_context == &sl->context)
-        u->fake_select_lex->context.outer_context= sl->context.outer_context;
+        u->fake_select_lex->context.outer_context= &sl->outer_select()->context;
       u->master= master;
       last= &(u->next);
     }
