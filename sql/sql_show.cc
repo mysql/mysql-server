@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5037,7 +5037,7 @@ if (sp)
   char path[FN_REFLEN];
   memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-  init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
+  init_tmp_table_share(thd, &share, "", 0, "", path);
 
   if (sp->m_type == enum_sp_type::FUNCTION)
   {
@@ -5287,7 +5287,7 @@ if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
 
         memset(&tbl, 0, sizeof(TABLE));
         (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-        init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
+        init_tmp_table_share(thd, &share, "", 0, "", path);
         field= make_field(&share, (uchar*) 0, field_def->length,
                           (uchar*) "", 0,
                           field_def->sql_type, field_def->charset,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,6 +165,15 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
     DBUG_ASSERT(!t->is_created() && !t->materialized);
 #endif
   TABLE *first= tmp_tables[0]->table;
+  if (first->s->ref_count == 1024)
+  {
+    /*
+      We set a reasonable limit to prevent overflow of
+      Table_share_tmp::handler_count.
+    */
+    my_error(ER_CTE_TOO_MANY_REFS, MYF(0), tl->view_name.str, 1024);
+    return nullptr;
+  }
   // Allocate clone on the memory root of the TABLE_SHARE.
   TABLE *t=
     static_cast<TABLE *>(alloc_root(&first->s->mem_root, sizeof(TABLE)));

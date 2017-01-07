@@ -718,6 +718,9 @@ WHERE (a = a OR b <= 6) AND (a IS NULL);
 a	b
 NULL	6
 drop table t1;
+# Maximum 1024 references to a CTE
+prepare s from @q;
+ERROR HY000: Too many references to Common Table Expression 'c'; maximum allowed is 1024
 # QN referencing view of same name isn't a "recursive view",
 # shouldn't cause ER_VIEW_RECURSIVE
 create view v1 as select "with";
@@ -1715,6 +1718,9 @@ WHERE (a = a OR b <= 6) AND (a IS NULL);
 a	b
 NULL	6
 drop table t1;
+# Maximum 1024 references to a CTE
+prepare s from @q;
+ERROR HY000: Too many references to Common Table Expression 'c'; maximum allowed is 1024
 # QN referencing view of same name isn't a "recursive view",
 # shouldn't cause ER_VIEW_RECURSIVE
 create view v1 as select "with";

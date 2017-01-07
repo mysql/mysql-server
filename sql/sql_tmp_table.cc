@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -746,6 +746,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
   MI_COLUMNDEF *recinfo;
+  Table_share_tmp *tmp_table_info;
   /*
     total_uneven_bit_length is uneven bit length for visible fields
     hidden_uneven_bit_length is uneven bit length for hidden fields
@@ -832,6 +833,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
+                        &tmp_table_info, sizeof(*tmp_table_info),
                         &reg_field, sizeof(Field*) * (field_count + 2),
                         &default_field, sizeof(Field*) * (field_count + 1),
                         &blob_field, sizeof(uint)*(field_count+2),
@@ -887,7 +889,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->keys_in_use_for_order_by.init();
 
   table->s= share;
-  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
+  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root,
+                       tmp_table_info);
   share->ref_count++;
 
   /*
@@ -901,7 +904,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   copy_func->set_mem_root(&share->mem_root);
 
   share->field= table->field;
-  share->temp_pool_slot= temp_pool_slot;
+  share->tmp_table_info->pool_slot= temp_pool_slot;
   share->blob_field= blob_field;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= param->table_charset;
@@ -1683,6 +1686,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   uchar *bitmaps;
   uint *blob_field;
   MI_COLUMNDEF *recinfo, *start_recinfo;
+  Table_share_tmp *tmp_table_info;
   bool using_unique_constraint=false;
   Field *field, *key_field;
   uint null_pack_length;
@@ -1719,6 +1723,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
+                        &tmp_table_info, sizeof(*tmp_table_info),
                         &reg_field, sizeof(Field*) * (1+2),
                         &blob_field, sizeof(uint)*3,
                         &keyinfo, sizeof(*keyinfo),
@@ -1753,13 +1758,14 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->keys_in_use_for_query.init();
 
   table->s= share;
-  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
+  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root,
+                       tmp_table_info);
   share->ref_count++;
 
   mem_root_save= thd->mem_root;
   thd->mem_root= &share->mem_root;
 
-  share->temp_pool_slot= temp_pool_slot;
+  share->tmp_table_info->pool_slot= temp_pool_slot;
   share->blob_field= blob_field;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= NULL;
@@ -2051,10 +2057,12 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   uchar *bitmaps;
   TABLE *table;
   TABLE_SHARE *share;
+  Table_share_tmp *tmp_table_info;
 
   if (!multi_alloc_root(thd->mem_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
+                        &tmp_table_info, sizeof(*tmp_table_info),
                         &field, (field_count + 1) * sizeof(Field*),
                         &blob_field, (field_count+1) *sizeof(uint),
                         &bitmaps, bitmap_buffer_size(field_count) * 3,
@@ -2063,9 +2071,11 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
 
   memset(table, 0, sizeof(*table));
   memset(share, 0, sizeof(*share));
+  memset(tmp_table_info, 0, sizeof(*tmp_table_info));
+  share->tmp_table_info= tmp_table_info;
   table->field= field;
   table->s= share;
-  share->temp_pool_slot= MY_BIT_NONE;
+  share->tmp_table_info->pool_slot= (uint16)MY_BIT_NONE;
   share->blob_field= blob_field;
   share->fields= field_count;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
@@ -2163,6 +2173,14 @@ error:
 }
 
 
+/**
+  For an internal temporary table:
+  - opens the storage for the table in the storage engine
+  - marks in 'table' that it has an open storage
+
+  @param table  TABLE object
+  @returns true if error
+*/
 bool open_tmp_table(TABLE *table)
 {
   DBUG_ASSERT(table->s->ref_count == 1 || // not shared, or:
@@ -2180,7 +2198,7 @@ bool open_tmp_table(TABLE *table)
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
 
   table->set_created();
-  table->s->tmp_handler_count++;
+  table->s->tmp_table_info->handler_count++;
   return false;
 }
 
@@ -2301,11 +2319,11 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       in SE. Probably we hit a bug in server or some problem with system
       configuration. Prevent problem from re-occurring by marking temp-pool
       slot for this name as permanently busy, to do this we only need to set
-      temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      pool_slot to MY_BIT_NONE in order to avoid freeing it
       in free_tmp_table().
     */
     if (error == EEXIST)
-      table->s->temp_pool_slot= MY_BIT_NONE;
+      table->s->tmp_table_info->pool_slot= (uint16)MY_BIT_NONE;
 
     table->db_stat=0;
     goto err;
@@ -2365,7 +2383,7 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
       in SE. Probably we hit a bug in server or some problem with system
       configuration. Prevent problem from re-occurring by marking temp-pool
       slot for this name as permanently busy, to do this we only need to set
-      temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      pool_slot to MY_BIT_NONE in order to avoid freeing it
       in free_tmp_table().
 
       Note that currently InnoDB never reports an error in this case but
@@ -2375,7 +2393,7 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
 
    if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_TABLESPACE_EXISTS ||
        error == HA_ERR_TABLE_EXIST)
-     table->s->temp_pool_slot= MY_BIT_NONE;     /* purecov: inspected */
+     table->s->tmp_table_info->pool_slot= (uint16)MY_BIT_NONE; /* purecov: inspected */
     table->db_stat= 0;
     DBUG_RETURN(true);
   }
@@ -2483,7 +2501,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     return TRUE;
   }
 
-  if (share->first_unused_tmp_key < share->keys)
+  if (share->tmp_table_info->first_unused_key < share->keys)
   {
     /*
       Some other clone of this materialized temporary table has defined
@@ -2521,13 +2539,14 @@ void free_tmp_table(THD *thd, TABLE *entry)
 
   filesort_free_buffers(entry, true);
 
-  DBUG_ASSERT(entry->s->tmp_handler_count <= entry->s->ref_count);
+  auto share_tmp= entry->s->tmp_table_info;
+  DBUG_ASSERT(share_tmp->handler_count <= entry->s->ref_count);
 
   if (entry->is_created())
   {
-    DBUG_ASSERT(entry->s->tmp_handler_count >= 1);
+    DBUG_ASSERT(share_tmp->handler_count >= 1);
     // Table is marked as created only if was successfully opened.
-    if (--entry->s->tmp_handler_count)
+    if (--share_tmp->handler_count)
       entry->file->ha_close();
     else // no more open 'handler' objects
         entry->file->ha_drop_table(entry->s->table_name.str);
@@ -2547,8 +2566,8 @@ void free_tmp_table(THD *thd, TABLE *entry)
   DBUG_ASSERT(entry->s->ref_count >= 1);
   if (--entry->s->ref_count == 0) // no more TABLE objects
   {
-    if (entry->s->temp_pool_slot != MY_BIT_NONE)
-      bitmap_lock_clear_bit(&temp_pool, entry->s->temp_pool_slot);
+    if (share_tmp->pool_slot != (uint16)MY_BIT_NONE)
+      bitmap_lock_clear_bit(&temp_pool, share_tmp->pool_slot);
     plugin_unlock(0, entry->s->db_plugin);
     /*
       In create_tmp_table(), the share's memroot is allocated inside own_root
@@ -2633,7 +2652,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 {
   int write_err= 0;
 #ifndef DBUG_OFF
-  const uint initial_handler_count= wtable->s->tmp_handler_count;
+  const uint initial_handler_count= wtable->s->tmp_table_info->handler_count;
   bool rows_on_disk= false;
 #endif
   bool table_on_disk= false;
@@ -2759,6 +2778,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       if (open_tmp_table(&new_table))
         goto err_after_create;                  /* purecov: inspected */
 
+      share.tmp_table_info->handler_count--; // New engine replaced old engine
+
       if (table->file->indexes_are_disabled())
         new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
 
@@ -2856,8 +2877,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 
       // Closing the MEMORY table drops it if its ref count is down to zero.
       (void) table->file->ha_close();
-      share.tmp_handler_count--;
-
     }
 
     delete table->file;
@@ -2933,8 +2952,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
     Now old_share is new, and all TABLEs in Derived_refs_iterator point to
     it, and so do their table->file: everything is consistent.
   */
-
-  DBUG_ASSERT(initial_handler_count == wtable->s->tmp_handler_count);
+  DBUG_ASSERT(initial_handler_count ==
+              wtable->s->tmp_table_info->handler_count);
 
   if (save_proc_info)
     thd_proc_info(thd, (!strcmp(save_proc_info,"Copying to tmp table") ?

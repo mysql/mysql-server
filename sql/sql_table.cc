@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6025,7 +6025,7 @@ bool create_table_impl(THD *thd,
     DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
                 *tmp_table_def == NULL);
 
-    init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
+    init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
     bool result= (open_table_def(thd, &share, false, NULL) ||
                   open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
