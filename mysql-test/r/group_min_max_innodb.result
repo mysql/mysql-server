@@ -453,3 +453,117 @@ COUNT(DISTINCT a1)
 1
 SET @@optimizer_switch= @optimizer_switch_save;
 DROP TABLE t1, t2;
+#
+# Bug #24671968: WHEN THE OPTIMISER IS USING INDEX FOR GROUP-BY IT OFTEN
+#                OFTEN GIVES WRONG RESULTS
+#
+CREATE TABLE t1 (
+id int NOT NULL,
+c1 int NOT NULL,
+c2 int,
+PRIMARY KEY(id),
+INDEX c1_c2_idx(c1, c2));
+INSERT INTO t1 (id, c1, c2) VALUES (1,1,1), (2,2,2), (10,10,1), (11,10,8),
+(12,10,1), (13,10,2), (3,1,1), (4,10,1),
+(5,10,1), (6,10,8), (7,1,1), (8,10,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	c1_c2_idx	c1_c2_idx	9	NULL	12	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	c1_c2_idx	c1_c2_idx	9	NULL	12	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c1_c2_idx	c1_c2_idx	9	NULL	7	Using where; Using index for group-by
+EXPLAIN SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	c1_c2_idx	NULL	NULL	NULL	12	Using where; Using temporary
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	c1_c2_idx	NULL	NULL	NULL	12	Using where; Using temporary
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+c1
+2
+10
+SET optimizer_trace="enabled=on";
+SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+c1
+2
+10
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "keypart_reference_from_where_clause";
+@trace RLIKE "keypart_reference_from_where_clause"
+1
+SET optimizer_trace="enabled=off";
+DROP TABLE t1;
