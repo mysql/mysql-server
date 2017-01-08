@@ -332,3 +332,85 @@ eval $query4;
 
 SET @@optimizer_switch= @optimizer_switch_save;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #24671968: WHEN THE OPTIMISER IS USING INDEX FOR GROUP-BY IT OFTEN
+--echo #                OFTEN GIVES WRONG RESULTS
+--echo #
+
+CREATE TABLE t1 (
+id int NOT NULL,
+c1 int NOT NULL,
+c2 int,
+PRIMARY KEY(id),
+INDEX c1_c2_idx(c1, c2));
+
+INSERT INTO t1 (id, c1, c2) VALUES (1,1,1), (2,2,2), (10,10,1), (11,10,8),
+                                   (12,10,1), (13,10,2);
+ANALYZE TABLE t1;
+
+# Query similar to the one mentioned in the bug page. Incorrectly chooses
+# loose index scan.
+let query1=
+SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+              FROM DUAL
+              WHERE (c2 = 2));
+
+# IN subquery. Incorrectly chooses loose index scan.
+let query2=
+SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+            (SELECT 1
+            FROM DUAL
+            WHERE (c2 = 2)),
+            3);
+
+# Similar to above queries but without subquery.
+let query3=
+SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+
+# Same as query1 with IGNORE INDEX. So this will not choose loose index scan.
+let query4=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+              FROM DUAL
+              WHERE (c2 = 2));
+
+# Same as query2 with IGNORE INDEX. So this will not choose loose index scan.
+let query5=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+            (SELECT 1
+            FROM DUAL
+            WHERE (c2 = 2)),
+            3);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+eval EXPLAIN $query4;
+eval EXPLAIN $query5;
+
+eval $query1;
+eval $query2;
+eval $query3;
+eval $query4;
+eval $query5;
+
+# Looking for the tag in optimizer trace: "dependent_subquery_in_where".
+SET optimizer_trace="enabled=on";
+
+eval $query1;
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "keypart_reference_from_where_clause";
+
+SET optimizer_trace="enabled=off";
+
+DROP TABLE t1;
