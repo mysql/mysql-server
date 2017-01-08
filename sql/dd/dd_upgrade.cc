@@ -930,6 +930,7 @@ class Table_upgrade_guard
   sql_mode_t m_sql_mode;
   handler *m_handler;
   bool m_is_table_open;
+  LEX *m_lex_saved;
 public:
 
   void update_mem_root(MEM_ROOT *mem_root)
@@ -942,6 +943,11 @@ public:
     m_handler= handler;
   }
 
+  void update_lex(LEX *lex)
+  {
+    m_lex_saved= lex;
+  }
+
   void set_is_table_open(bool param)
   {
     m_is_table_open= param;
@@ -949,7 +955,7 @@ public:
 
   Table_upgrade_guard(THD *thd, TABLE *table, MEM_ROOT *mem_root)
     :  m_thd(thd), m_table(table), m_mem_root(mem_root), m_handler(nullptr),
-       m_is_table_open(false)
+       m_is_table_open(false), m_lex_saved(nullptr)
   {
     m_sql_mode= m_thd->variables.sql_mode;
     m_thd->variables.sql_mode= m_sql_mode;
@@ -963,6 +969,13 @@ public:
     // Free item list for partitions
     if (m_table->s->m_part_info)
       free_items(m_table->s->m_part_info->item_free_list);
+
+    // Restore thread lex
+    if (m_lex_saved != nullptr)
+    {
+      lex_end(m_thd->lex);
+      m_thd->lex= m_lex_saved;
+    }
 
     /*
       Free item list for generated columns
@@ -1781,12 +1794,6 @@ static bool open_table_for_fk_info(THD *thd,
     memcpy((char *)mem_root, (char*) &table->mem_root, sizeof(*mem_root));
     table_guard->update_mem_root(mem_root);
 
-    // open_table_from_share needs a valid SELECT_LEX to parse generated columns
-    LEX *lex_saved= thd->lex;
-    LEX lex;
-    thd->lex= &lex;
-    lex_start(thd);
-
     if (open_table_from_share(thd, share, share->table_name.str,
                               (uint) (HA_OPEN_KEYFILE |
                                       HA_OPEN_RNDFILE |
@@ -1797,12 +1804,8 @@ static bool open_table_for_fk_info(THD *thd,
     {
       sql_print_error("Error in opening table %s.%s",
                       schema_name.c_str(), table_name.c_str());
-      lex_end(&lex);
-      thd->lex= lex_saved;
       return true;
     }
-    lex_end(&lex);
-    thd->lex= lex_saved;
     table_guard->set_is_table_open(true);
   }
   return false;
@@ -1828,10 +1831,6 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
   Create_field *sql_field;
   bool error_reported= FALSE;
   bool error= false;
-  LEX *lex_saved= thd->lex;
-  LEX lex;
-  thd->lex= &lex;
-  lex_start(thd);
 
   if (table->s->vfields)
   {
@@ -1856,8 +1855,6 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
     }
   }
 
-  lex_end(&lex);
-  thd->lex= lex_saved;
   return error;
 }
 
@@ -2076,6 +2073,14 @@ static bool migrate_table_to_dd(THD *thd,
                              &select_field_pos, table->file, sql_field, field_no))
       return true;
   }
+
+  // open_table_from_share and partition expression parsing needs a
+  // valid SELECT_LEX to parse generated columns
+  LEX *lex_saved= thd->lex;
+  LEX lex;
+  thd->lex= &lex;
+  lex_start(thd);
+  table_guard.update_lex(lex_saved);
 
   if (fill_partition_info_for_upgrade(thd, &share, &frm_context, table))
     return true;
