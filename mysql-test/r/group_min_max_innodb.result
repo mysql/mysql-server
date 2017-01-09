@@ -555,6 +555,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` IGNORE INDEX (`c1_c2_idx`) where (1 in (2,(/* select#2 */ select 1 from DUAL  where (`test`.`t1`.`c2` = 2)),3))
+SET optimizer_trace="enabled=on";
 SELECT DISTINCT c1
 FROM t1
 WHERE EXISTS (SELECT *
@@ -563,6 +564,11 @@ WHERE (c2 = 2));
 c1
 2
 10
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "keypart_reference_from_where_clause";
+@trace RLIKE "keypart_reference_from_where_clause"
+1
+SET optimizer_trace="enabled=off";
 SELECT DISTINCT c1
 FROM t1
 WHERE 1 IN (2,
@@ -597,18 +603,4 @@ WHERE (c2 = 2)),
 c1
 2
 10
-SET optimizer_trace="enabled=on";
-SELECT DISTINCT c1
-FROM t1
-WHERE EXISTS (SELECT *
-FROM DUAL
-WHERE (c2 = 2));
-c1
-2
-10
-SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-SELECT @trace RLIKE "keypart_reference_from_where_clause";
-@trace RLIKE "keypart_reference_from_where_clause"
-1
-SET optimizer_trace="enabled=off";
 DROP TABLE t1;
