@@ -475,8 +475,8 @@ WHERE EXISTS (SELECT *
 FROM DUAL
 WHERE (c2 = 2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	c1_c2_idx	c1_c2_idx	9	NULL	12	Using where; Using index
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	PRIMARY	t1	index	c1_c2_idx	c1_c2_idx	9	NULL	#	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	#	No tables used
 EXPLAIN SELECT DISTINCT c1
 FROM t1
 WHERE 1 IN (2,
@@ -485,21 +485,21 @@ FROM DUAL
 WHERE (c2 = 2)),
 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	c1_c2_idx	c1_c2_idx	9	NULL	12	Using where; Using index
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	PRIMARY	t1	index	c1_c2_idx	c1_c2_idx	9	NULL	#	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	#	No tables used
 EXPLAIN SELECT DISTINCT c1
 FROM t1
 WHERE c2 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c1_c2_idx	c1_c2_idx	9	NULL	7	Using where; Using index for group-by
+1	SIMPLE	t1	range	c1_c2_idx	c1_c2_idx	9	NULL	#	Using where; Using index for group-by
 EXPLAIN SELECT DISTINCT c1
 FROM t1 IGNORE INDEX (c1_c2_idx)
 WHERE EXISTS (SELECT *
 FROM DUAL
 WHERE (c2 = 2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	c1_c2_idx	NULL	NULL	NULL	12	Using where; Using temporary
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	PRIMARY	t1	ALL	c1_c2_idx	NULL	NULL	NULL	#	Using where; Using temporary
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	#	No tables used
 EXPLAIN SELECT DISTINCT c1
 FROM t1 IGNORE INDEX (c1_c2_idx)
 WHERE 1 IN (2,
@@ -508,50 +508,8 @@ FROM DUAL
 WHERE (c2 = 2)),
 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	c1_c2_idx	NULL	NULL	NULL	12	Using where; Using temporary
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-SELECT DISTINCT c1
-FROM t1
-WHERE EXISTS (SELECT *
-FROM DUAL
-WHERE (c2 = 2));
-c1
-2
-10
-SELECT DISTINCT c1
-FROM t1
-WHERE 1 IN (2,
-(SELECT 1
-FROM DUAL
-WHERE (c2 = 2)),
-3);
-c1
-2
-10
-SELECT DISTINCT c1
-FROM t1
-WHERE c2 = 2;
-c1
-2
-10
-SELECT DISTINCT c1
-FROM t1 IGNORE INDEX (c1_c2_idx)
-WHERE EXISTS (SELECT *
-FROM DUAL
-WHERE (c2 = 2));
-c1
-2
-10
-SELECT DISTINCT c1
-FROM t1 IGNORE INDEX (c1_c2_idx)
-WHERE 1 IN (2,
-(SELECT 1
-FROM DUAL
-WHERE (c2 = 2)),
-3);
-c1
-2
-10
+1	PRIMARY	t1	ALL	c1_c2_idx	NULL	NULL	NULL	#	Using where; Using temporary
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	#	No tables used
 SET optimizer_trace="enabled=on";
 SELECT DISTINCT c1
 FROM t1
@@ -566,4 +524,38 @@ SELECT @trace RLIKE "keypart_reference_from_where_clause";
 @trace RLIKE "keypart_reference_from_where_clause"
 1
 SET optimizer_trace="enabled=off";
+SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+c1
+2
+10
 DROP TABLE t1;

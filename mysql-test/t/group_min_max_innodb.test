@@ -393,17 +393,16 @@ WHERE 1 IN (2,
             WHERE (c2 = 2)),
             3);
 
+--replace_column 9 #
 eval EXPLAIN $query1;
+--replace_column 9 #
 eval EXPLAIN $query2;
+--replace_column 9 #
 eval EXPLAIN $query3;
+--replace_column 9 #
 eval EXPLAIN $query4;
+--replace_column 9 #
 eval EXPLAIN $query5;
-
-eval $query1;
-eval $query2;
-eval $query3;
-eval $query4;
-eval $query5;
 
 # Looking for the tag in optimizer trace: "dependent_subquery_in_where".
 SET optimizer_trace="enabled=on";
@@ -413,5 +412,10 @@ SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SELECT @trace RLIKE "keypart_reference_from_where_clause";
 
 SET optimizer_trace="enabled=off";
+
+eval $query2;
+eval $query3;
+eval $query4;
+eval $query5;
 
 DROP TABLE t1;
