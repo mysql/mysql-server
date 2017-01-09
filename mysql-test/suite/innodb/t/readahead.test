@@ -1,4 +1,5 @@
-
+--source include/have_innodb_max_16k.inc
+--source include/not_embedded.inc
 --echo # Bug#25330449 ASSERT SIZE==SPACE->SIZE DURING BUF_READ_AHEAD_RANDOM
 
 let $MYSQLD_DATADIR=`SELECT @@datadir`;
