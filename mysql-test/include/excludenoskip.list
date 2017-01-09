@@ -56,6 +56,7 @@ have_debug_sync.inc
 have_debug.inc
 have_nodebug.inc
 mysql_have_debug.inc
+have_ibd2sdi_debug.inc
 
 # 4.0 Miscellaneous
 
