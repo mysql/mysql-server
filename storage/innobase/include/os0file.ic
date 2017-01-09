@@ -104,7 +104,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 					: PSI_FILE_OPEN),
 				     name, src_file, src_line);
 
-	file.m_file = os_file_create_simple_no_error_handling_func(
+	file = os_file_create_simple_no_error_handling_func(
 		name, create_mode, access_type, success);
 	file.m_psi = NULL;
 
@@ -152,7 +152,7 @@ pfs_os_file_create_func(
 					: PSI_FILE_OPEN),
 				     name, src_file, src_line);
 
-	file.m_file = os_file_create_func(name, create_mode, purpose, type, success);
+	file = os_file_create_func(name, create_mode, purpose, type, success);
 	file.m_psi = NULL;
 
 	register_pfs_file_open_end(locker, file,

@@ -1306,7 +1306,7 @@ A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
-os_file_t
+pfs_os_file_t
 os_file_create_simple_no_error_handling_func(
 /*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
@@ -1318,7 +1318,7 @@ os_file_create_simple_no_error_handling_func(
 				used by a backup program reading the file */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 
 	*success = FALSE;
 #ifdef __WIN__
@@ -1326,7 +1326,6 @@ os_file_create_simple_no_error_handling_func(
 	DWORD		create_flag;
 	DWORD		attributes	= 0;
 	DWORD		share_mode	= FILE_SHARE_READ;
-
 	ut_a(name);
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
@@ -1343,8 +1342,8 @@ os_file_create_simple_no_error_handling_func(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
-
-		return((os_file_t) -1);
+		file.m_file = (os_file_t)-1;
+		return(file);
 	}
 
 	if (access_type == OS_FILE_READ_ONLY) {
@@ -1367,11 +1366,11 @@ os_file_create_simple_no_error_handling_func(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown file access type (%lu) for file '%s'",
 			access_type, name);
-
-		return((os_file_t) -1);
+		file.m_file = (os_file_t)-1;
+		return(file);
 	}
 
-	file = CreateFile((LPCTSTR) name,
+	file.m_file = CreateFile((LPCTSTR) name,
 			  access,
 			  share_mode,
 			  NULL,			// Security attributes
@@ -1379,11 +1378,10 @@ os_file_create_simple_no_error_handling_func(
 			  attributes,
 			  NULL);		// No template file
 
-	*success = (file != INVALID_HANDLE_VALUE);
+	*success = (file.m_file != INVALID_HANDLE_VALUE);
 #else /* __WIN__ */
 	int		create_flag;
 	const char*	mode_str	= NULL;
-
 	ut_a(name);
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
@@ -1425,13 +1423,13 @@ os_file_create_simple_no_error_handling_func(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
-
-		return((os_file_t) -1);
+		file.m_file = -1;
+		return(file);
 	}
 
-	file = ::open(name, create_flag, os_innodb_umask);
+	file.m_file = ::open(name, create_flag, os_innodb_umask);
 
-	*success = file == -1 ? FALSE : TRUE;
+	*success = file.m_file == -1 ? FALSE : TRUE;
 
 	/* This function is always called for data files, we should disable
 	OS caching (O_DIRECT) here as we do in os_file_create_func(), so
@@ -1441,18 +1439,18 @@ os_file_create_simple_no_error_handling_func(
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
-		os_file_set_nocache(file, name, mode_str);
+		os_file_set_nocache(file.m_file, name, mode_str);
 	}
 
 #ifdef USE_FILE_LOCK
 	if (!srv_read_only_mode
 	    && *success
 	    && access_type == OS_FILE_READ_WRITE
-	    && os_file_lock(file, name)) {
+	    && os_file_lock(file.m_file, name)) {
 
 		*success = FALSE;
-		close(file);
-		file = -1;
+		close(file.m_file);
+		file.m_file = -1;
 
 	}
 #endif /* USE_FILE_LOCK */
@@ -1527,7 +1525,7 @@ Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
-os_file_t
+pfs_os_file_t
 os_file_create_func(
 /*================*/
 	const char*	name,	/*!< in: name of the file or path as a
@@ -1543,24 +1541,25 @@ os_file_create_func(
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	ibool		retry;
 	ibool		on_error_no_exit;
 	ibool		on_error_silent;
-
 #ifdef __WIN__
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		SetLastError(ERROR_DISK_FULL);
-		return((os_file_t) -1);
+		file.m_file = (os_file_t)-1;
+		return(file);
 	);
 #else /* __WIN__ */
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		errno = ENOSPC;
-		return((os_file_t) -1);
+		file.m_file = -1;
+		return(file);
 	);
 #endif /* __WIN__ */
 
@@ -1611,7 +1610,8 @@ os_file_create_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		file.m_file = (os_file_t)-1;
+		return(file);
 	}
 
 	DWORD		attributes = 0;
@@ -1636,8 +1636,8 @@ os_file_create_func(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown purpose flag (%lu) while opening file '%s'",
 			purpose, name);
-
-		return((os_file_t)(-1));
+		file.m_file = (os_file_t)-1;
+		return(file);
 	}
 
 #ifdef UNIV_NON_BUFFERED_IO
@@ -1664,11 +1664,11 @@ os_file_create_func(
 
 	do {
 		/* Use default security attributes and no template file. */
-		file = CreateFile(
+		file.m_file = CreateFile(
 			(LPCTSTR) name, access, share_mode, NULL,
 			create_flag, attributes, NULL);
 
-		if (file == INVALID_HANDLE_VALUE) {
+		if (file.m_file == INVALID_HANDLE_VALUE) {
 			const char*	operation;
 
 			operation = (create_mode == OS_FILE_CREATE
@@ -1693,7 +1693,6 @@ os_file_create_func(
 #else /* __WIN__ */
 	int		create_flag;
 	const char*	mode_str	= NULL;
-
 	on_error_no_exit = create_mode & OS_FILE_ON_ERROR_NO_EXIT
 		? TRUE : FALSE;
 	on_error_silent = create_mode & OS_FILE_ON_ERROR_SILENT
@@ -1731,7 +1730,8 @@ os_file_create_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		file.m_file = -1;
+		return(file);
 	}
 
 	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
@@ -1751,9 +1751,9 @@ os_file_create_func(
 #endif /* O_SYNC */
 
 	do {
-		file = ::open(name, create_flag, os_innodb_umask);
+		file.m_file = ::open(name, create_flag, os_innodb_umask);
 
-		if (file == -1) {
+		if (file.m_file == -1) {
 			const char*	operation;
 
 			operation = (create_mode == OS_FILE_CREATE
@@ -1783,14 +1783,14 @@ os_file_create_func(
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
-		os_file_set_nocache(file, name, mode_str);
+		os_file_set_nocache(file.m_file, name, mode_str);
 	}
 
 #ifdef USE_FILE_LOCK
 	if (!srv_read_only_mode
 	    && *success
 	    && create_mode != OS_FILE_OPEN_RAW
-	    && os_file_lock(file, name)) {
+	    && os_file_lock(file.m_file, name)) {
 
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 
@@ -1802,7 +1802,7 @@ os_file_create_func(
 			for (int i = 0; i < 100; i++) {
 				os_thread_sleep(1000000);
 
-				if (!os_file_lock(file, name)) {
+				if (!os_file_lock(file.m_file, name)) {
 					*success = TRUE;
 					return(file);
 				}
@@ -1813,8 +1813,8 @@ os_file_create_func(
 		}
 
 		*success = FALSE;
-		close(file);
-		file = -1;
+		close(file.m_file);
+		file.m_file = -1;
 	}
 #endif /* USE_FILE_LOCK */
 
