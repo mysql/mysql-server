@@ -66,8 +66,6 @@ TODO:
 
 */
 
-#define SLAP_VERSION "1.0"
-
 #define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
 
@@ -95,6 +93,7 @@ TODO:
 #include <sys/time.h>
 #endif
 #include <ctype.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
@@ -724,14 +723,6 @@ static struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname, SLAP_VERSION,
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {

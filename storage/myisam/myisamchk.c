@@ -19,6 +19,8 @@
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <my_getopt.h>
+#include "print_version.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -64,7 +66,6 @@ static const char *field_pack[]=
 static const char *myisam_stats_method_str="nulls_unequal";
 
 static void get_options(int *argc,char * * *argv);
-static void print_version(void);
 static void usage(void);
 static int myisamchk(MI_CHECK *param, char *filename);
 static void descript(MI_CHECK *param, MI_INFO *info, char * name);
@@ -352,18 +353,11 @@ static struct my_option my_long_options[] =
 };
 
 
-static void print_version(void)
-{
-  printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
-	 MACHINE_TYPE);
-}
-
-
 static void usage(void)
 {
   print_version();
-  puts("By Monty, for your professional use");
-  puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
+
   puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);

@@ -435,6 +435,7 @@
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "persisted_variable.h"         // Persisted_variables_cache
 #include "protocol.h"
+#include "print_version.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
@@ -7518,12 +7519,11 @@ void add_terminator(vector<my_option> *options)
   options->push_back(empty_element);
 }
 
-static void print_version(void)
+static void print_server_version(void)
 {
   set_server_version();
 
-  printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
-   server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+  print_explicit_version(server_version);
 }
 
 /** Compares two options' names, treats - and _ the same */
@@ -7585,7 +7585,7 @@ static void usage(void)
     exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
-  print_version();
+  print_server_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
@@ -7868,7 +7868,7 @@ mysqld_get_one_option(int optid,
     break;
 #endif /* HAVE_OPENSSL */
   case 'V':
-    print_version();
+    print_server_version();
     exit(MYSQLD_SUCCESS_EXIT);
   case 'W':
     push_deprecated_warn(NULL, "--log_warnings/-W", "'--log_error_verbosity'");

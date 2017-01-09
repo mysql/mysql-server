@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -35,6 +35,8 @@
 #include "dummy_stream.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include "my_global.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include "my_loglevel.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
@@ -56,7 +58,6 @@
 #endif
 
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
-const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
 
 #include <mysql/service_my_snprintf.h>
@@ -3010,12 +3011,15 @@ public:
 
   void print_version()
   {
-    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, MYSQLXTEST_VERSION,
-        MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    ::print_version();
   }
 
   void print_help()
   {
+
+    print_version();
+    std::cout << (ORACLE_WELCOME_COPYRIGHT_NOTICE("2015")) << endl;
+
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";

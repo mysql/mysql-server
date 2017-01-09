@@ -33,6 +33,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql_version.h>
+#include "print_version.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <new>
@@ -165,7 +166,6 @@ static int check_message_format(struct errors *err,
 static int parse_input_file(const char *file_name, struct errors **top_error,
 			    struct languages **top_language);
 static int get_options(int *argc, char ***argv);
-static void print_version(void);
 static void usage(void);
 static my_bool get_one_option(int optid, const struct my_option *opt,
 			      char *argument);
@@ -1099,14 +1099,6 @@ static struct languages *parse_charset_string(char *str)
 
 
 /* Read options */
-
-static void print_version(void)
-{
-  DBUG_ENTER("print_version");
-  printf("%s  (Compile errormessage)  Ver %s\n", my_progname, "2.0");
-  DBUG_VOID_RETURN;
-}
-
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE ((unused)),

@@ -25,6 +25,7 @@
 #include <sql_common.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 
@@ -35,7 +36,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
 
-#define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -78,7 +78,6 @@ static uint ex_var_count, max_var_length, max_val_length;
 
 #include <sslopt-vars.h>
 
-static void print_version(void);
 static void usage(void);
 extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
                                   char *argument);
@@ -1254,13 +1253,6 @@ static char **mask_password(int argc, char ***argv)
   temp_argv[argc]= my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
   return(temp_argv);
 }
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s on %s\n",my_progname,ADMIN_VERSION,
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {

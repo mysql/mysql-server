@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "my_sys.h"
+#include "print_version.h"
 #include <welcome_copyright_notice.h>
 
 #include "zlib.h"
 
 static void usage()
 {
-  printf("%s  Ver 1.6 for %s at %s\n","zlib_decompress",SYSTEM_TYPE,
-	 MACHINE_TYPE);
+  print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2015"));
   puts("Decompress data compressed by mysqlpump using zlib compression "
     "algorithm by reading from input file and writing uncompressed "
@@ -40,6 +41,7 @@ static const int OUTPUT_BUFFER_SIZE= 1024 * 1024;
 
 int main(int argc, char **argv)
 {
+  MY_INIT(argv[0]);
   if (argc != 3)
   {
     usage();
@@ -110,5 +112,6 @@ int main(int argc, char **argv)
   delete[] output_buffer;
   fclose(input_file);
   fclose(output_file);
+  my_end(0);
   exit(0);
 }

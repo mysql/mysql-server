@@ -20,6 +20,7 @@
 #include <my_getopt.h>
 #include <my_tree.h>
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "my_compiler.h"
@@ -301,13 +302,6 @@ static struct my_option my_long_options[] =
    &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s Ver 1.23 for %s on %s\n",
-              my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-}
 
 
 static void usage(void)

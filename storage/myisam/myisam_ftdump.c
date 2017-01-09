@@ -22,6 +22,8 @@
 
 #include "ftdefs.h"
 #include "my_compiler.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 static void usage() MY_ATTRIBUTE((noreturn));
 static void complain(int val);
@@ -268,6 +270,9 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 
 static void usage()
 {
+  print_version();
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
+
   printf("Use: myisam_ftdump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);

@@ -46,6 +46,7 @@
 #include "my_time.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
+#include "print_version.h"
 #include "rpl_constants.h"
 #include "rpl_gtid.h"
 #include "sql_common.h"
@@ -1790,13 +1791,6 @@ static void cleanup()
   if (mysql)
     mysql_close(mysql);
 }
-
-
-static void print_version()
-{
-  printf("%s Ver 3.4 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-}
-
 
 static void usage()
 {

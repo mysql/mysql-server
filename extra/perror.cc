@@ -16,8 +16,6 @@
 
 /* Return error-text for system error messages and handler messages */
 
-#define PERROR_VERSION "2.11"
-
 #include <errno.h>
 #include <m_string.h>
 #include <my_getopt.h>
@@ -30,6 +28,7 @@
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #include "../storage/ndb/src/ndbapi/ndberror.c"
 #endif
+#include "print_version.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static my_bool verbose;
@@ -75,14 +74,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s Ver %s, for %s (%s)\n",my_progname,PERROR_VERSION,
-	 SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {

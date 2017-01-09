@@ -17,8 +17,6 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.10"
-
 #include <m_string.h>
 #include <my_sys.h>
 #include <mysql.h>
@@ -27,6 +25,7 @@
 #include <sslopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
@@ -280,14 +279,6 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,SHOW_VERSION,
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {

@@ -50,6 +50,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
@@ -653,13 +654,6 @@ static void check_io(FILE *file)
   if (ferror(file) || errno == 5)
     die(EX_EOF, "Got errno %d on write", errno);
 }
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-} /* print_version */
-
 
 static void short_usage_sub(void)
 {

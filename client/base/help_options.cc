@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "client_priv.h"
 #include "help_options.h"
 #include "my_default.h"
+#include "print_version.h"
 
 using namespace Mysql::Tools::Base::Options;
 using std::placeholders::_1;
@@ -65,10 +66,7 @@ void Help_options::version_callback(char* argument MY_ATTRIBUTE((unused)))
 /** A helper function. Prints the program version line. */
 void Help_options::print_version_line()
 {
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
-         this->m_program->get_name().c_str(),
-         this->m_program->get_version().c_str(),
-         MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  print_version();
 }
 
 

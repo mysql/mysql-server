@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #include <m_string.h>
 #include <my_getopt.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>
 #include <iostream>
 #include <map>
@@ -257,30 +258,16 @@ create_tmp_file(
 	return(file);
 }
 
-/** Print out the Innodb version and machine information. */
-static
-void
-print_version()
-{
-	const char*	description = "Extract Serialized Dictionary Info"
-				      " (SDI) from an InnoDB Datafile (IBD)";
-#ifdef DBUG_OFF
-	printf("%s %s; Ver %s, for %s (%s)\n",
-		my_progname, description, INNODB_VERSION_STR,
-		SYSTEM_TYPE, MACHINE_TYPE);
-#else
-	printf("%s-debug %s; Ver %s, for %s (%s)\n",
-		my_progname, description, INNODB_VERSION_STR,
-		SYSTEM_TYPE, MACHINE_TYPE);
-#endif /* DBUG_OFF */
-}
-
 /** Print the ibd2sdi tool usage. */
 static
 void
 usage()
 {
+#ifdef DBUG_OFF
 	print_version();
+#else
+	print_version_debug();
+#endif /* DBUG_OFF */
 	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2015"));
 	printf("Usage: %s [-v] [-c <strict-check>] [-d <dump file name>] [-n]"
 		" filename1 [filenames]\n", my_progname);
@@ -308,7 +295,11 @@ ibd2sdi_get_one_option(
 	break;
 #endif /* !DBUG_OFF */
 	case 'v':
+#ifdef DBUG_OFF
 		print_version();
+#else
+		print_version_debug();
+#endif /* DBUG */
 		exit(EXIT_SUCCESS);
 		break;
 	case 'c':

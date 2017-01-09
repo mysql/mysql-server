@@ -15,13 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define CHECK_VERSION "2.5.1"
-
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
@@ -216,7 +215,6 @@ static struct my_option my_long_options[] =
 static const char *load_default_groups[] = { "mysqlcheck", "client", 0 };
 
 
-static void print_version(void);
 static void usage(void);
 static int get_options(int *argc, char ***argv);
 static int dbConnect(char *host, char *user,char *passwd);
@@ -225,14 +223,6 @@ static void DBerror(MYSQL *mysql, string when);
 static void safe_exit(int error);
 
 static int what_to_do = 0;
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, CHECK_VERSION,
-   MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-} /* print_version */
-
 
 static void usage(void)
 {

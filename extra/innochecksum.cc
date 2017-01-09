@@ -39,6 +39,7 @@
 #endif
 #include <m_string.h>
 #include <my_getopt.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "my_compiler.h"
@@ -1347,23 +1348,13 @@ static struct my_option innochecksum_options[] = {
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-/* Print out the Innodb version and machine information. */
-static void print_version(void)
-{
-#ifdef DBUG_OFF
-	printf("%s Ver %s, for %s (%s)\n",
-		my_progname, INNODB_VERSION_STR,
-		SYSTEM_TYPE, MACHINE_TYPE);
-#else
-	printf("%s-debug Ver %s, for %s (%s)\n",
-		my_progname, INNODB_VERSION_STR,
-		SYSTEM_TYPE, MACHINE_TYPE);
-#endif /* DBUG_OFF */
-}
-
 static void usage(void)
 {
+#ifdef DBUG_OFF
 	print_version();
+#else
+	print_version_debug();
+#endif /* DBUG_OFF */
 	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
 	printf("InnoDB offline file checksum utility.\n");
 	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] "
@@ -1400,7 +1391,11 @@ innochecksum_get_one_option(
 		do_one_page = true;
 		break;
 	case 'V':
+#ifdef DBUG_OFF
 		print_version();
+#else
+		print_version_debug();
+#endif /* DBUG_OFF */
 		exit(EXIT_SUCCESS);
 		break;
 	case 'C':
@@ -1522,6 +1517,7 @@ int main(
 
 	ut_crc32_init();
 	MY_INIT(argv[0]);
+
 	DBUG_ENTER("main");
 	DBUG_PROCESS(argv[0]);
 

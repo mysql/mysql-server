@@ -28,6 +28,7 @@
 #include <mysql_version.h>
 #include <stdio.h>                              // Needed on SunOS 5.10
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 #include <vector>
@@ -36,7 +37,6 @@
 
 const int initial_symbol_table_size= 4096;
 
-#define DUMP_VERSION "1.5"
 #define HEX_INVALID  (uchar)255
 
 typedef ulong my_long_addr_t ; /* at some point, we need to fix configure
@@ -72,14 +72,6 @@ static struct my_option my_long_options[] =
 
 
 static void verify_sort();
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage()
 {

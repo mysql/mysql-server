@@ -24,8 +24,9 @@
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 #define MAX_KEY MAX_INDEXES
 
@@ -1254,14 +1255,8 @@ static struct my_option client_test_long_options[] =
 static void usage(void)
 {
 /* show the usage string when the user asks for this */
- putc('\n', stdout);
- printf("%s  Ver %s Distrib %s, for %s (%s)\n",
- my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
- puts("By Monty, Venu, Kent and others\n");
- printf("\
-Copyright (C) 2002-2004 MySQL AB\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n");
+ print_version();
+ puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
  printf("Usage: %s [OPTIONS] [TESTNAME1 TESTNAME2...]\n", my_progname);
  my_print_help(client_test_long_options);
  print_defaults("my", client_test_load_default_groups);

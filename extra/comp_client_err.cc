@@ -21,6 +21,8 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 #include "my_compiler.h"
 
@@ -38,6 +40,8 @@ static struct my_option my_long_options[]=
 
 static void usage(void)
 {
+  print_version();
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2016"));
   printf("Usage: ./comp_client_err --in_file=name --out_file=name\n"
          "Options: \n"
          " -F, --in_file=name  Input file name\n"

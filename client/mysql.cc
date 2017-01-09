@@ -111,6 +111,7 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
+#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "completion_hash.h"
@@ -1903,20 +1904,8 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
-#if defined(USE_LIBEDIT_INTERFACE)
-  const char* readline= "";
-#else
-  const char* readline= "readline";
-#endif
 
-#ifdef HAVE_READLINE
-  printf("%s  Ver %s Distrib %s, for %s (%s) using %s %s\n",
-	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
-         readline, rl_library_version);
-#else
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, VER,
-	MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-#endif
+  print_version();
 
   if (version)
     return;

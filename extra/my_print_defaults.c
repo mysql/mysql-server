@@ -29,6 +29,7 @@
 #include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "my_compiler.h"
@@ -110,8 +111,7 @@ static struct my_option my_long_options[] =
 
 static void usage(my_bool version)
 {
-  printf("%s  Ver 1.6 for %s at %s\n",my_progname,SYSTEM_TYPE,
-	 MACHINE_TYPE);
+  print_version();
   if (version)
     return;
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));

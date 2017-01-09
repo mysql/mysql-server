@@ -16,6 +16,7 @@
 */
 
 #include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "client_priv.h"
@@ -93,12 +94,6 @@ static struct my_option my_connection_options[]=
 };
 
 my_bool find_temporary_password(char **p);
-
-static void print_version(void)
-{
-  fprintf(stdout, "%s Ver %s, for %s on %s\n", my_progname,
-	  MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-}
 
 static void usage()
 {

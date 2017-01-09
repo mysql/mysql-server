@@ -228,13 +228,13 @@ let SEARCH_PATTERN=MySQL SSL Certificate and RSA Key Generation Utility;
 --remove_file $wl7706_log
 
 --exec $MYSQL_SSL_RSA_SETUP --version > $wl7706_log
-let SEARCH_PATTERN=Version :;
+let SEARCH_PATTERN=Ver ;
 --source include/search_pattern_in_file.inc
 
 --remove_file $wl7706_log
 
 --exec $MYSQL_SSL_RSA_SETUP -V > $wl7706_log
-let SEARCH_PATTERN=Version :;
+let SEARCH_PATTERN=Ver ;
 --source include/search_pattern_in_file.inc
 
 --remove_file $wl7706_log

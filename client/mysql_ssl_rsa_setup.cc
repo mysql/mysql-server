@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <algorithm>
 #include <cstdio>
@@ -43,8 +44,6 @@
 #if HAVE_CHOWN
 #include <pwd.h>
 #endif
-/* Utility Version */
-#define MY_VERSION      "1.0.0"
 
 /* Forward declarations */
 
@@ -343,16 +342,6 @@ public:
 protected:
   uint32_t m_validity;
 };
-
-
-static
-void print_version(void)
-{
-  cout << my_progname << " Version : " << MY_VERSION
-       << " Distribution : " << MYSQL_SERVER_VERSION
-       << " For : " << SYSTEM_TYPE << " On : " << MACHINE_TYPE << endl;
-}
-
 
 static
 void usage(void)

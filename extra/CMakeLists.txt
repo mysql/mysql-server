@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ ENDIF()
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
 SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)
 
-MYSQL_ADD_EXECUTABLE(resolveip resolveip.c)
+MYSQL_ADD_EXECUTABLE(resolveip resolveip.cc)
 TARGET_LINK_LIBRARIES(resolveip mysys mysys_ssl)
 SET_TARGET_PROPERTIES(resolveip PROPERTIES LINKER_LANGUAGE CXX)
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
@@ -111,12 +111,12 @@ ENDIF()
 
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
-  TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
+  TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY} mysys)
 ENDIF()
 
 IF (BUILD_BUNDLED_ZLIB)
   MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
-  TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
+  TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY} mysys)
 ENDIF()
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)

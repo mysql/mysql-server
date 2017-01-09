@@ -15,8 +15,6 @@
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
-#define RESOLVE_VERSION "2.3"
-
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_getopt.h>
@@ -24,6 +22,7 @@
 #include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "print_version.h"
 
 #include "my_compiler.h"
 
@@ -61,13 +60,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s Ver %s, for %s (%s)\n",my_progname,RESOLVE_VERSION,
-	 SYSTEM_TYPE,MACHINE_TYPE);
-}
 
 
 static void usage(void)
@@ -131,7 +123,7 @@ int main(int argc, char **argv)
 #ifndef WIN32
     struct in_addr addr;
 #endif
-    ip = *argv++;    
+    ip = *argv++;
 
     /* Not compatible with IPv6!  Probably should use getnameinfo(). */
 #ifdef WIN32
@@ -144,13 +136,13 @@ int main(int argc, char **argv)
       taddr= addr.s_addr;
 #endif
       if (taddr == htonl(INADDR_BROADCAST))
-      {	
+      {
 	puts("Broadcast");
 	continue;
       }
-      if (taddr == htonl(INADDR_ANY)) 
+      if (taddr == htonl(INADDR_ANY))
       {
-	if (!taddr) 
+	if (!taddr)
 	  puts("Null-IP-Addr");
 	else
 	  puts("Old-Bcast");
@@ -158,7 +150,7 @@ int main(int argc, char **argv)
       }
 
       hpaddr = gethostbyaddr((char*) &(taddr), sizeof(struct in_addr),AF_INET);
-      if (hpaddr) 
+      if (hpaddr)
       {
 	if (silent)
 	  puts(hpaddr->h_name);
