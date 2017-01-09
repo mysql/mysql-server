@@ -157,10 +157,6 @@ int STDCALL mysql_server_init(int argc MY_ATTRIBUTE((unused)),
 #if defined(SIGPIPE) && !defined(_WIN32)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
-#ifdef EMBEDDED_LIBRARY
-    if (argc > -1)
-       result= init_embedded_server(argc, argv, groups);
-#endif
   }
   else
     result= (int)my_thread_init();         /* Init if new thread */
@@ -187,9 +183,6 @@ void STDCALL mysql_server_end()
 
   mysql_client_plugin_deinit();
 
-#ifdef EMBEDDED_LIBRARY
-  end_embedded_server();
-#endif
   finish_client_errs();
   vio_end();
 
@@ -1078,15 +1071,6 @@ uint STDCALL mysql_thread_safe(void)
   return 1;
 }
 
-
-my_bool STDCALL mysql_embedded(void)
-{
-#ifdef EMBEDDED_LIBRARY
-  return 1;
-#else
-  return 0;
-#endif
-}
 
 /****************************************************************************
   Some support functions

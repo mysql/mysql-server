@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -534,7 +534,6 @@ unsigned long STDCALL mysql_real_escape_string_quote(MYSQL *mysql,
 void          STDCALL mysql_debug(const char *debug);
 void          STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int  STDCALL mysql_thread_safe(void);
-my_bool       STDCALL mysql_embedded(void);
 my_bool       STDCALL mysql_read_query_result(MYSQL *mysql);
 int           STDCALL mysql_reset_connection(MYSQL *mysql);
 

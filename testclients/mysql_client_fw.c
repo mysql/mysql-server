@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ static char *opt_user= 0;
 static char *opt_password= 0;
 static char *opt_host= 0;
 static char *opt_unix_socket= 0;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name= 0;
 #endif
 static unsigned int  opt_port;
@@ -215,10 +215,8 @@ static void verify_st_affected_rows(MYSQL_STMT *stmt,
 static void verify_affected_rows(ulonglong exp_count) MY_ATTRIBUTE((unused));
 static void verify_field_count(MYSQL_RES *result,
                                uint exp_count) MY_ATTRIBUTE((unused));
-#ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query,
                                   ulonglong exp_count) MY_ATTRIBUTE((unused));
-#endif
 static my_bool thread_query(const char *query) MY_ATTRIBUTE((unused));
 
 
@@ -276,7 +274,7 @@ base on Windows.
 static MYSQL *mysql_client_init(MYSQL* con)
 {
  MYSQL* res = mysql_init(con);
- #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+ #if defined (_WIN32)
  if (res && shared_memory_base_name)
  mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
  #endif
@@ -919,7 +917,6 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
 
 /* Utility function to execute a query using prepare-execute */
 
-#ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query, ulonglong exp_count)
 {
  MYSQL_STMT *stmt;
@@ -940,7 +937,7 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
  DIE_UNLESS(affected_rows == exp_count);
  mysql_stmt_close(stmt);
 }
-#endif
+
 
 /*
 Accepts arbitrary number of queries and runs them against the database.
@@ -1235,7 +1232,7 @@ static struct my_option client_test_long_options[] =
  0, 0, 0, 0, 0, 0},
 {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
  0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 {"shared-memory-base-name", 'm', "Base name of shared memory.", 
  &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

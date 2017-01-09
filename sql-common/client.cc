@@ -47,20 +47,6 @@
 #include "template_utils.h"
 #include "typelib.h"
 
-#ifdef EMBEDDED_LIBRARY
-
-#undef MYSQL_SERVER
-
-#ifndef MYSQL_CLIENT
-#define MYSQL_CLIENT
-#endif
-
-#define CLI_MYSQL_REAL_CONNECT STDCALL cli_mysql_real_connect
-
-#else  /*EMBEDDED_LIBRARY*/
-#define CLI_MYSQL_REAL_CONNECT STDCALL mysql_real_connect
-#endif /*EMBEDDED_LIBRARY*/
-
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_sys.h>
@@ -131,9 +117,9 @@ PSI_memory_key key_memory_MYSQL_ROW;
 PSI_memory_key key_memory_MYSQL_state_change_info;
 PSI_memory_key key_memory_MYSQL_HANDSHAKE;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 PSI_memory_key key_memory_create_shared_memory;
-#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 
 #ifdef HAVE_PSI_INTERFACE
 /*
@@ -145,9 +131,9 @@ PSI_memory_key key_memory_create_shared_memory;
 
 static PSI_memory_info all_client_memory[]=
 {
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   { &key_memory_create_shared_memory, "create_shared_memory", 0},
-#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 
   { &key_memory_mysql_options, "mysql_options", 0},
   { &key_memory_MYSQL_DATA, "MYSQL_DATA", 0},
@@ -174,7 +160,7 @@ char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
 const char	*cant_connect_sqlstate= "08001";
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char     *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
@@ -437,7 +423,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
   @return HANDLE to the shared memory area.
 */
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
                                    DWORD connect_timeout)
 {
@@ -1251,7 +1237,6 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   MYSQL_TRACE(SEND_COMMAND, mysql, (command, header_length, arg_length, header, arg));
 
-#if !defined(EMBEDDED_LIBRARY)
   /*
     If auto-reconnect mode is enabled check if connection is still alive before
     sending new command. Otherwise, send() might not notice that connection was
@@ -1263,7 +1248,6 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   */
   if ((command != COM_QUIT) && mysql->reconnect && !vio_is_connected(net->vio))
     net->error= 2;
-#endif
 
   if (net_write_command(net,(uchar) command, header, header_length,
 			arg, arg_length))
@@ -1749,7 +1733,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
                   (STR), MYF(MY_WME)) : NULL;                    \
     } while (0)
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 #define SET_OPTION(opt_var,arg) \
   do { \
     if (mysql->options.opt_var) \
@@ -1906,7 +1890,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case OPT_return_found_rows:
 	  options->client_flag|=CLIENT_FOUND_ROWS;
 	  break;
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 	case OPT_ssl_key:
 	  my_free(options->ssl_key);
           options->ssl_key = my_strdup(key_memory_mysql_options,
@@ -1951,7 +1935,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_ssl_crlpath:
         case OPT_tls_version :
 	  break;
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 	case OPT_character_sets_dir:
 	  my_free(options->charset_dir);
           options->charset_dir = my_strdup(key_memory_mysql_options,
@@ -1988,7 +1972,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           }
           break;
         case OPT_shared_memory_base_name:
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name);
           options->shared_memory_base_name=my_strdup(key_memory_mysql_options,
@@ -2552,7 +2536,7 @@ mysql_init(MYSQL *mysql)
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;
 #endif
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
@@ -2582,7 +2566,7 @@ mysql_init(MYSQL *mysql)
     (mysql.reconnect=0) will not see a behaviour change.
   */
   mysql->reconnect= 0;
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) && !defined(MYSQL_SERVER)
+#if defined(HAVE_OPENSSL) && !defined(MYSQL_SERVER)
   ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   mysql->options.extension->ssl_mode= SSL_MODE_PREFERRED;
 #endif
@@ -2636,7 +2620,7 @@ mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)) ,
 {
   my_bool result= 0;
   DBUG_ENTER("mysql_ssl_set");
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   result=
     mysql_options(mysql, MYSQL_OPT_SSL_KEY,    key)    +
     mysql_options(mysql, MYSQL_OPT_SSL_CERT,   cert)   +
@@ -2654,7 +2638,7 @@ mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)) ,
   NB! Errors are not reported until you do mysql_real_connect.
 */
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 
 static void
 mysql_ssl_free(MYSQL *mysql)
@@ -2693,7 +2677,7 @@ mysql_ssl_free(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 
 /*
   Return the SSL cipher (if any) used for current
@@ -2709,10 +2693,10 @@ const char * STDCALL
 mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   if (mysql->net.vio && mysql->net.vio->ssl_arg)
     DBUG_RETURN(SSL_get_cipher_name((SSL*)mysql->net.vio->ssl_arg));
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
   DBUG_RETURN(NULL);
 }
 
@@ -2734,7 +2718,7 @@ mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused)))
 
  */
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 
 static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const char **errptr)
 {
@@ -2836,7 +2820,7 @@ error:
   DBUG_RETURN(ret_validation);
 }
 
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 
 
 /*
@@ -3562,11 +3546,11 @@ cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
   if (mysql->client_flag & CLIENT_MULTI_STATEMENTS)
     mysql->client_flag|= CLIENT_MULTI_RESULTS;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   if (mysql->options.extension &&
       mysql->options.extension->ssl_mode != SSL_MODE_DISABLED)
     mysql->client_flag |= CLIENT_SSL;
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
+#endif /* HAVE_OPENSSL */
 
   if (db)
     mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
@@ -3975,7 +3959,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
     info->protocol= st_plugin_vio_info::MYSQL_VIO_PIPE;
     info->handle= vio->hPipe;
     return;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   case VIO_TYPE_SHARED_MEMORY:
     info->protocol= st_plugin_vio_info::MYSQL_VIO_MEMORY;
     info->handle= vio->handle_file_map; /* or what ? */
@@ -4246,10 +4230,10 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
 }
 
 
-MYSQL * STDCALL 
-CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
-		       const char *passwd, const char *db,
-		       uint port, const char *unix_socket,ulong client_flag)
+MYSQL * STDCALL
+mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
+                   const char *passwd, const char *db,
+                   uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
   int           scramble_data_len, pkt_scramble_len= 0;
@@ -4334,7 +4318,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /*
     Part 0: Grab a socket and connect it to the server
   */
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
       (!host || !strcmp(host,LOCAL_HOST)))
@@ -4372,7 +4356,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                   ER_CLIENT(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
-#endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 #if defined(HAVE_SYS_UN_H)
   if (!net->vio &&
       (!mysql->options.protocol ||
@@ -4832,7 +4816,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql, (pkt_length, net->read_pos));
   MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if ((mysql->options.extension &&
        mysql->options.extension->ssl_mode <= SSL_MODE_PREFERRED) &&
       (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY ||
@@ -5302,13 +5286,13 @@ void mysql_close_free_options(MYSQL *mysql)
     mysql->options.init_commands->~Init_commands_array();
     my_free(mysql->options.init_commands);
   }
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   mysql_ssl_free(mysql);
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#endif /* HAVE_OPENSSL */
+#if defined (_WIN32)
   if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
     my_free(mysql->options.shared_memory_base_name);
-#endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
   if (mysql->options.extension)
   {
     my_free(mysql->options.extension->plugin_dir);
@@ -5817,7 +5801,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.protocol= *(uint*) arg;
     break;
   case MYSQL_SHARED_MEMORY_BASE_NAME:
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
     if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
       my_free(mysql->options.shared_memory_base_name);
     mysql->options.shared_memory_base_name=
@@ -5916,7 +5900,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                                               SSL_MODE_PREFERRED);
     break;
   case MYSQL_OPT_TLS_VERSION:
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
     EXTENSION_SET_SSL_STRING(&mysql->options, tls_version, arg,
                              SSL_MODE_PREFERRED);
     if ((mysql->options.extension->ssl_ctx_flags=
@@ -5925,7 +5909,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 #endif
     break;
   case MYSQL_OPT_SSL_MODE:
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     mysql->options.extension->ssl_mode= *(uint *) arg;
     if (mysql->options.extension->ssl_mode == SSL_MODE_VERIFY_IDENTITY)
@@ -6092,7 +6076,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((uint *)arg)= mysql->options.protocol;
     break;
   case MYSQL_SHARED_MEMORY_BASE_NAME:
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
     *((char **)arg)= mysql->options.shared_memory_base_name;
 #else
     *((const char **)arg)= "";
