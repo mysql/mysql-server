@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -17,6 +17,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/btr0btr.h
 The B-tree
@@ -27,14 +29,13 @@ Created 6/2/1994 Heikki Tuuri
 #ifndef btr0btr_h
 #define btr0btr_h
 
-#include "univ.i"
-
-#include "dict0dict.h"
-#include "data0data.h"
-#include "page0cur.h"
-#include "mtr0mtr.h"
 #include "btr0types.h"
+#include "data0data.h"
+#include "dict0dict.h"
 #include "gis0type.h"
+#include "mtr0mtr.h"
+#include "page0cur.h"
+#include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum record size which can be stored on a page, without using the

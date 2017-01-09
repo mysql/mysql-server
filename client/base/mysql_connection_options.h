@@ -18,13 +18,15 @@
 #ifndef MYSQL_CONNECTION_OPTIONS_INCLUDED
 #define MYSQL_CONNECTION_OPTIONS_INCLUDED
 
-#include "client_priv.h"
 #include <vector>
-#include "composite_options_provider.h"
+
 #include "abstract_program.h"
-#include "i_connection_factory.h"
-#include "nullable.h"
 #include "base/mutex.h"
+#include "client_priv.h"
+#include "composite_options_provider.h"
+#include "i_connection_factory.h"
+#include "my_compiler.h"
+#include "nullable.h"
 
 namespace Mysql{
 namespace Tools{

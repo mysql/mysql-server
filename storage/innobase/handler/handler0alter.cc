@@ -45,6 +45,7 @@ Smart ALTER TABLE
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "pars0pars.h"
 #include "partition_info.h"

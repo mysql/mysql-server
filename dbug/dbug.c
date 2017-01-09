@@ -86,6 +86,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

@@ -18,15 +18,16 @@
   Generic buffer container.
 */
 
+#include "my_compiler.h"
 #include "my_global.h"
-#include "pfs_global.h"
-#include "pfs_lock.h"
 #include "pfs_account.h"
-#include "pfs_user.h"
-#include "pfs_host.h"
-#include "pfs_error.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
+#include "pfs_error.h"
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_lock.h"
+#include "pfs_user.h"
 
 PFS_buffer_default_allocator<PFS_mutex> default_mutex_allocator(
   &builtin_memory_mutex);

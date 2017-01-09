@@ -26,6 +26,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "sync0sync.h"
 

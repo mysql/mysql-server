@@ -32,6 +32,8 @@
 #include <string>
 #include <vector>
 
+#include "my_compiler.h"
+
 const int initial_symbol_table_size= 4096;
 
 #define DUMP_VERSION "1.5"

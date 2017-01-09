@@ -20,6 +20,7 @@
   The performance schema implementation of all instruments.
 */
 #include "mdl.h" /* mdl_key_init */
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"

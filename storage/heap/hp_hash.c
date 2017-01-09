@@ -18,6 +18,7 @@
 #include <m_ctype.h>
 
 #include "heapdef.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 
 

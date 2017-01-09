@@ -381,6 +381,7 @@
 #include "current_thd.h"
 #include "key.h"                                // key_copy
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "myisam.h"                             // TT_USEFRM

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ha_innopart_h
 #define ha_innopart_h
 
+#include "my_compiler.h"
 #include "partitioning/partition_handler.h"
 #include "row0mysql.h"
 

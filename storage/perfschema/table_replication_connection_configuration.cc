@@ -21,6 +21,7 @@
   Table replication_connection_configuration (implementation).
 */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 

@@ -19,6 +19,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
 #include "handler.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "trx0trx.h"
 

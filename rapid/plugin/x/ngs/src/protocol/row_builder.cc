@@ -26,6 +26,7 @@
 #include <string>
 
 #include "decimal.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "ngs/protocol/output_buffer.h"
 #include "ngs_common/protocol_protobuf.h"

@@ -94,6 +94,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "ha_myisammrg.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"

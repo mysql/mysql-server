@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "binary_log_types.h"   // enum_field_types
 #include "json_binary.h"        // json_binary::Value
 #include "malloc_allocator.h"   // Malloc_allocator
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
 #include "my_global.h"

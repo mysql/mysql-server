@@ -40,6 +40,7 @@
 
 #include "malloc_allocator.h"
 #include "merge_many_buff.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_tree.h"                            // element_count
 #include "mysql/psi/mysql_file.h"

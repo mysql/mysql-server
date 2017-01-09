@@ -23,6 +23,7 @@
 #include <stdlib.h>
 
 #include "fulltext.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "myisam_sys.h"

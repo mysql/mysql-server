@@ -21,6 +21,7 @@
 #include <stdlib.h>
 
 #include "ftdefs.h"
+#include "my_compiler.h"
 
 static void usage() MY_ATTRIBUTE((noreturn));
 static void complain(int val);

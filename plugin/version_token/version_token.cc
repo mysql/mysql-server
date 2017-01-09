@@ -28,6 +28,7 @@
 #include <sql_class.h>
 #include <sstream>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 

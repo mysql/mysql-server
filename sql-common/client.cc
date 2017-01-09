@@ -35,6 +35,7 @@
 #include <stdio.h>
 
 #include "hash.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
@@ -91,9 +92,8 @@
 #include "../libmysql/init_commands_array.h"
 #include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
 #include "client_settings.h"
-
-#include "rpl_constants.h"            /* mysql_binlog_XXX() */
 #include "log_event.h"                /* Log_event_type */
+#include "rpl_constants.h"            /* mysql_binlog_XXX() */
 
 using std::swap;
 

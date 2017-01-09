@@ -34,6 +34,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 #include "ha_prototypes.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "os0file.h"
 #include "sql_const.h"

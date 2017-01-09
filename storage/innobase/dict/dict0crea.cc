@@ -35,6 +35,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0priv.h"
 #include "ha_prototypes.h"
 #include "mach0data.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "page0page.h"
 #include "pars0pars.h"

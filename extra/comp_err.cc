@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <new>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"

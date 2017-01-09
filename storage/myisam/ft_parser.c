@@ -18,6 +18,7 @@
 
 #include "ctype.h"
 #include "ftdefs.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 
 typedef struct st_ft_docstat {

@@ -36,6 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "mem0mem.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "page0size.h"
 #ifndef UNIV_HOTBACKUP

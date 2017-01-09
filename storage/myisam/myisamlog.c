@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "myisamdef.h"
 #ifdef HAVE_SYS_RESOURCE_H

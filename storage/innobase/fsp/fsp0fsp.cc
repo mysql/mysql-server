@@ -28,6 +28,7 @@ Created 11/29/1995 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "mtr0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "page0page.h"
 #include "page0zip.h"

@@ -35,6 +35,7 @@ Full Text Search interface
 #include "fts0vlc.ic"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "row0mysql.h"
 #include "row0sel.h"

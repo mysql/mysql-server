@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,12 @@
   @file include/my_sys.h
 */
 
-#include "my_global.h"
-#include "my_psi_config.h"              /* IWYU pragma: keep */
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */
+#include "my_compiler.h"
+#include "my_global.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -38,30 +39,31 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
 #include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-#include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
-
+#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
+#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
 #include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
 #include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
 #include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
 #include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
-#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 #include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
-#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
-#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
-#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
-#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 
 C_MODE_START
 
 #ifdef HAVE_VALGRIND
 # include <valgrind/valgrind.h>
+
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
 # define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
 # include <valgrind/memcheck.h>
+
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)

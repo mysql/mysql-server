@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /********************************************************************//**
 @file include/rem0rec.h
 Record manager
@@ -26,15 +28,16 @@ Created 5/30/1994 Heikki Tuuri
 #ifndef rem0rec_h
 #define rem0rec_h
 
-#include "univ.i"
-#include "data0data.h"
-#include "rem0types.h"
-#include "mtr0types.h"
-#include "page0types.h"
-#include "trx0types.h"
-#include "rem/rec.h"
 #include <ostream>
 #include <sstream>
+
+#include "data0data.h"
+#include "mtr0types.h"
+#include "page0types.h"
+#include "rem/rec.h"
+#include "rem0types.h"
+#include "trx0types.h"
+#include "univ.i"
 
 /******************************************************//**
 The following function is used to get the pointer of the next chained record

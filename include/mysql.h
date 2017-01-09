@@ -42,14 +42,6 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif /* _WIN32 */
 
-// Small extra definition to avoid pulling in my_compiler.h in client code.
-// IWYU pragma: no_include "my_compiler.h"
-#if !defined(_WIN32)
-#define STDCALL
-#else
-#define STDCALL __stdcall
-#endif
-
 #ifndef my_socket_defined
 #define my_socket_defined
 #ifdef _WIN32
@@ -63,6 +55,17 @@ typedef int my_socket;
 #endif /* _WIN32 */
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
+
+// Small extra definition to avoid pulling in my_compiler.h in client code.
+// IWYU pragma: no_include "my_compiler.h"
+#ifndef MY_COMPILER_INCLUDED
+#if !defined(_WIN32)
+#define STDCALL
+#else
+#define STDCALL __stdcall
+#endif
+#endif /* MY_COMPILER_INCLUDED */
+
 
 #include "binary_log_types.h"
 #include "mem_root_fwd.h"

@@ -40,7 +40,7 @@
 
 #include <limits.h>
 #include <stdlib.h>
-#include "xcom_proto_enum.h"
+#include "xcom_vp.h"
 #include "node_connection.h"
 
 #ifndef WIN

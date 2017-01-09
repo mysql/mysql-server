@@ -32,6 +32,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "mach0data.h"
 #include "mtr0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "os0thread.h"
 #include "que0que.h"

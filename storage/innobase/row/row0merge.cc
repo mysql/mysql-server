@@ -34,6 +34,7 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "pars0pars.h"

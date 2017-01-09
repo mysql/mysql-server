@@ -30,6 +30,7 @@
 #include <m_ctype.h>
 
 #include "fulltext.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"

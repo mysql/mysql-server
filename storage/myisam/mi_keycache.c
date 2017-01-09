@@ -17,6 +17,7 @@
   Key cache assignments
 */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "myisamdef.h"
 

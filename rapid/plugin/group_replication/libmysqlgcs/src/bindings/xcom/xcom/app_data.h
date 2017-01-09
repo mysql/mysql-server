@@ -16,6 +16,9 @@
 #ifndef APP_DATA_H
 #define APP_DATA_H
 
+#include "xcom_vp.h"
+#include "xdr_utils.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

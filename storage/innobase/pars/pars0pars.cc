@@ -34,6 +34,7 @@ on 1/27/1998 */
 #include "eval0eval.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "pars0grm.h"
 #include "pars0opt.h"

@@ -25,6 +25,7 @@
 
 #include "derror.h"
 #include "field.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"

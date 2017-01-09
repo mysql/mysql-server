@@ -234,23 +234,24 @@
 
 */
 
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
 #include "x_platform.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <assert.h>
-#include <signal.h>
-#include <sys/time.h>
-#include <limits.h>
-
 #ifndef WIN
-#include <sys/socket.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
-#include <net/if.h>
+#include <sys/socket.h>
 #ifndef __linux__
 #include <sys/sockio.h>
 #endif
@@ -260,48 +261,41 @@
 #include <windows.h>
 #endif
 
-#include "xdr_utils.h"
-#include "xcom_common.h"
-
-#include "task_os.h"
-
-#include "xcom_vp.h"
-
-#include "simset.h"
 #include "app_data.h"
-
-#include "task.h"
 #include "node_no.h"
 #include "server_struct.h"
-#include "xcom_detector.h"
+#include "simset.h"
 #include "site_struct.h"
-#include "xcom_transport.h"
+#include "task.h"
+#include "task_os.h"
 #include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_detector.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
+#include "xdr_utils.h"
 
 #ifdef XCOM_HAVE_OPENSSL
 #include "xcom_ssl_transport.h"
 #endif
 
-#include "task.h"
-#include "task_net.h"
-#include "task_debug.h"
-#include "xcom_statistics.h"
-#include "node_set.h"
-#include "node_list.h"
 #include "bitset.h"
-
-#include "xcom_cache.h"
-
-#include "xcom_vp_str.h"
+#include "node_list.h"
+#include "node_set.h"
 #include "pax_msg.h"
-#include "xcom_msg_queue.h"
-#include "xcom_recover.h"
-#include "synode_no.h"
+#include "site_def.h"
 #include "sock_probe.h"
+#include "synode_no.h"
+#include "task_debug.h"
+#include "task_net.h"
+#include "xcom_cache.h"
+#include "xcom_cfg.h"
 #include "xcom_interface.h"
 #include "xcom_memory.h"
-#include "site_def.h"
-#include "xcom_cfg.h"
+#include "xcom_msg_queue.h"
+#include "xcom_recover.h"
+#include "xcom_statistics.h"
+#include "xcom_vp_str.h"
 
 #ifdef XCOM_HAVE_OPENSSL
 #include "openssl/ssl.h"

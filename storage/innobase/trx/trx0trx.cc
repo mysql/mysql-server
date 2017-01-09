@@ -31,6 +31,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "os0proc.h"
 #include "que0que.h"

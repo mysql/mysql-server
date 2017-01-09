@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/buf0lru.h
 The database buffer pool LRU replacement algorithm
@@ -28,8 +30,8 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "ut0byte.h"
 #include "buf0types.h"
+#include "ut0byte.h"
 
 // Forward declaration
 struct trx_t;

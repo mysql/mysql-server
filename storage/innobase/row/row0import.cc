@@ -32,6 +32,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lob0lob.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "pars0pars.h"
 #include "que0que.h"

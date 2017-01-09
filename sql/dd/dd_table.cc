@@ -15,6 +15,10 @@
 
 #include "dd_table.h"
 
+#include <string.h>
+#include <algorithm>
+#include <memory>                             // unique_ptr
+
 #include "current_thd.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
@@ -24,20 +28,20 @@
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/impl/utils.h"                    // dd::escape
 #include "dd/properties.h"                    // dd::Properties
-#include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/index_element.h"           // dd::Index_element
+#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/index.h"                   // dd::Index
+#include "dd/types/index_element.h"           // dd::Index_element
 #include "dd/types/object_table.h"            // dd::Object_table
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
+#include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
 #include "field.h"
@@ -46,16 +50,17 @@
 #include "key_spec.h"
 #include "log.h"                              // sql_print_error
 #include "m_ctype.h"
-#include "mdl.h"
 #include "m_string.h"
+#include "mdl.h"
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
-#include "mysqld.h"                           // dd_upgrade_skip_se
-#include "mysql/service_mysql_alloc.h"
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                           // dd_upgrade_skip_se
+#include "mysqld_error.h"
 #include "partition_element.h"
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
@@ -74,10 +79,6 @@
 #include "table.h"
 #include "transaction.h"                      // trans_commit
 #include "typelib.h"
-
-#include <string.h>
-#include <algorithm>
-#include <memory>                             // unique_ptr
 
 // Explicit instanciation of some template functions
 template bool dd::drop_table<dd::Abstract_table>(THD *thd,

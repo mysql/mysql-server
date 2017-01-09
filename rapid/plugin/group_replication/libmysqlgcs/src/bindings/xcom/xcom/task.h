@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,18 +17,20 @@
 #define TASK_H
 
 #include <assert.h>
-#include "xcom_common.h"
-#include "x_platform.h"
+
+#include "my_compiler.h"
+#include "simset.h"
 #include "task_arg.h"
+#include "x_platform.h"
+#include "xcom_common.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "result.h"
-
 #include "node_connection.h"
+#include "result.h"
 
 /** \file
 	Rudimentary task system in portable C, based on Tom Duff's switch-based coroutine trick

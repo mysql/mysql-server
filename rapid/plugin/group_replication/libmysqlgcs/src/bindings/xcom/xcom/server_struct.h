@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ extern "C" {
 
 #include "xcom_common.h"
 #include "xcom_limits.h"
+#include "task.h"
 
 struct srv_buf {
 	u_int start;

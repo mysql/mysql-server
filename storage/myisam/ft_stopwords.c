@@ -19,6 +19,7 @@
 
 #include "ftdefs.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 
 
 static CHARSET_INFO *ft_stopword_cs= NULL;

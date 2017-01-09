@@ -16,8 +16,9 @@
 #ifndef PFS_VISITOR_H
 #define PFS_VISITOR_H
 
-#include "pfs_stat.h"
+#include "my_compiler.h"
 #include "mysqld_error.h"
+#include "pfs_stat.h"
 
 struct System_status_var;
 

@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "buffered_file_io.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 
 namespace keyring {

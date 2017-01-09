@@ -22,6 +22,7 @@
 
 #include "connection_control.h"
 #include "connection_delay.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "security_context_wrapper.h"

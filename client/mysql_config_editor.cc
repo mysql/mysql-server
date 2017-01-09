@@ -28,6 +28,7 @@
 
 #include "client_priv.h"
 #include "my_aes.h"
+#include "my_compiler.h"
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"

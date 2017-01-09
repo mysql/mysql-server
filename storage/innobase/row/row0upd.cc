@@ -25,6 +25,7 @@ Created 12/27/1996 Heikki Tuuri
 
 #include "dict0dict.h"
 #include "ha_prototypes.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "rem0rec.h"
 #include "row0upd.h"

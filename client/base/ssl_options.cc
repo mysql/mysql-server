@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "client_priv.h"
+#include "my_compiler.h"
 #include "mysql_connection_options.h"
 #include "sslopt-vars.h"
 #include "typelib.h"

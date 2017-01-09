@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -39,12 +39,13 @@
 #endif
 
 #include <my_global.h>
+#include "my_compiler.h"
 #include <mysql.h>
-#include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
-#include <string.h>
+#include <mysql/plugin_auth.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

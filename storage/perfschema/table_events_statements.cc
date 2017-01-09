@@ -18,6 +18,7 @@
   Table EVENTS_STATEMENTS_xxx (implementation).
 */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_md5.h"

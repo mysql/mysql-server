@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
-#include "gcs_xcom_notification.h"
+
 #include "gcs_logging.h"
+#include "gcs_xcom_notification.h"
+#include "my_compiler.h"
 
 Finalize_notification::Finalize_notification(
   Gcs_xcom_engine *gcs_engine, xcom_finalize_functor *functor)

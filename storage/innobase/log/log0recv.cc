@@ -41,6 +41,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "os0thread-create.h"
 #include "page0cur.h"

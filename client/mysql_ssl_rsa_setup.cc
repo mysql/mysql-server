@@ -35,6 +35,7 @@
 #include <string>
 
 #include "logger.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
 #include "path.h"

@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"

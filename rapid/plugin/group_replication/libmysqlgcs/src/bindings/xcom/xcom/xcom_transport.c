@@ -13,42 +13,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <rpc/rpc.h>
-
 #include <assert.h>
 #include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
 #include <limits.h>
+#include <math.h>
+#include <rpc/rpc.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "xcom_common.h"
-#include "x_platform.h"
-#include "simset.h"
-#include "xcom_vp.h"
-#include "task.h"
-#include "task_os.h"
-#include "task_debug.h"
+#include "my_compiler.h"
+#include "node_connection.h"
 #include "node_no.h"
 #include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "node_connection.h"
-#include "xcom_transport.h"
-#include "xcom_statistics.h"
-#include "xcom_base.h"
-#include "xcom_vp_str.h"
-#include "xcom_msg_queue.h"
-#include "xcom_memory.h"
+#include "simset.h"
 #include "site_def.h"
+#include "site_struct.h"
 #include "synode_no.h"
+#include "task.h"
+#include "task_debug.h"
+#include "task_os.h"
+#include "x_platform.h"
+#include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_detector.h"
+#include "xcom_memory.h"
+#include "xcom_msg_queue.h"
+#include "xcom_statistics.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
+#include "xcom_vp_str.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
 #include "openssl/err.h"
+#include "openssl/ssl.h"
 #endif
-#include "sock_probe.h"
 #include "retry.h"
+#include "sock_probe.h"
 #ifdef XCOM_HAVE_OPENSSL
 #include "xcom_ssl_transport.h"
 #endif

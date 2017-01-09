@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,24 +23,24 @@ Undo modify of a row
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0umod.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
-#include "trx0undo.h"
-#include "trx0roll.h"
 #include "btr0btr.h"
-#include "mach0data.h"
-#include "row0undo.h"
-#include "row0vers.h"
-#include "row0log.h"
-#include "trx0trx.h"
-#include "trx0rec.h"
-#include "row0row.h"
-#include "row0upd.h"
-#include "que0que.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "ha_prototypes.h"
 #include "log0log.h"
+#include "mach0data.h"
+#include "my_compiler.h"
+#include "que0que.h"
+#include "row0log.h"
+#include "row0row.h"
+#include "row0umod.h"
+#include "row0undo.h"
+#include "row0upd.h"
+#include "row0vers.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /* Considerations on undoing a modify operation.
 (1) Undoing a delete marking: all index records should be found. Some of

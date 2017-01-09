@@ -25,6 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP

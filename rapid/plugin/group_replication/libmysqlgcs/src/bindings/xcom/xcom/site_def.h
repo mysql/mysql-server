@@ -16,6 +16,8 @@
 #ifndef SITE_DEF_H
 #define SITE_DEF_H
 
+#include "site_struct.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

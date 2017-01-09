@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -35,8 +35,9 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "ut0counter.h"
+#include "my_compiler.h"
 #include "os0event.h"
+#include "ut0counter.h"
 #include "ut0mutex.h"
 
 #endif /* !UNIV_HOTBACKUP */

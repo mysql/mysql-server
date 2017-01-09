@@ -16,6 +16,7 @@
 
 #include "cclass.h"
 #include "cname.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_regex.h"
 #include "regex2.h"

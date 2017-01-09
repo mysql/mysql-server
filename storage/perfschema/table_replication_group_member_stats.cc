@@ -19,6 +19,7 @@
   Table replication_group_member_stats (implementation).
 */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 

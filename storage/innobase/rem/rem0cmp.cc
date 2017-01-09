@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,17 +23,17 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-#include "ha_prototypes.h"
-
-#include "rem0cmp.h"
-#include "handler0alter.h"
-#include "srv0srv.h"
-
-#include <gstream.h>
-#include <spatial.h>
 #include <gis0geo.h>
+#include <gstream.h>
 #include <page0cur.h>
+#include <spatial.h>
 #include <algorithm>
+
+#include "ha_prototypes.h"
+#include "handler0alter.h"
+#include "my_compiler.h"
+#include "rem0cmp.h"
+#include "srv0srv.h"
 
 /*		ALPHABETICAL ORDER
 		==================

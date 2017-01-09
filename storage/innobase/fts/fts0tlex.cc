@@ -2,7 +2,7 @@
 #line 2 "fts0tlex.l"
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
 /**
  * @file fts/fts0tlex.l
  * FTS parser lexical analyzer
@@ -44,11 +45,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
+#include <errno.h>
 /* begin standard C headers. */
 #include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* end standard C headers. */
 
@@ -69,6 +70,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 #include <inttypes.h>
+
 typedef int8_t flex_int8_t;
 typedef uint8_t flex_uint8_t;
 typedef int16_t flex_int16_t;

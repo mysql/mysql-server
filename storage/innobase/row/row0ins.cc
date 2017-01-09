@@ -40,6 +40,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "log0log.h"
 #include "m_string.h"
 #include "mach0data.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "que0que.h"
 #include "rem0cmp.h"

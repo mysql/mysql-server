@@ -21,11 +21,12 @@
   Performance schema instrumentation (declarations).
 */
 
-#include <vector>
-#include <unordered_set>
-
 #include <my_global.h>
 #include <mysql/psi/psi_data_lock.h>
+#include <unordered_set>
+#include <vector>
+
+#include "my_compiler.h"
 #include "table_helper.h"
 
 struct pk_pos_data_lock

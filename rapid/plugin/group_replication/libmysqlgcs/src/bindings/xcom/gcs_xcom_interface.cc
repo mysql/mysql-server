@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,29 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_log_system.h"
-
-#include "xcom_ssl_transport.h"
-
-#include "gcs_xcom_interface.h"
-#include "synode_no.h"
-
-#include "gcs_xcom_group_member_information.h"
-
+#include <assert.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <queue>
-#include <assert.h>
 #include <vector>
-#include <algorithm>
-#include <stdio.h>
-#include <ctype.h>
 
 #include "gcs_internal_message.h"
-#include "gcs_message_stages.h"
+#include "gcs_log_system.h"
 #include "gcs_message_stage_lz4.h"
+#include "gcs_message_stages.h"
+#include "gcs_xcom_group_member_information.h"
+#include "gcs_xcom_interface.h"
 #include "gcs_xcom_networking.h"
 #include "gcs_xcom_notification.h"
+#include "my_compiler.h"
+#include "synode_no.h"
+#include "xcom_ssl_transport.h"
 
 using std::map;
 using std::vector;

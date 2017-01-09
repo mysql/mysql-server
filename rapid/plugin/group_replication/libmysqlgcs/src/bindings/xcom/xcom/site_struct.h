@@ -16,6 +16,9 @@
 #ifndef SITE_STRUCT_H
 #define SITE_STRUCT_H
 
+#include "server_struct.h"
+#include "xcom_detector.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

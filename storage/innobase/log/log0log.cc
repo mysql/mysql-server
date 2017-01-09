@@ -34,8 +34,11 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "ha_prototypes.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #ifndef UNIV_HOTBACKUP
+#include <mysqld.h>
+
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "dict0boot.h"
@@ -44,17 +47,16 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "srv0mon.h"
+#include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
+#include "sync0sync.h"
+#include "trx0roll.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
-#include "trx0roll.h"
-#include "srv0mon.h"
-#include "sync0sync.h"
-#include <mysqld.h>
 
 /*
 General philosophy of InnoDB redo-logs:

@@ -22,6 +22,8 @@
 #include <my_sys.h>
 #include <stdio.h>
 
+#include "my_compiler.h"
+
 static const char *INFILE= "errmsg.h";
 static const char *OUTFILE= "mysqlclient_ername.h";
 

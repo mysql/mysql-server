@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"

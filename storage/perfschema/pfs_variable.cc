@@ -17,6 +17,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "derror.h"
+#include "my_compiler.h"
 /**
   @file storage/perfschema/pfs_variable.cc
   Performance schema system variable and status variable (implementation).

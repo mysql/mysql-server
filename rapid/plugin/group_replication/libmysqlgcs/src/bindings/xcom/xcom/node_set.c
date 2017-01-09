@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,16 @@
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "xcom_common.h"
+#include "bitset.h"
+#include "my_compiler.h"
+#include "node_set.h"
 #include "simset.h"
-#include "xcom_vp.h"
 #include "task.h"
 #include "task_debug.h"
-#include "bitset.h"
-
-#include "node_set.h"
-#include "xcom_memory.h"
 #include "x_platform.h"
+#include "xcom_common.h"
+#include "xcom_memory.h"
+#include "xcom_vp.h"
 
 /* purecov: begin deadcode */
 node_set bit_set_to_node_set(bit_set *set, u_int n)

@@ -29,6 +29,7 @@
 #include <string>
 
 #include "client_priv.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"

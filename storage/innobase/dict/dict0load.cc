@@ -41,6 +41,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "fts0priv.h"
 #include "ha_prototypes.h"
 #include "mach0data.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "mysql_version.h"
 #include "page0page.h"

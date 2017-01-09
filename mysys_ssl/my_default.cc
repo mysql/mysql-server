@@ -46,6 +46,7 @@
 #include "../mysys/mysys_priv.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_default_priv.h"

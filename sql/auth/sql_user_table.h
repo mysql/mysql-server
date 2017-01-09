@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,11 @@
 #ifndef SQL_USER_TABLE_INCLUDED
 #define SQL_USER_TABLE_INCLUDED
 
-#include "sql_connect.h"
-#include "table.h"
 #include "derror.h"                     /* ER_DEFAULT */
 #include "log.h"                        /* error_log_print */
+#include "my_compiler.h"
+#include "sql_connect.h"
+#include "table.h"
 
 
 class THD;

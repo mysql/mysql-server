@@ -1,15 +1,17 @@
-#include <my_global.h>
+#include <assert.h>
 #include <m_string.h>
+#include <my_global.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <assert.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
+#include "my_compiler.h"
 #include "my_regex.h"
-#include "main.ih"
 #include "tests_include.h"
+
+#include "main.ih"  // Must come after all other includes.
 
 char *progname;
 int debug = 0;

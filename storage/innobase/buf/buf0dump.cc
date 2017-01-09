@@ -29,6 +29,7 @@ Created April 08, 2011 Vasil Dimov
 #include "buf0buf.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
+#include "my_compiler.h"
 #include "my_global.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
