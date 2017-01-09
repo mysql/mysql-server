@@ -68,9 +68,61 @@
 */
 
 /**
-  @page PAGE_CODING_GUIDELINES Coding guidelines
+  @page PAGE_CODING_GUIDELINES Coding Guidelines
 
-  See http://dev.mysql.com/doc/internals/en/coding-guidelines.html
+  This section shows the guidelines that MySQL's developers
+  follow when writing new code. It has been decided to follow
+  the Google coding style for mysql. Google coding style
+  should be used for new projects/components wherever possible.
+
+  Exceptions in MySQL coding guidelines:
+
+  - Class names : Do not use MyClass but My_class.
+    This exception is because the server has a history of using
+    My_class. It will be confusing with mixing the two
+    (from a code review perspective).
+    InnoDB have had freedom of choice for Class names
+    and will therefore not suffer from the mix.
+
+  - Member variables names : Do not use foo_ but
+    m_foo (non-static) and s_foo (static). It is because
+    this is an improvement over the Google style.
+
+  Notes:
+
+  - Comment Style: Use either the // or <em>/</em>* *<em>/</em> syntax. // is
+    much more common but both syntaxes are permitted for the time being.
+
+  - Doxygen comments: Use <em>/</em>** ... *<em>/</em> syntax and not ///.
+
+  - Doxygen command: Use '@' and not '\' for doxygen commands.
+
+  - Braces alignment, if..else indentation, spaces around '=':
+    MySQL coding guideline traditionally places left braces aligned
+    with the start of the preceding line, whereas the Google style is
+    to place the left brace on the end of the previous line.
+
+  - MySQL coding guideline is to have no space before '='
+    while assignment “foo= bar”. The Google style is have space
+    around '=' in assignment "foo = bar".
+
+  - For new projects Google style should be followed. For old
+    projects/components mysql old style should be used for time being.
+
+
+  Consistent style is important for us, because everyone must
+  know what to expect. For example, after we become accustomed
+  to seeing that everything inside an <em>if</em> is indented
+  two spaces, we can glance at a listing and understand what's
+  nested within what. Writing non-conforming code can be bad.
+  Knowing our rules, you'll find it easier to read our code,
+  and when you decide to contribute (which we hope you'll consider!)
+  we'll find it easier to read and review your code.
+
+  - @subpage GENERAL_DEVELOPMENT_GUIDELINES
+  - @subpage CPP_CODING_GUIDELINES_FOR_NDB_SE
+  - @subpage DBUG_TAGS
+
 */
 
 /**
