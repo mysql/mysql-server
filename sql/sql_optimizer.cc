@@ -9009,8 +9009,7 @@ void JOIN::finalize_derived_keys()
 
       if (old_idx > new_idx)
       {
-        DBUG_ASSERT(table->s->tmp_table_info->owner_of_possible_keys ==
-                    select_lex);
+        DBUG_ASSERT(table->s->owner_of_possible_tmp_keys == select_lex);
         it.rewind();
         while (TABLE *t= it.get_next())
         {
@@ -9074,14 +9073,14 @@ void JOIN::finalize_derived_keys()
         !table->is_created() &&
         table->s->keys > 0)
     {
-      if (table->s->tmp_table_info->owner_of_possible_keys != select_lex)
+      if (table->s->owner_of_possible_tmp_keys != select_lex)
         continue;
       /*
         Release lock. As a bonus, avoid double work when this loop
         later processes another local reference to the same table (similar to
         the processed_tables map in the first loop).
       */
-      table->s->tmp_table_info->owner_of_possible_keys= nullptr;
+      table->s->owner_of_possible_tmp_keys= nullptr;
       Derived_refs_iterator it(table_ref);
       while (TABLE *t= it.get_next())
         t->drop_unused_tmp_keys(it.is_first());

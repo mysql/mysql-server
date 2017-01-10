@@ -610,43 +610,6 @@ typedef I_P_List <Wait_for_flush,
 
 
 /**
-  An addendum to TABLE_SHARE, holding information specific of internal
-  temporary tables. Including it directly into TABLE_SHARE led to a
-  performance loss of 4% in sysbench/point_select. So, it is referenced from
-  TABLE_SHARE, instead.
-*/
-struct Table_share_tmp
-{
-  /**
-    Count of TABLEs (having this TABLE_SHARE) which have a "handler"
-    (table->file!=nullptr). Is >1 only for CTEs; at most 1024 references to a
-    CTE are allowed by Common_table_expr::clone_tmp_table().
-  */
-  uint16 handler_count;
-
-  /// The slot occupied by this table in the temp_pool 1024-bit bitmap
-  uint16 pool_slot;
-
-  /**
-    For materialized derived tables; @see add_derived_key().
-    'first' means: having the lowest position in key_info.
-    Cannot exceed max_keys.
-  */
-  uint8 first_unused_key;
-
-  /**
-     For materialized derived tables: maximum size of key_info array. Used for
-     debugging purpose only.
-     TABLE_LIST::generate_keys() caps this size to MAX_INDEXES.
-  */
-  uint8 max_keys;
-
-  /// For materialized derived tables; @see add_derived_key().
-  SELECT_LEX *owner_of_possible_keys;
-};
-
-
-/**
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
 */
@@ -747,6 +710,13 @@ struct TABLE_SHARE
 
   /// How many TABLE objects use this.
   uint ref_count;
+  /**
+    Only for internal temporary tables.
+    Count of TABLEs (having this TABLE_SHARE) which have a "handler"
+    (table->file!=nullptr).
+  */
+  uint tmp_handler_count;
+  uint temp_pool_slot;                         ///< Used by intern temp tables
 
   uint key_block_size;			/* create key_block_size, if used */
   uint stats_sample_pages;		/* number of pages to sample during
@@ -765,6 +735,16 @@ struct TABLE_SHARE
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
   uint varchar_fields;                  /* number of varchar fields */
+  /**
+    For materialized derived tables; @see add_derived_key().
+    'first' means: having the lowest position in key_info.
+  */
+  uint first_unused_tmp_key;
+  /**
+     For materialized derived tables: maximum size of key_info array. Used for
+     debugging purpose only.
+  */
+  uint max_tmp_keys;
 
 /**
     Bitmap with flags representing some of table options/attributes.
@@ -892,8 +872,8 @@ struct TABLE_SHARE
   */
   dd::Table *tmp_table_def;
 
-  /// Non-zero only for internal tmp tables; holds extra information.
-  Table_share_tmp *tmp_table_info;
+  /// For materialized derived tables; @see add_derived_key().
+  SELECT_LEX *owner_of_possible_tmp_keys;
 
   /**
     Set share's table cache key and update its db and table name appropriately.
@@ -3284,8 +3264,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path,
-                          MEM_ROOT *mem_root= nullptr,
-                          Table_share_tmp *tmp_table_info= nullptr);
+                          MEM_ROOT *mem_root);
 void free_table_share(TABLE_SHARE *share);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 Ident_name_check check_and_convert_db_name(LEX_STRING *db,

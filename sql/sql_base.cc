@@ -7083,7 +7083,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   memcpy(saved_cache_key, cache_key, key_length);
 
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
-                       strend(saved_cache_key)+1, tmp_path);
+                       strend(saved_cache_key)+1, tmp_path, nullptr);
 
   if (open_table_def(thd, share, false, table_def))
   {

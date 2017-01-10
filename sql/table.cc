@@ -472,8 +472,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   @param path	Path to file (possible in lower case) without .frm
   @param mem_root       MEM_ROOT to transfer (move) to the TABLE_SHARE; if
   NULL a new one is initialized.
-  @param tmp_table_info Table_share_tmp object to initialize and attach to the
-  TABLE_SHARE, if non-NULL.
 
   @note
     This is different from alloc_table_share() because temporary tables
@@ -487,18 +485,12 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length, const char *table_name,
-                          const char *path, MEM_ROOT *mem_root,
-                          Table_share_tmp *tmp_table_info)
+                          const char *path, MEM_ROOT *mem_root)
 {
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
   memset(share, 0, sizeof(*share));
-  if (tmp_table_info)
-  {
-    memset(tmp_table_info, 0, sizeof(*tmp_table_info));
-    share->tmp_table_info= tmp_table_info;
-  }
 
   if (mem_root)
     share->mem_root= std::move(*mem_root);
@@ -6126,7 +6118,7 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share)
 
   if (modify_share)
   {
-    s->tmp_table_info->max_keys= key_count;
+    s->max_tmp_keys= key_count;
     /*
       s->keyinfo may pre-exist, if keys have already been added to another
       reference to the same CTE in another query block.
@@ -6141,7 +6133,7 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share)
   }
 
   // Catch if the caller didn't respect the rule for 'modify_share'
-  DBUG_ASSERT(s->tmp_table_info->max_keys == key_count);
+  DBUG_ASSERT(s->max_tmp_keys == key_count);
 
   KEY *old_ki= key_info;
   if (!(key_info=
@@ -6217,7 +6209,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
   {
     set_if_bigger(s->max_key_length, key_len);
     s->key_parts+= key_part_count;
-    DBUG_ASSERT(s->keys < s->tmp_table_info->max_keys);
+    DBUG_ASSERT(s->keys < s->max_tmp_keys);
     s->keys++;
   }
 
@@ -6301,18 +6293,17 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
 
 /**
   For a materialized derived table: informs the share that certain
-  not-yet-used keys are going to be used; its first_unused_key member is
-  updated.
+  not-yet-used keys are going to be used.
 
   @param k  Used keys
   @returns  New position of first not-yet-used key.
  */
 uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k)
 {
-  auto &unused= tmp_table_info->first_unused_key;
-  while (unused < MAX_INDEXES && k.is_set(unused))
-    unused++;                     // locate the first free slot
-  return unused;
+  while (first_unused_tmp_key < MAX_INDEXES &&
+         k.is_set(first_unused_tmp_key))
+    first_unused_tmp_key++;                     // locate the first free slot
+  return first_unused_tmp_key;
 }
 
 
@@ -6326,8 +6317,8 @@ uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k)
 void TABLE::copy_tmp_key(int old_idx, bool modify_share)
 {
   if (modify_share)
-    s->key_info[s->tmp_table_info->first_unused_key++]= s->key_info[old_idx];
-  const int new_idx= s->tmp_table_info->first_unused_key - 1;
+    s->key_info[s->first_unused_tmp_key++]= s->key_info[old_idx];
+  const int new_idx= s->first_unused_tmp_key - 1;
   DBUG_ASSERT(!created && new_idx < old_idx && old_idx < (int)s->keys);
   key_info[new_idx]= key_info[old_idx];
 
@@ -6366,13 +6357,12 @@ void TABLE::drop_unused_tmp_keys(bool modify_share)
 {
   if (modify_share)
   {
-    const auto unused= s->tmp_table_info->first_unused_key;
-    DBUG_ASSERT(unused <= s->keys);
-    s->keys= unused;
+    DBUG_ASSERT(s->first_unused_tmp_key <= s->keys);
+    s->keys= s->first_unused_tmp_key;
     s->key_parts= 0;
     for (uint i= 0 ; i < s->keys ; i++)
       s->key_parts+= s->key_info[i].user_defined_key_parts;
-    if (unused == 0)
+    if (s->first_unused_tmp_key == 0)
       s->key_info= nullptr;
   }
   if (!s->key_info)
@@ -7021,7 +7011,7 @@ int TABLE_LIST::fetch_number_of_rows()
   - While QB1 is in this window, it is possible, as we saw above, that QB2
   gets optimized. Because it is not safe to have two query blocks
   reading/writing possible keys for a same table at the same time, a locking
-  mechanism is in place: TABLE_SHARE::tmp::owner_of_possible_keys is a record
+  mechanism is in place: TABLE_SHARE::owner_of_possible_tmp_keys is a record
   of which query block entered first the window for this table and hasn't left
   it yet; only that query block is allowed to read/write possible keys for
   this table.
@@ -7043,7 +7033,7 @@ int TABLE_LIST::fetch_number_of_rows()
   reference X1, other references to X may already have keys,
   defined by previously optimized query blocks on their
   references (e.g. QB2 on X2). At that stage the TABLE_SHARE::key_info array is
-  of size TABLE_SHARE::keys, and the TABLE_SHARE::tmp::first_unused_key member
+  of size TABLE_SHARE::keys, and the TABLE_SHARE::first_unused_tmp_key member
   points to 'where any new key should be added in this array', so it's equal
   to TABLE_SHARE::keys. Let's call the keys defined by QB2 the "existing
   keys": they exist at this point and will continue to do so. X2 in QB2 is
@@ -7269,8 +7259,8 @@ bool TABLE_LIST::generate_keys()
       return false;
     }
 
-  if (table->s->tmp_table_info->owner_of_possible_keys != nullptr &&
-      table->s->tmp_table_info->owner_of_possible_keys != select_lex)
+  if (table->s->owner_of_possible_tmp_keys != nullptr &&
+      table->s->owner_of_possible_tmp_keys != select_lex)
     return false;
 
   // Extend the key array of every reference
@@ -7305,8 +7295,8 @@ bool TABLE_LIST::generate_keys()
     }
   }
 
-  if (table->s->keys)                           // Acquire lock
-    table->s->tmp_table_info->owner_of_possible_keys= select_lex;
+  if (table->s->keys)
+    table->s->owner_of_possible_tmp_keys= select_lex; // Acquire lock
 
   return FALSE;
 }
@@ -7826,7 +7816,7 @@ bool create_table_share_for_upgrade(THD *thd,
 {
   DBUG_ENTER("create_table_share_for_upgrade");
 
-  init_tmp_table_share(thd, share, db_name, 0, table_name, path);
+  init_tmp_table_share(thd, share, db_name, 0, table_name, path, nullptr);
 
   // Fix table categories set by init_tmp_table_share
   share->table_category= TABLE_UNKNOWN_CATEGORY;

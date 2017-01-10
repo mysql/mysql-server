@@ -744,28 +744,6 @@ eval EXPLAIN $query;
 eval $query;
 drop table t1;
 
---echo # Maximum 1024 references to a CTE
-
---disable_query_log
-set @q= "with c as (select 1) select ";
-let $scalar_subq=20;
-while ($scalar_subq)
-{
-  set @q=concat(@q, "( select 1 from ");
-  let $joined_ref=60;
-  while ($joined_ref)
-  {
-    eval set @q=concat(@q, "c as t", $joined_ref, ",");
-    dec $joined_ref;
-  }
-  set @q=concat(@q, "c as t0),");
-  dec $scalar_subq;
-}
-set @q=concat(@q, "1 from dual");
---enable_query_log
---error ER_CTE_TOO_MANY_REFS
-prepare s from @q;
-
 --echo # QN referencing view of same name isn't a "recursive view",
 --echo # shouldn't cause ER_VIEW_RECURSIVE
 

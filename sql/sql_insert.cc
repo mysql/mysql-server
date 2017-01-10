@@ -2465,7 +2465,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   memset(&tmp_table, 0, sizeof(tmp_table));
   tmp_table.s= &share;
-  init_tmp_table_share(thd, &share, "", 0, "", "");
+  init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->db_low_byte_first= 
