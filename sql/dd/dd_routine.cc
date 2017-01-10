@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -453,10 +453,11 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Store routine metadata in DD table.
-    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
-    thd->count_cuted_fields= CHECK_FIELD_WARN;
+    enum_check_fields saved_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
+    thd->check_for_truncated_fields= CHECK_FIELD_WARN;
     error= thd->dd_client()->store(func.get());
-    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->check_for_truncated_fields= saved_check_for_truncated_fields;
   }
   else
   {
@@ -467,10 +468,11 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Store routine metadata in DD table.
-    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
-    thd->count_cuted_fields= CHECK_FIELD_WARN;
+    enum_check_fields saved_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
+    thd->check_for_truncated_fields= CHECK_FIELD_WARN;
     error= thd->dd_client()->store(proc.get());
-    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->check_for_truncated_fields= saved_check_for_truncated_fields;
   }
 
   if (error)

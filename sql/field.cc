@@ -1028,8 +1028,9 @@ void Field::set_tmp_null()
 {
   m_is_tmp_null= true;
 
-  m_count_cuted_fields_saved= table ? table->in_use->count_cuted_fields :
-                                      current_thd->count_cuted_fields;
+  m_check_for_truncated_fields_saved=
+    table ? table->in_use->check_for_truncated_fields :
+            current_thd->check_for_truncated_fields;
 }
 
 
@@ -1479,7 +1480,7 @@ Field_num::get_int(const CHARSET_INFO *cs, const char *from, size_t len,
       goto out_of_range;
     }
   }
-  if (table->in_use->count_cuted_fields != 0)
+  if (table->in_use->check_for_truncated_fields != 0)
     return check_int(cs, from, len, end, error);
 
   return TYPE_OK;
@@ -1565,7 +1566,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    m_null_ptr(null_ptr_arg),
    m_is_tmp_nullable(false),
    m_is_tmp_null(false),
-   m_count_cuted_fields_saved(CHECK_FIELD_IGNORE),
+   m_check_for_truncated_fields_saved(CHECK_FIELD_IGNORE),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
@@ -1624,7 +1625,7 @@ type_conversion_status Field::check_constraints(int mysql_errno)
   */
   DBUG_ASSERT (type() != MYSQL_TYPE_TIMESTAMP);
 
-  switch (m_count_cuted_fields_saved) {
+  switch (m_check_for_truncated_fields_saved) {
   case CHECK_FIELD_WARN:
     set_warning(Sql_condition::SL_WARNING, mysql_errno, 1);
     /* fall through */
@@ -1796,10 +1797,10 @@ type_conversion_status
 Field::store(const char *to, size_t length, const CHARSET_INFO *cs,
              enum_check_fields check_level)
 {
-  enum_check_fields old_check_level= table->in_use->count_cuted_fields;
-  table->in_use->count_cuted_fields= check_level;
+  enum_check_fields old_check_level= table->in_use->check_for_truncated_fields;
+  table->in_use->check_for_truncated_fields= check_level;
   const type_conversion_status res= store(to, length, cs);
-  table->in_use->count_cuted_fields= old_check_level;
+  table->in_use->check_for_truncated_fields= old_check_level;
   return res;
 }
 
@@ -2363,10 +2364,10 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   uchar *left_wall,*right_wall;
   uchar tmp_char;
   /*
-    To remember if table->in_use->cuted_fields has already been incremented,
-    to do that only once
+    To remember if table->in_use->num_truncated_fields has already
+    been incremented, to do that only once
   */
-  bool is_cuted_fields_incr=0;
+  bool has_incremented_num_truncated_fields= false;
 
   /*
     There are three steps in this function :
@@ -2385,7 +2386,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   if (from == end)
   {
     set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    is_cuted_fields_incr=1;
+    has_incremented_num_truncated_fields= true;
   }
   else if (*from == '+' || *from == '-')	// Found some sign ?
   {
@@ -2440,20 +2441,20 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   }
   
   /*
-    We only have to generate warnings if count_cuted_fields is set.
+    We only have to generate warnings if check_for_truncated_fields is set.
     This is to avoid extra checks of the number when they are not needed.
     Even if this flag is not set, it's OK to increment warnings, if
     it makes the code easer to read.
   */
 
-  if (table->in_use->count_cuted_fields)
+  if (table->in_use->check_for_truncated_fields)
   {
     // Skip end spaces
     for (;from != end && my_isspace(&my_charset_bin, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-      is_cuted_fields_incr=1;
+      has_incremented_num_truncated_fields= true;
     }
   }
   
@@ -2616,7 +2617,8 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     {
       if (pos == right_wall) 
       {
-        if (table->in_use->count_cuted_fields && !is_cuted_fields_incr) 
+        if (table->in_use->check_for_truncated_fields &&
+            !has_incremented_num_truncated_fields)
           break; // Go on below to see if we lose non zero digits
         return TYPE_OK;
       }
@@ -2629,7 +2631,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
       {
         if (tmp_char != '0')			// Losing a non zero digit ?
         {
-          if (!is_cuted_fields_incr)
+          if (!has_incremented_num_truncated_fields)
             set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
           return TYPE_OK;
@@ -2647,7 +2649,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     {
       if (tmp_char != '0')			// Losing a non zero digit ?
       {
-        if (!is_cuted_fields_incr)
+        if (!has_incremented_num_truncated_fields)
         {
           /*
             This is a note, not a warning, as we don't want to abort
@@ -4289,7 +4291,7 @@ Field_longlong::store(const char *from, size_t len, const CHARSET_INFO *cs)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= TYPE_WARN_OUT_OF_RANGE;
   }
-  else if (table->in_use->count_cuted_fields && 
+  else if (table->in_use->check_for_truncated_fields &&
            check_int(cs, from, len, end, conv_err))
     error= TYPE_WARN_OUT_OF_RANGE;
   else
@@ -4570,7 +4572,7 @@ Field_float::store(const char *from, size_t len, const CHARSET_INFO *cs)
   char *end;
   double nr= my_strntod(cs,(char*) from,len,&end,&conv_error);
   if (conv_error || (!len || ((uint) (end-from) != len &&
-                              table->in_use->count_cuted_fields)))
+                              table->in_use->check_for_truncated_fields)))
   {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE
@@ -4800,8 +4802,9 @@ Field_double::store(const char *from, size_t len, const CHARSET_INFO *cs)
   type_conversion_status error= TYPE_OK;
   char *end;
   double nr= my_strntod(cs,(char*) from, len, &end, &conv_error);
-  if ((conv_error != 0) || (!len || ((uint) (end-from) != len &&
-                                     table->in_use->count_cuted_fields)))
+  if (conv_error != 0 ||
+      len == 0 ||
+      (((uint) (end-from) != len && table->in_use->check_for_truncated_fields)))
   {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE
@@ -5134,35 +5137,35 @@ my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value)
 void
 Field_temporal::set_warnings(ErrConvString str, int warnings)
 {
-  int cut_incremented= 0;
+  bool truncate_incremented= false;
   timestamp_type ts_type= field_type_to_timestamp_type(type());
 
   if (warnings & MYSQL_TIME_WARN_TRUNCATED)
   {
     set_datetime_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
-                         str, ts_type, !cut_incremented);
-    cut_incremented= 1;
+                         str, ts_type, !truncate_incremented);
+    truncate_incremented= true;
   }
   if (warnings & (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE |
                   MYSQL_TIME_WARN_ZERO_IN_DATE))
   {
     set_datetime_warning(Sql_condition::SL_WARNING,
                          ER_WARN_DATA_OUT_OF_RANGE,
-                         str, ts_type, !cut_incremented);
-    cut_incremented= 1;
+                         str, ts_type, !truncate_incremented);
+    truncate_incremented= true;
   }
   if (warnings & MYSQL_TIME_WARN_INVALID_TIMESTAMP)
   {
     set_datetime_warning(Sql_condition::SL_WARNING,
                          ER_WARN_INVALID_TIMESTAMP,
-                         str, ts_type, !cut_incremented);
-    cut_incremented= 1;
+                         str, ts_type, !truncate_incremented);
+    truncate_incremented= true;
   }
   if ((warnings & MYSQL_TIME_NOTE_TRUNCATED) &&
       !(warnings & MYSQL_TIME_WARN_TRUNCATED))
   {
     set_datetime_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED,
-                         str, ts_type, !cut_incremented);
+                         str, ts_type, !truncate_incremented);
   }   
 }
 
@@ -6364,7 +6367,7 @@ Field_year::store(const char *from, size_t len,const CHARSET_INFO *cs)
   if (conv_error)
     ret= TYPE_ERR_BAD_VALUE;
 
-  if (table->in_use->count_cuted_fields)
+  if (table->in_use->check_for_truncated_fields)
     ret= check_int(cs, from, len, end, conv_error);
 
   if (ret != TYPE_OK)
@@ -7022,8 +7025,8 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
   {
     if (test_if_important_data(field_charset, pstr, end))
     {
-      // Warning should only be written when count_cuted_fields is set
-      if (table->in_use->count_cuted_fields)
+      // Warning should only be written when check_for_truncated_fields is set
+      if (table->in_use->check_for_truncated_fields)
       {
         if (!table->in_use->lex->is_ignore() && table->in_use->is_strict_mode())
           set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
@@ -7034,7 +7037,7 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      if (table->in_use->count_cuted_fields)
+      if (table->in_use->check_for_truncated_fields)
       {
         set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
       }
@@ -9176,7 +9179,7 @@ Field_enum::store(const char *from, size_t length,const CHARSET_INFO *cs)
 	set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
         ret= TYPE_WARN_TRUNCATED;
       }
-      if (!table->in_use->count_cuted_fields)
+      if (!table->in_use->check_for_truncated_fields)
         ret= TYPE_OK;
     }
     else
@@ -9200,7 +9203,7 @@ type_conversion_status Field_enum::store(longlong nr, bool)
   if ((ulonglong) nr > typelib->count || nr == 0)
   {
     set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    if (nr != 0 || table->in_use->count_cuted_fields)
+    if (nr != 0 || table->in_use->check_for_truncated_fields)
     {
       nr= 0;
       error= TYPE_WARN_TRUNCATED;
@@ -11367,7 +11370,7 @@ uint32 Field_blob::max_display_length()
 
   @param level            - level of message (Note/Warning/Error)
   @param code             - error code of message to be produced
-  @param cut_increment    - whenever we should increase cut fields count
+  @param truncate_increment  - whether we should increase truncated fields count
   @param view_db_name     - if set this is the database name for view
                             that causes the warning
   @param view_name        - if set this is the name of view that causes
@@ -11375,9 +11378,9 @@ uint32 Field_blob::max_display_length()
 
   @note
     This function won't produce warning and increase cut fields counter
-    if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+    if check_for_truncated_fields == CHECK_FIELD_IGNORE for current thread.
 
-    if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+    if check_for_truncated_fields == CHECK_FIELD_IGNORE then we ignore notes.
     This allows us to avoid notes in optimisation, like convert_constant_item().
 
     In case of execution statements INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
@@ -11385,14 +11388,15 @@ uint32 Field_blob::max_display_length()
     types of warning: ER_BAD_NULL_ERROR, ER_WARN_NULL_TO_NOTNULL,
     ER_NO_DEFAULT_FOR_FIELD.
   @retval
-    1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+    1 if check_for_truncated_fields == CHECK_FIELD_IGNORE and error level
+    is not NOTE
   @retval
     0 otherwise
 */
 
 bool Field::set_warning(Sql_condition::enum_severity_level level,
                         uint code,
-                        int cut_increment,
+                        int truncate_increment,
                         const char *view_db_name,
                         const char *view_name)
 {
@@ -11403,10 +11407,10 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
 
   THD *thd= table ? table->in_use : current_thd;
 
-  if (!thd->count_cuted_fields)
+  if (!thd->check_for_truncated_fields)
     return level >= Sql_condition::SL_WARNING;
 
-  thd->cuted_fields+= cut_increment;
+  thd->num_truncated_fields+= truncate_increment;
 
   if (thd->lex->sql_command != SQLCOM_INSERT &&
       thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
@@ -11466,25 +11470,25 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   @param code             error code of message to be produced
   @param val              error parameter (the value)
   @param ts_type          type of datetime value (datetime/date/time)
-  @param cut_increment    whenever we should increase cut fields count
+  @param truncate_increment  whether we should increase truncated fields count
   @note
-    This function will always produce some warning but won't increase cut
-    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current
-    thread.
+    This function will always produce some warning but won't increase truncated
+    fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
+    for current thread.
 */
 void 
 Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
                                      uint code,
                                      ErrConvString val,
                                      timestamp_type ts_type,
-                                     int cut_increment)
+                                     int truncate_increment)
 {
   THD *thd= table ? table->in_use : current_thd;
   if ((!thd->lex->is_ignore() &&
        ((thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) ||
         (thd->variables.sql_mode & MODE_STRICT_TRANS_TABLES &&
          !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)))) ||
-      set_warning(level, code, cut_increment))
+      set_warning(level, code, truncate_increment))
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
 }
 

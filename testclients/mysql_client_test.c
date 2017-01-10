@@ -7661,14 +7661,14 @@ static void test_drop_temp()
 #endif
 
 
-/* Test warnings for cuted rows */
+/* Test warnings for truncated rows */
 
-static void test_cuted_rows()
+static void test_truncated_rows()
 {
   int        rc, count;
   MYSQL_RES  *result;
 
-  myheader("test_cuted_rows");
+  myheader("test_truncated_rows");
 
   mysql_query(mysql, "DROP TABLE if exists t1");
   mysql_query(mysql, "DROP TABLE if exists t2");
@@ -20976,7 +20976,7 @@ static struct my_tests_st my_tests[]= {
   { "test_decimal_bug", test_decimal_bug },
   { "test_nstmts", test_nstmts },
   { "test_logs;", test_logs },
-  { "test_cuted_rows", test_cuted_rows },
+  { "test_truncated_rows", test_truncated_rows },
   { "test_fetch_offset", test_fetch_offset },
   { "test_fetch_column", test_fetch_column },
   { "test_mem_overun", test_mem_overun },

@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -947,15 +947,16 @@ public:
   {
     enum store_key_result result;
     THD *thd= to_field->table->in_use;
-    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
+    enum_check_fields saved_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
     sql_mode_t sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
     result= copy_inner();
 
-    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->check_for_truncated_fields= saved_check_for_truncated_fields;
     thd->variables.sql_mode= sql_mode;
 
     return result;

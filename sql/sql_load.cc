@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ class READ_INFO {
   int level; /* for load xml */
 
 public:
-  bool error,line_cuted,found_null,enclosed;
+  bool error, line_truncated, found_null, enclosed;
   uchar	*row_start,			/* Found row starts here */
 	*row_end;			/* Found row ends here */
   const CHARSET_INFO *read_charset;
@@ -550,8 +550,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     read_info.set_io_cache_arg((void*) &lf_info);
   }
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
-  thd->cuted_fields=0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
   /* Skip lines if there is a line terminator */
   if (ex->line.line_term->length() && ex->filetype != FILETYPE_XML)
   {
@@ -603,7 +603,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     mysql_file_close(file, MYF(0));
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   /* 
      simulated killing in the middle of per-row loop
      must be effective for binlogging
@@ -860,7 +860,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       if (pos == read_info.row_end)
       {
-        thd->cuted_fields++;			/* Not enough fields */
+        thd->num_truncated_fields++;			/* Not enough fields */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
@@ -887,7 +887,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     if (pos != read_info.row_end)
     {
-      thd->cuted_fields++;			/* To long row */
+      thd->num_truncated_fields++;			/* Too long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
@@ -919,9 +919,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (read_info.next_line())			// Skip to next line
       break;
-    if (read_info.line_cuted)
+    if (read_info.line_truncated)
     {
-      thd->cuted_fields++;			/* To long row */
+      thd->num_truncated_fields++;			/* Too long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
@@ -1110,10 +1110,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
-            of warnings in THD::cuted_fields (and get rid of cuted_fields
-            in the end ?)
+            of warnings in THD::num_truncated_fields (and get rid of
+            num_truncated_fields in the end?)
           */
-          thd->cuted_fields++;
+          thd->num_truncated_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
@@ -1176,9 +1176,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (read_info.next_line())			// Skip to next line
       break;
-    if (read_info.line_cuted)
+    if (read_info.line_truncated)
     {
-      thd->cuted_fields++;			/* To long row */
+      thd->num_truncated_fields++;			/* Too long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
@@ -1326,10 +1326,10 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
-            of warnings in THD::cuted_fields (and get rid of cuted_fields
-            in the end ?)
+            of warnings in THD::num_truncated_fields (and get rid of
+            num_truncated_fields in the end?)
           */
-          thd->cuted_fields++;
+          thd->num_truncated_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
@@ -1406,7 +1406,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
                      int escape, bool get_it_from_net, bool is_fifo)
   :file(file_par), buff_length(tot_length), escape_char(escape),
    found_end_of_line(false), eof(false), need_end_io_cache(false),
-   error(false), line_cuted(false), found_null(false), read_charset(cs)
+   error(false), line_truncated(false), found_null(false), read_charset(cs)
 {
   /*
     Field and line terminators must be interpreted as sequence of unsigned char.
@@ -1801,7 +1801,7 @@ found_eof:
 
 int READ_INFO::next_line()
 {
-  line_cuted=0;
+  line_truncated= 0;
   start_of_line= line_start_ptr != 0;
   if (found_end_of_line || eof)
   {
@@ -1837,14 +1837,14 @@ int READ_INFO::next_line()
     }
     if (chr == escape_char)
     {
-      line_cuted=1;
+      line_truncated= 1;
       if (GET == my_b_EOF)
 	return 1;
       continue;
     }
     if (chr == line_term_char && terminator(line_term_ptr,line_term_length))
       return 0;
-    line_cuted=1;
+    line_truncated= 1;
   }
 }
 

@@ -10554,8 +10554,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     version of table is created in COPY algorithm or when values of
     virtual columns are evaluated in INPLACE algorithm.
   */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields= 0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
 
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
@@ -10714,7 +10714,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     inplace_supported, &target_mdl_request,
                                     &alter_ctx))
       {
-        thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+        thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
         DBUG_RETURN(true);
       }
 
@@ -10902,7 +10902,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
     {
-      thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+      thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
       DBUG_RETURN(true);
     }
     goto end_temporary;
@@ -11051,7 +11051,7 @@ end_inplace:
   if (update_referencing_views_metadata(thd, table_list, new_db, new_name))
     goto err_with_mdl;
 
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
@@ -11084,7 +11084,7 @@ end_inplace:
   }
 
 end_temporary:
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER_THD(thd, ER_INSERT_INFO),
@@ -11095,7 +11095,7 @@ end_temporary:
 
 err_new_table_cleanup:
   delete tmp_table_def;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   if (new_table)
   {
@@ -11138,7 +11138,7 @@ err_new_table_cleanup:
   DBUG_RETURN(true);
 
 err_with_mdl:
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   /*
     An error happened while we were holding exclusive name metadata lock

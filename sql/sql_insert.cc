@@ -567,11 +567,11 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
     if trying to set a NOT NULL field to NULL.
     Notice that policy must be reset before leaving this function.
   */
-  thd->count_cuted_fields= ((insert_many_values.elements == 1 &&
-                             !lex->is_ignore()) ?
-                            CHECK_FIELD_ERROR_FOR_NULL :
-                            CHECK_FIELD_WARN);
-  thd->cuted_fields = 0L;
+  thd->check_for_truncated_fields= ((insert_many_values.elements == 1 &&
+                                     !lex->is_ignore()) ?
+                                    CHECK_FIELD_ERROR_FOR_NULL :
+                                    CHECK_FIELD_WARN);
+  thd->num_truncated_fields = 0L;
 
   for (Field** next_field= insert_table->field; *next_field; ++next_field)
   {
@@ -775,7 +775,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
   insert_table->next_number_field= 0;
 
   // Remember to restore warning handling before leaving
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   insert_table->auto_increment_field_not_null= FALSE;
 
@@ -784,7 +784,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
     DBUG_RETURN(true);
 
   if (insert_many_values.elements == 1 &&
-      (!(thd->variables.option_bits & OPTION_WARNINGS) || !thd->cuted_fields))
+      (!(thd->variables.option_bits & OPTION_WARNINGS) ||
+      !thd->num_truncated_fields))
   {
     my_ok(thd, info.stats.copied + info.stats.deleted +
           (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
@@ -2077,7 +2078,7 @@ bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
 #endif
 
-  thd->cuted_fields=0;
+  thd->num_truncated_fields= 0;
   if (thd->lex->is_ignore() || duplicate_handling != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if (duplicate_handling == DUP_REPLACE &&
@@ -2132,7 +2133,7 @@ void Query_result_insert::cleanup()
     table->auto_increment_field_not_null= FALSE;
     table->file->ha_reset();
   }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   DBUG_VOID_RETURN;
 }
 
@@ -2148,9 +2149,9 @@ bool Query_result_insert::send_data(List<Item> &values)
     DBUG_RETURN(false);
   }
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
   store_values(values);
-  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
+  thd->check_for_truncated_fields= CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error())
   {
     table->auto_increment_field_not_null= FALSE;
@@ -2727,7 +2728,7 @@ bool Query_result_create::start_execution()
   table->next_number_field=table->found_next_number_field;
 
   restore_record(table,s->default_values);      // Get empty record
-  thd->cuted_fields=0;
+  thd->num_truncated_fields= 0;
 
   const enum_duplicates duplicate_handling= info.get_duplicate_handling();
 
@@ -2744,13 +2745,14 @@ bool Query_result_create::start_execution()
     bulk_insert_started= true;
   }
 
-  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
+  enum_check_fields save_check_for_truncated_fields=
+    thd->check_for_truncated_fields;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   if (check_that_all_fields_are_given_values(thd, table, table_list))
     DBUG_RETURN(true);
 
-  thd->count_cuted_fields= save_count_cuted_fields;
+  thd->check_for_truncated_fields= save_check_for_truncated_fields;
 
   table->mark_columns_needed_for_insert(thd);
   table->file->extra(HA_EXTRA_WRITE_CACHE);

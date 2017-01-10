@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -400,28 +400,29 @@ fill_dd_columns_from_create_fields(THD *thd,
                                    const List<Create_field> &create_fields,
                                    handler *file)
 {
-  // Helper class which takes care of restoration of THD::count_cuted_fields
-  // after it was temporarily changed to CHECK_FIELD_WARN in order to prepare
-  // default values and freeing buffer which is allocated for the same purpose.
+  // Helper class which takes care of restoration of
+  // THD::check_for_truncated_fields after it was temporarily changed to
+  // CHECK_FIELD_WARN in order to prepare default values and freeing buffer
+  // which is allocated for the same purpose.
   class Context_handler
   {
   private:
     THD *m_thd;
     uchar *m_buf;
-    enum_check_fields m_count_cuted_fields;
+    enum_check_fields m_check_for_truncated_fields;
   public:
-    Context_handler(THD *thd, uchar *buf):
-                    m_thd(thd), m_buf(buf),
-                    m_count_cuted_fields(m_thd->count_cuted_fields)
+    Context_handler(THD *thd, uchar *buf)
+      : m_thd(thd), m_buf(buf),
+        m_check_for_truncated_fields(m_thd->check_for_truncated_fields)
     {
       // Set to warn about wrong default values.
-      m_thd->count_cuted_fields= CHECK_FIELD_WARN;
+      m_thd->check_for_truncated_fields= CHECK_FIELD_WARN;
     }
     ~Context_handler()
     {
       // Delete buffer and restore context.
       my_free(m_buf);
-      m_thd->count_cuted_fields= m_count_cuted_fields;
+      m_thd->check_for_truncated_fields= m_check_for_truncated_fields;
     }
   };
 

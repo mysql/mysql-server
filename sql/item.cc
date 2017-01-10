@@ -1576,7 +1576,7 @@ Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   DBUG_ENTER("Item::save_in_field_no_warnings");
   TABLE *table= field->table;
   THD *thd= table->in_use;
-  enum_check_fields tmp= thd->count_cuted_fields;
+  enum_check_fields tmp= thd->check_for_truncated_fields;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   sql_mode_t sql_mode= thd->variables.sql_mode;
   /*
@@ -1589,11 +1589,11 @@ Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                               MODE_STRICT_ALL_TABLES |
                               MODE_STRICT_TRANS_TABLES);
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   const type_conversion_status res= save_in_field(field, no_conversions);
 
-  thd->count_cuted_fields= tmp;
+  thd->check_for_truncated_fields= tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   thd->variables.sql_mode= sql_mode;
   DBUG_RETURN(res);

@@ -674,10 +674,10 @@ private:
   bool m_is_tmp_null;
 
   /**
-    The value of THD::count_cuted_fields at the moment of setting
+    The value of THD::check_for_truncated_fields at the moment of setting
     m_is_tmp_null attribute.
   */
-  enum_check_fields m_count_cuted_fields_saved;
+  enum_check_fields m_check_for_truncated_fields_saved;
 
 protected:
   const uchar *get_null_ptr() const
@@ -1219,14 +1219,15 @@ public:
   type_conversion_status check_constraints(int mysql_errno);
 
   /**
-    Remember the value of THD::count_cuted_fields to handle possible
+    Remember the value of THD::check_for_truncated_fields to handle possible
     NOT-NULL constraint errors after BEFORE-trigger execution is finished.
-    We should save the value of THD::count_cuted_fields before starting
+    We should save the value of THD::check_for_truncated_fields before starting
     BEFORE-trigger processing since during triggers execution the
-    value of THD::count_cuted_fields could be changed.
+    value of THD::check_for_truncated_fields could be changed.
   */
-  void set_count_cuted_fields(enum_check_fields count_cuted_fields)
-  { m_count_cuted_fields_saved= count_cuted_fields; }
+  void set_check_for_truncated_fields(
+    enum_check_fields check_for_truncated_fields)
+  { m_check_for_truncated_fields_saved= check_for_truncated_fields; }
 
   bool maybe_null(void) const
   { return real_maybe_null() || table->is_nullable(); }
@@ -1485,14 +1486,15 @@ public:
 
     @note
       This function won't produce warning and increase cut fields counter
-      if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+      if check_for_truncated_fields == CHECK_FIELD_IGNORE for current thread.
 
-      if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+      if check_for_truncated_fields == CHECK_FIELD_IGNORE then we ignore notes.
       This allows us to avoid notes in optimization, like
       convert_constant_item().
 
     @retval
-      1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+      1 if check_for_truncated_fields == CHECK_FIELD_IGNORE and error level
+      is not NOTE
     @retval
       0 otherwise
   */
@@ -2704,11 +2706,11 @@ protected:
     @param[in] code            Warning code
     @param[in] val             Warning parameter
     @param[in] ts_type         Timestamp type (time, date, datetime, none)
-    @param[in] cut_increment   Incrementing of cut field counter
+    @param[in] truncate_increment  Incrementing of truncated field counter
   */
   void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString val,
-                            timestamp_type ts_type, int cut_increment);
+                            timestamp_type ts_type, int truncate_increment);
 public:
   /**
     Constructor for Field_temporal

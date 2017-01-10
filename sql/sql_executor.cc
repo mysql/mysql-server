@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4289,8 +4289,9 @@ cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref)
 bool
 cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 {
-  enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  enum enum_check_fields save_check_for_truncated_fields=
+    thd->check_for_truncated_fields;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   bool result= false;
 
@@ -4312,7 +4313,7 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       break;
     }
   }
-  thd->count_cuted_fields= save_count_cuted_fields;
+  thd->check_for_truncated_fields= save_check_for_truncated_fields;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   return result;
 }

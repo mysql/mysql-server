@@ -458,12 +458,12 @@ THD::THD(bool enable_plugins)
   m_security_ctx= &m_main_security_ctx;
   password= 0;
   query_start_usec_used= false;
-  count_cuted_fields= CHECK_FIELD_IGNORE;
+  check_for_truncated_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
   tmp_table=0;
-  cuted_fields= 0L;
+  num_truncated_fields= 0L;
   m_sent_row_count= 0L;
   current_found_rows= 0;
   previous_found_rows= 0;
@@ -1540,7 +1540,7 @@ void THD::cleanup_after_query()
   if (rli_slave)
     rli_slave->cleanup_after_query();
   // Set the default "cute" mode for the execution environment:
-  count_cuted_fields= CHECK_FIELD_IGNORE;
+  check_for_truncated_fields= CHECK_FIELD_IGNORE;
 }
 
 LEX_CSTRING *
@@ -2168,12 +2168,12 @@ void THD::end_attachable_transaction()
   - Value set by 'SET INSERT_ID=#' is reset and restored
   - Value for found_rows() is reset and restored
   - examined_row_count is added to the total
-  - cuted_fields is added to the total
+  - num_truncated_fields is added to the total
   - new savepoint level is created and destroyed
 
   NOTES:
     Seed for random() is saved for the first! usage of RAND()
-    We reset examined_row_count and cuted_fields and add these to the
+    We reset examined_row_count and num_truncated_fields and add these to the
     result to ensure that if we have a bug that would reset these within
     a function, we are not loosing any rows from the main statement.
 
@@ -2195,14 +2195,14 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 
   backup->option_bits=     variables.option_bits;
-  backup->count_cuted_fields= count_cuted_fields;
+  backup->check_for_truncated_fields= check_for_truncated_fields;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->current_found_rows= current_found_rows;
   backup->previous_found_rows= previous_found_rows;
   backup->examined_row_count= m_examined_row_count;
   backup->sent_row_count= m_sent_row_count;
-  backup->cuted_fields=     cuted_fields;
+  backup->num_truncated_fields= num_truncated_fields;
   backup->client_capabilities= m_protocol->get_client_capabilities();
   backup->savepoints= get_transaction()->m_savepoints;
   backup->first_successful_insert_id_in_prev_stmt= 
@@ -2227,7 +2227,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   in_sub_stmt|= new_state;
   m_examined_row_count= 0;
   m_sent_row_count= 0;
-  cuted_fields= 0;
+  num_truncated_fields= 0;
   get_transaction()->m_savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
 }
@@ -2260,7 +2260,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
-  count_cuted_fields= backup->count_cuted_fields;
+  check_for_truncated_fields= backup->check_for_truncated_fields;
   get_transaction()->m_savepoints= backup->savepoints;
   variables.option_bits= backup->option_bits;
   in_sub_stmt=      backup->in_sub_stmt;
@@ -2296,7 +2296,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     total complexity of the query
   */
   inc_examined_row_count(backup->examined_row_count);
-  cuted_fields+=       backup->cuted_fields;
+  num_truncated_fields+= backup->num_truncated_fields;
   DBUG_VOID_RETURN;
 }
 

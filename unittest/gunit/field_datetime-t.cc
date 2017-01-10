@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@ TEST_F(FieldDatetimeTest, StoreLegalStringValues)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   {
     SCOPED_TRACE("");
@@ -154,7 +154,7 @@ TEST_F(FieldDatetimeTest, TestTruncFrational)
   field_dt0.make_writable();
   field_dt0.make_readable();
 
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   {
     SCOPED_TRACE("");
@@ -203,7 +203,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // Bad year
   {
@@ -287,7 +287,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroRestrictions)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   for (int i= 0; i < no_modes; i++)
   {
@@ -348,7 +348,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroDate)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
   for (int i= 0; i < no_modes; i++)
@@ -410,7 +410,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroInDate)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok
   for (int i= 0; i < no_modes; i++)

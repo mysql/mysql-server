@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -568,12 +568,12 @@ public:
   Discrete_intervals_list auto_inc_intervals_forced;
   ulonglong current_found_rows;
   ulonglong previous_found_rows;
-  ha_rows    cuted_fields, sent_row_count, examined_row_count;
+  ha_rows    num_truncated_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log;
   SAVEPOINT *savepoints;
-  enum enum_check_fields count_cuted_fields;
+  enum enum_check_fields check_for_truncated_fields;
 };
 
 
@@ -1929,7 +1929,7 @@ public:
     m_row_count_func= row_count_func;
   }
 
-  ha_rows    cuted_fields;
+  ha_rows    num_truncated_fields;
 
 private:
   /**
@@ -2143,7 +2143,7 @@ public:
   */
   int thd_tx_priority;
 
-  enum_check_fields count_cuted_fields;
+  enum_check_fields check_for_truncated_fields;
 
   // For user variables replication
   Prealloced_array<Binlog_user_var_event*, 2> user_var_events;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,7 +107,7 @@ TEST_F(FieldNewDecimalTest, StoreLegalStringValues)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   {
     SCOPED_TRACE("");
@@ -130,7 +130,7 @@ TEST_F(FieldNewDecimalTest, StoreIllegalStringValues)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // Truncated (precision beyond 3 decimals is lost)
   {
@@ -203,7 +203,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   my_decimal dMin10_01;
@@ -259,7 +259,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   my_decimal dTooHigh;
   my_decimal dTooLow;
@@ -299,7 +299,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   my_decimal dMin10_01;
@@ -370,7 +370,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   my_decimal dMin10_01;
@@ -439,7 +439,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckRestOfParams)
   table.in_use= thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   EXPECT_EQ(0, chars_2_decimal("10.01", &d10_01));

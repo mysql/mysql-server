@@ -1007,7 +1007,7 @@ private:
   /// Count of executions of recursive members.
   uint iteration_counter;
   Strict_error_handler strict_handler;
-  enum_check_fields save_count_cuted_fields;
+  enum_check_fields save_check_for_truncated_fields;
   sql_mode_t save_sql_mode;
   bool disabled_trace, pop_handler;
   /**
@@ -1072,8 +1072,8 @@ public:
     if (thd->is_strict_mode())
     {
       pop_handler= true;
-      save_count_cuted_fields= thd->count_cuted_fields;
-      thd->count_cuted_fields= CHECK_FIELD_WARN;
+      save_check_for_truncated_fields= thd->check_for_truncated_fields;
+      thd->check_for_truncated_fields= CHECK_FIELD_WARN;
       thd->push_internal_handler(&strict_handler);
     }
 
@@ -1207,7 +1207,7 @@ public:
       if (pop_handler)
       {
         thd->pop_internal_handler();
-        thd->count_cuted_fields= save_count_cuted_fields;
+        thd->check_for_truncated_fields= save_check_for_truncated_fields;
       }
     }
   }

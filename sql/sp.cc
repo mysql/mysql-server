@@ -2485,7 +2485,8 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   Item *expr_item;
   Strict_error_handler strict_handler(Strict_error_handler::
                                       ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
-  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  enum_check_fields save_check_for_truncated_fields=
+    thd->check_for_truncated_fields;
   unsigned int stmt_unsafe_rollback_flags=
     thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
 
@@ -2502,7 +2503,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
     Save original values and restore them after save.
   */
 
-  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
+  thd->check_for_truncated_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /*
@@ -2519,7 +2520,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   if (thd->is_strict_mode() && !thd->lex->is_ignore())
     thd->pop_internal_handler();
-  thd->count_cuted_fields= save_count_cuted_fields;
+  thd->check_for_truncated_fields= save_check_for_truncated_fields;
   thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
                                                     stmt_unsafe_rollback_flags);
 

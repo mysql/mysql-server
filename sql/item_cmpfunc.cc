@@ -501,7 +501,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   {
     TABLE *table= field->table;
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
-    enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
+    enum_check_fields orig_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
     my_bitmap_map *old_maps[2];
     ulonglong orig_field_val= 0; /* original field value if valid */
 
@@ -514,7 +515,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) |
                              MODE_INVALID_DATES;
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
     /*
       Store the value of the field/constant if it references an outer field
@@ -592,7 +593,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       DBUG_ASSERT(!*converted);
     }
     thd->variables.sql_mode= orig_sql_mode;
-    thd->count_cuted_fields= orig_count_cuted_fields;
+    thd->check_for_truncated_fields= orig_check_for_truncated_fields;
     if (table)
       dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_maps);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -746,8 +746,8 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       Generate an error (in TRADITIONAL mode) or warning
       when trying to set a NOT NULL field to NULL.
     */
-    thd->count_cuted_fields= CHECK_FIELD_WARN;
-    thd->cuted_fields=0L;
+    thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+    thd->num_truncated_fields= 0L;
     THD_STAGE_INFO(thd, stage_updating);
 
     bool will_batch;
@@ -1071,7 +1071,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
           found_rows : updated_rows, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated_rows));
   }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   thd->current_found_rows= found_rows;
   thd->current_changed_rows= updated_rows;
   // Following test is disabled, as we get RQG errors that are hard to debug
@@ -1574,8 +1574,8 @@ bool Query_result_update::prepare(List<Item> &not_used_values,
   SELECT_LEX *const select= unit->first_select();
   TABLE_LIST *const leaves= select->leaf_tables;
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields=0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
   THD_STAGE_INFO(thd, stage_updating_main_table);
 
   const table_map tables_to_update= get_table_map(fields);
@@ -2062,7 +2062,7 @@ void Query_result_update::cleanup()
   }
   if (copy_field)
     delete [] copy_field;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe ||
               updated_rows == 0 ||
               thd->get_transaction()->cannot_safely_rollback(
