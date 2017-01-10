@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2317,6 +2317,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   TODO/FIXME: Consider making it proper method of Index_element.
 */
 
+/* purecov: begin deadcode */
 bool dd_index_element_is_prefix(const dd::Index_element *idx_el)
 {
   uint interval_parts;
@@ -2334,6 +2335,7 @@ bool dd_index_element_is_prefix(const dd::Index_element *idx_el)
                          col.is_unsigned(),
                          interval_parts) != idx_el->length();
 }
+/* purecov: end */
 
 
 /**
@@ -2344,6 +2346,7 @@ bool dd_index_element_is_prefix(const dd::Index_element *idx_el)
   TODO/FIXME: Consider making it proper method of Index.
 */
 
+/* purecov: begin deadcode */
 bool dd_index_is_candidate_key(const dd::Index *idx_obj)
 {
   if (idx_obj->type() != dd::Index::IT_PRIMARY &&
@@ -2390,3 +2393,4 @@ bool dd_index_is_candidate_key(const dd::Index *idx_obj)
   }
   return true;
 }
+/* purecov: end */

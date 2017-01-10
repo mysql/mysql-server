@@ -1250,6 +1250,12 @@ uint32
 innobase_sdi_get_num_copies(
 	const dd::Tablespace&	tablespace);
 
+/** Perform post-commit/rollback cleanup after DDL statement. */
+static
+void
+innobase_post_ddl(
+	THD*		thd);
+
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
 Once InnoDB is running, the innodb_commit_concurrency must not change
@@ -4198,6 +4204,8 @@ innodb_init(
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
 
+	innobase_hton->post_ddl = innobase_post_ddl;
+
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
 	os_file_set_umask(my_umask);
@@ -5280,6 +5288,15 @@ innobase_sdi_get_num_copies(
 	}
 
 	return(ib_sdi_get_num_copies(space_id));
+}
+
+/** Perform post-commit/rollback cleanup after DDL statement
+(dummy implementation). */
+static
+void
+innobase_post_ddl(
+	THD*		thd)
+{
 }
 
 /*************************************************************************//**
