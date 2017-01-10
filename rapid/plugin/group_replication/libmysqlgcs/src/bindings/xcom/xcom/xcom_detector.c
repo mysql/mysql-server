@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,7 +128,7 @@ int	enough_live_nodes(site_def const *site)
   if (maxnodes == 0)
     return 0;
   for (i = 0; i < maxnodes; i++) {
-    if (i == self || t - site->detected[i] < 5.0) {
+    if (i == self || t - site->detected[i] < DETECTOR_LIVE_TIMEOUT) {
       n++;
     }
   }
@@ -140,7 +140,7 @@ int	enough_live_nodes(site_def const *site)
 
 static void send_my_view(site_def const *site);
 
-#define DETECT(site) (i == get_nodeno(site)) || (site->detected[i] + 5.0 > task_now())
+#define DETECT(site) (i == get_nodeno(site)) || (site->detected[i] + DETECTOR_LIVE_TIMEOUT > task_now())
 
 static void	update_global_count(site_def *site)
 {

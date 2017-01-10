@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
 #include "xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_1
+#define MY_XCOM_PROTO x_1_2
 
 xcom_proto const my_min_xcom_version = x_1_0; /* The minimum protocol version I am able to understand */
 xcom_proto const my_xcom_version = MY_XCOM_PROTO; /* The maximun protocol version I am able to understand */
@@ -1032,7 +1032,8 @@ int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p)
 		p->to = to;
 		p->group_id = group_id;
 		p->max_synode = get_max_synode();
- 		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
+		p->delivered_msg = get_delivered_msg();
+		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
 		channel_put(&s->outgoing, &link->l);
 	}
 	return 0;
@@ -1597,7 +1598,7 @@ int	sender_task(task_arg arg)
 							add_event(string_arg("sending ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
 						TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret));
@@ -1608,7 +1609,7 @@ int	sender_task(task_arg arg)
 							add_event(string_arg("sent ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
 					}
@@ -2096,6 +2097,7 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp)
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address_with_1_0);
 	case x_1_1:
+	case x_1_2:
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address);
 	default:
@@ -2114,3 +2116,24 @@ bool_t xdr_checked_data(XDR *xdrs, checked_data *objp)
 		return FALSE;
 	return xdr_bytes(xdrs, (char **)&objp->data_val, (u_int *) &objp->data_len, 0xffffffff);
 }
+
+bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp)
+{
+	xcom_proto vx = *((xcom_proto * )xdrs->x_public);
+	/* Select protocol encode/decode based on the x_public field of the xdr struct */
+	switch (vx) {
+	case x_1_0:
+	case x_1_1:
+		if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1*)objp))
+			return FALSE;
+		if (xdrs->x_op == XDR_DECODE)
+			objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
+		return TRUE;
+	case x_1_2:
+		return xdr_pax_msg_1_2(xdrs, objp);
+	default:
+		return FALSE;
+	}
+}
+
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,10 +227,9 @@ void Gcs_xcom_control::init_me()
     m_xcom_proxy->new_node_address(m_node_list_me.node_list_len, &addr);
   uuid= &m_node_list_me.node_list_val[0].uuid;
 
-  uuid->data.data_len= static_cast<u_int>(sizeof(m_local_member_id_hash));
-  uuid->data.data_val= (char *) calloc(1, uuid->data.data_len);
-  memcpy(uuid->data.data_val, &m_local_member_id_hash, uuid->data.data_len);
- }
+  uuid->data.data_len= 0;
+  uuid->data.data_val= 0;
+}
 
 
 void do_function_join(Gcs_control_interface *control_if)

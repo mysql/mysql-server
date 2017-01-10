@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ node_no xcom_find_node_index(node_list *nodes)
 {
 	node_no i;
 	node_no retval = VOID_NODE_NO;
-	char *name = NULL;
+  char *name = NULL;
 	struct addrinfo *a = 0;
 	sock_probe * s = calloc(1, sizeof(sock_probe));
 

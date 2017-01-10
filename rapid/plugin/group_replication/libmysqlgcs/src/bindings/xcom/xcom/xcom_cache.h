@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,8 +71,15 @@ void init_cache();
 void deinit_cache();
 void unlock_pax_machine(pax_machine *p);
 void xcom_cache_var_init();
+void shrink_cache();
+size_t pax_machine_size(pax_machine const *p);
 
-
+void init_cache_size();
+size_t add_cache_size(size_t x);
+size_t sub_cache_size(size_t x);
+int above_cache_limit();
+size_t set_max_cache_size(size_t x);
+int	was_removed_from_cache(synode_no x);
 
 #ifdef __cplusplus
 }
