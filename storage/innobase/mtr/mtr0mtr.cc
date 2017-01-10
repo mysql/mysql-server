@@ -511,9 +511,13 @@ but generated some redo log on a higher level, such as
 MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 The caller must invoke log_mutex_enter() and log_mutex_exit().
 This is to be used at log_checkpoint().
-@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
+@param[in]	checkpoint_lsn		the LSN of the log checkpoint
+@param[in]	write_mlog_checkpoint	Write MLOG_CHECKPOINT marker
+					if it is enabled. */
 void
-mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
+mtr_t::commit_checkpoint(
+	lsn_t	checkpoint_lsn,
+	bool	write_mlog_checkpoint)
 {
 	ut_ad(log_mutex_own());
 	ut_ad(is_active());
@@ -524,6 +528,7 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 	ut_ad(m_impl.m_memo.size() == 0);
 	ut_ad(!srv_read_only_mode);
 	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
+	ut_ad(write_mlog_checkpoint || m_impl.m_n_log_recs > 1);
 
 	/* This is a dirty read, for debugging. */
 	ut_ad(!recv_no_log_write);
@@ -539,20 +544,24 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 			&m_impl.m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 	}
 
-	byte*	ptr = m_impl.m_log.push<byte*>(SIZE_OF_MLOG_CHECKPOINT);
+	if (write_mlog_checkpoint) {
+		byte*	ptr = m_impl.m_log.push<byte*>(SIZE_OF_MLOG_CHECKPOINT);
 #if SIZE_OF_MLOG_CHECKPOINT != 9
 # error SIZE_OF_MLOG_CHECKPOINT != 9
 #endif
-	*ptr = MLOG_CHECKPOINT;
-	mach_write_to_8(ptr + 1, checkpoint_lsn);
+		*ptr = MLOG_CHECKPOINT;
+		mach_write_to_8(ptr + 1, checkpoint_lsn);
+	}
 
 	Command	cmd(this);
 	cmd.finish_write(m_impl.m_log.size());
 	cmd.release_resources();
 
-	DBUG_PRINT("ib_log",
-		   ("MLOG_CHECKPOINT(" LSN_PF ") written at " LSN_PF,
-		    checkpoint_lsn, log_sys->lsn));
+	if (write_mlog_checkpoint) {
+		DBUG_PRINT("ib_log",
+			   ("MLOG_CHECKPOINT(" LSN_PF ") written at " LSN_PF,
+			    checkpoint_lsn, log_sys->lsn));
+	}
 }
 
 #ifdef UNIV_DEBUG
