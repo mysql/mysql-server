@@ -1053,16 +1053,6 @@ row_prebuilt_free(
 
 	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
 		dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
-		if (prebuilt->table->discard_after_ddl) {
-			if (!dict_locked) {
-				mutex_enter(&dict_sys->mutex);
-			}
-			ut_ad(prebuilt->table->n_ref_count == 0);
-			dict_table_remove_from_cache(prebuilt->table);
-			if (!dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-			}
-		}
 	}
 
 	mem_heap_free(prebuilt->heap);
@@ -5550,8 +5540,8 @@ end:
 			mutex_exit(&dict_sys->mutex);
 		}
 
-		err = dd_table_load_fk(client, new_name, table, dd_table,
-				       thd, false,
+		err = dd_table_load_fk(client, new_name, nullptr, table,
+				       dd_table, thd, false,
 				       !old_is_tmp || trx->check_foreigns,
 				       &fk_tables);
 

@@ -6945,6 +6945,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
 			if (ib_table != NULL) {
 				if (ib_table->discard_after_ddl) {
+					btr_search_drop_table(ib_table);
 					dict_table_autoinc_lock(ib_table);
 					autoinc = dict_table_autoinc_read(
 						ib_table);
@@ -13273,7 +13274,7 @@ create_table_info_t::create_table(
 			innobase_table = dd_table_open_on_name_in_mem(
 				m_table_name, true, DICT_ERR_IGNORE_NONE);
 			err = dd_table_load_fk(
-				client, m_table_name,
+				client, m_table_name, nullptr,
 				innobase_table, dd_table, m_thd, true,
 				true, nullptr);
 			dd_table_close(innobase_table, NULL, NULL, true);
@@ -13716,6 +13717,16 @@ create_table_info_t::create_table_update_global_dd(
 	} else {
 		/* This is a data dictionary table, nothing to do */
 		ut_ad(is_dd_table);
+	}
+
+	/* Set DATA DIRECTORY only when DATA DIRECTORY exists and
+	takes effect */
+	if (file_per_table
+	    && m_create_info->data_file_name != NULL
+	    && m_create_info->data_file_name[0] != '\0') {
+		dd_table->se_private_data().set_bool(
+			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY],
+			true);
 	}
 
 	set_table_options(dd_table->table(), table);

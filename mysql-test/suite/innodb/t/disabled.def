@@ -32,8 +32,6 @@ innodb_bulk_create_index_debug : WL#9525 disables it, tablespaces are not crash-
 
 create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it
 
-innodb-multiple-tablespaces : WL#9525 disables it, DATA DIRECTORY should be stored properly
-
 innodb-system-table-view_cs : WL#9532 disables it, this may not be needed after WL#9535
 innodb-system-table-view_ci : WL#9532 disables it, this may not be needed after WL#9535
 
@@ -50,3 +48,8 @@ log_alter_table           : Waiting for WL#9175
 innodb_bug-13628249       : Waiting for WL#9175
 
 innodb-copy-alter-debug	  : Require atomic DDL, WL#9536
+
+innodb_tablespace	  : partition table data dir
+create_tablespace	  : partition table data dir
+subpartition		  : partition table data dir
+tablespace_per_table	  : partition table data dir

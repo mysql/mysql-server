@@ -4476,6 +4476,13 @@ prepare_inplace_alter_table_global_dd(
 				ut_a(false);
 				return(true);
 			}
+
+			if (DICT_TF_HAS_DATA_DIR(old_table->flags)) {
+				new_dd_tab->se_private_data().set_bool(
+                       		dd_table_key_strings[DD_TABLE_DATA_DIRECTORY],
+				true);
+			}
+
 		} else if (new_table->space == TRX_SYS_SPACE) {
 			dd_space_id = dict_sys_t::dd_sys_space_id;
 		} else {
@@ -7543,7 +7550,6 @@ innobase_rename_or_enlarge_columns_cache(
 		}
 	}
 }
-
 /** Get the auto-increment value of the table on commit.
 @param ha_alter_info Data used during in-place alter
 @param ctx In-place ALTER TABLE context
@@ -7742,7 +7748,8 @@ dberr_t
 innobase_update_foreign_cache(
 /*==========================*/
 	ha_innobase_inplace_ctx*	ctx,
-	THD*				user_thd)
+	THD*				user_thd,
+	dd::Table*			dd_table)
 {
 	dict_table_t*	user_table;
 	dberr_t		err = DB_SUCCESS;
@@ -7779,17 +7786,16 @@ innobase_update_foreign_cache(
 		}
 	}
 #ifdef INNODB_DD_TABLE
-	/* NewDD TODO: Replace this with dd_table_load_fk(), etc. */
-
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
 	dict_names_t	fk_tables;
 
-	err = dict_load_foreigns(user_table->name.m_name,
-				 ctx->col_names, false, true,
-				 DICT_ERR_IGNORE_NONE,
-				 fk_tables);
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(user_thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+	err = dd_table_load_fk(
+		client, user_table->name.m_name, ctx->col_names,
+		user_table, dd_table, user_thd, true, true, &fk_tables);
 
 	if (err == DB_CANNOT_ADD_CONSTRAINT) {
 		fk_tables.clear();
@@ -7797,10 +7803,10 @@ innobase_update_foreign_cache(
 		/* It is possible there are existing foreign key are
 		loaded with "foreign_key checks" off,
 		so let's retry the loading with charset_check is off */
-		err = dict_load_foreigns(user_table->name.m_name,
-					 ctx->col_names, false, false,
-					 DICT_ERR_IGNORE_NONE,
-					 fk_tables);
+		err = dd_table_load_fk(
+			client, user_table->name.m_name, ctx->col_names,
+			user_table, dd_table, user_thd, true, false,
+			&fk_tables);
 
 		/* The load with "charset_check" off is successful, warn
 		the user that the foreign key has loaded with mis-matched
@@ -8971,15 +8977,12 @@ ha_innobase::commit_inplace_alter_table_impl(
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
 
-			error = innobase_update_foreign_cache(ctx, m_user_thd);
-			if (error != DB_SUCCESS) {
-				goto foreign_fail;
-			}
+			ctx->new_table->discard_after_ddl = true;
 		} else {
-			error = innobase_update_foreign_cache(ctx, m_user_thd);
+			error = innobase_update_foreign_cache(
+				ctx, m_user_thd, &new_dd_tab->table());
 
 			if (error != DB_SUCCESS) {
-foreign_fail:
 				/* The data dictionary cache
 				should be corrupted now.  The
 				best solution should be to

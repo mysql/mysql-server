@@ -1108,13 +1108,6 @@ format_validate(
 				 innobase_hton_name,
 				 "ROW_FORMAT=COMPRESSED", zip_refused);
 			invalid = true;
-		} else {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				ER_DEFAULT(ER_ILLEGAL_HA_CREATE_OPTION),
-				innobase_hton_name,
-				 "ROW_FORMAT=COMPRESSED", zip_refused);
 		}
 	}
 
@@ -1130,13 +1123,16 @@ format_validate(
 			invalid = true;
 		} else if (compression.m_type != Compression::NONE) {
 			if (*zip_ssize != 0) {
-				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-					 innobase_hton_name,
-					 "COMPRESSION",
-					 m_form->s->key_block_size
-					 ? "KEY_BLOCK_SIZE"
-					 : "ROW_FORMAT=COMPRESSED");
-				invalid = true;
+				if (strict) {
+					my_error(ER_ILLEGAL_HA_CREATE_OPTION,
+						 MYF(0),
+						 innobase_hton_name,
+						 "COMPRESSION",
+						 m_form->s->key_block_size
+						 ? "KEY_BLOCK_SIZE"
+						 : "ROW_FORMAT=COMPRESSED");
+					invalid = true;
+				} 
 			}
 
 			if (is_temporary) {
@@ -1795,8 +1791,6 @@ dd_fill_dict_table(
 	      || m_form->s->key_block_size == m_create_info->key_block_size);
 	ut_ad(dd_part != nullptr);
 
-	bool invalid = false;
-
 	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
 		my_error(ER_TOO_MANY_FIELDS, MYF(0));
 		return(NULL);
@@ -1867,8 +1861,8 @@ dd_fill_dict_table(
 	unsigned	zip_ssize;
 
 	if (format_validate(m_thd, m_form, zip_allowed, strict,
-			    &is_redundant, &blob_prefix, &zip_ssize, m_implicit)
-	    || invalid) {
+			    &is_redundant, &blob_prefix, &zip_ssize,
+			    m_implicit)) {
 		return(NULL);
 	}
 
@@ -1890,7 +1884,8 @@ dd_fill_dict_table(
 
 	m_table->id = dd_part->se_private_id();
 
-	if (dd_part->options().exists(data_file_name_key)) {
+	if (dd_part->se_private_data().exists(
+		dd_table_key_strings[DD_TABLE_DATA_DIRECTORY])) {
 		m_table->flags |= DICT_TF_MASK_DATA_DIR;
 	}
 
@@ -2124,6 +2119,7 @@ dd_tablespace_is_implicit(
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
+@param[in]	col_names	column names, or NULL
 @param[in]	dict_locked	True if dict_sys->mutex is already held,
 				otherwise false
 @return DB_SUCESS 	if successfully load FK constraint */
@@ -2131,6 +2127,7 @@ dberr_t
 dd_table_load_fk_from_dd(
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
+	const char**			col_names,
 	bool				dict_locked)
 {
 	dberr_t	err = DB_SUCCESS;
@@ -2250,7 +2247,7 @@ dd_table_load_fk_from_dd(
 		/* Fill in foreign->foreign_table and index, then add to
 		dict_table_t */
 		err = dict_foreign_add_to_cache(
-			foreign, NULL, FALSE, DICT_ERR_IGNORE_NONE);
+			foreign, col_names, FALSE, DICT_ERR_IGNORE_NONE);
 		ut_ad(err == DB_SUCCESS);
 		if (!dict_locked) {
 			mutex_exit(&dict_sys->mutex);
@@ -2267,6 +2264,7 @@ dd_table_load_fk_from_dd(
 the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
 @param[in]	tbl_name	Table Name
+@param[in]	col_names	column names, or NULL
 @param[in,out]	uncached	NULL if the table should be added to the cache;
 				if not, *uncached=true will be assigned
 				when ib_table was allocated but not cached
@@ -2283,6 +2281,7 @@ dberr_t
 dd_table_load_fk(
 	dd::cache::Dictionary_client*	client,
 	const char*			tbl_name,
+	const char**			col_names,
 	dict_table_t*			m_table,
 	const dd::Table*		dd_table,
 	THD*				thd,
@@ -2292,7 +2291,12 @@ dd_table_load_fk(
 {
 	dberr_t	err = DB_SUCCESS;
 
-	err = dd_table_load_fk_from_dd(m_table, dd_table, dict_locked);
+	err = dd_table_load_fk_from_dd(m_table, dd_table, col_names,
+				       dict_locked);
+
+	if (dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
 	if (!strstr(tbl_name, "mysql") && fk_tables != nullptr) {
@@ -2321,7 +2325,6 @@ dd_table_load_fk(
 
 			mutex_enter(&dict_sys->mutex);
 
-			ut_ad(!dict_locked);
 			/* Load the foreign table first */
 			dict_table_t*	foreign_table =
 				dd_table_open_on_name_in_mem(
@@ -2329,6 +2332,34 @@ dd_table_load_fk(
 					DICT_ERR_IGNORE_NONE);
 
 			if (foreign_table) {
+				/* TODO: WL6049 needs to fix this.
+				Column renaming needs to update
+				referencing table defintion */
+#if 0
+
+				if (foreign_table->foreign_set.empty()) 	{
+					MDL_ticket*	mdl = nullptr;
+					const dd::Table* dd_f_table = nullptr;
+					dd_mdl_acquire(
+						thd, &mdl,
+						db_name.c_str(),
+						(char*)tb_name.c_str());
+
+					if (client->acquire(
+						db_name.c_str(),
+						tb_name.c_str(),
+						&dd_f_table)) {
+						continue;
+					} else {
+						dd_table_load_fk_from_dd(
+							foreign_table,
+							dd_f_table, nullptr,
+							true);
+					}
+					dd_mdl_release(thd, &mdl);
+				}
+#endif
+
 				for (auto &fk : foreign_table->foreign_set) {
 					if (strcmp(fk->referenced_table_name,
 						   tbl_name) != 0) {
@@ -2339,7 +2370,7 @@ dd_table_load_fk(
 						ut_ad(fk->referenced_table == m_table);
 					} else {
 						err = dict_foreign_add_to_cache(
-							fk, NULL,
+							fk, col_names,
 							check_charsets,
 							DICT_ERR_IGNORE_NONE);
 					}
@@ -2369,6 +2400,9 @@ dd_table_load_fk(
 			ut_ad(it != child_name.end());
 			++it;
 		}
+	}
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	return(err);
@@ -2581,6 +2615,10 @@ dd_open_table_one(
 		dd_table, table, norm_name,
 		NULL, zip_allowed, strict, thd, skip_mdl, implicit);
 
+	if (m_table == nullptr) {
+		return(NULL);
+	}
+
 	/* Create dict_index_t for the table */
 	mutex_enter(&dict_sys->mutex);
 	int	ret;
@@ -2707,7 +2745,7 @@ dd_open_table_one(
 	/* Load foreign key info. It could also register child table(s) that
 	refers to current table */
 	if (exist == NULL) {
-		dd_table_load_fk(client, norm_name,
+		dd_table_load_fk(client, norm_name, nullptr,
 				 m_table, &dd_table->table(), thd, false,
 				 true, &fk_list);
 	}

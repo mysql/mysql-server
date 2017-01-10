@@ -92,9 +92,7 @@ a	b
 55	5
 # Operations on child table
 INSERT INTO t2 VALUES (56, 6);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
 UPDATE t2 SET b = 99 WHERE a = 51;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
 DELETE FROM t2 WHERE a = 53;
 SELECT id, b FROM t1 ORDER BY id;
 id	b
@@ -105,10 +103,11 @@ id	b
 5	84
 SELECT a, b FROM t2 ORDER BY a;
 a	b
-51	1
+51	99
 52	2
 54	4
 55	5
+56	6
 # Operations on parent table
 DELETE FROM t1 WHERE id = 1;
 UPDATE t1 SET id = 50 WHERE id = 5;
@@ -120,9 +119,11 @@ id	b
 50	84
 SELECT a, b FROM t2 ORDER BY a;
 a	b
+51	99
 52	2
 54	4
-55	50
+55	5
+56	6
 DROP TABLE t2, t1;
 #
 # Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC
