@@ -53,6 +53,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "trx0purge.h"
 #include "ut0new.h"
 #include "btr0sea.h"
+#include "log0log.h"
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
@@ -6962,6 +6963,12 @@ fil_names_clear(
 	bool	do_write)
 {
 	mtr_t	mtr;
+	ulint	mtr_checkpoint_size = LOG_CHECKPOINT_FREE_PER_THREAD;
+
+	DBUG_EXECUTE_IF(
+		"increase_mtr_checkpoint_size",
+		mtr_checkpoint_size = 75 * 1024;
+		);
 
 	ut_ad(log_mutex_own());
 
@@ -6995,11 +7002,24 @@ fil_names_clear(
 		fil_names_write(space, &mtr);
 		do_write = true;
 
+		const mtr_buf_t* mtr_log = mtr_get_log(&mtr);
+
+		/** If the mtr buffer size exceeds the size of
+		LOG_CHECKPOINT_FREE_PER_THREAD then commit the multi record
+		mini-transaction, start the new mini-transaction to
+		avoid the parsing buffer overflow error during recovery. */
+
+		if (mtr_log->size() > mtr_checkpoint_size) {
+			ut_ad(mtr_log->size() < (RECV_PARSING_BUF_SIZE / 2));
+			mtr.commit_checkpoint(lsn, false);
+			mtr.start();
+		}
+
 		space = next;
 	}
 
 	if (do_write) {
-		mtr.commit_checkpoint(lsn);
+		mtr.commit_checkpoint(lsn, true);
 	} else {
 		ut_ad(!mtr.has_modifications());
 	}
