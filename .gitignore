@@ -221,6 +221,7 @@ support-files/mysql.spec
 support-files/mysqld_multi.server
 support-files/wsrep.cnf
 support-files/wsrep_notify
+support-files/SELinux/centos6-mariadb.pp
 tags
 tests/async_queries
 tests/bug25714

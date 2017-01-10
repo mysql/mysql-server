@@ -1,0 +1,9 @@
+module mariadb 1.0;
+
+require {
+        type mysqld_safe_t;
+        class capability { setuid setgid };
+}
+
+#============= mysqld_safe_t ==============
+allow mysqld_safe_t self:capability { setuid setgid };
