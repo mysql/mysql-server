@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1284,7 +1284,9 @@ TransporterFacade::connected()
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
     if (clnt != 0)
     {
+      NdbMutex_Lock(clnt->m_mutex);
       clnt->trp_deliver_signal(&signal, 0);
+      NdbMutex_Unlock(clnt->m_mutex);
     }
   }
   DBUG_VOID_RETURN;
