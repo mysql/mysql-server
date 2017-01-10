@@ -158,7 +158,7 @@ SELECT c FROM t3 WHERE c = 'bb';
 
 --echo # Make sure the corrupted indexes are still corrupted
 use corrupted;
-SHOW TABLES LIKE 't%';
+SHOW TABLES;
 
 --error ER_CHECK_NO_SUCH_TABLE
 CREATE INDEX b ON t1(b);

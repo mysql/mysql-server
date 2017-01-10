@@ -1264,6 +1264,9 @@ i	j
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only --read-only
 USE testdb_wl6445;
+show tables;
+Tables_in_testdb_wl6445
+t1
 select * from t1 where i = 4;
 i	j
 4	mysql database

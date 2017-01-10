@@ -131,8 +131,8 @@ ERROR HY000: Index idx_c is corrupted
 # restart
 # Make sure the corrupted indexes are still corrupted
 use corrupted;
-SHOW TABLES LIKE 't%';
-Tables_in_corrupted (t%)
+SHOW TABLES;
+Tables_in_corrupted
 t1
 t2
 CREATE INDEX b ON t1(b);

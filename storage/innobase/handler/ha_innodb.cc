@@ -13825,15 +13825,15 @@ innobase_get_dd_tablespace_id(
 	const dict_table_t*	table,
 	dd::Object_id&		dd_space_id)
 {
-	char    db_name[NAME_LEN + 1];
-	char    table_name[NAME_LEN + 1];
+	char	db_name[NAME_LEN + 1];
+	char	table_name[NAME_LEN + 1];
 
 	innobase_parse_tbl_name(parent_table->name.m_name, db_name,
 				table_name, NULL);
 
 	THD*	thd = current_thd;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	const dd::Table*	dd_table = nullptr;
 	if (client->acquire<dd::Table>(
@@ -13917,8 +13917,8 @@ innobase_fts_create_one_index_dd_table(
 {
 	ut_ad(charset != nullptr);
 
-	char    db_name[NAME_LEN + 1];
-	char    table_name[NAME_LEN + 1];
+	char	db_name[NAME_LEN + 1];
+	char	table_name[NAME_LEN + 1];
 
 	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -13926,7 +13926,7 @@ innobase_fts_create_one_index_dd_table(
 	THD*	thd = current_thd;
 	dd::Schema_MDL_locker	mdl_locker(thd);
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	const dd::Schema*	schema = nullptr;
 	if (mdl_locker.ensure_locked(db_name)
@@ -13969,7 +13969,6 @@ innobase_fts_create_one_index_dd_table(
 
 	dd_table->set_row_format(row_format);
 
-	/* Fixme: set correct fields(get from parent table?) */
 	dd::Properties *table_options= &dd_table->options();
 	table_options->set_bool("pack_record", true);
 	table_options->set_bool("checksum", false);
@@ -14003,7 +14002,6 @@ innobase_fts_create_one_index_dd_table(
 	col->set_numeric_scale(0);
 	col->set_nullable(false);
 	col->set_unsigned(true);
-	/* Fixme? set a right one */
 	col->set_collation_id(charset->number);
 
 	dd::Column*	key_col2 = col;
@@ -14046,7 +14044,6 @@ innobase_fts_create_one_index_dd_table(
 	index->set_ordinal_position(1);
 	index->set_generated(false);
 	index->set_engine(dd_table->engine());
-	//index->->set_uint32("block_size", );
 
 	index->options().set_uint32("flags", 32);
 
@@ -14098,8 +14095,8 @@ innobase_fts_create_one_common_dd_table(
 	dict_table_t*		table,
 	bool			is_config)
 {
-	char    db_name[NAME_LEN + 1];
-	char    table_name[NAME_LEN + 1];
+	char	db_name[NAME_LEN + 1];
+	char	table_name[NAME_LEN + 1];
 
 	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -14115,7 +14112,7 @@ innobase_fts_create_one_common_dd_table(
 		return(false);
 	}
 
-	/* Check if schema is nullptr? */
+	/* Check if schema is nullptr */
 	if (schema == nullptr) {
 		my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
 		return(false);
@@ -14128,7 +14125,6 @@ innobase_fts_create_one_common_dd_table(
 	dd_table->set_engine(innobase_hton_name);
 	dd_table->set_schema_id(schema->id());
 	dd_table->set_hidden(true);
-	//dd_table->set_tablespace_id();
 	dd_table->set_collation_id(my_charset_bin.number);
 
 	dd::Table::enum_row_format row_format;
@@ -14151,7 +14147,6 @@ innobase_fts_create_one_common_dd_table(
 
 	dd_table->set_row_format(row_format);
 
-	/* Fixme: set correct fields(get from parent table?) */
 	dd::Properties *table_options= &dd_table->options();
 	table_options->set_bool("pack_record", true);
 	table_options->set_bool("checksum", false);
@@ -14161,9 +14156,6 @@ innobase_fts_create_one_common_dd_table(
 	table_options->set_uint32("stats_auto_recalc",
 				  HA_STATS_AUTO_RECALC_DEFAULT);
 	table_options->set_uint32("key_block_size", 0);
-	//table_options->set("compress", );
-	//table_options->set("encrypt_type", );
-	//table_options->set_uint32("storage", ); ?
 
 	/* Fill columns */
 	if (!is_config) {
@@ -14175,7 +14167,6 @@ innobase_fts_create_one_common_dd_table(
 		col->set_numeric_scale(0);
 		col->set_nullable(false);
 		col->set_unsigned(true);
-		/* Fixme? set a right one */
 		col->set_collation_id(my_charset_bin.number);
 
 		dd::Column*	key_col1 = col;
@@ -14190,7 +14181,6 @@ innobase_fts_create_one_common_dd_table(
 		index->set_ordinal_position(1);
 		index->set_generated(false);
 		index->set_engine(dd_table->engine());
-		//index->->set_uint32("block_size", );
 
 		index->options().set_uint32("flags", 32);
 
@@ -14227,7 +14217,6 @@ innobase_fts_create_one_common_dd_table(
 		index->set_ordinal_position(1);
 		index->set_generated(false);
 		index->set_engine(dd_table->engine());
-		//index->->set_uint32("block_size", );
 
 		index->options().set_uint32("flags", 32);
 
@@ -14245,7 +14234,7 @@ innobase_fts_create_one_common_dd_table(
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
 
-	MDL_ticket *mdl_ticket= NULL;
+	MDL_ticket*	mdl_ticket= NULL;
 	if (dd::acquire_exclusive_table_mdl(
 		thd, db_name, table_name, false, &mdl_ticket)) {
 		return(false);
@@ -14286,7 +14275,7 @@ innobase_fts_drop_dd_table(
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-	MDL_ticket *mdl_ticket= NULL;
+	MDL_ticket*	mdl_ticket= NULL;
 	if (dd::acquire_exclusive_table_mdl(
 		thd, db_name, table_name, false, &mdl_ticket)) {
 		return(false);
@@ -14296,13 +14285,11 @@ innobase_fts_drop_dd_table(
 	if (client->acquire<dd::Table>(
 			db_name, table_name, &dd_table)) {
 		dd::release_mdl(thd, mdl_ticket);
-		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 		return(false);
 	}
 
 	if (dd_table == nullptr) {
 		dd::release_mdl(thd, mdl_ticket);
-		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 		return(false);
 	}
 
