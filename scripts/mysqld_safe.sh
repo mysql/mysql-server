@@ -864,8 +864,13 @@ max_fast_restarts=5
 have_sleep=1
 
 # close stdout and stderr, everything goes to $logging now
-exec 1>&-
-exec 2>&-
+if expr "${-}" : '.*x' > /dev/null
+then
+  :
+else
+  exec 1>&-
+  exec 2>&-
+fi
 
 while true
 do
