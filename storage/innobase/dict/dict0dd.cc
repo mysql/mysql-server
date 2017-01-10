@@ -2374,6 +2374,159 @@ dd_table_load_fk(
 	return(err);
 }
 
+/** Get tablespace name of dd::Table
+@param[in]	dd_table	dd table object
+@return the tablespace name. */
+template<typename Table>
+const char*
+dd_table_get_space_name(
+	const Table*		dd_table)
+{
+	dd::Tablespace*		dd_space = nullptr;
+	THD*			thd = current_thd;
+	const char*		space_name;
+
+	DBUG_ENTER("dd_tablee_get_space_name");
+	ut_ad(!srv_is_being_shutdown);
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
+		->tablespace_id();
+
+	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+		dd_space_id, &dd_space)) {
+		ut_a(false);
+	}
+
+	ut_a(dd_space != NULL);
+	space_name = dd_space->name().c_str();
+
+	DBUG_RETURN(space_name);
+}
+
+/** Opens a tablespace for dd_load_table_one()
+@param[in,out]	dd_table	dd table
+@param[in,out]	table		A table that refers to the tablespace to open
+@param[in,out]	heap		A memory heap
+@param[in]	ignore_err	Whether to ignore an error. */
+template<typename Table>
+void
+dd_load_tablespace(
+	const Table*			dd_table,
+	dict_table_t*			table,
+	mem_heap_t*				heap,
+	dict_err_ignore_t		ignore_err)
+{
+	ut_ad(!table->is_temporary());
+
+	/* The system and temporary tablespaces are preloaded and always available. */
+	if (fsp_is_system_or_temp_tablespace(table->space)) {
+		return;
+	}
+
+	if (table->flags2 & DICT_TF2_DISCARDED) {
+		ib::warn() << "Tablespace for table " << table->name
+			<< " is set as discarded.";
+		table->ibd_file_missing = TRUE;
+		return;
+	}
+
+	/* A file-per-table table name is also the tablespace name.
+	A general tablespace name is not the same as the table name.
+	Use the general tablespace name if it can be read from the
+	dictionary, if not use 'innodb_general_##. */
+	char*	shared_space_name = NULL;
+	char*	space_name;
+	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		if (table->space == dict_sys_t::space_id) {
+			shared_space_name = mem_strdup(
+				dict_sys_t::dd_space_name);
+		}
+		else if (srv_sys_tablespaces_open) {
+			shared_space_name = mem_strdup(
+				dd_table_get_space_name(dd_table));
+		}
+		else {
+			/* Make the temporary tablespace name. */
+			shared_space_name = static_cast<char*>(
+				ut_malloc_nokey(
+					strlen(general_space_name) + 20));
+
+			sprintf(shared_space_name, "%s_" ULINTPF,
+				general_space_name,
+				static_cast<ulint>(table->space));
+		}
+		space_name = shared_space_name;
+	}
+	else {
+		space_name = table->name.m_name;
+	}
+
+	/* The tablespace may already be open. */
+	if (fil_space_for_table_exists_in_mem(
+		table->space, space_name, false,
+		true, heap, table->id)) {
+		ut_free(shared_space_name);
+		return;
+	}
+
+	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
+		ib::error() << "Failed to find tablespace for table "
+			<< table->name << " in the cache. Attempting"
+			" to load the tablespace with space id "
+			<< table->space;
+	}
+
+	/* Use the remote filepath if needed. This parameter is optional
+	in the call to fil_ibd_open(). If not supplied, it will be built
+	from the space_name. */
+	char* filepath = NULL;
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		/* This will set table->data_dir_path from either
+		fil_system or SYS_DATAFILES */
+		dict_get_and_save_data_dir_path(table, true);
+
+		if (table->data_dir_path) {
+			filepath = fil_make_filepath(
+				table->data_dir_path,
+				table->name.m_name, IBD, true);
+		}
+
+	}
+	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		/* Set table->tablespace from either
+		fil_system or SYS_TABLESPACES */
+		dict_get_and_save_space_name(table, true);
+
+		filepath = dict_get_first_path(table->space);
+		if (filepath == NULL) {
+			ib::warn() << "Could not find the filepath"
+				" for table " << table->name <<
+				", space ID " << table->space;
+		}
+	}
+
+	/* Try to open the tablespace.  We set the 2nd param (fix_dict) to
+	false because we do not have an x-lock on dict_operation_lock */
+	bool is_encrypted = dict_table_is_encrypted(table);
+	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags,
+		is_encrypted);
+
+	dberr_t err = fil_ibd_open(
+		true, FIL_TYPE_TABLESPACE, table->space,
+		fsp_flags, space_name, filepath);
+
+	if (err != DB_SUCCESS) {
+		/* We failed to find a sensible tablespace file */
+		table->ibd_file_missing = TRUE;
+	}
+
+	ut_free(shared_space_name);
+	ut_free(filepath);
+}
+
 /** Open or load a table definition based on a Global DD object.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
@@ -2486,8 +2639,8 @@ dd_open_table_one(
 			m_table->space = sid;
 
 			mutex_enter(&dict_sys->mutex);
-			dict_load_tablespace(m_table, heap,
-					     DICT_ERR_IGNORE_RECOVER_LOCK);
+			dd_load_tablespace(dd_table, m_table, heap,
+				DICT_ERR_IGNORE_RECOVER_LOCK);
 			mutex_exit(&dict_sys->mutex);
 			first_index = false;
 		}
