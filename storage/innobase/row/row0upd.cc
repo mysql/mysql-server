@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -112,8 +112,6 @@ Please do NOT change this when server is running.
 FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
-/* WL#7595 TODO */
-#if 1
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -127,7 +125,6 @@ row_upd_changes_first_fields_binary(
 	dict_index_t*	index,	/*!< in: index of entry */
 	const upd_t*	update,	/*!< in: update vector for the row */
 	ulint		n);	/*!< in: how many first fields to check */
-#endif
 
 /*********************************************************************//**
 Checks if index currently is mentioned as a referenced index in a foreign
@@ -146,16 +143,10 @@ row_upd_index_is_referenced(
 	trx_t*		trx)	/*!< in: transaction */
 {
 	dict_table_t*	table		= index->table;
-	ibool		froze_data_dict	= FALSE;
 	ibool		is_referenced	= FALSE;
 
 	if (table->referenced_set.empty()) {
 		return(FALSE);
-	}
-
-	if (trx->dict_operation_lock_mode == 0) {
-		//row_mysql_freeze_data_dictionary(trx);
-		froze_data_dict = TRUE;
 	}
 
 	dict_foreign_set::iterator	it
@@ -164,10 +155,6 @@ row_upd_index_is_referenced(
 			       dict_foreign_with_index(index));
 
 	is_referenced = (it != table->referenced_set.end());
-
-	if (froze_data_dict) {
-		//row_mysql_unfreeze_data_dictionary(trx);
-	}
 
 	return(is_referenced);
 }
@@ -193,7 +180,6 @@ row_upd_check_references_constraints(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-#if 1
 	dict_foreign_t*	foreign;
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -201,7 +187,6 @@ row_upd_check_references_constraints(
 	const rec_t*	rec;
 	ulint		n_ext;
 	dberr_t		err;
-	ibool		got_s_lock	= FALSE;
 
 	DBUG_ENTER("row_upd_check_references_constraints");
 
@@ -228,12 +213,6 @@ row_upd_check_references_constraints(
 	DEBUG_SYNC_C("foreign_constraint_check_for_update");
 
 	mtr_start(mtr);
-
-	if (trx->dict_operation_lock_mode == 0) {
-		got_s_lock = TRUE;
-
-		//row_mysql_freeze_data_dictionary(trx);
-	}
 
 	for (dict_foreign_set::iterator it = table->referenced_set.begin();
 	     it != table->referenced_set.end();
@@ -285,10 +264,6 @@ row_upd_check_references_constraints(
 	err = DB_SUCCESS;
 
 func_exit:
-	if (got_s_lock) {
-		//row_mysql_unfreeze_data_dictionary(trx);
-	}
-
 	mem_heap_free(heap);
 
 	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
@@ -298,10 +273,6 @@ func_exit:
 		DBUG_SET("-d,row_upd_cascade_lock_wait_err"););
 
 	DBUG_RETURN(err);
-#else
-	/* TODO: Disable foreign key stuff, WL#7595 will take case of it */
-	return(DB_SUCCESS);
-#endif
 }
 
 /*********************************************************************//**
@@ -1866,8 +1837,6 @@ row_upd_changes_fts_column(
 
 }
 
-/* Disable foreign key stuff, WL#7595 will take care of it */
-#if 1
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -1921,7 +1890,6 @@ row_upd_changes_first_fields_binary(
 
 	return(FALSE);
 }
-#endif
 
 /*********************************************************************//**
 Copies the column values from a record. */

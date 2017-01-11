@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1126,15 +1126,16 @@ func_exit:
 	return(err);
 }
 
-/**********************************************************************//**
-This function verifies the table configuration information, and fills
+/** This function verifies the table configuration information, and fills
 in columns used for memcached functionalities (cas, exp etc.)
+@param[in]	info	meta info structure
+@param[in,out]	thd	MySQL THD
 @return true if everything works out fine */
 bool
 innodb_verify(
 /*==========*/
-	meta_cfg_info_t*	info,	/*!< in: meta info structure */
-	void*			thd)	/*!< in/out: MySQL THD */
+	meta_cfg_info_t*	info,
+	void*			thd)
 {
 	ib_crsr_t	crsr = NULL;
 	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
@@ -1181,7 +1182,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
-        ib_cb_trx_release(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(err == DB_SUCCESS);
 }

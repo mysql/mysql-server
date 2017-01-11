@@ -191,13 +191,6 @@ dd_table_open_on_dd_obj(
 
 	mutex_exit(&dict_sys->mutex);
 
-#if 0
-	ut_ad(table == nullptr
-	      || (dd_part == nullptr
-		  ? dd_table_check(dd_table, *table, true)
-		  : dd_table_check(*dd_part, *table, true)));
-#endif
-
 	if (table || error) {
 		return(error);
 	}
@@ -455,7 +448,6 @@ dd_check_corrupted(dict_table_t*& table)
 	dict_index_t* index = table->first_index();
 	if (!dict_table_is_sdi(table->id)
 	    && fil_space_get(index->space) == nullptr) {
-		// TODO: use index&table name
 		my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
 		table = nullptr;
 		return(HA_ERR_TABLESPACE_MISSING);
@@ -1140,13 +1132,11 @@ format_validate(
 					 innobase_hton_name,
 					 "COMPRESSION", "TEMPORARY");
 				invalid = true;
-#if 1//WL#7141 TODO: check this in dd_space_invalid()
 			} else if (!m_implicit) {
 				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 					 innobase_hton_name,
 					 "COMPRESSION", "TABLESPACE");
 				invalid = true;
-#endif
 			}
 		}
 	}
@@ -1195,8 +1185,6 @@ format_validate(
 void
 dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc)
 {
-	//ut_ad(dd_table_data_is_valid(se_private_data));
-
 	/* The value of "autoinc" here is the AUTO_INCREMENT attribute
 	specified at table creation. AUTO_INCREMENT=0 will silently
 	be treated as AUTO_INCREMENT=1. Likewise, if no AUTO_INCREMENT
