@@ -2875,7 +2875,8 @@ dict_index_remove_from_cache_low(
 	rw_lock_free(&index->lock);
 
 	/* The index is being dropped, remove any compression stats for it. */
-	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
+	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)
+	    && !index->table->discard_after_ddl) {
 		index_id_t	id(index->space, index->id);
 		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index.erase(id);
