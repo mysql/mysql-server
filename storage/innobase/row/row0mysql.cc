@@ -3876,17 +3876,6 @@ row_discard_tablespace(
 
 	table_id_t	new_id;
 
-#if 0
-	/* Set the TABLESPACE DISCARD flag in the table definition
-	on disk. */
-	err = row_import_update_discarded_flag(
-		trx, table->id, true, true);
-
-	if (err != DB_SUCCESS) {
-		return(err);
-	}
-#endif
-
 	/* Update the index root pages in the system tables, on disk */
 	err = row_import_update_index_root(trx, table, true, true);
 

@@ -4148,14 +4148,6 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, err));
 	}
 
-#if 0
-	/* Update the table's discarded flag, unset it. */
-	err = row_import_update_discarded_flag(trx, table->id, false, true);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
-#endif
 	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 

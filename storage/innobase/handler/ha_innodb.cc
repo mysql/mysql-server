@@ -15887,31 +15887,6 @@ ha_innobase::rename_table_impl(
 		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
 			ut_a(false);
 		}
-#if 0
-		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-		const dd::Tablespace*	space = NULL;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-				dd_space_id, &space)) {
-			ut_a(false);
-		}
-
-		ut_a(space != NULL);
-
-		dd::Tablespace*	dd_space = const_cast<dd::Tablespace*>(space);
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, dd_space->name().c_str(), false)) {
-			ut_a(false);
-		}
-
-		ut_ad(dd_space->files().size() == 1);
-		dd::Tablespace_file*	dd_file = const_cast<
-			dd::Tablespace_file*>(*(dd_space->files().begin()));
-		dd_file->set_filename(new_path);
-		bool fail = client->update(&space, dd_space);
-		ut_a(!fail);
-#endif
 
 		ut_free(new_path);
 	}
