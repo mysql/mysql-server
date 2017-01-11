@@ -4425,8 +4425,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
 --    GET_DD_TABLE_PRIVATE_DATA(tbl.se_private_data, 'autoinc') AS PRIVATE_DATA
   FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
     JOIN mysql.columns col ON tbl.id=col.table_id
-    LEFT JOIN mysql.indexes idx ON tbl.id=idx.table_id and idx.name="PRIMARY"
-    LEFT JOIN mysql.tablespaces ts ON tbl.tablespace_id=ts.id
+    JOIN mysql.indexes idx ON tbl.id=idx.table_id and idx.name="PRIMARY"
+    JOIN mysql.tablespaces ts ON idx.tablespace_id=ts.id
   WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND NOT tbl.hidden
     AND NOT tbl.type = 'VIEW' AND tbl.se_private_id IS NOT NULL
     AND tbl.engine="INNODB"
@@ -4460,13 +4460,12 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
   (SELECT
     IF (ts.id < 4, NULL, ts.id-3) AS `SPACE`,
    ts.name AS `NAME`,
-   0 AS `FLAG`,
+   GET_DD_TABLESPACE_PRIVATE_DATA(ts.se_private_data, 'flags') AS `FLAG`,
    "Dynamic" AS `ROW_FORMAT`,
    0 AS `PAGE_SIZE`,
    0 AS `ZIP_PAGE_SIZE`,
    IF (LOCATE("innodb_file_per_table", ts.name)!=0, "SINGLE",
        IF (LOCATE("innodb_system", ts.name)!=0, "SYSTEM", "GENERAL")) AS `SPACE_TYPE`
---    GET_DD_TABLE_PRIVATE_DATA(tbl.se_private_data, 'autoinc') AS PRIVATE_DATA
   FROM mysql.tablespaces ts
   WHERE ts.engine="InnoDB" AND ts.id > 3);
 

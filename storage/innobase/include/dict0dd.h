@@ -398,6 +398,61 @@ dd_open_table(
 	bool				skip_mdl,
 	THD*				thd);
 
+/** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
+enum dd_system_id_t {
+	DD_TABLESPACES = 14,
+	DD_DATAFILES = 15,
+	DD_TABLES = 19,
+	DD_COLUMNS = 22,
+	DD_INDEXES = 23,
+	DD_FOREIGN = 26,
+	DD_FOREIGN_COLS = 27,
+
+	/* This must be last item. Defines the number of system tables. */
+	DD_LAST_ID
+};
+
+/** Scan a new dd system table, like mysql.tables...
+@param[in]		thd			thd
+@param[in,out]	mdl			mdl lock
+@param[in,out]	pcur		persistent cursor
+@param[in]		mtr			the mini-transaction
+@param[in]		system_id	which dd system table to open
+@param[in,out]	table		dict_table_t obj of dd system table
+@retval the first rec of the dd system table */
+const rec_t*
+dd_startscan_system(
+	THD*			thd,
+	MDL_ticket**	mdl,
+	btr_pcur_t*		pcur,
+	mtr_t*			mtr,
+	dd_system_id_t system_id,
+	dict_table_t**	table);
+
+/** Process one mysql.tables record and get the dict_table_t
+@param[in]		heap		temp memory heap
+@param[in,out]	rec			mysql.tables record
+@param[in,out]	table		dict_table_t to fill
+@param[in]		dd_tables	dict_table_t obj of dd system table
+@param[in]		mtr			the mini-transaction
+@retval error message, or NULL on success */
+const char*
+dd_process_dd_tables_rec_and_mtr_commit(
+	mem_heap_t*		heap,
+	const rec_t*	rec,
+	dict_table_t**	table,
+	dict_table_t*	dd_tables,
+	mtr_t*			mtr);
+
+/** Get next record of new DD system tables
+@param[in,out]	pcur		persistent cursor
+@param[in]		mtr			the mini-transaction
+@retval next record */
+const rec_t*
+dd_getnext_system_rec(
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr);
+
 /** Open foreign tables reference a table.
 @param[in,out]	client		data dictionary client
 @param[in]	fk_list		foreign key name list

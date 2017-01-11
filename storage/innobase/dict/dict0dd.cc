@@ -2863,3 +2863,172 @@ template dict_table_t* dd_open_table<dd::Table>(
 template dict_table_t* dd_open_table<dd::Partition>(
 	dd::cache::Dictionary_client*, const TABLE*, const char*,
 	bool*, dict_table_t*&, const dd::Partition*, bool, THD*);
+
+/** Get next record from a new dd system table, like mysql.tables...
+@param[in,out]	pcur		persistent cursor
+@param[in]		mtr			the mini-transaction
+@retval the next rec of the dd system table */
+static
+const rec_t*
+dd_getnext_system_low(
+	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor to the
+							record*/
+	mtr_t*		mtr)		/*!< in: the mini-transaction */
+{
+	rec_t*	rec = NULL;
+
+	while (!rec || rec_get_deleted_flag(rec, 0)) {
+		btr_pcur_move_to_next_user_rec(pcur, mtr);
+
+		rec = btr_pcur_get_rec(pcur);
+
+		if (!btr_pcur_is_on_user_rec(pcur)) {
+			/* end of index */
+			btr_pcur_close(pcur);
+
+			return(NULL);
+		}
+	}
+
+	/* Get a record, let's save the position */
+	btr_pcur_store_position(pcur, mtr);
+
+	return(rec);
+}
+
+/** Scan a new dd system table, like mysql.tables...
+@param[in]		thd			thd
+@param[in,out]	mdl			mdl lock
+@param[in,out]	pcur		persistent cursor
+@param[in]		mtr			the mini-transaction
+@param[in]		system_id	which dd system table to open
+@param[in,out]	table		dict_table_t obj of dd system table
+@retval the first rec of the dd system table */
+const rec_t*
+dd_startscan_system(
+	THD*			thd,
+	MDL_ticket**	mdl,
+	btr_pcur_t*		pcur,
+	mtr_t*			mtr,
+	dd_system_id_t	system_id,
+	dict_table_t**	table)
+{
+	dict_table_t*	system_table;
+	dict_index_t*	clust_index;
+	const rec_t*	rec;
+
+	ut_a(system_id < DD_LAST_ID);
+
+	system_table = dd_table_open_on_id(system_id, thd, mdl, true);
+
+	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
+
+	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
+		true, 0, mtr);
+
+	rec = dd_getnext_system_low(pcur, mtr);
+
+	*table = system_table;
+
+	return(rec);
+}
+
+/** Process one mysql.tables record and get the dict_table_t
+@param[in]		heap		temp memory heap
+@param[in,out]	rec			mysql.tables record
+@param[in,out]	table		dict_table_t to fill
+@param[in]		dd_tables	dict_table_t obj of dd system table
+@param[in]		mtr			the mini-transaction
+@retval error message, or NULL on success */
+const char*
+dd_process_dd_tables_rec_and_mtr_commit(
+	mem_heap_t*		heap,
+	const rec_t*	rec,
+	dict_table_t**	table,
+	dict_table_t*	dd_tables,
+	mtr_t*			mtr)
+{
+	ulint		len;
+	const byte*	field;
+	const char*	err_msg = NULL;
+	ulint		table_id;
+
+	ut_a(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	field = rec_get_nth_field(rec, offsets, 6, &len);
+
+	/* If "engine" field is not "innodb", return. */
+	if (strcmp((const char*)field, "InnoDB") != 0) {
+		*table = NULL;
+		mtr_commit(mtr);
+		return(NULL);
+	}
+
+	/* Get the se_private_id field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+	ut_ad(len == 8);
+
+	/* Get the table id*/
+	table_id = mach_read_from_8(field);
+
+	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
+	whether there is cached dict_table_t struct */
+	/* Commit before load the table again */
+	mtr_commit(mtr);
+	THD*		thd = current_thd;
+	MDL_ticket*	mdl = nullptr;
+
+	*table = dd_table_open_on_id(table_id, thd, &mdl, true);
+
+	if (!(*table)) {
+		err_msg = "Table not found in cache";
+	}
+	else if (mdl) {
+		dd_table_close(*table, thd, &mdl, true);
+	}
+
+	if (err_msg) {
+		return(err_msg);
+	}
+
+	return(NULL);
+}
+
+/** Get next record of new DD system tables
+@param[in,out]	pcur		persistent cursor
+@param[in]		mtr			the mini-transaction
+@retval next record */
+const rec_t*
+dd_getnext_system_rec(
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr)
+{
+	const rec_t*	rec = NULL;
+
+	/* Restore the position */
+	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+
+	/* Get the next record */
+	while (!rec || rec_get_deleted_flag(rec,
+		dict_table_is_comp(pcur->index()->table))) {
+		btr_pcur_move_to_next_user_rec(pcur, mtr);
+
+		rec = btr_pcur_get_rec(pcur);
+
+		if (!btr_pcur_is_on_user_rec(pcur)) {
+			/* end of index */
+			btr_pcur_close(pcur);
+
+			return(NULL);
+		}
+	}
+
+	/* Get a record, let's save the position */
+	btr_pcur_store_position(pcur, mtr);
+
+	return(rec);
+}

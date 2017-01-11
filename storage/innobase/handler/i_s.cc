@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -6199,7 +6199,6 @@ static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /** Populate information_schema.innodb_sys_tablestats table with information
 from SYS_TABLES.
 @param[in]	thd		thread ID
@@ -6266,7 +6265,6 @@ i_s_dict_fill_sys_tablestats(
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
 Function to go through each record in SYS_TABLES table, and fill the
@@ -6281,11 +6279,12 @@ i_s_sys_tables_fill_table_stats(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
+	MDL_ticket*		mdl = nullptr;
+	dict_table_t*	dd_tables;
 
 	DBUG_ENTER("i_s_sys_tables_fill_table_stats");
 
@@ -6295,10 +6294,11 @@ i_s_sys_tables_fill_table_stats(
 	}
 
 	heap = mem_heap_create(1000);
+
+	/* Prevent DDL to drop tables. */
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
-
-	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
 
 	while (rec) {
 		const char*	err_msg;
@@ -6307,9 +6307,8 @@ i_s_sys_tables_fill_table_stats(
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
-		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
-			heap, rec, &table_rec,
-			DICT_TABLE_LOAD_FROM_CACHE, &mtr);
+		err_msg = dd_process_dd_tables_rec_and_mtr_commit(
+			heap, rec, &table_rec, dd_tables, &mtr);
 
 		if (table_rec != NULL) {
 			ut_ad(err_msg == NULL);
@@ -6331,10 +6330,6 @@ i_s_sys_tables_fill_table_stats(
 		if (table_rec != NULL) {
 			i_s_dict_fill_sys_tablestats(thd, table_rec, ref_count,
 						     tables->table);
-		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
 		}
 
 		mem_heap_empty(heap);
@@ -6347,17 +6342,15 @@ i_s_sys_tables_fill_table_stats(
 		}
 
 		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_tables, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /*******************************************************************//**
