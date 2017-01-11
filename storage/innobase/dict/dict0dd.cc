@@ -172,21 +172,8 @@ dd_table_open_on_dd_obj(
                     dict_table_t*, table, ut_ad(table->cached),
                     table->id == table_id);
 
-	/* TODO: Remove this once DISCARD can update se_private_id.
-	Currently, the se_private_id is incorrect, so searching by id
-	will report find nothing. One more extra check by name */
-	if (table == NULL && tbl_name != NULL) {
-		const ulint	table_fold = ut_fold_string(tbl_name);
-		HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
-			    dict_table_t*, table, ut_ad(table->cached),
-			    !strcmp(table->name.m_name, tbl_name));
-	}
-
-	if (table == nullptr) {
-	} else {
-		if (table != nullptr) {
-			table->acquire();
-		}
+	if (table != nullptr) {
+		table->acquire();
 	}
 
 	mutex_exit(&dict_sys->mutex);
@@ -1761,19 +1748,10 @@ dd_fill_dict_table(
 		return(NULL);
 	}
 
-	/* TODO: these should be tablespace attributes and be used!*/
+	/* Set encryption option. */
 	dd::String_type	encrypt;
-	dd::String_type	compress;
-	dd_part->table().options().get("compress", compress);
 	dd_part->table().options().get("encrypt_type", encrypt);
 
-	/* Check compression option. */
-	if (!Compression::is_none(compress.c_str())) {
-		/* TODO: check fil_node_t::punch_hole too, and maybe
-		issue a warning when compression is not feasible?*/
-	}
-
-	/* Set encryption option. */
 	if (!Encryption::is_none(encrypt.c_str())) {
 		ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
 		is_encrypted = true;
