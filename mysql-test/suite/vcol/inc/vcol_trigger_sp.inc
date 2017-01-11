@@ -110,7 +110,7 @@ drop table t1,t2;
 drop procedure p1;
 
 --echo #
---echo # Bug mdev-3845: values of virtual columns are not computed for triggers
+--echo # MDEV-3845 values of virtual columns are not computed for triggers
 --echo #
 
 CREATE TABLE t1 (
@@ -149,3 +149,10 @@ DROP TRIGGER t1_ins_aft;
 DROP TRIGGER t1_del_bef;
 DROP TABLE t1,t2;
 
+#
+# MDEV-11706 Assertion `is_stat_field || !table || (!table->write_set || bitmap_is_set(table->write_set, field_index) || (table->vcol_set && bitmap_is_set(table->vcol_set, field_index)))' failed in Field_time::store_TIME_with_warning
+#
+create table t1 (i int, t time not null, vt time(4) as (t) virtual);
+create trigger trg before update on t1 for each row set @a = 1;
+insert ignore into t1 (i) values (1);
+drop table t1;

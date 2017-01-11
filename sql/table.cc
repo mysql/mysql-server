@@ -6557,11 +6557,9 @@ bool is_simple_order(ORDER *order)
   @details
     The function computes the values of the virtual columns of the table and
     stores them in the table record buffer.
-    If vcol_update_mode is set to VCOL_UPDATE_ALL then all virtual column are
-    computed. Otherwise, only fields from vcol_set are computed: all of them,
-    if vcol_update_mode is set to VCOL_UPDATE_FOR_WRITE, and, only those with
-    the stored_in_db flag set to false, if vcol_update_mode is equal to
-    VCOL_UPDATE_FOR_READ.
+    Only fields from vcol_set are computed: all of them, if vcol_update_mode is
+    set to VCOL_UPDATE_FOR_WRITE, and, only those with the stored_in_db flag
+    set to false, if vcol_update_mode is equal to VCOL_UPDATE_FOR_READ.
 
   @retval
     0    Success
@@ -6583,9 +6581,8 @@ int update_virtual_fields(THD *thd, TABLE *table,
   {
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->vcol_info && vfield->vcol_info->expr_item);
-    if ((bitmap_is_set(table->vcol_set, vfield->field_index) &&
-         (vcol_update_mode == VCOL_UPDATE_FOR_WRITE || !vfield->stored_in_db)) ||
-        vcol_update_mode == VCOL_UPDATE_ALL)
+    if (bitmap_is_set(table->vcol_set, vfield->field_index) &&
+        (vcol_update_mode == VCOL_UPDATE_FOR_WRITE || !vfield->stored_in_db))
     {
       /* Compute the actual value of the virtual fields */
       error= vfield->vcol_info->expr_item->save_in_field(vfield, 0);
