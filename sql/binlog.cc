@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 
 #include "my_config.h"
+#include "my_systime.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif

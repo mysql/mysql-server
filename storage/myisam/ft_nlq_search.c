@@ -16,6 +16,8 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #define FT_CORE
+#include <fcntl.h>
+
 #include "ftdefs.h"
 #include "my_dbug.h"
 

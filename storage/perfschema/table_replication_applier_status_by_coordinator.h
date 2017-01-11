@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 #ifndef TABLE_REPLICATION_APPLIER_STATUS_BY_COORDINATOR_H
 #define TABLE_REPLICATION_APPLIER_STATUS_BY_COORDINATOR_H
@@ -48,9 +47,10 @@ class Master_info;
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enum values for Service_State of coordinator thread */
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1, /* Service_State= on */
-  PS_RPL_NO /* Service_State= off */
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1, /* Service_State= on */
+  PS_RPL_NO       /* Service_State= off */
 };
 #endif
 
@@ -58,7 +58,8 @@ enum enum_rpl_yes_no {
   A row in coordinator's table. The fields with string values have an
   additional length field denoted by <field_name>_length.
 */
-struct st_row_coordinator {
+struct st_row_coordinator
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   ulonglong thread_id;
@@ -77,10 +78,12 @@ class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index
 public:
   PFS_index_rpl_applier_status_by_coord(PFS_engine_key *key)
     : PFS_engine_index(key)
-  {}
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_coord()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi) = 0;
@@ -92,12 +95,13 @@ class PFS_index_rpl_applier_status_by_coord_by_channel
 {
 public:
   PFS_index_rpl_applier_status_by_coord_by_channel()
-    : PFS_index_rpl_applier_status_by_coord(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_coord_by_channel()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -111,12 +115,13 @@ class PFS_index_rpl_applier_status_by_coord_by_thread
 {
 public:
   PFS_index_rpl_applier_status_by_coord_by_thread()
-    : PFS_index_rpl_applier_status_by_coord(&m_key),
-    m_key("THREAD_ID")
-  {}
+    : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_coord_by_thread()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -126,7 +131,7 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_coordinator */
-class table_replication_applier_status_by_coordinator: public PFS_engine_table
+class table_replication_applier_status_by_coordinator : public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
@@ -167,7 +172,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

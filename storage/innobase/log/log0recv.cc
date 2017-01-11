@@ -836,6 +836,8 @@ recv_writer_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
+	my_thread_init();
+
 	/* The code flow is as follows:
 	Step 1: In recv_recovery_from_checkpoint_start().
 	Step 2: This recv_writer thread is started.
@@ -853,8 +855,10 @@ recv_writer_thread()
 		recv_writer_thread_active = true;
 	} else {
 		mutex_exit(&recv_sys->writer_mutex);
+		my_thread_end();
 		return;
 	}
+
 	mutex_exit(&recv_sys->writer_mutex);
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -878,6 +882,8 @@ recv_writer_thread()
 	}
 
 	recv_writer_thread_active = false;
+
+	my_thread_end();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3164,6 +3170,8 @@ loop:
 
 		ulint	total_len	= 0;
 		ulint	n_recs		= 0;
+		bool	only_mlog_file	= true;
+		ulint	mlog_rec_len	= 0;
 
 		for (;;) {
 			len = recv_parse_log_rec(
@@ -3192,6 +3200,22 @@ loop:
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
+			/* MLOG_FILE_NAME redo log records doesn't make changes
+			to persistent data. If only MLOG_FILE_NAME redo
+			log record exists then reset the parsing buffer pointer
+			by changing recovered_lsn and recovered_offset. */
+			if (type != MLOG_FILE_NAME && only_mlog_file == true) {
+				only_mlog_file = false;
+			}
+
+			if (only_mlog_file) {
+				new_recovered_lsn = recv_calc_lsn_on_data_add(
+					recv_sys->recovered_lsn, len);
+				mlog_rec_len += len;
+				recv_sys->recovered_offset += len;
+				recv_sys->recovered_lsn = new_recovered_lsn;
+			}
+
 			total_len += len;
 			n_recs++;
 
@@ -3205,6 +3229,7 @@ loop:
 					    " n=" ULINTPF,
 					    recv_sys->recovered_lsn,
 					    total_len, n_recs));
+				total_len -= mlog_rec_len;
 				break;
 			}
 
@@ -3429,6 +3454,7 @@ recv_scan_log_recs(
 	ulint		data_len;
 	bool		more_data	= false;
 	bool		apply		= recv_sys->mlog_checkpoint_lsn != 0;
+	ulint		recv_parsing_buf_size = RECV_PARSING_BUF_SIZE;
 
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -3537,7 +3563,7 @@ recv_scan_log_recs(
 			non-zero */
 
 			if (recv_sys->len + 4 * OS_FILE_LOG_BLOCK_SIZE
-			    >= RECV_PARSING_BUF_SIZE) {
+			    >= recv_parsing_buf_size) {
 				ib::error() << "Log parsing buffer overflow."
 					" Recovery may have failed!";
 
@@ -3601,7 +3627,7 @@ recv_scan_log_recs(
 			*store_to_hash = STORE_NO;
 		}
 
-		if (recv_sys->recovered_offset > RECV_PARSING_BUF_SIZE / 4) {
+		if (recv_sys->recovered_offset > recv_parsing_buf_size / 4) {
 			/* Move parsing buffer data to the buffer start */
 
 			recv_sys_justify_left_parsing_buf();

@@ -20,6 +20,8 @@
   isamdatabase.
 */
 
+#include <fcntl.h>
+
 #include "ftdefs.h"
 #include "my_dbug.h"
 #include "myisam_sys.h"

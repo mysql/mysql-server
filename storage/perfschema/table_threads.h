@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ struct row_threads
   /** Column PROCESSLIST_ID. */
   ulonglong m_processlist_id;
   /** Column NAME. */
-  const char* m_name;
+  const char *m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
   /** Column PROCESSLIST_USER. */
@@ -61,11 +61,11 @@ struct row_threads
   /** Column PROCESSLIST_TIME. */
   time_t m_start_time;
   /** Column PROCESSLIST_STATE. */
-  const char* m_processlist_state_ptr;
+  const char *m_processlist_state_ptr;
   /** Length in bytes of @c m_processlist_state_ptr. */
   uint m_processlist_state_length;
   /** Column PROCESSLIST_INFO. */
-  const char* m_processlist_info_ptr;
+  const char *m_processlist_info_ptr;
   /** Length in bytes of @c m_processlist_info_ptr. */
   uint m_processlist_info_length;
   /** Column INSTRUMENTED (read). */
@@ -86,12 +86,13 @@ class PFS_index_threads_by_thread_id : public PFS_index_threads
 {
 public:
   PFS_index_threads_by_thread_id()
-    : PFS_index_threads(&m_key),
-    m_key("THREAD_ID")
-  {}
+    : PFS_index_threads(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_threads_by_thread_id()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
 
@@ -103,12 +104,13 @@ class PFS_index_threads_by_processlist_id : public PFS_index_threads
 {
 public:
   PFS_index_threads_by_processlist_id()
-    : PFS_index_threads(&m_key),
-    m_key("PROCESSLIST_ID")
-  {}
+    : PFS_index_threads(&m_key), m_key("PROCESSLIST_ID")
+  {
+  }
 
   ~PFS_index_threads_by_processlist_id()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
 
@@ -119,13 +121,13 @@ private:
 class PFS_index_threads_by_name : public PFS_index_threads
 {
 public:
-  PFS_index_threads_by_name()
-    : PFS_index_threads(&m_key),
-    m_key("NAME")
-  {}
+  PFS_index_threads_by_name() : PFS_index_threads(&m_key), m_key("NAME")
+  {
+  }
 
   ~PFS_index_threads_by_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
 
@@ -138,11 +140,14 @@ class PFS_index_threads_by_user_host : public PFS_index_threads
 public:
   PFS_index_threads_by_user_host()
     : PFS_index_threads(&m_key_1, &m_key_2),
-    m_key_1("PROCESSLIST_USER"), m_key_2("PROCESSLIST_HOST")
-  {}
+      m_key_1("PROCESSLIST_USER"),
+      m_key_2("PROCESSLIST_HOST")
+  {
+  }
 
   ~PFS_index_threads_by_user_host()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
 
@@ -155,12 +160,13 @@ class PFS_index_threads_by_host : public PFS_index_threads
 {
 public:
   PFS_index_threads_by_host()
-    : PFS_index_threads(&m_key),
-    m_key("PROCESSLIST_HOST")
-  {}
+    : PFS_index_threads(&m_key), m_key("PROCESSLIST_HOST")
+  {
+  }
 
   ~PFS_index_threads_by_host()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
 
@@ -172,12 +178,13 @@ class PFS_index_threads_by_thread_os_id : public PFS_index_threads
 {
 public:
   PFS_index_threads_by_thread_os_id()
-    : PFS_index_threads(&m_key),
-    m_key("THREAD_OS_ID")
-  {}
+    : PFS_index_threads(&m_key), m_key("THREAD_OS_ID")
+  {
+  }
 
   ~PFS_index_threads_by_thread_os_id()
-  {}
+  {
+  }
 
   virtual bool match(PFS_thread *pfs);
 
@@ -192,7 +199,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -200,18 +207,19 @@ protected:
                               Field **fields,
                               bool read_all);
 
-
   virtual int update_row_values(TABLE *table,
                                 const unsigned char *old_buf,
                                 unsigned char *new_buf,
                                 Field **fields);
+
 protected:
   table_threads();
   virtual int index_init(uint idx, bool sorted);
 
 public:
   ~table_threads()
-  {}
+  {
+  }
 
 private:
   virtual int make_row(PFS_thread *pfs);

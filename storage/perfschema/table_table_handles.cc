@@ -32,6 +32,7 @@
 
 THR_LOCK table_table_handles::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -75,15 +76,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_table_handles::m_field_def=
-{ 8, field_types };
+table_table_handles::m_field_def = {8, field_types};
 
-PFS_engine_table_share
-table_table_handles::m_share=
-{
-  { C_STRING_WITH_LEN("table_handles") },
+PFS_engine_table_share table_table_handles::m_share = {
+  {C_STRING_WITH_LEN("table_handles")},
   &pfs_readonly_acl,
   table_table_handles::create,
   NULL, /* write_row */
@@ -96,60 +95,75 @@ table_table_handles::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_table_handles_by_object::match(PFS_table *pfs)
+bool
+PFS_index_table_handles_by_object::match(PFS_table *pfs)
 {
   if (m_fields >= 1)
   {
-    if (! m_key_1.match(OBJECT_TYPE_TABLE))
+    if (!m_key_1.match(OBJECT_TYPE_TABLE))
+    {
       return false;
+    }
   }
 
-  PFS_table_share *share= sanitize_table_share(pfs->m_share);
+  PFS_table_share *share = sanitize_table_share(pfs->m_share);
 
   if (m_fields >= 2)
   {
-    if (! m_key_2.match(share))
+    if (!m_key_2.match(share))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
-    if (! m_key_3.match(share))
+    if (!m_key_3.match(share))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-bool PFS_index_table_handles_by_instance::match(PFS_table *pfs)
+bool
+PFS_index_table_handles_by_instance::match(PFS_table *pfs)
 {
   if (m_fields >= 1)
   {
-    if (! m_key.match(pfs))
+    if (!m_key.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-bool PFS_index_table_handles_by_owner::match(PFS_table *pfs)
+bool
+PFS_index_table_handles_by_owner::match(PFS_table *pfs)
 {
   if (m_fields >= 1)
   {
-    if (! m_key_1.match_owner(pfs))
+    if (!m_key_1.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
-    if (! m_key_2.match_owner(pfs))
+    if (!m_key_2.match_owner(pfs))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_table_handles::create(void)
 {
   return new table_table_handles();
@@ -162,28 +176,31 @@ table_table_handles::get_row_count(void)
 }
 
 table_table_handles::table_table_handles()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(0), m_next_pos(0)
-{}
-
-void table_table_handles::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
 }
 
-int table_table_handles::rnd_init(bool)
+void
+table_table_handles::reset_position(void)
+{
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
+}
+
+int
+table_table_handles::rnd_init(bool)
 {
   return 0;
 }
 
-int table_table_handles::rnd_next(void)
+int
+table_table_handles::rnd_next(void)
 {
   PFS_table *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_table_iterator it= global_table_container.iterate(m_pos.m_index);
-  pfs= it.scan_next(& m_pos.m_index);
+  PFS_table_iterator it = global_table_container.iterate(m_pos.m_index);
+  pfs = it.scan_next(&m_pos.m_index);
   if (pfs != NULL)
   {
     m_next_pos.set_after(&m_pos);
@@ -200,7 +217,7 @@ table_table_handles::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  pfs= global_table_container.get(m_pos.m_index);
+  pfs = global_table_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
     return make_row(pfs);
@@ -209,41 +226,43 @@ table_table_handles::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_table_handles::index_init(uint idx, bool)
+int
+table_table_handles::index_init(uint idx, bool)
 {
-  PFS_index_table_handles *result= NULL;
+  PFS_index_table_handles *result = NULL;
 
-  switch(idx)
+  switch (idx)
   {
   case 0:
-    result= PFS_NEW(PFS_index_table_handles_by_instance);
+    result = PFS_NEW(PFS_index_table_handles_by_instance);
     break;
   case 1:
-    result= PFS_NEW(PFS_index_table_handles_by_object);
+    result = PFS_NEW(PFS_index_table_handles_by_object);
     break;
   case 2:
-    result= PFS_NEW(PFS_index_table_handles_by_owner);
+    result = PFS_NEW(PFS_index_table_handles_by_owner);
     break;
   default:
     DBUG_ASSERT(false);
     break;
   }
 
-  m_opened_index= result;
-  m_index= result;
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_table_handles::index_next(void)
+int
+table_table_handles::index_next(void)
 {
   PFS_table *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_table_iterator it= global_table_container.iterate(m_pos.m_index);
+  PFS_table_iterator it = global_table_container.iterate(m_pos.m_index);
 
   do
   {
-    pfs= it.scan_next(& m_pos.m_index);
+    pfs = it.scan_next(&m_pos.m_index);
     if (pfs != NULL)
     {
       if (m_opened_index->match(pfs))
@@ -260,7 +279,8 @@ int table_table_handles::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_table_handles::make_row(PFS_table *table)
+int
+table_table_handles::make_row(PFS_table *table)
 {
   pfs_optimistic_state lock;
   PFS_table_share *share;
@@ -268,52 +288,59 @@ int table_table_handles::make_row(PFS_table *table)
 
   table->m_lock.begin_optimistic_lock(&lock);
 
-  share= sanitize_table_share(table->m_share);
+  share = sanitize_table_share(table->m_share);
   if (share == NULL)
+  {
     return HA_ERR_RECORD_DELETED;
-  
-  if (m_row.m_object.make_row(share))
-    return HA_ERR_RECORD_DELETED;
-  
-  m_row.m_identity= table->m_identity;
+  }
 
-  thread= sanitize_thread(table->m_thread_owner);
+  if (m_row.m_object.make_row(share))
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+  m_row.m_identity = table->m_identity;
+
+  thread = sanitize_thread(table->m_thread_owner);
   if (thread != NULL)
   {
-    m_row.m_owner_thread_id= thread->m_thread_internal_id;
-    m_row.m_owner_event_id= table->m_owner_event_id;
+    m_row.m_owner_thread_id = thread->m_thread_internal_id;
+    m_row.m_owner_event_id = table->m_owner_event_id;
   }
   else
   {
-    m_row.m_owner_thread_id= 0;
-    m_row.m_owner_event_id= 0;
+    m_row.m_owner_thread_id = 0;
+    m_row.m_owner_event_id = 0;
   }
 
-  m_row.m_internal_lock= table->m_internal_lock;
-  m_row.m_external_lock= table->m_external_lock;
+  m_row.m_internal_lock = table->m_internal_lock;
+  m_row.m_external_lock = table->m_external_lock;
 
   if (!table->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }
 
-int table_table_handles::read_row_values(TABLE *table,
-                                         unsigned char *buf,
-                                         Field **fields,
-                                         bool read_all)
+int
+table_table_handles::read_row_values(TABLE *table,
+                                     unsigned char *buf,
+                                     Field **fields,
+                                     bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* OBJECT_TYPE */
       case 1: /* OBJECT_SCHEMA */
@@ -321,7 +348,7 @@ int table_table_handles::read_row_values(TABLE *table,
         m_row.m_object.set_field(f->field_index, f);
         break;
       case 3: /* OBJECT_INSTANCE_BEGIN */
-        set_field_ulonglong(f, (intptr) m_row.m_identity);
+        set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
       case 4: /* OWNER_THREAD_ID */
         set_field_ulonglong(f, m_row.m_owner_thread_id);
@@ -343,4 +370,3 @@ int table_table_handles::read_row_values(TABLE *table,
 
   return 0;
 }
-

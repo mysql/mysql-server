@@ -23,6 +23,7 @@
   the file descriptior.
 */
 
+#include <fcntl.h>
 #include <stdlib.h>
 
 #include "my_dbug.h"

@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 /**
   @file storage/perfschema/table_esms_by_digest.cc
@@ -34,6 +35,7 @@
 
 THR_LOCK table_esms_by_digest::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -182,15 +184,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_esms_by_digest::m_field_def=
-{ 29, field_types };
+table_esms_by_digest::m_field_def = {29, field_types};
 
-PFS_engine_table_share
-table_esms_by_digest::m_share=
-{
-  { C_STRING_WITH_LEN("events_statements_summary_by_digest") },
+PFS_engine_table_share table_esms_by_digest::m_share = {
+  {C_STRING_WITH_LEN("events_statements_summary_by_digest")},
   &pfs_truncatable_acl,
   table_esms_by_digest::create,
   NULL, /* write_row */
@@ -203,12 +203,15 @@ table_esms_by_digest::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_esms_by_digest::match(PFS_statements_digest_stat *pfs)
+bool
+PFS_index_esms_by_digest::match(PFS_statements_digest_stat *pfs)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
@@ -218,7 +221,7 @@ bool PFS_index_esms_by_digest::match(PFS_statements_digest_stat *pfs)
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_esms_by_digest::create(void)
 {
   return new table_esms_by_digest();
@@ -238,28 +241,30 @@ table_esms_by_digest::get_row_count(void)
 }
 
 table_esms_by_digest::table_esms_by_digest()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(0), m_next_pos(0)
-{}
-
-void table_esms_by_digest::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-  m_pos= 0;
-  m_next_pos= 0;
 }
 
-int table_esms_by_digest::rnd_next(void)
+void
+table_esms_by_digest::reset_position(void)
 {
-  PFS_statements_digest_stat* digest_stat;
+  m_pos = 0;
+  m_next_pos = 0;
+}
+
+int
+table_esms_by_digest::rnd_next(void)
+{
+  PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == NULL)
-    return HA_ERR_END_OF_FILE;
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < digest_max;
-       m_pos.next())
   {
-    digest_stat= &statements_digest_stat_array[m_pos.m_index];
+    return HA_ERR_END_OF_FILE;
+  }
+
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < digest_max; m_pos.next())
+  {
+    digest_stat = &statements_digest_stat_array[m_pos.m_index];
     if (digest_stat->m_lock.is_populated())
     {
       if (digest_stat->m_first_seen != 0)
@@ -276,13 +281,15 @@ int table_esms_by_digest::rnd_next(void)
 int
 table_esms_by_digest::rnd_pos(const void *pos)
 {
-  PFS_statements_digest_stat* digest_stat;
+  PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == NULL)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
-  digest_stat= &statements_digest_stat_array[m_pos.m_index];
+  digest_stat = &statements_digest_stat_array[m_pos.m_index];
 
   if (digest_stat->m_lock.is_populated())
   {
@@ -295,28 +302,30 @@ table_esms_by_digest::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_by_digest::index_init(uint idx, bool)
+int
+table_esms_by_digest::index_init(uint idx, bool)
 {
-  PFS_index_esms_by_digest *result= NULL;
+  PFS_index_esms_by_digest *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_esms_by_digest);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_esms_by_digest);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_esms_by_digest::index_next(void)
+int
+table_esms_by_digest::index_next(void)
 {
-  PFS_statements_digest_stat* digest_stat;
+  PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == NULL)
-    return HA_ERR_END_OF_FILE;
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < digest_max;
-       m_pos.next())
   {
-    digest_stat= &statements_digest_stat_array[m_pos.m_index];
+    return HA_ERR_END_OF_FILE;
+  }
+
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < digest_max; m_pos.next())
+  {
+    digest_stat = &statements_digest_stat_array[m_pos.m_index];
     if (digest_stat->m_first_seen != 0)
     {
       if (m_opened_index->match(digest_stat))
@@ -333,25 +342,27 @@ int table_esms_by_digest::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_esms_by_digest
-::make_row(PFS_statements_digest_stat* digest_stat)
+int
+table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
 {
-  m_row.m_first_seen= digest_stat->m_first_seen;
-  m_row.m_last_seen= digest_stat->m_last_seen;
+  m_row.m_first_seen = digest_stat->m_first_seen;
+  m_row.m_last_seen = digest_stat->m_last_seen;
   m_row.m_digest.make_row(digest_stat);
 
   /*
     Get statements stats.
   */
-  time_normalizer *normalizer= time_normalizer::get(statement_timer);
+  time_normalizer *normalizer = time_normalizer::get(statement_timer);
   m_row.m_stat.set(normalizer, &digest_stat->m_stat);
 
   return 0;
 }
 
-int table_esms_by_digest
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_esms_by_digest::read_row_values(TABLE *table,
+                                      unsigned char *buf,
+                                      Field **fields,
+                                      bool read_all)
 {
   Field *f;
 
@@ -360,13 +371,13 @@ int table_esms_by_digest
     in the table.
   */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* SCHEMA_NAME */
       case 1: /* DIGEST */

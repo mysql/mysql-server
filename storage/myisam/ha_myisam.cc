@@ -16,6 +16,7 @@
 
 
 #define MYSQL_SERVER 1
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
@@ -1975,23 +1976,6 @@ int ha_myisam::delete_all_rows()
   return mi_delete_all_rows(file);
 }
 
-
-/*
-  Intended to support partitioning.
-  Allows a particular partition to be truncated.
-*/
-
-int ha_myisam::truncate(dd::Table*)
-{
-  int error= delete_all_rows();
-  return error ? error : reset_auto_increment(0);
-}
-
-int ha_myisam::reset_auto_increment(ulonglong value)
-{
-  file->s->state.auto_increment= value;
-  return 0;
-}
 
 int ha_myisam::delete_table(const char *name, const dd::Table*)
 {

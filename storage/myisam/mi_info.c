@@ -15,6 +15,8 @@
 
 /* Return useful base information for an open table */
 
+#include <fcntl.h>
+
 #include "my_dbug.h"
 #include "myisamdef.h"
 #ifdef	_WIN32

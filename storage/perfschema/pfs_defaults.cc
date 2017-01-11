@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,18 +27,23 @@
 #include "pfs_setup_object.h"
 
 static PSI_thread_key thread_key;
-static PSI_thread_info thread_info= { &thread_key, "setup", PSI_FLAG_GLOBAL };
+static PSI_thread_info thread_info = {&thread_key, "setup", PSI_FLAG_GLOBAL};
 
-const char* pfs_category= "performance_schema";
+const char *pfs_category = "performance_schema";
 
-void install_default_setup(PSI_thread_bootstrap *thread_boot)
+void
+install_default_setup(PSI_thread_bootstrap *thread_boot)
 {
-  PSI_thread_service_t *psi= (PSI_thread_service_t*) thread_boot->get_interface(PSI_CURRENT_THREAD_VERSION);
+  PSI_thread_service_t *psi =
+    (PSI_thread_service_t *)thread_boot->get_interface(
+      PSI_CURRENT_THREAD_VERSION);
   if (psi == NULL)
+  {
     return;
+  }
 
   psi->register_thread(pfs_category, &thread_info, 1);
-  PSI_thread *psi_thread= psi->new_thread(thread_key, NULL, 0);
+  PSI_thread *psi_thread = psi->new_thread(thread_key, NULL, 0);
 
   if (psi_thread != NULL)
   {
@@ -62,7 +67,8 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot)
     insert_setup_object(OBJECT_TYPE_EVENT, &percent, &percent, true, true);
 
     /* Disable sp by default in mysql. */
-    insert_setup_object(OBJECT_TYPE_FUNCTION, &mysql_db, &percent, false, false);
+    insert_setup_object(
+      OBJECT_TYPE_FUNCTION, &mysql_db, &percent, false, false);
     /* Disable sp in performance/information schema. */
     insert_setup_object(OBJECT_TYPE_FUNCTION, &PS_db, &percent, false, false);
     insert_setup_object(OBJECT_TYPE_FUNCTION, &IS_db, &percent, false, false);
@@ -70,7 +76,8 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot)
     insert_setup_object(OBJECT_TYPE_FUNCTION, &percent, &percent, true, true);
 
     /* Disable sp by default in mysql. */
-    insert_setup_object(OBJECT_TYPE_PROCEDURE, &mysql_db, &percent, false, false);
+    insert_setup_object(
+      OBJECT_TYPE_PROCEDURE, &mysql_db, &percent, false, false);
     /* Disable sp in performance/information schema. */
     insert_setup_object(OBJECT_TYPE_PROCEDURE, &PS_db, &percent, false, false);
     insert_setup_object(OBJECT_TYPE_PROCEDURE, &IS_db, &percent, false, false);
@@ -96,4 +103,3 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot)
 
   psi->delete_current_thread();
 }
-

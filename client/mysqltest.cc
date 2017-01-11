@@ -26,6 +26,7 @@
 
 #define MTEST_VERSION "3.3"
 
+#include <fcntl.h>
 #include <hash.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>   // wild_compare

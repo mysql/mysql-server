@@ -33,23 +33,29 @@
 #include "sql_class.h"
 #include "table_status_by_thread.h"
 
-bool PFS_index_status_by_thread::match(PFS_thread *pfs)
+bool
+PFS_index_status_by_thread::match(PFS_thread *pfs)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-bool PFS_index_status_by_thread::match(const Status_variable *pfs)
+bool
+PFS_index_status_by_thread::match(const Status_variable *pfs)
 {
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
 
   return true;
@@ -57,6 +63,7 @@ bool PFS_index_status_by_thread::match(const Status_variable *pfs)
 
 THR_LOCK table_status_by_thread::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -75,15 +82,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_status_by_thread::m_field_def=
-{ 3, field_types };
+table_status_by_thread::m_field_def = {3, field_types};
 
-PFS_engine_table_share
-table_status_by_thread::m_share=
-{
-  { C_STRING_WITH_LEN("status_by_thread") },
+PFS_engine_table_share table_status_by_thread::m_share = {
+  {C_STRING_WITH_LEN("status_by_thread")},
   &pfs_truncatable_acl,
   table_status_by_thread::create,
   NULL, /* write_row */
@@ -96,13 +101,14 @@ table_status_by_thread::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table*
+PFS_engine_table *
 table_status_by_thread::create(void)
 {
   return new table_status_by_thread();
 }
 
-int table_status_by_thread::delete_all_rows(void)
+int
+table_status_by_thread::delete_all_rows(void)
 {
   /* Lock required to aggregate to global_status_vars. */
   mysql_mutex_lock(&LOCK_status);
@@ -113,39 +119,48 @@ int table_status_by_thread::delete_all_rows(void)
   return 0;
 }
 
-ha_rows table_status_by_thread::get_row_count(void)
+ha_rows
+table_status_by_thread::get_row_count(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  size_t status_var_count= all_status_vars.size();
+  size_t status_var_count = all_status_vars.size();
   mysql_mutex_unlock(&LOCK_status);
   return (global_thread_container.get_row_count() * status_var_count);
 }
 
 table_status_by_thread::table_status_by_thread()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(true), m_pos(), m_next_pos(),
+    m_status_cache(true),
+    m_pos(),
+    m_next_pos(),
     m_context(NULL)
-{}
+{
+}
 
-void table_status_by_thread::reset_position(void)
+void
+table_status_by_thread::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_status_by_thread::rnd_init(bool scan)
+int
+table_status_by_thread::rnd_init(bool scan)
 {
-  /* Build array of SHOW_VARs from the global status array prior to materializing. */
+  /* Build array of SHOW_VARs from the global status array prior to
+   * materializing. */
   m_status_cache.initialize_session();
 
   /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version= m_status_cache.get_status_array_version();
-  m_context= (table_status_by_thread_context *)current_thd->alloc(sizeof(table_status_by_thread_context));
-  new(m_context) table_status_by_thread_context(status_version, !scan);
+  ulonglong status_version = m_status_cache.get_status_array_version();
+  m_context = (table_status_by_thread_context *)current_thd->alloc(
+    sizeof(table_status_by_thread_context));
+  new (m_context) table_status_by_thread_context(status_version, !scan);
   return 0;
 }
 
-int table_status_by_thread::rnd_next(void)
+int
+table_status_by_thread::rnd_next(void)
 {
   if (m_context && !m_context->versions_match())
   {
@@ -153,16 +168,15 @@ int table_status_by_thread::rnd_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    PFS_thread *pfs_thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    PFS_thread *pfs_thread =
+      global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (m_status_cache.materialize_session(pfs_thread) == 0)
     {
-      const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
+      const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
       if (stat_var != NULL)
       {
         /* If make_row() fails go to the next thread. */
@@ -189,11 +203,11 @@ table_status_by_thread::rnd_pos(const void *pos)
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_1 < global_thread_container.get_row_count());
 
-  PFS_thread *pfs_thread= global_thread_container.get(m_pos.m_index_1);
+  PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index_1);
 
   if (m_status_cache.materialize_session(pfs_thread) == 0)
   {
-    const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
+    const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
     if (stat_var != NULL)
     {
       return make_row(pfs_thread, stat_var);
@@ -202,26 +216,29 @@ table_status_by_thread::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_thread::index_init(uint idx, bool)
+int
+table_status_by_thread::index_init(uint idx, bool)
 {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_session();
 
   /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version= m_status_cache.get_status_array_version();
-  m_context= (table_status_by_thread_context *)current_thd->alloc(sizeof(table_status_by_thread_context));
-  new(m_context) table_status_by_thread_context(status_version, false);
+  ulonglong status_version = m_status_cache.get_status_array_version();
+  m_context = (table_status_by_thread_context *)current_thd->alloc(
+    sizeof(table_status_by_thread_context));
+  new (m_context) table_status_by_thread_context(status_version, false);
 
-  PFS_index_status_by_thread *result= NULL;
+  PFS_index_status_by_thread *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_status_by_thread);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_status_by_thread);
+  m_opened_index = result;
+  m_index = result;
 
   return 0;
 }
 
-int table_status_by_thread::index_next(void)
+int
+table_status_by_thread::index_next(void)
 {
   if (m_context && !m_context->versions_match())
   {
@@ -229,13 +246,12 @@ int table_status_by_thread::index_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    PFS_thread *pfs_thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    PFS_thread *pfs_thread =
+      global_thread_container.get(m_pos.m_index_1, &has_more_thread);
 
     if (pfs_thread != NULL)
     {
@@ -246,7 +262,7 @@ int table_status_by_thread::index_next(void)
           const Status_variable *stat_var;
           do
           {
-            stat_var= m_status_cache.get(m_pos.m_index_2);
+            stat_var = m_status_cache.get(m_pos.m_index_2);
             if (stat_var != NULL)
             {
               if (m_opened_index->match(stat_var))
@@ -267,54 +283,64 @@ int table_status_by_thread::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_status_by_thread
-::make_row(PFS_thread *thread, const Status_variable *status_var)
+int
+table_status_by_thread::make_row(PFS_thread *thread,
+                                 const Status_variable *status_var)
 {
   pfs_optimistic_state lock;
   if (status_var->is_null())
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_thread_internal_id= thread->m_thread_internal_id;
+  m_row.m_thread_internal_id = thread->m_thread_internal_id;
 
   if (m_row.m_variable_name.make_row(status_var->m_name,
                                      status_var->m_name_length))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (m_row.m_variable_value.make_row(status_var))
+  {
     return HA_ERR_RECORD_DELETED;
+  }
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   return 0;
 }
 
-int table_status_by_thread
-::read_row_values(TABLE *table,
-                  unsigned char *buf,
-                  Field **fields,
-                  bool read_all)
+int
+table_status_by_thread::read_row_values(TABLE *table,
+                                        unsigned char *buf,
+                                        Field **fields,
+                                        bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* THREAD_ID */
         set_field_ulonglong(f, m_row.m_thread_internal_id);
         break;
       case 1: /* VARIABLE_NAME */
-        set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
+        set_field_varchar_utf8(
+          f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 2: /* VARIABLE_VALUE */
         m_row.m_variable_value.set_field(f);
@@ -327,4 +353,3 @@ int table_status_by_thread
 
   return 0;
 }
-

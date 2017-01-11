@@ -16,6 +16,8 @@
 
 /* Update an old row in a MyISAM table */
 
+#include <fcntl.h>
+
 #include "fulltext.h"
 #include "my_dbug.h"
 #include "rt_index.h"

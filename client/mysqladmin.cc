@@ -17,6 +17,7 @@
 
 /* maintaince of mysql databases */
 
+#include <fcntl.h>
 #include <my_thread.h>				/* because of signal()	*/
 #include <mysql.h>
 #include <mysqld_error.h>                       /* to check server error codes */

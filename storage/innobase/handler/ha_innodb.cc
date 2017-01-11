@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <dd/types/tablespace.h>
 #include <debug_sync.h>
 #include <derror.h>
+#include <fcntl.h>
 #include <gstream.h>
 #include <log.h>
 #include <my_bitmap.h>

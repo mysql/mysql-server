@@ -24,6 +24,7 @@
   contains only the actual tests, plus the list of test functions to call.
 */
 
+#include <fcntl.h>
 #include <stdlib.h>
 
 #include "my_dbug.h"

@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 /**
   @file storage/perfschema/table_esgs_by_user_by_event_name.cc
@@ -32,6 +33,7 @@
 
 THR_LOCK table_esgs_by_user_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -70,15 +72,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_esgs_by_user_by_event_name::m_field_def=
-{ 7, field_types };
+table_esgs_by_user_by_event_name::m_field_def = {7, field_types};
 
-PFS_engine_table_share
-table_esgs_by_user_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_stages_summary_by_user_by_event_name") },
+PFS_engine_table_share table_esgs_by_user_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_stages_summary_by_user_by_event_name")},
   &pfs_truncatable_acl,
   table_esgs_by_user_by_event_name::create,
   NULL, /* write_row */
@@ -91,27 +91,33 @@ table_esgs_by_user_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_esgs_by_user_by_event_name::match(PFS_user *pfs)
+bool
+PFS_index_esgs_by_user_by_event_name::match(PFS_user *pfs)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
 
-bool PFS_index_esgs_by_user_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_esgs_by_user_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 2)
   {
     if (!m_key_2.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_esgs_by_user_by_event_name::create(void)
 {
   return new table_esgs_by_user_by_event_name();
@@ -133,36 +139,37 @@ table_esgs_by_user_by_event_name::get_row_count(void)
 }
 
 table_esgs_by_user_by_event_name::table_esgs_by_user_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_esgs_by_user_by_event_name::reset_position(void)
+void
+table_esgs_by_user_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_esgs_by_user_by_event_name::rnd_init(bool)
+int
+table_esgs_by_user_by_event_name::rnd_init(bool)
 {
-  m_normalizer= time_normalizer::get(stage_timer);
+  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
-int table_esgs_by_user_by_event_name::rnd_next(void)
+int
+table_esgs_by_user_by_event_name::rnd_next(void)
 {
   PFS_user *user;
   PFS_stage_class *stage_class;
-  bool has_more_user= true;
+  bool has_more_user = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_user;
-       m_pos.next_user())
+  for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user())
   {
-    user= global_user_container.get(m_pos.m_index_1, & has_more_user);
+    user = global_user_container.get(m_pos.m_index_1, &has_more_user);
     if (user != NULL)
     {
-      stage_class= find_stage_class(m_pos.m_index_2);
+      stage_class = find_stage_class(m_pos.m_index_2);
       if (stage_class)
       {
         m_next_pos.set_after(&m_pos);
@@ -182,10 +189,10 @@ table_esgs_by_user_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  user= global_user_container.get(m_pos.m_index_1);
+  user = global_user_container.get(m_pos.m_index_1);
   if (user != NULL)
   {
-    stage_class= find_stage_class(m_pos.m_index_2);
+    stage_class = find_stage_class(m_pos.m_index_2);
     if (stage_class)
     {
       return make_row(user, stage_class);
@@ -195,36 +202,36 @@ table_esgs_by_user_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esgs_by_user_by_event_name::index_init(uint idx, bool)
+int
+table_esgs_by_user_by_event_name::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(stage_timer);
+  m_normalizer = time_normalizer::get(stage_timer);
 
-  PFS_index_esgs_by_user_by_event_name *result= NULL;
+  PFS_index_esgs_by_user_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_esgs_by_user_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_esgs_by_user_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_esgs_by_user_by_event_name::index_next(void)
+int
+table_esgs_by_user_by_event_name::index_next(void)
 {
   PFS_user *user;
   PFS_stage_class *stage_class;
-  bool has_more_user= true;
+  bool has_more_user = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_user;
-       m_pos.next_user())
+  for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user())
   {
-    user= global_user_container.get(m_pos.m_index_1, &has_more_user);
+    user = global_user_container.get(m_pos.m_index_1, &has_more_user);
     if (user != NULL)
     {
       if (m_opened_index->match(user))
       {
         do
         {
-          stage_class= find_stage_class(m_pos.m_index_2);
+          stage_class = find_stage_class(m_pos.m_index_2);
           if (stage_class)
           {
             if (m_opened_index->match(stage_class))
@@ -245,16 +252,19 @@ int table_esgs_by_user_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_esgs_by_user_by_event_name
-::make_row(PFS_user *user, PFS_stage_class *klass)
+int
+table_esgs_by_user_by_event_name::make_row(PFS_user *user,
+                                           PFS_stage_class *klass)
 {
   pfs_optimistic_state lock;
 
   user->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(user))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_stage_visitor visitor(klass);
@@ -262,31 +272,35 @@ int table_esgs_by_user_by_event_name
                                       true,  /* accounts */
                                       true,  /* threads */
                                       false, /* THDs */
-                                      & visitor);
+                                      &visitor);
 
   if (!user->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
-  
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  }
+
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
   return 0;
 }
 
-int table_esgs_by_user_by_event_name
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_esgs_by_user_by_event_name::read_row_values(TABLE *table,
+                                                  unsigned char *buf,
+                                                  Field **fields,
+                                                  bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* USER */
         m_row.m_user.set_field(f);

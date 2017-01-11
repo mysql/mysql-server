@@ -1,4 +1,3 @@
-SET @@global.keyring_file_data="MYSQL_TMP_DIR/mysecret_keyring2";
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;

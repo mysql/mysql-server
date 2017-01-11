@@ -53,7 +53,7 @@ uint16_t inline le16toh(uint16_t x)
 #ifndef WORDS_BIGENDIAN
   return x;
 #else
-  return ((x >> 8) | (x << 8));
+  return static_cast<uint16_t>((x >> 8) | (x << 8));
 #endif
 }
 #endif
@@ -116,7 +116,7 @@ uint16_t inline htole16(uint16_t x)
 #ifndef WORDS_BIGENDIAN
   return x;
 #else
-  return ((x >> 8) | (x << 8));
+  return static_cast<uint16_t>((x >> 8) | (x << 8));
 #endif
 }
 #endif

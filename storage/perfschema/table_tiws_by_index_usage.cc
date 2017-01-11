@@ -32,6 +32,7 @@
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -230,15 +231,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_tiws_by_index_usage::m_field_def=
-{ 39, field_types };
+table_tiws_by_index_usage::m_field_def = {39, field_types};
 
-PFS_engine_table_share
-table_tiws_by_index_usage::m_share=
-{
-  { C_STRING_WITH_LEN("table_io_waits_summary_by_index_usage") },
+PFS_engine_table_share table_tiws_by_index_usage::m_share = {
+  {C_STRING_WITH_LEN("table_io_waits_summary_by_index_usage")},
   &pfs_truncatable_acl,
   table_tiws_by_index_usage::create,
   NULL, /* write_row */
@@ -251,52 +250,67 @@ table_tiws_by_index_usage::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_tiws_by_index_usage::match(PFS_table_share *pfs)
+bool
+PFS_index_tiws_by_index_usage::match(PFS_table_share *pfs)
 {
   PFS_object_row object_row;
 
   if (object_row.make_row(pfs))
+  {
     return false;
+  }
 
   if (m_fields >= 1)
   {
     if (!m_key_1.match(&object_row))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(&object_row))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(&object_row))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-bool PFS_index_tiws_by_index_usage::match(PFS_table_share *share, uint index)
+bool
+PFS_index_tiws_by_index_usage::match(PFS_table_share *share, uint index)
 {
   PFS_index_row index_row;
-  PFS_table_share_index *pfs_index= share->find_index_stat(index);
+  PFS_table_share_index *pfs_index = share->find_index_stat(index);
 
-  if (index_row.make_index_name(pfs_index, index))   /* andles pfs_index == NULL */
+  if (index_row.make_index_name(pfs_index,
+                                index)) /* andles pfs_index == NULL */
+  {
     return false;
+  }
 
   if (m_fields >= 4)
   {
     if (!m_key_4.match(&index_row))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_tiws_by_index_usage::create(void)
 {
   return new table_tiws_by_index_usage();
@@ -317,46 +331,48 @@ table_tiws_by_index_usage::get_row_count(void)
 }
 
 table_tiws_by_index_usage::table_tiws_by_index_usage()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_tiws_by_index_usage::reset_position(void)
+void
+table_tiws_by_index_usage::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_tiws_by_index_usage::rnd_init(bool)
+int
+table_tiws_by_index_usage::rnd_init(bool)
 {
-  m_normalizer= time_normalizer::get(wait_timer);
+  m_normalizer = time_normalizer::get(wait_timer);
   return 0;
 }
 
-int table_tiws_by_index_usage::rnd_next(void)
+int
+table_tiws_by_index_usage::rnd_next(void)
 {
   PFS_table_share *table_share;
-  bool has_more_table= true;
+  bool has_more_table = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_table;
-       m_pos.next_table())
+  for (m_pos.set_at(&m_next_pos); has_more_table; m_pos.next_table())
   {
-    table_share= global_table_share_container.get(m_pos.m_index_1, & has_more_table);
+    table_share =
+      global_table_share_container.get(m_pos.m_index_1, &has_more_table);
     if (table_share != NULL)
     {
       if (table_share->m_enabled)
       {
-        uint safe_key_count= sanitize_index_count(table_share->m_key_count);
+        uint safe_key_count = sanitize_index_count(table_share->m_key_count);
         if (m_pos.m_index_2 < safe_key_count)
         {
           m_next_pos.set_after(&m_pos);
           return make_row(table_share, m_pos.m_index_2);
         }
-          
+
         if (m_pos.m_index_2 <= MAX_INDEXES)
         {
-          m_pos.m_index_2= MAX_INDEXES;
+          m_pos.m_index_2 = MAX_INDEXES;
           m_next_pos.set_after(&m_pos);
           return make_row(table_share, m_pos.m_index_2);
         }
@@ -374,12 +390,12 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  table_share= global_table_share_container.get(m_pos.m_index_1);
+  table_share = global_table_share_container.get(m_pos.m_index_1);
   if (table_share != NULL)
   {
     if (table_share->m_enabled)
     {
-      uint safe_key_count= sanitize_index_count(table_share->m_key_count);
+      uint safe_key_count = sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count)
       {
         return make_row(table_share, m_pos.m_index_2);
@@ -394,38 +410,37 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tiws_by_index_usage::index_init(uint idx, bool)
+int
+table_tiws_by_index_usage::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(wait_timer);
+  m_normalizer = time_normalizer::get(wait_timer);
 
-  PFS_index_tiws_by_index_usage *result= NULL;
+  PFS_index_tiws_by_index_usage *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_tiws_by_index_usage);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_tiws_by_index_usage);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_tiws_by_index_usage::index_next(void)
+int
+table_tiws_by_index_usage::index_next(void)
 {
   PFS_table_share *table_share;
-  bool has_more_table= true;
+  bool has_more_table = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_table;
-       m_pos.next_table())
+  for (m_pos.set_at(&m_next_pos); has_more_table; m_pos.next_table())
   {
-    table_share= global_table_share_container.get(m_pos.m_index_1, & has_more_table);
+    table_share =
+      global_table_share_container.get(m_pos.m_index_1, &has_more_table);
     if (table_share != NULL)
     {
       if (table_share->m_enabled)
       {
         if (m_opened_index->match(table_share))
         {
-          uint safe_key_count= sanitize_index_count(table_share->m_key_count);
-          for (;
-               m_pos.m_index_2 <= MAX_INDEXES;
-               m_pos.m_index_2++)
+          uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+          for (; m_pos.m_index_2 <= MAX_INDEXES; m_pos.m_index_2++)
           {
             if (m_opened_index->match(table_share, m_pos.m_index_2))
             {
@@ -441,7 +456,7 @@ int table_tiws_by_index_usage::index_next(void)
               {
                 if (m_pos.m_index_2 <= MAX_INDEXES)
                 {
-                  m_pos.m_index_2= MAX_INDEXES;
+                  m_pos.m_index_2 = MAX_INDEXES;
                   if (!make_row(table_share, m_pos.m_index_2))
                   {
                     m_next_pos.set_after(&m_pos);
@@ -459,8 +474,8 @@ int table_tiws_by_index_usage::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
-                                        uint index)
+int
+table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share, uint index)
 {
   PFS_table_share_index *pfs_index;
   pfs_optimistic_state lock;
@@ -470,46 +485,53 @@ int table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
   pfs_share->m_lock.begin_optimistic_lock(&lock);
 
   PFS_index_io_stat_visitor visitor;
-  PFS_object_iterator::visit_table_indexes(pfs_share, index, & visitor);
+  PFS_object_iterator::visit_table_indexes(pfs_share, index, &visitor);
 
   if (!visitor.m_stat.m_has_data)
   {
-    pfs_index= pfs_share->find_index_stat(index);
+    pfs_index = pfs_share->find_index_stat(index);
     if (pfs_index == NULL)
+    {
       return HA_ERR_RECORD_DELETED;
+    }
   }
   else
   {
-    pfs_index= pfs_share->find_index_stat(index);
+    pfs_index = pfs_share->find_index_stat(index);
   }
 
   if (m_row.m_index.make_row(pfs_share, pfs_index, index))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   if (!pfs_share->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
   return 0;
 }
 
-int table_tiws_by_index_usage::read_row_values(TABLE *table,
-                                         unsigned char *buf,
-                                         Field **fields,
-                                         bool read_all)
+int
+table_tiws_by_index_usage::read_row_values(TABLE *table,
+                                           unsigned char *buf,
+                                           Field **fields,
+                                           bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* OBJECT_TYPE */
       case 1: /* SCHEMA_NAME */
@@ -630,4 +652,3 @@ int table_tiws_by_index_usage::read_row_values(TABLE *table,
 
   return 0;
 }
-

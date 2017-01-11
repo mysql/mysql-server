@@ -15,6 +15,8 @@
 
 /* Write a record to heap-databas */
 
+#include <fcntl.h>
+
 #include "heapdef.h"
 #include "my_dbug.h"
 #ifdef _WIN32

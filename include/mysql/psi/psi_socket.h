@@ -86,7 +86,7 @@ struct PSI_socket_bootstrap
     @sa PSI_SOCKET_VERSION_2
     @sa PSI_CURRENT_SOCKET_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_socket_bootstrap PSI_socket_bootstrap;
 
@@ -103,9 +103,9 @@ typedef struct PSI_socket_locker PSI_socket_locker;
 enum PSI_socket_state
 {
   /** Idle, waiting for the next command. */
-  PSI_SOCKET_STATE_IDLE= 1,
+  PSI_SOCKET_STATE_IDLE = 1,
   /** Active, executing a command. */
-  PSI_SOCKET_STATE_ACTIVE= 2
+  PSI_SOCKET_STATE_ACTIVE = 2
 };
 typedef enum PSI_socket_state PSI_socket_state;
 
@@ -113,35 +113,35 @@ typedef enum PSI_socket_state PSI_socket_state;
 enum PSI_socket_operation
 {
   /** Socket creation, as in @c socket() or @c socketpair(). */
-  PSI_SOCKET_CREATE= 0,
+  PSI_SOCKET_CREATE = 0,
   /** Socket connection, as in @c connect(), @c listen() and @c accept(). */
-  PSI_SOCKET_CONNECT= 1,
+  PSI_SOCKET_CONNECT = 1,
   /** Socket bind, as in @c bind(), @c getsockname() and @c getpeername(). */
-  PSI_SOCKET_BIND= 2,
+  PSI_SOCKET_BIND = 2,
   /** Socket close, as in @c shutdown(). */
-  PSI_SOCKET_CLOSE= 3,
+  PSI_SOCKET_CLOSE = 3,
   /** Socket send, @c send(). */
-  PSI_SOCKET_SEND= 4,
+  PSI_SOCKET_SEND = 4,
   /** Socket receive, @c recv(). */
-  PSI_SOCKET_RECV= 5,
+  PSI_SOCKET_RECV = 5,
   /** Socket send, @c sendto(). */
-  PSI_SOCKET_SENDTO= 6,
+  PSI_SOCKET_SENDTO = 6,
   /** Socket receive, @c recvfrom). */
-  PSI_SOCKET_RECVFROM= 7,
+  PSI_SOCKET_RECVFROM = 7,
   /** Socket send, @c sendmsg(). */
-  PSI_SOCKET_SENDMSG= 8,
+  PSI_SOCKET_SENDMSG = 8,
   /** Socket receive, @c recvmsg(). */
-  PSI_SOCKET_RECVMSG= 9,
+  PSI_SOCKET_RECVMSG = 9,
   /** Socket seek, such as @c fseek() or @c seek(). */
-  PSI_SOCKET_SEEK= 10,
+  PSI_SOCKET_SEEK = 10,
   /** Socket options, as in @c getsockopt() and @c setsockopt(). */
-  PSI_SOCKET_OPT= 11,
+  PSI_SOCKET_OPT = 11,
   /** Socket status, as in @c sockatmark() and @c isfdtype(). */
-  PSI_SOCKET_STAT= 12,
+  PSI_SOCKET_STAT = 12,
   /** Socket shutdown, as in @c shutdown(). */
-  PSI_SOCKET_SHUTDOWN= 13,
+  PSI_SOCKET_SHUTDOWN = 13,
   /** Socket select, as in @c select() and @c poll(). */
-  PSI_SOCKET_SELECT= 14
+  PSI_SOCKET_SELECT = 14
 };
 typedef enum PSI_socket_operation PSI_socket_operation;
 
@@ -194,7 +194,7 @@ struct PSI_socket_locker_state_v1
   /** Current operation. */
   enum PSI_socket_operation m_operation;
   /** Source file. */
-  const char* m_src_file;
+  const char *m_src_file;
   /** Source line number. */
   int m_src_line;
   /** Internal data. */
@@ -208,8 +208,9 @@ typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
   @param info an array of socket info to register
   @param count the size of the info array
 */
-typedef void (*register_socket_v1_t)
-  (const char *category, struct PSI_socket_info_v1 *info, int count);
+typedef void (*register_socket_v1_t)(const char *category,
+                                     struct PSI_socket_info_v1 *info,
+                                     int count);
 
 /**
   Socket instrumentation initialisation API.
@@ -219,9 +220,10 @@ typedef void (*register_socket_v1_t)
   @param addr_len length of socket ip address
   @return an instrumented socket
 */
-typedef struct PSI_socket* (*init_socket_v1_t)
-  (PSI_socket_key key, const my_socket *fd,
-  const struct sockaddr *addr, socklen_t addr_len);
+typedef struct PSI_socket *(*init_socket_v1_t)(PSI_socket_key key,
+                                               const my_socket *fd,
+                                               const struct sockaddr *addr,
+                                               socklen_t addr_len);
 
 /**
   socket instrumentation destruction API.
@@ -239,12 +241,13 @@ typedef void (*destroy_socket_v1_t)(struct PSI_socket *socket);
   @param src_line the source line number
   @return a socket locker, or NULL
 */
-typedef struct PSI_socket_locker* (*start_socket_wait_v1_t)
-  (struct PSI_socket_locker_state_v1 *state,
-   struct PSI_socket *socket,
-   enum PSI_socket_operation op,
-   size_t count,
-   const char *src_file, uint src_line);
+typedef struct PSI_socket_locker *(*start_socket_wait_v1_t)(
+  struct PSI_socket_locker_state_v1 *state,
+  struct PSI_socket *socket,
+  enum PSI_socket_operation op,
+  size_t count,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a socket instrumentation end event.
@@ -256,8 +259,8 @@ typedef struct PSI_socket_locker* (*start_socket_wait_v1_t)
   or 0 if not applicable, or -1 if the operation failed
   @sa get_thread_socket_locker
 */
-typedef void (*end_socket_wait_v1_t)
-  (struct PSI_socket_locker *locker, size_t count);
+typedef void (*end_socket_wait_v1_t)(struct PSI_socket_locker *locker,
+                                     size_t count);
 
 /**
   Set the socket state for an instrumented socket.
@@ -331,4 +334,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_socket_service_t *psi_socket_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_SOCKET_H */
-

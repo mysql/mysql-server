@@ -28,6 +28,7 @@
 #include "client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_systime.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"

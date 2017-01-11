@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,20 +46,20 @@
 */
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
-  #define mysql_mdl_create(I, K, T, D, S, F, L) \
-    inline_mysql_mdl_create(I, K, T, D, S, F, L)
+#define mysql_mdl_create(I, K, T, D, S, F, L) \
+  inline_mysql_mdl_create(I, K, T, D, S, F, L)
 #else
-  #define mysql_mdl_create(I, K, T, D, S, F, L) NULL
+#define mysql_mdl_create(I, K, T, D, S, F, L) NULL
 #endif
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
-  #define mysql_mdl_set_status(L, S) \
-    inline_mysql_mdl_set_status(L, S)
+#define mysql_mdl_set_status(L, S) inline_mysql_mdl_set_status(L, S)
 #else
-  #define mysql_mdl_set_status(L, S) \
-    do {} while (0)
+#define mysql_mdl_set_status(L, S) \
+  do                               \
+  {                                \
+  } while (0)
 #endif
-
 
 /**
   @def mysql_mdl_destroy(M)
@@ -67,11 +67,12 @@
   @param M Metadata lock
 */
 #ifdef HAVE_PSI_METADATA_INTERFACE
-  #define mysql_mdl_destroy(M) \
-    inline_mysql_mdl_destroy(M, __FILE__, __LINE__)
+#define mysql_mdl_destroy(M) inline_mysql_mdl_destroy(M, __FILE__, __LINE__)
 #else
-  #define mysql_mdl_destroy(M) \
-    do {} while (0)
+#define mysql_mdl_destroy(M) \
+  do                         \
+  {                          \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
@@ -82,40 +83,44 @@ inline_mysql_mdl_create(void *identity,
                         enum_mdl_type mdl_type,
                         enum_mdl_duration mdl_duration,
                         MDL_ticket::enum_psi_status mdl_status,
-                        const char *src_file, uint src_line)
+                        const char *src_file,
+                        uint src_line)
 {
   PSI_metadata_lock *result;
 
   /* static_cast: Fit a round C++ enum peg into a square C int hole ... */
-  result= PSI_METADATA_CALL(create_metadata_lock)
-    (identity,
-     mdl_key,
-     static_cast<opaque_mdl_type> (mdl_type),
-     static_cast<opaque_mdl_duration> (mdl_duration),
-     static_cast<opaque_mdl_status> (mdl_status),
-     src_file, src_line);
+  result = PSI_METADATA_CALL(create_metadata_lock)(
+    identity,
+    mdl_key,
+    static_cast<opaque_mdl_type>(mdl_type),
+    static_cast<opaque_mdl_duration>(mdl_duration),
+    static_cast<opaque_mdl_status>(mdl_status),
+    src_file,
+    src_line);
 
   return result;
 }
 
-static inline void inline_mysql_mdl_set_status(
-  PSI_metadata_lock *psi,
-  MDL_ticket::enum_psi_status mdl_status)
+static inline void
+inline_mysql_mdl_set_status(PSI_metadata_lock *psi,
+                            MDL_ticket::enum_psi_status mdl_status)
 {
   if (psi != NULL)
+  {
     PSI_METADATA_CALL(set_metadata_lock_status)(psi, mdl_status);
+  }
 }
 
-static inline void inline_mysql_mdl_destroy(
-  PSI_metadata_lock *psi,
-  const char *src_file, uint src_line)
+static inline void
+inline_mysql_mdl_destroy(PSI_metadata_lock *psi, const char *, uint)
 {
   if (psi != NULL)
+  {
     PSI_METADATA_CALL(destroy_metadata_lock)(psi);
+  }
 }
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
 /** @} (end of group psi_api_mdl) */
 
 #endif
-

@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <ctype.h>
+#include <fcntl.h>
 #include <my_dir.h>
 #include <my_global.h>
 #include <mysql/plugin.h>

@@ -25,7 +25,6 @@
 
 #include <assert.h>
 #include <errno.h>				/* Recommended by debian */
-#include <fcntl.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -49,7 +48,6 @@
 #include "my_macros.h"
 #include "my_sharedlib.h"
 #include "my_shm_defaults.h"
-#include "my_systime.h"
 #include "my_table_map.h"
 
 #endif  // MY_GLOBAL_INCLUDED

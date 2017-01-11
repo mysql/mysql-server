@@ -26,6 +26,7 @@
   environment. MEMORY internal temporary tables are optimized similarly.
 */
 
+#include <fcntl.h>
 #include <m_ctype.h>
 
 #include "fulltext.h"

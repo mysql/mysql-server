@@ -33,6 +33,7 @@
 
 THR_LOCK table_ees_by_host_by_error::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -76,15 +77,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_ees_by_host_by_error::m_field_def=
-{ 8, field_types };
+table_ees_by_host_by_error::m_field_def = {8, field_types};
 
-PFS_engine_table_share
-table_ees_by_host_by_error::m_share=
-{
-  { C_STRING_WITH_LEN("events_errors_summary_by_host_by_error") },
+PFS_engine_table_share table_ees_by_host_by_error::m_share = {
+  {C_STRING_WITH_LEN("events_errors_summary_by_host_by_error")},
   &pfs_truncatable_acl,
   table_ees_by_host_by_error::create,
   NULL, /* write_row */
@@ -97,27 +96,33 @@ table_ees_by_host_by_error::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_ees_by_host_by_error::match(PFS_host *pfs)
+bool
+PFS_index_ees_by_host_by_error::match(PFS_host *pfs)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
 
-bool PFS_index_ees_by_host_by_error::match_error_index(uint error_index)
+bool
+PFS_index_ees_by_host_by_error::match_error_index(uint error_index)
 {
   if (m_fields >= 2)
   {
-    if (! m_key_2.match_error_index(error_index))
+    if (!m_key_2.match_error_index(error_index))
+    {
       return false;
+    }
   }
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_ees_by_host_by_error::create(void)
 {
   return new table_ees_by_host_by_error();
@@ -135,40 +140,40 @@ table_ees_by_host_by_error::delete_all_rows(void)
 ha_rows
 table_ees_by_host_by_error::get_row_count(void)
 {
-  return global_host_container.get_row_count() * error_class_max * max_server_errors;
+  return global_host_container.get_row_count() * error_class_max *
+         max_server_errors;
 }
 
 table_ees_by_host_by_error::table_ees_by_host_by_error()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_ees_by_host_by_error::reset_position(void)
+void
+table_ees_by_host_by_error::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_ees_by_host_by_error::rnd_init(bool)
+int
+table_ees_by_host_by_error::rnd_init(bool)
 {
   return 0;
 }
 
-int table_ees_by_host_by_error::rnd_next(void)
+int
+table_ees_by_host_by_error::rnd_next(void)
 {
   PFS_host *host;
-  bool has_more_host= true;
+  bool has_more_host = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_host;
-       m_pos.next_host())
+  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host())
   {
-    host= global_host_container.get(m_pos.m_index_1, & has_more_host);
+    host = global_host_container.get(m_pos.m_index_1, &has_more_host);
     if (host != NULL)
     {
-      for ( ;
-           m_pos.has_more_error();
-           m_pos.next_error())
+      for (; m_pos.has_more_error(); m_pos.next_error())
       {
         if (!make_row(host, m_pos.m_index_2))
         {
@@ -189,48 +194,46 @@ table_ees_by_host_by_error::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  host= global_host_container.get(m_pos.m_index_1);
+  host = global_host_container.get(m_pos.m_index_1);
   if (host != NULL)
   {
-    for ( ;
-         m_pos.has_more_error();
-         m_pos.next_error())
+    for (; m_pos.has_more_error(); m_pos.next_error())
     {
       if (!make_row(host, m_pos.m_index_2))
+      {
         return 0;
+      }
     }
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ees_by_host_by_error::index_init(uint idx, bool)
+int
+table_ees_by_host_by_error::index_init(uint idx, bool)
 {
-  PFS_index_ees_by_host_by_error *result= NULL;
+  PFS_index_ees_by_host_by_error *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_ees_by_host_by_error);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_ees_by_host_by_error);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_ees_by_host_by_error::index_next(void)
+int
+table_ees_by_host_by_error::index_next(void)
 {
   PFS_host *host;
-  bool has_more_host= true;
+  bool has_more_host = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_host;
-       m_pos.next_host())
+  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host())
   {
-    host= global_host_container.get(m_pos.m_index_1, & has_more_host);
+    host = global_host_container.get(m_pos.m_index_1, &has_more_host);
     if (host != NULL)
     {
       if (m_opened_index->match(host))
       {
-        for ( ;
-             m_pos.has_more_error();
-             m_pos.next_error())
+        for (; m_pos.has_more_error(); m_pos.next_error())
         {
           if (m_opened_index->match_error_index(m_pos.m_index_2))
           {
@@ -248,17 +251,19 @@ int table_ees_by_host_by_error::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_ees_by_host_by_error
-::make_row(PFS_host *host, int error_index)
+int
+table_ees_by_host_by_error::make_row(PFS_host *host, int error_index)
 {
-  PFS_error_class *klass= & global_error_class;
+  PFS_error_class *klass = &global_error_class;
   pfs_optimistic_state lock;
 
   host->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_host.make_row(host))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   PFS_connection_error_visitor visitor(klass, error_index);
   PFS_connection_iterator::visit_host(host,
                                       true,  /* accounts */
@@ -267,32 +272,38 @@ int table_ees_by_host_by_error
                                       &visitor);
 
   if (!host->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
-  
-  m_row.m_stat.set(& visitor.m_stat, error_index);
+  }
+
+  m_row.m_stat.set(&visitor.m_stat, error_index);
 
   return 0;
 }
 
-int table_ees_by_host_by_error
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_ees_by_host_by_error::read_row_values(TABLE *table,
+                                            unsigned char *buf,
+                                            Field **fields,
+                                            bool read_all)
 {
   Field *f;
-  server_error *temp_error= NULL;
+  server_error *temp_error = NULL;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  if (m_row.m_stat.m_error_index > 0 && m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
-    temp_error= & error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
+  if (m_row.m_stat.m_error_index > 0 &&
+      m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
+    temp_error =
+      &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* HOST */
         m_row.m_host.set_field(f);
@@ -305,7 +316,7 @@ int table_ees_by_host_by_error
       case 6: /* FIRST_SEEN */
       case 7: /* LAST_SEEN */
         /** ERROR STATS */
-        m_row.m_stat.set_field(f->field_index-1, f, temp_error);
+        m_row.m_stat.set_field(f->field_index - 1, f, temp_error);
         break;
       default:
         /** We should never reach here */
@@ -317,4 +328,3 @@ int table_ees_by_host_by_error
 
   return 0;
 }
-

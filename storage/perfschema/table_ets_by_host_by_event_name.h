@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,11 +38,14 @@ class PFS_index_ets_by_host_by_event_name : public PFS_engine_index
 public:
   PFS_index_ets_by_host_by_event_name()
     : PFS_engine_index(&m_key_1, &m_key_2),
-    m_key_1("HOST"), m_key_2("EVENT_NAME")
-  {}
+      m_key_1("HOST"),
+      m_key_2("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_ets_by_host_by_event_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_host *pfs);
   virtual bool match(PFS_instr_class *instr_class);
@@ -76,33 +79,35 @@ struct row_ets_by_host_by_event_name
   Index 1 on host (0 based)
   Index 2 on transaction class (1 based)
 */
-struct pos_ets_by_host_by_event_name
-: public PFS_double_index
+struct pos_ets_by_host_by_event_name : public PFS_double_index
 {
-  pos_ets_by_host_by_event_name()
-    : PFS_double_index(0, 1)
-  {}
-
-  inline void reset(void)
+  pos_ets_by_host_by_event_name() : PFS_double_index(0, 1)
   {
-    m_index_1= 0;
-    m_index_2= 1;
   }
 
-  inline void next_host(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 1;
+  }
+
+  inline void
+  next_host(void)
   {
     m_index_1++;
-    m_index_2= 1;
+    m_index_2 = 1;
   }
 };
 
-/** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME. */
+/** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME.
+ */
 class table_ets_by_host_by_event_name : public PFS_engine_table
 {
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -125,7 +130,8 @@ protected:
 
 public:
   ~table_ets_by_host_by_event_name()
-  {}
+  {
+  }
 
 protected:
   int make_row(PFS_host *host, PFS_transaction_class *klass);

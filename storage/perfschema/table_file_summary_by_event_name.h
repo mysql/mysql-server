@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,17 +44,17 @@ struct row_file_summary_by_event_name
   PFS_file_io_stat_row m_io_stat;
 };
 
-class PFS_index_file_summary_by_event_name
-  : public PFS_engine_index
+class PFS_index_file_summary_by_event_name : public PFS_engine_index
 {
 public:
   PFS_index_file_summary_by_event_name()
-    : PFS_engine_index(&m_key),
-      m_key("EVENT_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_file_summary_by_event_name()
-  {}
+  {
+  }
 
   bool match(const PFS_file_class *pfs);
 
@@ -68,7 +68,7 @@ class table_file_summary_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -90,7 +90,8 @@ private:
 
 public:
   ~table_file_summary_by_event_name()
-  {}
+  {
+  }
 
 private:
   int make_row(PFS_file_class *klass);

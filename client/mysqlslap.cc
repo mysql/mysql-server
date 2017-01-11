@@ -80,6 +80,7 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 #define DELETE_TYPE_REQUIRES_PREFIX 6
 
+#include <fcntl.h>
 #include <my_dir.h>
 #include <mysqld_error.h>
 #include <signal.h>
@@ -99,6 +100,7 @@ TODO:
 #include "client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_systime.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"

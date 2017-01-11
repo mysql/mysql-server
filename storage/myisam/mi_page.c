@@ -15,6 +15,8 @@
 
 /* Read and write key blocks */
 
+#include <fcntl.h>
+
 #include "my_dbug.h"
 #include "myisamdef.h"
 

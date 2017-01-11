@@ -41,6 +41,7 @@
   only. And it is sufficient to calculate the checksum once only.
 */
 
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <my_getopt.h>
 #include <stdarg.h>

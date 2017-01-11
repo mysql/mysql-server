@@ -335,14 +335,12 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 
   @param[in,out] to          String to append the field contents to.
   @param        field        Field to unpack.
-  @param        rec          Record which contains the field data.
   @param        max_length   Maximum length of field to unpack
                              or 0 for unlimited.
   @param        prefix_key   The field is used as a prefix key.
 */
 
-void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
-                  bool prefix_key)
+void field_unpack(String *to, Field *field, uint max_length, bool prefix_key)
 {
   String tmp;
   DBUG_ENTER("field_unpack");
@@ -428,7 +426,7 @@ void key_unpack(String *to, TABLE *table, KEY *key)
         continue;
       }
     }
-    field_unpack(to, key_part->field, table->record[0], key_part->length,
+    field_unpack(to, key_part->field, key_part->length,
                  MY_TEST(key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);

@@ -43,6 +43,7 @@ TODO:
 
 #include "ha_tina.h"
 
+#include <fcntl.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>
 #include <algorithm>

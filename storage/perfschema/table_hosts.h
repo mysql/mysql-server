@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,12 +35,13 @@ struct PFS_host;
 class PFS_index_hosts_by_host : public PFS_index_hosts
 {
 public:
-  PFS_index_hosts_by_host()
-    : PFS_index_hosts(&m_key), m_key("HOST")
-  {}
+  PFS_index_hosts_by_host() : PFS_index_hosts(&m_key), m_key("HOST")
+  {
+  }
 
   ~PFS_index_hosts_by_host()
-  {}
+  {
+  }
 
   virtual bool match(PFS_host *pfs);
 
@@ -66,7 +67,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
 
 protected:
@@ -74,12 +75,14 @@ protected:
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
+
 protected:
   table_hosts();
 
 public:
   ~table_hosts()
-  {}
+  {
+  }
 
   int index_init(uint idx, bool sorted);
 

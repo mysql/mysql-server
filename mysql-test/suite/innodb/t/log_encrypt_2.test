@@ -17,12 +17,9 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set redo log tablespace to b
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring2";
+--sleep 2
 
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-
---sleep 1
 
 DROP TABLE t1;
 

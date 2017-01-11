@@ -41,15 +41,18 @@
   In case of discrepancies, later attempt to perform DML against
   the performance schema will be rejected with an error.
 */
-void check_performance_schema()
+void
+check_performance_schema()
 {
   DBUG_ENTER("check_performance_schema");
 
-  THD *thd= new THD();
+  THD *thd = new THD();
   if (thd == NULL)
+  {
     DBUG_VOID_RETURN;
+  }
 
-  thd->thread_stack= (char*) &thd;
+  thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
   PFS_engine_table_share::check_all_tables(thd);
@@ -66,4 +69,3 @@ void check_performance_schema()
   delete thd;
   DBUG_VOID_RETURN;
 }
-

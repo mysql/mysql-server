@@ -112,12 +112,6 @@ extern bool	srv_missing_dd_table_buffer;
 #define LOG_BUF_FLUSH_RATIO	2
 #define LOG_BUF_FLUSH_MARGIN	(LOG_BUF_WRITE_MARGIN + 4 * UNIV_PAGE_SIZE)
 
-/* Margin for the free space in the smallest log group, before a new query
-step which modifies the database, is started */
-
-#define LOG_CHECKPOINT_FREE_PER_THREAD	(4 * UNIV_PAGE_SIZE)
-#define LOG_CHECKPOINT_EXTRA_FREE	(8 * UNIV_PAGE_SIZE)
-
 /* This parameter controls asynchronous making of a new checkpoint; the value
 should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
 

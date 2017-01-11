@@ -33,6 +33,7 @@
 
 THR_LOCK table_ets_global_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -116,15 +117,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_ets_global_by_event_name::m_field_def=
-{ 16, field_types };
+table_ets_global_by_event_name::m_field_def = {16, field_types};
 
-PFS_engine_table_share
-table_ets_global_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_transactions_summary_global_by_event_name") },
+PFS_engine_table_share table_ets_global_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_transactions_summary_global_by_event_name")},
   &pfs_truncatable_acl,
   table_ets_global_by_event_name::create,
   NULL, /* write_row */
@@ -137,17 +136,20 @@ table_ets_global_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_ets_global_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_ets_global_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 1)
   {
     if (!m_key.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_ets_global_by_event_name::create(void)
 {
   return new table_ets_global_by_event_name();
@@ -171,29 +173,32 @@ table_ets_global_by_event_name::get_row_count(void)
 }
 
 table_ets_global_by_event_name::table_ets_global_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(1), m_next_pos(1)
-{}
-
-void table_ets_global_by_event_name::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1)
 {
-  m_pos= 1;
-  m_next_pos= 1;
 }
 
-int table_ets_global_by_event_name::rnd_init(bool)
+void
+table_ets_global_by_event_name::reset_position(void)
 {
-  m_normalizer= time_normalizer::get(transaction_timer);
+  m_pos = 1;
+  m_next_pos = 1;
+}
+
+int
+table_ets_global_by_event_name::rnd_init(bool)
+{
+  m_normalizer = time_normalizer::get(transaction_timer);
   return 0;
 }
 
-int table_ets_global_by_event_name::rnd_next(void)
+int
+table_ets_global_by_event_name::rnd_next(void)
 {
   PFS_transaction_class *transaction_class;
 
   m_pos.set_at(&m_next_pos);
 
-  transaction_class= find_transaction_class(m_pos.m_index);
+  transaction_class = find_transaction_class(m_pos.m_index);
   if (transaction_class)
   {
     m_next_pos.set_after(&m_pos);
@@ -210,7 +215,7 @@ table_ets_global_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  transaction_class=find_transaction_class(m_pos.m_index);
+  transaction_class = find_transaction_class(m_pos.m_index);
   if (transaction_class)
   {
     return make_row(transaction_class);
@@ -219,19 +224,21 @@ table_ets_global_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ets_global_by_event_name::index_init(uint idx, bool)
+int
+table_ets_global_by_event_name::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(transaction_timer);
+  m_normalizer = time_normalizer::get(transaction_timer);
 
-  PFS_index_ets_global_by_event_name *result= NULL;
+  PFS_index_ets_global_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_ets_global_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_ets_global_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_ets_global_by_event_name::index_next(void)
+int
+table_ets_global_by_event_name::index_next(void)
 {
   PFS_transaction_class *transaction_class;
 
@@ -239,7 +246,7 @@ int table_ets_global_by_event_name::index_next(void)
 
   do
   {
-    transaction_class= find_transaction_class(m_pos.m_index);
+    transaction_class = find_transaction_class(m_pos.m_index);
     if (transaction_class)
     {
       if (m_opened_index->match(transaction_class))
@@ -257,8 +264,8 @@ int table_ets_global_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_ets_global_by_event_name
-::make_row(PFS_transaction_class *klass)
+int
+table_ets_global_by_event_name::make_row(PFS_transaction_class *klass)
 {
   m_row.m_event_name.make_row(klass);
 
@@ -275,20 +282,22 @@ int table_ets_global_by_event_name
   return 0;
 }
 
-int table_ets_global_by_event_name
-::read_row_values(TABLE *table, unsigned char *, Field **fields,
-                  bool read_all)
+int
+table_ets_global_by_event_name::read_row_values(TABLE *table,
+                                                unsigned char *,
+                                                Field **fields,
+                                                bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* NAME */
         m_row.m_event_name.set_field(f);
@@ -307,4 +316,3 @@ int table_ets_global_by_event_name
 
   return 0;
 }
-

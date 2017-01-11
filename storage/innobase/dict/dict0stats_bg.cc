@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -396,6 +396,8 @@ statistics. */
 void
 dict_stats_thread()
 {
+	my_thread_init();
+
 	ut_a(!srv_read_only_mode);
 
 	srv_dict_stats_thread_active = true;
@@ -433,6 +435,8 @@ dict_stats_thread()
 	srv_dict_stats_thread_active = false;
 
 	os_event_set(dict_stats_shutdown_event);
+
+	my_thread_end();
 }
 
 /** Shutdown the dict stats thread. */

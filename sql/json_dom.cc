@@ -597,7 +597,7 @@ public:
     return false;
   }
 
-  bool String(const char* str, SizeType length, bool copy)
+  bool String(const char* str, SizeType length, bool)
   {
     DUMP_CALLBACK("string", state);
     return seeing_value(new (std::nothrow) Json_string(str, length));
@@ -641,7 +641,7 @@ public:
     return true;
   }
 
-  bool Key(const char* str, SizeType len, bool copy)
+  bool Key(const char* str, SizeType len, bool)
   {
     if (check_json_depth(m_depth + 1))
       return false;
@@ -746,7 +746,8 @@ public:
   bool Uint(unsigned) { return seeing_scalar(); }
   bool Int64(int64_t) { return seeing_scalar(); }
   bool Uint64(uint64_t) { return seeing_scalar(); }
-  bool Double(double, bool is_int= false) { return seeing_scalar(); }
+  bool Double(double, bool is_int MY_ATTRIBUTE((unused)) = false)
+  { return seeing_scalar(); }
   bool String(const char*, SizeType, bool) { return seeing_scalar(); }
   bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
   bool RawNumber(const char*, SizeType, bool)

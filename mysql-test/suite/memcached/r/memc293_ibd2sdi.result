@@ -1152,7 +1152,7 @@ primary key(c1)) ENGINE=INNODB;
 ],
 [ERROR] ibd2sdi: Unable to create temporary file; errno: 0.
 [ERROR] ibd2sdi: Invalid Dumpfile passed.
-IBD2SDI-debug Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD)Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+IBD2SDI-debug Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD)Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective

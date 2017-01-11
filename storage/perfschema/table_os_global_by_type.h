@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 #ifndef TABLE_OBJECTS_SUMMARY_GLOBAL_BY_TYPE_H
 #define TABLE_OBJECTS_SUMMARY_GLOBAL_BY_TYPE_H
@@ -55,23 +56,28 @@ struct row_os_global_by_type
 struct pos_os_global_by_type : public PFS_double_index,
                                public PFS_object_view_constants
 {
-  pos_os_global_by_type()
-    : PFS_double_index(FIRST_VIEW, 0)
-  {}
-
-  inline void reset(void)
+  pos_os_global_by_type() : PFS_double_index(FIRST_VIEW, 0)
   {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 0;
   }
 
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = FIRST_VIEW;
+    m_index_2 = 0;
+  }
 
-  inline void next_view(void)
+  inline bool
+  has_more_view(void)
+  {
+    return (m_index_1 <= LAST_VIEW);
+  }
+
+  inline void
+  next_view(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -80,11 +86,15 @@ class PFS_index_os_global_by_type : public PFS_engine_index
 public:
   PFS_index_os_global_by_type()
     : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
-  {}
+      m_key_1("OBJECT_TYPE"),
+      m_key_2("OBJECT_SCHEMA"),
+      m_key_3("OBJECT_NAME")
+  {
+  }
 
   ~PFS_index_os_global_by_type()
-  {}
+  {
+  }
 
   virtual bool match(PFS_table_share *pfs);
   virtual bool match(PFS_program *pfs);
@@ -101,7 +111,7 @@ class table_os_global_by_type : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -122,7 +132,8 @@ protected:
 
 public:
   ~table_os_global_by_type()
-  {}
+  {
+  }
 
 protected:
   int make_table_row(PFS_table_share *table_share);
@@ -144,7 +155,6 @@ private:
 protected:
   PFS_index_os_global_by_type *m_opened_index;
 };
-
 
 /** @} */
 #endif

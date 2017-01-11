@@ -16,12 +16,14 @@
 #include "my_time.h"
 
 #include <stdio.h>
+#include <time.h>
 
 #include "binary_log_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_systime.h"
 #include "myisampack.h"
 
 ulonglong log_10_int[20]=

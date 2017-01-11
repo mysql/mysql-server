@@ -15,6 +15,8 @@
 
 	/* Functions to handle fixed-length-records */
 
+#include <fcntl.h>
+
 #include "my_dbug.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"

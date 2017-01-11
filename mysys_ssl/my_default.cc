@@ -37,6 +37,7 @@
                                 the login file.
 */
 
+#include <fcntl.h>
 #include <my_aes.h>
 #include <my_dir.h>
 #include <my_getopt.h>

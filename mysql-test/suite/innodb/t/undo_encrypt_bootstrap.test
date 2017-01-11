@@ -1,6 +1,7 @@
 # Embedded mode doesn't support restarting
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+--source include/big_test.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
@@ -85,7 +86,7 @@ let SEARCH_PATTERN= lCB;
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 
 SET GLOBAL innodb_undo_log_encrypt = ON;
---sleep 1
+--sleep 2
 
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 START TRANSACTION;
@@ -102,19 +103,22 @@ UNINSTALL PLUGIN keyring_file;
 # Cleanup
 DROP TABLE tab1;
 
+--source include/shutdown_mysqld.inc
 # Search for particular string to confirm the encryption metadata is
 # stored.
-let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo002;
+--sleep 2
+let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo001;
 let SEARCH_PATTERN= lCB;
 --source include/search_pattern.inc
 
-let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo001;
+let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo002;
 let SEARCH_PATTERN= lCB;
 --source include/search_pattern.inc
 
 # restart the server with MTR default
 --let $restart_parameters=
---source include/restart_mysqld_no_echo.inc
+--source include/start_mysqld_no_echo.inc
+#--source include/restart_mysqld_no_echo.inc
 
 --remove_file $BOOTSTRAP_SQL
 

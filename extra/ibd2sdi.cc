@@ -16,6 +16,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <fcntl.h>
 #include <my_config.h>
 #include <my_global.h>
 #include <stdio.h>
@@ -392,6 +393,13 @@ namespace ib {
 	{
 		std::cerr << "[ERROR] ibd2sdi: " << m_oss.str() << "."
 			<< std::endl;
+	}
+
+	fatal::~fatal()
+	{
+		std::cerr << "[FATAL] ibd2sdi: " << m_oss.str() << "."
+			<< std::endl;
+		ut_error;
 	}
 
 	/* TODO: Improve Object creation & destruction on DBUG_OFF */

@@ -32,6 +32,7 @@
 
 THR_LOCK table_ews_by_thread_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -70,15 +71,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_ews_by_thread_by_event_name::m_field_def=
-{ 7, field_types };
+table_ews_by_thread_by_event_name::m_field_def = {7, field_types};
 
-PFS_engine_table_share
-table_ews_by_thread_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_waits_summary_by_thread_by_event_name") },
+PFS_engine_table_share table_ews_by_thread_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_waits_summary_by_thread_by_event_name")},
   &pfs_truncatable_acl,
   table_ews_by_thread_by_event_name::create,
   NULL, /* write_row */
@@ -91,7 +90,7 @@ table_ews_by_thread_by_event_name::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table*
+PFS_engine_table *
 table_ews_by_thread_by_event_name::create(void)
 {
   return new table_ews_by_thread_by_event_name();
@@ -111,21 +110,25 @@ table_ews_by_thread_by_event_name::get_row_count(void)
 }
 
 table_ews_by_thread_by_event_name::table_ews_by_thread_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-bool PFS_index_ews_by_thread_by_event_name::match(PFS_thread *pfs)
+bool
+PFS_index_ews_by_thread_by_event_name::match(PFS_thread *pfs)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
 
-bool PFS_index_ews_by_thread_by_event_name::match_view(uint view)
+bool
+PFS_index_ews_by_thread_by_event_name::match_view(uint view)
 {
   if (m_fields >= 2)
   {
@@ -134,7 +137,8 @@ bool PFS_index_ews_by_thread_by_event_name::match_view(uint view)
   return true;
 }
 
-bool PFS_index_ews_by_thread_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_ews_by_thread_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 2)
   {
@@ -143,58 +147,56 @@ bool PFS_index_ews_by_thread_by_event_name::match(PFS_instr_class *instr_class)
   return true;
 }
 
-void table_ews_by_thread_by_event_name::reset_position(void)
+void
+table_ews_by_thread_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_ews_by_thread_by_event_name::rnd_next(void)
+int
+table_ews_by_thread_by_event_name::rnd_next(void)
 {
   PFS_thread *thread;
   PFS_instr_class *instr_class;
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
-      for ( ;
-           m_pos.has_more_view();
-           m_pos.next_view())
+      for (; m_pos.has_more_view(); m_pos.next_view())
       {
         switch (m_pos.m_index_2)
         {
         case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
-          instr_class= find_mutex_class(m_pos.m_index_3);
+          instr_class = find_mutex_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
-          instr_class= find_rwlock_class(m_pos.m_index_3);
+          instr_class = find_rwlock_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_COND:
-          instr_class= find_cond_class(m_pos.m_index_3);
+          instr_class = find_cond_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_FILE:
-          instr_class= find_file_class(m_pos.m_index_3);
+          instr_class = find_file_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_TABLE:
-          instr_class= find_table_class(m_pos.m_index_3);
+          instr_class = find_table_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
-          instr_class= find_socket_class(m_pos.m_index_3);
+          instr_class = find_socket_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_IDLE:
-          instr_class= find_idle_class(m_pos.m_index_3);
+          instr_class = find_idle_class(m_pos.m_index_3);
           break;
         case pos_ews_by_thread_by_event_name::VIEW_METADATA:
-          instr_class= find_metadata_class(m_pos.m_index_3);
+          instr_class = find_metadata_class(m_pos.m_index_3);
           break;
         default:
           DBUG_ASSERT(false);
-          instr_class= NULL;
+          instr_class = NULL;
           break;
         }
 
@@ -218,38 +220,38 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  thread= global_thread_container.get(m_pos.m_index_1);
+  thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != NULL)
   {
     switch (m_pos.m_index_2)
     {
     case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
-      instr_class= find_mutex_class(m_pos.m_index_3);
+      instr_class = find_mutex_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
-      instr_class= find_rwlock_class(m_pos.m_index_3);
+      instr_class = find_rwlock_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_COND:
-      instr_class= find_cond_class(m_pos.m_index_3);
+      instr_class = find_cond_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_FILE:
-      instr_class= find_file_class(m_pos.m_index_3);
+      instr_class = find_file_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_TABLE:
-      instr_class= find_table_class(m_pos.m_index_3);
+      instr_class = find_table_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
-      instr_class= find_socket_class(m_pos.m_index_3);
+      instr_class = find_socket_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_IDLE:
-      instr_class= find_idle_class(m_pos.m_index_3);
+      instr_class = find_idle_class(m_pos.m_index_3);
       break;
     case pos_ews_by_thread_by_event_name::VIEW_METADATA:
-      instr_class= find_metadata_class(m_pos.m_index_3);
+      instr_class = find_metadata_class(m_pos.m_index_3);
       break;
     default:
       DBUG_ASSERT(false);
-      instr_class= NULL;
+      instr_class = NULL;
     }
 
     if (instr_class)
@@ -261,69 +263,69 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ews_by_thread_by_event_name::index_init(uint idx, bool)
+int
+table_ews_by_thread_by_event_name::index_init(uint idx, bool)
 {
-  PFS_index_ews_by_thread_by_event_name *result= NULL;
+  PFS_index_ews_by_thread_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_ews_by_thread_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_ews_by_thread_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_ews_by_thread_by_event_name::index_next()
+int
+table_ews_by_thread_by_event_name::index_next()
 {
   PFS_thread *thread;
   PFS_instr_class *instr_class;
-  bool has_more_thread= true;
+  bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_thread;
-       m_pos.next_thread())
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
   {
-    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != NULL)
     {
       if (m_opened_index->match(thread))
       {
-        for ( ;
-             m_pos.has_more_view();
-             m_pos.next_view())
+        for (; m_pos.has_more_view(); m_pos.next_view())
         {
           if (!m_opened_index->match_view(m_pos.m_index_2))
+          {
             continue;
+          }
 
           do
           {
             switch (m_pos.m_index_2)
             {
             case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
-              instr_class= find_mutex_class(m_pos.m_index_3);
+              instr_class = find_mutex_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
-              instr_class= find_rwlock_class(m_pos.m_index_3);
+              instr_class = find_rwlock_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_COND:
-              instr_class= find_cond_class(m_pos.m_index_3);
+              instr_class = find_cond_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_FILE:
-              instr_class= find_file_class(m_pos.m_index_3);
+              instr_class = find_file_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_TABLE:
-              instr_class= find_table_class(m_pos.m_index_3);
+              instr_class = find_table_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
-              instr_class= find_socket_class(m_pos.m_index_3);
+              instr_class = find_socket_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_IDLE:
-              instr_class= find_idle_class(m_pos.m_index_3);
+              instr_class = find_idle_class(m_pos.m_index_3);
               break;
             case pos_ews_by_thread_by_event_name::VIEW_METADATA:
-              instr_class= find_metadata_class(m_pos.m_index_3);
+              instr_class = find_metadata_class(m_pos.m_index_3);
               break;
             default:
               DBUG_ASSERT(false);
-              instr_class= NULL;
+              instr_class = NULL;
               break;
             }
 
@@ -348,15 +350,16 @@ int table_ews_by_thread_by_event_name::index_next()
   return HA_ERR_END_OF_FILE;
 }
 
-int table_ews_by_thread_by_event_name
-::make_row(PFS_thread *thread, PFS_instr_class *klass)
+int
+table_ews_by_thread_by_event_name::make_row(PFS_thread *thread,
+                                            PFS_instr_class *klass)
 {
   pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_thread_internal_id= thread->m_thread_internal_id;
+  m_row.m_thread_internal_id = thread->m_thread_internal_id;
 
   m_row.m_event_name.make_row(klass);
 
@@ -371,35 +374,38 @@ int table_ews_by_thread_by_event_name
   {
     /* Visit instances owned by this thread. Do not visit the class. */
     PFS_instance_wait_visitor inst_visitor;
-    PFS_instance_iterator::visit_instances(klass, &inst_visitor,
-                                           thread, false);
+    PFS_instance_iterator::visit_instances(klass, &inst_visitor, thread, false);
     /* Combine the deferred stats and global stats */
     visitor.m_stat.aggregate(&inst_visitor.m_stat);
   }
 
   if (!thread->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
   return 0;
 }
 
-int table_ews_by_thread_by_event_name
-::read_row_values(TABLE *table, unsigned char *, Field **fields,
-                  bool read_all)
+int
+table_ews_by_thread_by_event_name::read_row_values(TABLE *table,
+                                                   unsigned char *,
+                                                   Field **fields,
+                                                   bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* THREAD_ID */
         set_field_ulonglong(f, m_row.m_thread_internal_id);

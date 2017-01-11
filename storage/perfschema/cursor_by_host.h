@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 #ifndef CURSOR_BY_HOST_H
 #define CURSOR_BY_HOST_H
@@ -33,12 +34,13 @@
 class PFS_index_hosts : public PFS_engine_index
 {
 public:
-  PFS_index_hosts(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_hosts(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
   virtual ~PFS_index_hosts()
-  {}
+  {
+  }
 
   virtual bool match(PFS_host *pfs) = 0;
 };
@@ -61,10 +63,11 @@ protected:
 
 public:
   ~cursor_by_host()
-  {}
+  {
+  }
 
 protected:
-  virtual int make_row(PFS_host *host)= 0;
+  virtual int make_row(PFS_host *host) = 0;
 
 private:
   /** Current position. */

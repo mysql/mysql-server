@@ -42,7 +42,7 @@ static const int XCOM_MAX_HANDLERS= 6;
 /*
   Time is defined in seconds.
 */
-static const uint64_t WAITING_TIME= 30;
+static const unsigned int WAITING_TIME= 30;
 
 Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
@@ -497,7 +497,7 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
 }
 /* purecov: begin end */
 
-Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(int wt)
+Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
   :m_xcom_handlers_cursor(-1), m_lock_xcom_cursor(),
    m_xcom_handlers_size(XCOM_MAX_HANDLERS),
    m_wait_time(wt),
@@ -576,8 +576,7 @@ Gcs_xcom_proxy_impl::Xcom_handler::~Xcom_handler()
 node_address *Gcs_xcom_proxy_impl::new_node_address(unsigned int n,
                                                     char *names[])
 {
-  //Xcom will change n's type to unsigned later in a separate patch.
-  return ::new_node_address(static_cast<int>(n), names);
+  return ::new_node_address(n, names);
 }
 
 

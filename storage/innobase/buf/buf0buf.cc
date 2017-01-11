@@ -2406,6 +2406,7 @@ void
 buf_resize_thread()
 {
 	srv_buf_resize_thread_active = true;
+	my_thread_init();
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		os_event_wait(srv_buf_resize_event);
@@ -2430,6 +2431,8 @@ buf_resize_thread()
 	}
 
 	srv_buf_resize_thread_active = false;
+
+	my_thread_end();
 }
 
 /********************************************************************//**

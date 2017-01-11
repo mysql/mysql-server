@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 /**
   @file storage/perfschema/table_tlws_by_table.cc
@@ -32,6 +33,7 @@
 
 THR_LOCK table_tlws_by_table::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -375,15 +377,14 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_tlws_by_table::m_field_def=
-{ sizeof(field_types) / sizeof(TABLE_FIELD_TYPE), field_types };
+table_tlws_by_table::m_field_def = {
+  sizeof(field_types) / sizeof(TABLE_FIELD_TYPE), field_types};
 
-PFS_engine_table_share
-table_tlws_by_table::m_share=
-{
-  { C_STRING_WITH_LEN("table_lock_waits_summary_by_table") },
+PFS_engine_table_share table_tlws_by_table::m_share = {
+  {C_STRING_WITH_LEN("table_lock_waits_summary_by_table")},
   &pfs_truncatable_acl,
   table_tlws_by_table::create,
   NULL, /* write_row */
@@ -396,30 +397,37 @@ table_tlws_by_table::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_tlws_by_table::match(const PFS_table_share *share)
+bool
+PFS_index_tlws_by_table::match(const PFS_table_share *share)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(OBJECT_TYPE_TABLE))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(share))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 3)
   {
     if (!m_key_3.match(share))
+    {
       return false;
+    }
   }
 
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_tlws_by_table::create(void)
 {
   return new table_tlws_by_table();
@@ -440,31 +448,35 @@ table_tlws_by_table::get_row_count(void)
 }
 
 table_tlws_by_table::table_tlws_by_table()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_pos(0), m_next_pos(0)
-{}
-
-void table_tlws_by_table::reset_position(void)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
 }
 
-int table_tlws_by_table::rnd_init(bool)
+void
+table_tlws_by_table::reset_position(void)
 {
-  m_normalizer= time_normalizer::get(wait_timer);
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
+}
+
+int
+table_tlws_by_table::rnd_init(bool)
+{
+  m_normalizer = time_normalizer::get(wait_timer);
   return 0;
 }
 
-int table_tlws_by_table::rnd_next(void)
+int
+table_tlws_by_table::rnd_next(void)
 {
   PFS_table_share *pfs;
 
   m_pos.set_at(&m_next_pos);
-  PFS_table_share_iterator it= global_table_share_container.iterate(m_pos.m_index);
+  PFS_table_share_iterator it =
+    global_table_share_container.iterate(m_pos.m_index);
   do
   {
-    pfs= it.scan_next(& m_pos.m_index);
+    pfs = it.scan_next(&m_pos.m_index);
     if (pfs != NULL)
     {
       if (pfs->m_enabled)
@@ -485,7 +497,7 @@ table_tlws_by_table::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  pfs= global_table_share_container.get(m_pos.m_index);
+  pfs = global_table_share_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
     if (pfs->m_enabled)
@@ -497,28 +509,28 @@ table_tlws_by_table::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tlws_by_table::index_init(uint idx, bool)
+int
+table_tlws_by_table::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(wait_timer);
+  m_normalizer = time_normalizer::get(wait_timer);
 
-  PFS_index_tlws_by_table *result= NULL;
+  PFS_index_tlws_by_table *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_tlws_by_table);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_tlws_by_table);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_tlws_by_table::index_next(void)
+int
+table_tlws_by_table::index_next(void)
 {
   PFS_table_share *share;
-  bool has_more_share= true;
+  bool has_more_share = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_share;
-       m_pos.next())
+  for (m_pos.set_at(&m_next_pos); has_more_share; m_pos.next())
   {
-    share= global_table_share_container.get(m_pos.m_index, &has_more_share);
+    share = global_table_share_container.get(m_pos.m_index, &has_more_share);
 
     if (share != NULL)
     {
@@ -539,42 +551,48 @@ int table_tlws_by_table::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_tlws_by_table::make_row(PFS_table_share *share)
+int
+table_tlws_by_table::make_row(PFS_table_share *share)
 {
   pfs_optimistic_state lock;
 
   share->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_object.make_row(share))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   PFS_table_lock_stat_visitor visitor;
-  PFS_object_iterator::visit_tables(share, & visitor);
+  PFS_object_iterator::visit_tables(share, &visitor);
 
   if (!share->m_lock.end_optimistic_lock(&lock))
+  {
     return HA_ERR_RECORD_DELETED;
-  
+  }
+
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
 
   return 0;
 }
 
-int table_tlws_by_table::read_row_values(TABLE *table,
-                                         unsigned char *buf,
-                                         Field **fields,
-                                         bool read_all)
+int
+table_tlws_by_table::read_row_values(TABLE *table,
+                                     unsigned char *buf,
+                                     Field **fields,
+                                     bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* OBJECT_TYPE */
       case 1: /* SCHEMA_NAME */
@@ -795,4 +813,3 @@ int table_tlws_by_table::read_row_values(TABLE *table,
 
   return 0;
 }
-

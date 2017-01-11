@@ -25,6 +25,7 @@
 */
 
 #include <assert.h>
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>

@@ -62,6 +62,7 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "my_user.h"             // parse_user
 #include "mysql/plugin.h"
