@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,7 +128,6 @@ static bool is_tablespace_command(ts_command_type ts_cmd_type)
   @return true - On failure.
 */
 
-/* purecov: begin deadcode */
 static bool prepare_alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
                                      const dd::Tablespace *old_ts_def,
                                      dd::Tablespace *new_ts_def)
@@ -169,7 +168,6 @@ static bool prepare_alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
 
   DBUG_RETURN(false);
 }
-/* purecov: end */
 
 
 bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)

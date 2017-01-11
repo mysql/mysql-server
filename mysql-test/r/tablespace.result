@@ -245,3 +245,12 @@ CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT="TOO_LONG_COMMENT" ENGINE=Inn
 ERROR HY000: Comment for tablespace 'ts' is too long (max = 2048)
 CREATE TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH' ENGINE=InnoDB;
 ERROR HY000: The path specified for DATAFILE is too long.
+# Also coverage for ALTER TABLESPACE case.
+ALTER TABLESPACE no_such_ts ADD DATAFILE 'ts.ibd';
+ERROR HY000: Tablespace no_such_ts doesn't exist.
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+ALTER TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH';
+ERROR HY000: The path specified for DATAFILE is too long.
+ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
+ERROR HY000: Incorrect File Name 'no_such_file.ibd'.
+DROP TABLESPACE ts;

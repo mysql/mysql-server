@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4298,10 +4298,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
     DBUG_RETURN(false);
 
   if (ha_delete_table(thd, base, path, db, table_name, table_def, 0))
-  {
-    delete table_def;
     DBUG_RETURN(true);
-  }
 
   // Remove the table object from the data dictionary. If this fails, the
   // DD operation is already rolled back, and we must return with an error.
