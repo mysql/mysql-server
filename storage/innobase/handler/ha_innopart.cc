@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2964,7 +2964,8 @@ ha_innopart::rename_table(
 @return	0 or error number. */
 int
 ha_innopart::update_dd_for_discard(
-	table_id_t	old_table_id)
+	table_id_t	old_table_id,
+	my_bool		discard)
 {
 	dict_table_t*	table;
 	uint		i;
@@ -3043,7 +3044,7 @@ ha_innopart::update_dd_for_discard(
 	}
 
 	/* Set discard flag. */
-	dd_table->table().options().set_bool("discard", true);
+	dd_table->table().options().set_bool("discard", discard);
 
 	/* Update the dd table. */
 	dc->update(dd_table);
@@ -3097,8 +3098,8 @@ ha_innopart::discard_or_import_tablespace(
 
 	/* Update dd partition for discard, since the table ids changed,
 	we need to change se_private_id accordingly. */
-	if (error == 0 && discard) {
-		error = update_dd_for_discard(old_table_id);
+	if (error == 0) {
+		error = update_dd_for_discard(old_table_id, discard);
 	}
 
 	DBUG_RETURN(error);
