@@ -3004,8 +3004,10 @@ bool migrate_events_to_dd(THD *thd)
   if ((error= event_table->file->ha_index_first(event_table->record[0])))
   {
     if (error == HA_ERR_END_OF_FILE)
+    {
+      my_tz_free();
       return false;
-
+    }
     sql_print_error("Failed to read mysql.event table.");
     goto err;
   }
