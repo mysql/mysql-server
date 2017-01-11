@@ -879,3 +879,18 @@ if(application_port is null, "null", "not_null") as port
 FROM processes
 ORDER BY node_id;
 
+#
+# wl#10147 ndbinfo.config_nodes
+#
+# (A) Normative tests of table and view definition
+desc ndb$config_nodes;
+show create table config_nodes;
+
+# (B) Tests of table content.
+# These results will change if the cluster config used when running
+# this test case changes.
+SELECT * from ndb$config_nodes;
+
+# (C) Tests of view: SELECT DISTINCT, removing reporting_node_id
+SELECT * from config_nodes;
+
