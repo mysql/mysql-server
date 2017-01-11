@@ -407,7 +407,8 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	ibool			reject_fks)
+	ibool			reject_fks,
+	const dd::Table*	dd_table)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**

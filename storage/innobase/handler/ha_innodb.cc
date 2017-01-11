@@ -13124,31 +13124,14 @@ create_table_info_t::create_table(
 	/* There is no concept of foreign key for intrinsic tables. */
 	if (handler == NULL
 	    && stmt != NULL
-#ifdef NO_NEW_DD_FK
-	/* NewDD TODO: Enable this once Bug#25252847 is fixed */
-//	    && !dd_table->foreign_keys().empty()
-#endif /* NO_NEW_DD_FK */
+	    && !dd_table->foreign_keys().empty()
 	) {
 		dberr_t	err = DB_SUCCESS;
 		err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
-			m_create_info->options & HA_LEX_CREATE_TMP_TABLE);
-#ifndef NO_NEW_DD_FK
-		if (err == DB_SUCCESS) {
-			/* Load in-memory foreign keys */
-			dd::cache::Dictionary_client*	client =
-				dd::get_dd_client(m_thd);
-			dd::cache::Dictionary_client::Auto_releaser releaser(
-				client);
-			innobase_table = dd_table_open_on_name_in_mem(
-				m_table_name, true, DICT_ERR_IGNORE_NONE);
-			err = dd_table_load_fk(
-				client, m_table_name, nullptr,
-				innobase_table, dd_table, m_thd, true,
-				true, nullptr);
-			dd_table_close(innobase_table, NULL, NULL, true);
-		}
-#endif /* NO_NEW_DD_FK */
+			m_create_info->options & HA_LEX_CREATE_TMP_TABLE,
+			dd_table);
+
 		if (trx_is_started(m_trx)) {
 			trx_commit(m_trx);
 			m_trx->op_info = "";
@@ -14927,24 +14910,28 @@ ha_innobase::truncate(dd::Table *table_def)
 			dd_set_autoinc(table_def->se_private_data(), 0);
 		}
 
-		dict_names_t	fk_tables;
+		dict_names_t    fk_tables;
+		THD*		thd = current_thd;
 
-		mutex_enter(&dict_sys->mutex);
+		dd::cache::Dictionary_client*   client
+                         = dd::get_dd_client(thd);
+                dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		const dberr_t	err	= dict_load_foreigns(
-			m_prebuilt->table->name.m_name, NULL, false, true,
-			DICT_ERR_IGNORE_ALL, fk_tables);
+		error = dd_table_check_for_child(
+			client, m_prebuilt->table->name.m_name, nullptr,
+			m_prebuilt->table, table_def, thd, true,
+			&fk_tables);
 
 		DBUG_ASSERT(fk_tables.empty());
 
-		mutex_exit(&dict_sys->mutex);
-
-		if (err != DB_SUCCESS) {
-			push_warning_printf(
-				m_user_thd, Sql_condition::SL_WARNING,
-				HA_ERR_CANNOT_ADD_FOREIGN,
-				"Truncate table '%s' failed to load some"
-				" foreign key constraints.", name);
+		if (error != DB_SUCCESS) {
+		       push_warning_printf(
+			       m_user_thd, Sql_condition::SL_WARNING,
+			       HA_ERR_CANNOT_ADD_FOREIGN,
+			       "Truncate table '%s' failed to load some"
+			       " foreign key constraints.", name);
+		} else {
+			error = 0;
 		}
 	}
 

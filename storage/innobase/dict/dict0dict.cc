@@ -4583,21 +4583,12 @@ loop:
 			local_fk_set, table, trx);
 
 		if (error == DB_SUCCESS) {
-#ifdef NO_NEW_DD_FK
-			table->foreign_set.insert(local_fk_set.begin(),
-						  local_fk_set.end());
-
-			std::for_each(local_fk_set.begin(),
-				      local_fk_set.end(),
-				      dict_foreign_add_to_referenced_table());
-#endif /* NO_NEW_DD_FK */
 #ifndef NO_NEW_DD_FK
 			std::for_each(local_fk_set.begin(),
 				      local_fk_set.end(),
 				      dict_foreign_free);
 #endif /* NO_NEW_DD_FK */
 			local_fk_set.clear();
-			dict_mem_table_fill_foreign_vcol_set(table);
 		}
 		return(error);
 	}

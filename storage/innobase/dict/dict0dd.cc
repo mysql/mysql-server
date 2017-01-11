@@ -2282,9 +2282,52 @@ dd_table_load_fk(
 	err = dd_table_load_fk_from_dd(m_table, dd_table, col_names,
 				       dict_locked);
 
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
 	if (dict_locked) {
 		mutex_exit(&dict_sys->mutex);
 	}
+
+	err = dd_table_check_for_child(client, tbl_name, col_names, m_table,
+				       dd_table, thd, check_charsets,
+				       fk_tables);
+
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	return(err);
+}
+
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]	client		data dictionary client
+@param[in]	tbl_name	Table Name
+@param[in]	col_names	column names, or NULL
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	thd		thread THD
+@param[in]	char_charsets	whether to check charset compatibility
+@param[in,out]	fk_tables	name list for tables that refer to this table
+@return DB_SUCESS 	if successfully load FK constraint */
+dberr_t
+dd_table_check_for_child(
+	dd::cache::Dictionary_client*	client,
+	const char*			tbl_name,
+	const char**			col_names,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
+	THD*				thd,
+	bool				check_charsets,
+	dict_names_t*			fk_tables)
+{
+	dberr_t	err = DB_SUCCESS;
 
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
 	if (!strstr(tbl_name, "mysql") && fk_tables != nullptr) {
@@ -2388,9 +2431,6 @@ dd_table_load_fk(
 			ut_ad(it != child_name.end());
 			++it;
 		}
-	}
-	if (dict_locked) {
-		mutex_enter(&dict_sys->mutex);
 	}
 
 	return(err);

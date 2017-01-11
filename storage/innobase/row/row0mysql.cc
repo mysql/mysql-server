@@ -3404,7 +3404,8 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	ibool			reject_fks)
+	ibool			reject_fks,
+	const dd::Table*	dd_table)
 {
 	dberr_t	err;
 
@@ -3427,23 +3428,50 @@ row_table_add_foreign_constraints(
 			err = DB_DUPLICATE_KEY;);
 
 	DEBUG_SYNC_C("table_add_foreign_constraints");
-#ifdef NO_NEW_DD_FK
 	/* Check like this shouldn't be done for table that doesn't
 	have foreign keys but code still continues to run with void action.
 	Disable it for intrinsic table at-least */
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		dict_names_t	fk_tables;
-		err = dict_load_foreigns(name, NULL, false, true,
-					 DICT_ERR_IGNORE_NONE, fk_tables);
+		THD*		thd = trx->mysql_thd;
 
-		while (err == DB_SUCCESS && !fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), true,
-					DICT_ERR_IGNORE_NONE);
-			fk_tables.pop_front();
+		dd::cache::Dictionary_client*   client
+			 = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+		dict_table_t*	table = dd_table_open_on_name_in_mem(
+			name, true, DICT_ERR_IGNORE_NONE);
+
+		err = dd_table_load_fk(
+			client, name, nullptr,
+			table, dd_table, thd, true,
+			true, &fk_tables);
+
+		if (err != DB_SUCCESS) {
+			dd_table_close(table, NULL, NULL, true);
+			goto func_exit;
 		}
+
+		/* Check whether virtual column or stored column affects
+                the foreign key constraint of the table. */
+
+                if (dict_foreigns_has_s_base_col(
+                                table->foreign_set, table)) {
+			dd_table_close(table, NULL, NULL, true);
+                        err = DB_NO_FK_ON_S_BASE_COL;
+			goto func_exit;
+		}
+		
+		/* Fill the virtual column set in foreign when
+                the table undergoes copy alter operation. */
+                dict_mem_table_free_foreign_vcol_set(table);
+                dict_mem_table_fill_foreign_vcol_set(table);
+
+                dd_open_fk_tables(client, fk_tables, thd);
+		dd_table_close(table, NULL, NULL, true);
 	}
-#endif /* NO_NEW_DD_FK */
+
+func_exit:
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 
