@@ -83,16 +83,6 @@ int ha_blackhole::create(const char*, TABLE*, HA_CREATE_INFO*)
   DBUG_RETURN(0);
 }
 
-/*
-  Intended to support partitioning.
-  Allows a particular partition to be truncated.
-*/
-int ha_blackhole::truncate()
-{
-  DBUG_ENTER("ha_blackhole::truncate");
-  DBUG_RETURN(0);
-}
-
 int ha_blackhole::write_row(uchar*)
 {
   DBUG_ENTER("ha_blackhole::write_row");

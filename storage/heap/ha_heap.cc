@@ -421,20 +421,6 @@ int ha_heap::delete_all_rows()
 }
 
 
-int ha_heap::truncate()
-{
-  int error= delete_all_rows();
-  return error ? error : reset_auto_increment(0);
-}
-
-
-int ha_heap::reset_auto_increment(ulonglong value)
-{
-  file->s->auto_increment= value;
-  return 0;
-}
-
-
 int ha_heap::external_lock(THD*, int)
 {
   return 0;					// No external locking

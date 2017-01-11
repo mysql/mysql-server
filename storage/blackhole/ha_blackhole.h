@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -70,7 +70,6 @@ public:
   uint max_supported_key_part_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
-  int truncate();
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);

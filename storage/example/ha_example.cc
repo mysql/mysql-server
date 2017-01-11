@@ -637,29 +637,6 @@ int ha_example::delete_all_rows()
 
 /**
   @brief
-  Used for handler specific truncate table.  The table is locked in
-  exclusive mode and handler is responsible for reseting the auto-
-  increment counter.
-
-  @details
-  Called from Truncate_statement::handler_truncate.
-  Not used if the handlerton supports HTON_CAN_RECREATE, unless this
-  engine can be used as a partition. In this case, it is invoked when
-  a particular partition is to be truncated.
-
-  @see
-  Truncate_statement in sql_truncate.cc
-  Remarks in handler::truncate.
-*/
-int ha_example::truncate()
-{
-  DBUG_ENTER("ha_example::truncate");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/**
-  @brief
   This create a lock on the table. If you are implementing a storage engine
   that can handle transacations look at ha_berkely.cc to see how you will
   want to go about doing this. Otherwise you should consider calling flock()
