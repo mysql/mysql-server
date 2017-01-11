@@ -4357,5 +4357,15 @@ SELECT CHAR_LENGTH(TRIM(BOTH 0x00 FROM _ucs2 0x0061));
 CHAR_LENGTH(TRIM(BOTH 0x00 FROM _ucs2 0x0061))
 1
 #
+# MDEV-11685: sql_mode can't be set with non-ascii connection charset
+#
+SET character_set_connection=ucs2;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+@@sql_mode
+NO_ENGINE_SUBSTITUTION
+SET sql_mode=DEFAULT;
+SET NAMES utf8;
+#
 # End of 5.5 tests
 #

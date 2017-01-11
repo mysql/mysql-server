@@ -1141,7 +1141,7 @@ public:
 
     if (var->value->result_type() == STRING_RESULT)
     {
-      if (!(res=var->value->val_str(&str)))
+      if (!(res=var->value->val_str_ascii(&str)))
         return true;
       else
       {

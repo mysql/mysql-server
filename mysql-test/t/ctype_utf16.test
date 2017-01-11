@@ -793,5 +793,14 @@ DO RPAD(_utf16 0x0061 COLLATE utf16_unicode_ci, 10000, 0x0061DE989999);
 DO LPAD(_utf16 0x0061 COLLATE utf16_unicode_ci, 10000, 0x0061DE989999);
 
 --echo #
+--echo # MDEV-11685: sql_mode can't be set with non-ascii connection charset
+--echo #
+SET character_set_connection=utf16;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+SET sql_mode=DEFAULT;
+SET NAMES utf8;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

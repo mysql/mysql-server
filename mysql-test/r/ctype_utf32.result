@@ -1273,5 +1273,15 @@ select hex(lower(cast(0xffff0000 as char character set utf32))) as c;
 c
 FFFF0000
 #
+# MDEV-11685: sql_mode can't be set with non-ascii connection charset
+#
+SET character_set_connection=utf32;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+@@sql_mode
+NO_ENGINE_SUBSTITUTION
+SET sql_mode=DEFAULT;
+SET NAMES utf8;
+#
 # End of 5.5 tests
 #

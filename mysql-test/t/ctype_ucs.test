@@ -853,6 +853,14 @@ SELECT CHAR_LENGTH(TRIM(BOTH 0x0001 FROM _ucs2 0x0061));
 SELECT CHAR_LENGTH(TRIM(BOTH 0x61 FROM _ucs2 0x0061));
 SELECT CHAR_LENGTH(TRIM(BOTH 0x00 FROM _ucs2 0x0061));
 
+--echo #
+--echo # MDEV-11685: sql_mode can't be set with non-ascii connection charset
+--echo #
+SET character_set_connection=ucs2;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+SET sql_mode=DEFAULT;
+SET NAMES utf8;
 
 --echo #
 --echo # End of 5.5 tests
