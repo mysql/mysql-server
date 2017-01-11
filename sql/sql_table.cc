@@ -3086,6 +3086,9 @@ rm_table_do_early_checks_and_sort_into_groups(THD *thd,
       }
     }
 
+    /* We should not try to drop active log tables. Callers enforce this. */
+    DBUG_ASSERT(query_logger.check_if_log_table(table, true) == QUERY_LOG_NONE);
+
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Abstract_table *abstract_table_def= NULL;
     if (thd->dd_client()->acquire(table->db, table->table_name,
@@ -3157,7 +3160,7 @@ rm_table_do_early_checks_and_sort_into_groups(THD *thd,
 
 
 /**
-  Auxiliary function which evaluatesin which situation DROP TABLES
+  Auxiliary function which evaluates in which situation DROP TABLES
   is regarding GTID and different table groups.
 */
 
@@ -3473,6 +3476,12 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     return true;
   }
 
+  /*
+    Invalidate query cache once we deleted table in SE even if we will
+    fail to fully delete the table.
+  */
+  query_cache.invalidate_single(thd, table, false);
+
 #ifdef HAVE_PSI_SP_INTERFACE
   if (remove_all_triggers_from_perfschema(thd, table))
     return true;
@@ -3500,9 +3509,6 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
                                      table_def, !atomic) ||
            update_referencing_views_metadata(thd, table, !atomic, nullptr);
   }
-
-  /* Invalidate even if we failed fully delete the table. */
-  query_cache.invalidate_single(thd, table, false);
 
   if (error)
     return true;
@@ -7443,8 +7449,10 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
     if (conf_tab)
     {
+      /* purecov: begin tested */
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
       DBUG_RETURN(true);
+      /* purecov: end */
     }
   }
 
@@ -12479,6 +12487,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
                                     thd->variables.lock_wait_timeout))
     {
+      /* purecov: begin tested */
       /*
         We need to clear THD::transaction_rollback_request (which might
         be set due to MDL deadlock) before attempting to remove new version
@@ -12503,6 +12512,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       }
 #endif
       goto err_with_mdl;
+      /* purecov: end */
     }
   }
 

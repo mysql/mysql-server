@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -582,22 +582,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     if (find_db_tables(thd, db.str, &tables))
     {
       DBUG_RETURN(true);
-    }
-
-    /*
-      Disable drop of enabled log tables, must be done before name locking.
-      This check is only needed if we are dropping the "mysql" database.
-    */
-    if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db.str) == 0))
-    {
-      for (table= tables; table; table= table->next_local)
-      {
-        if (query_logger.check_if_log_table(table, true))
-        {
-          my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
-          DBUG_RETURN(true);
-        }
-      }
     }
 
     /* Lock all tables and stored routines about to be dropped. */
