@@ -1,4 +1,6 @@
 --source include/big_test.inc
+# Takes too long in Valgrind, for pushbuild2:
+--source include/not_valgrind.inc
 
 # This builds a graph of randomly connected nodes (random number
 # generator is using a seed for repeatability). Then it computes the
