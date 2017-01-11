@@ -14720,6 +14720,7 @@ ha_innobase::create_table_impl(
 
 	trx = info.trx();
 
+	bool	dict_locked = false;
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.cc.
@@ -14728,6 +14729,7 @@ ha_innobase::create_table_impl(
 	to dictionary. */
 	if (!info.is_intrinsic_temp_table()) {
 		row_mysql_lock_data_dictionary(trx);
+		dict_locked = true;
 	}
 
 	if ((error = info.create_table(&dd_tab->table()))) {
@@ -14739,6 +14741,7 @@ ha_innobase::create_table_impl(
 	if (!info.is_intrinsic_temp_table()) {
 		ut_ad(!srv_read_only_mode);
 		row_mysql_unlock_data_dictionary(trx);
+		dict_locked = false;
 		/* Flush the log to reduce probability that the .frm files and
 		the InnoDB data dictionary get out-of-sync if the user runs
 		with innodb_flush_log_at_trx_commit = 0 */
@@ -14764,7 +14767,9 @@ cleanup:
 	trx_rollback_for_mysql(trx);
 
 	if (!info.is_intrinsic_temp_table()) {
-		row_mysql_unlock_data_dictionary(trx);
+		if (dict_locked) {
+			row_mysql_unlock_data_dictionary(trx);
+		}
 	} else {
 		THD* thd = info.thd();
 
