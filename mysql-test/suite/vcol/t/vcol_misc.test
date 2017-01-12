@@ -290,3 +290,14 @@ create table t1 (a int, b int as (b is null) virtual);
 create table t1 (v1 varchar(255) as (c1) persistent, c1 varchar(50)) collate=latin1_general_ci;
 show create table t1;
 drop table t1;
+
+#
+# MDEV-11527 Virtual columns do not get along well with NO_ZERO_DATE
+#
+set sql_mode='no_zero_date';
+create table t1 (
+  ts timestamp not null default current_timestamp,
+  tsv timestamp as (adddate(ts, interval 1 day)) virtual
+);
+drop table t1;
+set sql_mode=default;

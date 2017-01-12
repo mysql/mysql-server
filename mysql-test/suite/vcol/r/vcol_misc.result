@@ -330,3 +330,10 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(50) COLLATE latin1_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
 drop table t1;
+set sql_mode='no_zero_date';
+create table t1 (
+ts timestamp not null default current_timestamp,
+tsv timestamp as (adddate(ts, interval 1 day)) virtual
+);
+drop table t1;
+set sql_mode=default;

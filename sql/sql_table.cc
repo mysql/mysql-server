@@ -3826,7 +3826,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
 
     if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
-        !sql_field->def &&
+        !sql_field->def && !sql_field->vcol_info &&
         sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
