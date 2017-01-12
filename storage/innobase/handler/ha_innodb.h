@@ -213,7 +213,9 @@ public:
 
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 
-	int discard_or_import_tablespace(my_bool discard);
+	int discard_or_import_tablespace(
+		my_bool		discard,
+		dd::Table*	table_def);
 
 	int extra(ha_extra_function operation);
 

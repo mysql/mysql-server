@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -185,8 +185,8 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 uint select_field_count,
                                 bool *is_trans,
                                 handlerton **post_ddl_ht);
-int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list);
+bool mysql_discard_or_import_tablespace(THD *thd,
+                                        TABLE_LIST *table_list);
 
 /**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.

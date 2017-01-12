@@ -7918,8 +7918,8 @@ err:
 }
 
 /* table_list should contain just one table */
-int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list)
+bool mysql_discard_or_import_tablespace(THD *thd,
+                                        TABLE_LIST *table_list)
 {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   int error;
@@ -7964,7 +7964,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
     /* purecov: begin inspected */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
     /* purecov: end */
   }
 
@@ -7980,7 +7980,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
       table_list->partition_names= &thd->lex->alter_info.partition_names;
       /* Set all [named] partitions as used. */
       if (table_list->table->part_info->set_partition_bitmaps(table_list))
-        DBUG_RETURN(-1);
+        DBUG_RETURN(true);
     }
   }
   else
@@ -7994,21 +7994,41 @@ int mysql_discard_or_import_tablespace(THD *thd,
     }
   }
 
+  bool is_non_tmp_table= (table_list->table->s->tmp_table == NO_TMP_TABLE);
+  handlerton *hton= table_list->table->s->db_type();
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *non_tmp_table_def= nullptr;
+
+  if (is_non_tmp_table)
+  {
+    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
+                            table_list->table_name, &non_tmp_table_def))
+      DBUG_RETURN(true);
+
+    /* Table was successfully opened above. */
+    DBUG_ASSERT(non_tmp_table_def != nullptr);
+  }
+
   /*
     Under LOCK TABLES we need to upgrade SNRW metadata lock to X lock
     before doing discard or import of tablespace.
 
     Skip this step for temporary tables as metadata locks are not
     applicable for them.
+
+    Remember the ticket for the future downgrade.
   */
-  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
+  MDL_ticket *mdl_ticket= nullptr;
+
+  if (is_non_tmp_table &&
       (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
-      thd->mdl_context.upgrade_shared_lock(table_list->table->mdl_ticket,
-                                           MDL_EXCLUSIVE,
-                                           thd->variables.lock_wait_timeout))
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
-    DBUG_RETURN(-1);
+    mdl_ticket= table_list->table->mdl_ticket;
+    if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                             thd->variables.lock_wait_timeout))
+      DBUG_RETURN(true);
   }
 
   /*
@@ -8026,44 +8046,85 @@ int mysql_discard_or_import_tablespace(THD *thd,
 
   bool discard= (thd->lex->alter_info.flags &
                  Alter_info::ALTER_DISCARD_TABLESPACE);
-  error= table_list->table->file->ha_discard_or_import_tablespace(discard);
+  error= table_list->table->file->ha_discard_or_import_tablespace(
+                                    discard,
+                                    (is_non_tmp_table ?
+                                     non_tmp_table_def :
+                                     table_list->table->s->tmp_table_def));
 
   THD_STAGE_INFO(thd, stage_end);
 
   if (error)
-    goto err;
-
-  /*
-    The 0 in the call below means 'not in a transaction', which means
-    immediate invalidation; that is probably what we wish here
-  */
-  query_cache.invalidate(thd, table_list, FALSE);
-
-  /* The ALTER TABLE is always in its own transaction */
-  error= trans_commit_stmt(thd);
-  if (trans_commit_implicit(thd))
-    error=1;
-  if (error)
-    goto err;
-  error= write_bin_log(thd, false, thd->query().str, thd->query().length);
-
-err:
-  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
-      (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
-    table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    table_list->table->file->print_error(error, MYF(0));
   }
+  else
+  {
+    /*
+      The 0 in the call below means 'not in a transaction', which means
+      immediate invalidation; that is probably what we wish here
+    */
+    query_cache.invalidate(thd, table_list, FALSE);
+
+    /*
+      Storage engine supporting atomic DDL can fully rollback discard/
+      import if any problem occurs. This will happen during statement
+      rollback.
+
+      In case of success we need to save dd::Table object which might
+      have been updated by SE. If this step or subsequent write to binary
+      log fail then statement rollback will also restore status quo ante.
+    */
+    if (is_non_tmp_table &&
+        (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        thd->dd_client()->update<dd::Table>(non_tmp_table_def))
+      error= 1;
+
+    if (!error)
+      error= write_bin_log(thd, false, thd->query().str, thd->query().length,
+                           (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
+    /*
+      TODO/QQ: In theory since we have updated table definition in the
+               data-dictionary above we need to remove its TABLE/TABLE_SHARE
+               from TDC now. However this makes InnoDB to produce too many
+               warnings about discarded tablespace which are not always well
+               justified. What to do here?
+    */
+#ifdef NEEDS_SUPPORT_FROM_INNODB
+    if (is_non_tmp_table)
+      close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
+    table_list->table= nullptr; // Safety.
+#endif
+  }
+
+  if (!error)
+    error= trans_commit_stmt(thd) || trans_commit_implicit(thd);
+
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback_implicit(thd);
+  }
+
+  if (is_non_tmp_table &&
+      (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
+
+  if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+    error= 1;
+
+  if (mdl_ticket)
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   if (error == 0)
   {
     my_ok(thd);
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
-  table_list->table->file->print_error(error, MYF(0));
-
-  DBUG_RETURN(-1);
+  DBUG_RETURN(true);
 }
 
 

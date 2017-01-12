@@ -12995,12 +12995,18 @@ ha_innobase::create(
 
 /*****************************************************************//**
 Discards or imports an InnoDB tablespace.
+@param[in]	discard		TRUE if discard, else import
+@param[in,out]	table_def	dd::Table describing table which
+tablespace is to be imported or discarded. Can be adjusted by SE,
+the changes will be saved into the data-dictionary at statement
+commit time.
 @return 0 == success, -1 == error */
 
 int
 ha_innobase::discard_or_import_tablespace(
 /*======================================*/
-	my_bool		discard)	/*!< in: TRUE if discard, else import */
+	my_bool		discard,
+	dd::Table*	table_def)
 {
 
 	DBUG_ENTER("ha_innobase::discard_or_import_tablespace");

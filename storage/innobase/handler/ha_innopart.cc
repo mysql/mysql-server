@@ -2983,11 +2983,16 @@ cleanup:
 }
 
 /** Discards or imports an InnoDB tablespace.
-@param[in]	discard	True if discard, else import.
+@param[in]	discard		True if discard, else import.
+@param[in,out]	table_def	dd::Table describing table which
+tablespaces are to be imported or discarded. Can be adjusted by SE,
+the changes will be saved into the data-dictionary at statement
+commit time.
 @return	0 or error number. */
 int
 ha_innopart::discard_or_import_tablespace(
-	my_bool	discard)
+	my_bool		discard,
+	dd::Table*	table_def)
 {
 	int	error = 0;
 	uint	i;
@@ -2998,7 +3003,8 @@ ha_innopart::discard_or_import_tablespace(
 	     i= m_part_info->get_next_used_partition(i)) {
 
 		m_prebuilt->table = m_part_share->get_table_part(i);
-		error= ha_innobase::discard_or_import_tablespace(discard);
+		error= ha_innobase::discard_or_import_tablespace(discard,
+				table_def);
 		if (error != 0) {
 			break;
 		}

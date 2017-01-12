@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -3472,7 +3472,7 @@ public:
   bool ha_check_and_repair(THD *thd);
   int ha_disable_indexes(uint mode);
   int ha_enable_indexes(uint mode);
-  int ha_discard_or_import_tablespace(my_bool discard);
+  int ha_discard_or_import_tablespace(my_bool discard, dd::Table *table_def);
   int ha_rename_table(const char *from, const char *to,
                       const dd::Table *from_table_def,
                       dd::Table *to_table_def);
@@ -5241,11 +5241,30 @@ public:
 
   virtual int enable_indexes(uint mode MY_ATTRIBUTE((unused)))
   { return HA_ERR_WRONG_COMMAND; }
-  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)))
+
+
+  /**
+    Discard or import tablespace.
+
+    @param  [in]      discard   Indicates whether this is discard operation.
+    @param  [in,out]  table_def dd::Table object describing the table
+                                in which tablespace needs to be discarded
+                                or imported. This object can be adjusted by
+                                storage engine if it supports atomic DDL
+                                (i.e. has HTON_SUPPORTS_ATOMIC_DDL flag set).
+                                These changes will be persisted in the
+                                data-dictionary.
+    @retval   0     Success.
+    @retval   != 0  Error.
+  */
+
+  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)),
+                dd::Table *table_def MY_ATTRIBUTE((unused)))
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);
     return HA_ERR_WRONG_COMMAND;
   }
+
   virtual void drop_table(const char *name);
 
   /**
