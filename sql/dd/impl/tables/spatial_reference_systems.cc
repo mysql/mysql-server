@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ Spatial_reference_systems::Spatial_reference_systems()
                          "catalog_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
-                         "name CHARACTER VARYING(256)\n"
+                         "name CHARACTER VARYING(80)\n"
                          "NOT NULL COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_LAST_ALTERED,
                          "FIELD_LAST_ALTERED",
