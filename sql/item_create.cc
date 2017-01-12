@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1768,9 +1768,9 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_AREA", SQL_FN(Item_func_area, 1) },
   { "ST_ASBINARY", SQL_FN_V(Item_func_as_wkb, 1, 2) },
   { "ST_ASGEOJSON", SQL_FN_V_THD(Item_func_as_geojson, 1, 3) },
-  { "ST_ASTEXT", SQL_FN(Item_func_as_wkt, 1) },
+  { "ST_ASTEXT", SQL_FN_V(Item_func_as_wkt, 1, 2) },
   { "ST_ASWKB", SQL_FN_V(Item_func_as_wkb, 1, 2) },
-  { "ST_ASWKT", SQL_FN(Item_func_as_wkt, 1) },
+  { "ST_ASWKT", SQL_FN_V(Item_func_as_wkt, 1, 2) },
   { "ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5) },
   { "ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2) },
   { "ST_CENTROID", SQL_FN(Item_func_centroid, 1) },

@@ -3276,23 +3276,138 @@ double Item_func_latlongfromgeohash::val_real()
 String *Item_func_as_wkt::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String arg_val;
-  String *swkb= args[0]->val_str(&arg_val);
+
+  String swkb_tmp;
+  String *swkb= args[0]->val_str(&swkb_tmp);
+
   Geometry_buffer buffer;
-  Geometry *geom= NULL;
+  Geometry *g;
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return 0;
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
 
-  if (!(geom= Geometry::construct(&buffer, swkb)))
+  // Even if args[0]->val_str didn't return swkb_tmp, it may still
+  // have modified it, so clean it up first.
+  if (swkb != &swkb_tmp)
+  {
+    swkb_tmp.set(static_cast<const char *>(nullptr), 0, swkb_tmp.charset());
+  }
+  swkb_tmp.copy(*swkb);
+  swkb= &swkb_tmp;
+
+  if (!(g= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
 
+  if (g->get_srid() != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g->get_srid(), &srs))
+      return error_str();
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          g->get_srid());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (this->arg_count == 2)
+  {
+    String options_arg_tmp;
+    String *options_arg= args[1]->val_str_ascii(&options_arg_tmp);
+    null_value= args[1]->null_value;
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+
+    std::map<std::string, std::string> options;
+
+    if (options_parser::parse_string(options_arg, &options, func_name()))
+    {
+      return error_str(); // Error has already been raised;
+    }
+
+    for (const auto &pair : options)
+    {
+      const std::string &key= pair.first;
+      const std::string &value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  // The SRS default axis order is lat-long. The storage axis
+  // order is long-lat, so we must reverse coordinates.
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
   str->length(0);
-  if ((null_value= geom->as_wkt(str)))
-    return 0;
+  if ((null_value= g->as_wkt(str)))
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;    
+  }
 
   return str;
 }
