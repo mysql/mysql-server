@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -786,8 +786,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   mysql_mutex_unlock(&acl_cache->lock);
   result= 0;
   escaped_hash_str_len= (opt_log_builtin_as_identified_by_password?
-                         strlen(combo->auth.str)*2+1 :
-                         strlen(acl_user->auth_string.str)*2+1);
+                         combo->auth.length:
+                         acl_user->auth_string.length)*2+1;
   /*
      Allocate a buffer for the escaped password. It should at least have place
      for length*2+1 chars.
