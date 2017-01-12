@@ -48,8 +48,3 @@ log_alter_table           : Waiting for WL#9175
 innodb_bug-13628249       : Waiting for WL#9175
 
 innodb-copy-alter-debug	  : Require atomic DDL, WL#9536
-
-innodb_tablespace	  : partition table data dir
-create_tablespace	  : partition table data dir
-subpartition		  : partition table data dir
-tablespace_per_table	  : partition table data dir
