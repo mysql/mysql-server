@@ -186,3 +186,41 @@ COUNT(*)
 0
 SET SESSION debug= '-d,skip_dd_table_access_check';
 ###################################################################
+#
+# WL#8150: Dictionary cache.
+#
+# Verify that calls to Dictionary_client::drop() while executing
+# ALTER TABLE will make the dropped object disappear, and that
+# the shared cache will not be contaminated with the dropped
+# object (which will make subsequent DDL operations fail due to
+# the shared cache being out of sync with the persistent tables).
+#
+###################################################################
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP VIEW v1;
+DROP TABLE t2;
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1, t2;
+DROP TABLE t2;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP VIEW v1;
+DROP TABLE t2;
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, ALGORITHM= COPY;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE t2;
+DROP VIEW v1;
+###################################################################

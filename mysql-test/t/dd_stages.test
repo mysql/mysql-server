@@ -44,12 +44,39 @@ drop table t1;
 --enable_ps_protocol
 
 connection default;
-select event_name from performance_schema.events_stages_history_long
+--echo # Checking the expected number of stages history entries:
+--disable_query_log
+--disable_result_log
+select @open_count:= count(event_name) from performance_schema.events_stages_history_long
   where thread_id = @con1_thread_id and
-        (event_name like '%Opening %tables' or
-         event_name like '%Locking system tables' or
-         event_name like '%System lock' )
-  order by event_id;
+        event_name like '%Opening %tables';
+select @tablock_count:= count(event_name) from performance_schema.events_stages_history_long
+  where thread_id = @con1_thread_id and
+        event_name like '%Locking system tables';
+select @syslock_count:= count(event_name) from performance_schema.events_stages_history_long
+  where thread_id = @con1_thread_id and
+        event_name like '%System lock';
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+--enable_result_log
+
+# For debugging, uncomment the following lines to see the actual values:
+# select @open_count    AS 'Actual open table',
+#        @tablock_count AS 'Actual lock table',
+#        @syslock_count AS 'Actual lock system';
+
+if (!$have_debug)
+{
+  select if (@open_count    = 11, 'OK', 'WRONG') AS 'Open table',
+         if (@tablock_count =  9, 'OK', 'WRONG') AS 'Lock table',
+         if (@syslock_count =  1, 'OK', 'WRONG') AS 'Lock system';
+}
+if ($have_debug)
+{
+  select if (@open_count    = 12, 'OK', 'WRONG') AS 'Open table',
+         if (@tablock_count = 10, 'OK', 'WRONG') AS 'Lock table',
+         if (@syslock_count =  1, 'OK', 'WRONG') AS 'Lock system';
+}
+--enable_query_log
 
 connection con1;
 disconnect con1;
