@@ -3556,8 +3556,8 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
         not all.
 */
 
-bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists_a,
-                             bool drop_temporary_a, bool drop_database_a,
+bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+                             bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
                              std::set<handlerton*> *post_ddl_htons
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
@@ -3565,7 +3565,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists_a,
 #endif
                              )
 {
-  Drop_tables_ctx drop_ctx(if_exists_a, drop_temporary_a, drop_database_a);
+  Drop_tables_ctx drop_ctx(if_exists, drop_temporary, drop_database);
 
   bool default_db_doesnt_exist= false;
 

@@ -9077,7 +9077,7 @@ This will be invoked before inplace_alter_table().
 by ALTER TABLE and holding data used during in-place alter.
 @param[in]	old_table_def	dd::Table object describing old version
 of the table.
-@param[in/out]	new_table_def	dd::Table object for the new version of
+@param[in,out]	new_table_def	dd::Table object for the new version of
 the table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement commit
 time.
@@ -9193,7 +9193,7 @@ on the return value from check_if_supported_inplace_alter().
 by ALTER TABLE and holding data used during in-place alter.
 @param[in]	old_table_def	dd::Table object describing old version
 of the table.
-@param[in/out]	new_table_def	dd::Table object for the new version of
+@param[in,out]	new_table_def	dd::Table object for the new version of
 the table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement commit
 time.
@@ -9244,7 +9244,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @param[in]	commit		true => Commit, false => Rollback.
 @param[in]	old_table_def	dd::Table object describing old version
 of the table.
-@param[in/out]	new_table_def	dd::Table object for the new version of
+@param[in,out]	new_table_def	dd::Table object for the new version of
 the table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement commit
 time.
