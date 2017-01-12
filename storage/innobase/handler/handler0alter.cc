@@ -4475,6 +4475,12 @@ prepare_inplace_alter_table_global_dd(
 		(ha_alter_info->handler_ctx);
 	THD*			thd = ctx->prebuilt->trx->mysql_thd;
 
+	if (DICT_TF_HAS_DATA_DIR(new_table->flags)) {
+		ut_ad(dict_table_is_file_per_table(new_table));
+		new_dd_tab->se_private_data().set_bool(
+			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
+	}
+
 	if (need_rebuild) {
 		/* To rebuild, we wtite back the whole table */
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -4522,12 +4528,6 @@ prepare_inplace_alter_table_global_dd(
 				    filename, dd_space_id)) {
 				ut_a(false);
 				return(true);
-			}
-
-			if (DICT_TF_HAS_DATA_DIR(old_table->flags)) {
-				new_dd_tab->se_private_data().set_bool(
-                       		dd_table_key_strings[DD_TABLE_DATA_DIRECTORY],
-				true);
 			}
 
 		} else if (new_table->space == TRX_SYS_SPACE) {

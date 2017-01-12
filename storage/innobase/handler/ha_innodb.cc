@@ -13658,9 +13658,7 @@ create_table_info_t::create_table_update_global_dd(
 
 	/* Set DATA DIRECTORY only when DATA DIRECTORY exists and
 	takes effect */
-	if (file_per_table
-	    && m_create_info->data_file_name != NULL
-	    && m_create_info->data_file_name[0] != '\0') {
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		dd_table->se_private_data().set_bool(
 			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY],
 			true);
