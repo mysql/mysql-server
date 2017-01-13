@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -472,6 +472,8 @@ bool recreate_table(THD *thd, const char *schema_name,
   @param[in]    keys_onoff  Wheather keys are enabled or disabled.
   @param[in]    commit_dd_changes   Indicates whether change to the data
                                     dictionary needs to be committed.
+
+  @note Assumes that table exists.
 
   @note In case when commit_dd_changes is false, the caller must rollback
         both statement and transaction on failure, before any further

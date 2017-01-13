@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2475,21 +2475,8 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
                  with out but why)?
   */
   dd::Schema_MDL_locker mdl_locker(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch= NULL;
-  if (mdl_locker.ensure_locked(schema_name) ||
-      thd->dd_client()->acquire<dd::Schema>(schema_name, &sch))
-  {
-    // Error is reported by the dictionary subsystem.
+  if (mdl_locker.ensure_locked(schema_name))
     return true;
-  }
-
-  if (!sch)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
-    return true;
-  }
-
 
   Disable_gtid_state_update_guard disabler(thd);
 
@@ -2885,11 +2872,8 @@ bool update_keys_disabled(THD *thd,
     return true;
   }
 
-  if (!tab_obj)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
-    return true;
-  }
+  // Rely on caller to check table existence.
+  DBUG_ASSERT(tab_obj != nullptr);
 
   // Update option keys_disabled
   tab_obj->options().set_uint32("keys_disabled",

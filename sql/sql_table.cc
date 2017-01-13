@@ -2929,14 +2929,12 @@ private:
 
 /**
   Auxiliary function which prepares for DROP TABLES execution by sorting
-  tables to be dropped into groups according to their types and doing
-  early checks for temporary tables.
+  tables to be dropped into groups according to their types.
 */
 
 static bool
-rm_table_do_early_checks_and_sort_into_groups(THD *thd,
-                                              Drop_tables_ctx *drop_ctx,
-                                              TABLE_LIST *tables)
+rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
+                          TABLE_LIST *tables)
 {
   /*
     Sort tables into groups according to type of handling they require:
@@ -3068,16 +3066,16 @@ rm_table_do_early_checks_and_sort_into_groups(THD *thd,
           Continue with base tables.
         */
       }
-      else if (table->table->query_id &&
-               table->table->query_id != thd->query_id)
-      {
-        // A temporary table is used by an outer statement.
-        my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table->alias);
-        return true;
-      }
       else
       {
-        // A temporary table was found and can be successfully dropped.
+        /*
+          A temporary table was found and can be successfully dropped.
+
+          The fact that this temporary table is used by an outer statement
+          should be detected and reported as error earlier.
+        */
+        DBUG_ASSERT(table->table->query_id == thd->query_id);
+
         if (table->table->file->has_transactions())
           drop_ctx->tmp_trans_tables.push_back(table);
         else
@@ -3573,7 +3571,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   *dropped_non_atomic_flag= false;
 
-  if (rm_table_do_early_checks_and_sort_into_groups(thd, &drop_ctx, tables))
+  if (rm_table_sort_into_groups(thd, &drop_ctx, tables))
     DBUG_RETURN(true);
 
   /*
