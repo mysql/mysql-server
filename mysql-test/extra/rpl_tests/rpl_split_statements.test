@@ -37,7 +37,17 @@
 #     there will be a separate statement for all dropped non-temporary
 #     tables, a separate statement for all dropped transactional
 #     temporary tables, and a separate statement for all dropped
-#     non-transactional tables.
+#     non-transactional temporary tables. Moreover, statement for all
+#     dropped non-temporary tables can be split further. If no GTID
+#     is assigned then there will be individual DROP TABLE statements
+#     for each dropped table in SEs which don't support atomic DDL
+#     and single statement for all dropped tables in SEs supporting
+#     atomic DDL. If original DROP TABLE statement is supposed to be
+#     executed under single GTID then all dropped base tables (both
+#     supporting atomic DDL and not) are combined in a single
+#     statement. Execution of statements which drop both temporary
+#     and non-temporary tables or two kinds of temporary tables under
+#     single GTID is not allowed.
 #
 #  3. DROP DATABASE: See details in rpl_split_statements_debug.test
 #
@@ -62,10 +72,11 @@
 #     - Not on slave. Since CALL does not get logged as CALL, there is
 #       no way to get it in the binary log.
 #
-#  2. DROP TABLE. We drop all combinations of two or three tables,
-#     from the different categories non-temporary, temporary
-#     transactional, and temporary non-transactional.  This is done in
-#     three ways:
+#  2. DROP TABLE.
+#
+#     First, we drop all combinations of two or three tables, from the
+#     different categories non-temporary, temporary transactional, and
+#     temporary non-transactional.  This is done in three ways:
 #
 #     - On master with GTID_MODE='AUTOMATIC'
 #     - On master with GTID_MODE!='AUTOMATIC' ('ANONYMOUS'/'UUID:NUMBER',
@@ -78,6 +89,20 @@
 #       then sync it to slave, then drop it on slave, and then use a
 #       stored procedure on master that creates a temporary table with
 #       the same name *only* when it executes on the slave.
+#
+#     Second, we drop group of 4 tables, where 2 tables are in SE which
+#     do not support atomic DDL and 2 in SE which support it. We do it
+#     in both GTID_MODE='AUTOMATIC' and GTID_MODE='UUID:NUMBER' to see
+#     if they are split into several/combined into single statement
+#     according to GTID_MODE.
+#
+#     Third, we drop group of 4 tables, where 2 tables are in SE which
+#     do not support atomic DDL and 2 in SE which support it and the
+#     last table from the latter group can't be dropped. This triggers
+#     different code path in DROP TABLE implementation. Again this is
+#     done for both GTID_MODE='AUTOMATIC' and GTID_MODE='UUID:NUMBER'
+#     to see difference in splitting/combining. Notice that with GTID
+#     assigned even such failed DROP TABLE will consume GTID.
 #
 #  3. DROP DATABASE. Tests for this statement were moved into
 #     rpl_split_statements_debug.test.
@@ -253,6 +278,143 @@ DROP FUNCTION create_tables_func;
 DROP PROCEDURE create_tables;
 DROP PROCEDURE drop_tables;
 DROP TABLE dummy;
+
+--echo ==== Case 2C: DROP TABLES for base tables in engines with and without atomic DDL support ====
+
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (a INT) ENGINE = InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo ---- GTID_MODE=AUTOMATIC ----
+
+--source include/gtid_step_reset.inc
+
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+--echo # In AUTOMATIC mode the above statement should be split into three:
+--echo # two statements for each of MyISAM tables and single statement
+--echo # dropping both of InnoDB tables.
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (a INT) ENGINE = InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo ---- GTID_NEXT=non-automatic ----
+
+--source include/gtid_step_reset.inc
+
+--source include/set_gtid_next_gtid_mode_agnostic.inc
+
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+SET GTID_NEXT= 'AUTOMATIC';
+
+if ($gtid_mode_on)
+{
+--echo # With GTID assigned the above statement should not be split.
+--let $gtid_step_count= 1
+--source include/gtid_step_assert.inc
+}
+if (!$gtid_mode_on)
+{
+--echo # Without GTID assigned the above statement should be split into
+--echo # three as in AUTOMATIC mode.
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+}
+
+--echo ==== Case 2D: Failing DROP TABLES for base tables with and without atomic DDL support ====
+
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (pk INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE base_5_a (fk INT, FOREIGN KEY (fk) REFERENCES base_4_a(pk)) ENGINE = InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo ---- GTID_MODE=AUTOMATIC ----
+
+--source include/gtid_step_reset.inc
+
+--error ER_ROW_IS_REFERENCED
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+--echo # In AUTOMATIC mode the above statement should be split into three:
+--echo # two statements for each of MyISAM tables and single statement
+--echo # dropping base_3_a. Note that this will change once InnoDB really
+--echo # supports atomic DDL.
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+
+--echo # base_4_a should still be there on master
+SHOW CREATE TABLE base_4_a;
+
+--source include/rpl_sync.inc
+
+--connection slave
+
+--echo # base_4_a should still be there on slave
+SHOW CREATE TABLE base_4_a;
+
+--connection master
+
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo ---- GTID_NEXT=non-automatic ----
+
+--source include/gtid_step_reset.inc
+
+--source include/set_gtid_next_gtid_mode_agnostic.inc
+
+--error ER_ROW_IS_REFERENCED
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+SET GTID_NEXT= 'AUTOMATIC';
+
+if ($gtid_mode_on)
+{
+--echo # With GTID assigned the above statement should not be split.
+--let $gtid_step_count= 1
+--source include/gtid_step_assert.inc
+}
+if (!$gtid_mode_on)
+{
+--echo # Without GTID assigned the above statement should be split into
+--echo # three as in AUTOMATIC mode.
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+}
+
+--echo # base_4_a should still be there on master
+SHOW CREATE TABLE base_4_a;
+
+--source include/rpl_sync.inc
+
+--connection slave
+
+--echo # base_4_a should still be there on slave
+SHOW CREATE TABLE base_4_a;
+
+--connection master
+
+--echo ---- Clean up ----
+
+DROP TABLE base_5_a, base_4_a;
+
+--source include/rpl_sync.inc
 
 --echo ==== Case 3: DROP DATABASE ====
 

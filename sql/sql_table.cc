@@ -3800,10 +3800,18 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           built_query.add_array(*dropped_atomic);
           built_query.write_bin_log();
         }
-        thd->is_commit_in_middle_of_statement= true;
-        (void) trans_commit_stmt(thd);
-        (void) trans_commit_implicit(thd);
-        thd->is_commit_in_middle_of_statement= false;
+
+        if (drop_ctx.drop_database)
+        {
+          Disable_gtid_state_update_guard disabler(thd);
+          (void) trans_commit_stmt(thd);
+          (void) trans_commit_implicit(thd);
+        }
+        else
+        {
+          (void) trans_commit_stmt(thd);
+          (void) trans_commit_implicit(thd);
+        }
         DBUG_RETURN(true);
 #else
         goto err_with_rollback;
