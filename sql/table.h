@@ -716,7 +716,6 @@ struct TABLE_SHARE
     (table->file!=nullptr).
   */
   uint tmp_handler_count;
-  uint temp_pool_slot;                         ///< Used by intern temp tables
 
   uint key_block_size;			/* create key_block_size, if used */
   uint stats_sample_pages;		/* number of pages to sample during

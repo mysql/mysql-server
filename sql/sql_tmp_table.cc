@@ -50,7 +50,7 @@
 #include "myisam.h"               // MI_COLUMNDEF
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "mysqld.h"               // heap_hton use_temp_pool
+#include "mysqld.h"               // heap_hton
 #include "mysqld_error.h"
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
@@ -725,7 +725,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint  hidden_null_count, hidden_null_pack_length;
   long hidden_field_count;
   uint  blob_count,group_null_items, string_count;
-  uint  temp_pool_slot=MY_BIT_NONE;
   uint fieldnr= 0;
   ulong reclength, string_total_length, distinct_key_length= 0;
   /**
@@ -762,19 +761,9 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               (int) distinct, (int) save_sum_fields,
               (ulong) rows_limit, MY_TEST(group)));
 
-  if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
-    temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-
-  if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
-            current_pid, temp_pool_slot);
-  else
-  {
-    /* if we run out of slots or we are not using tempool */
-    DBUG_ASSERT(sizeof(my_thread_id) == 4);
-    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid,
-            thd->thread_id(), thd->tmp_table++);
-  }
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
+  sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid,
+          thd->thread_id(), thd->tmp_table++);
 
   /*
     No need to change table name to lower case as we are only creating
@@ -847,15 +836,11 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                         &bitmaps, bitmap_buffer_size(field_count + 1) * 3,
                         NullS))
   {
-    if (temp_pool_slot != MY_BIT_NONE)
-      bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   /* Copy_field belongs to Temp_table_param, allocate it in THD mem_root */
   if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
-    if (temp_pool_slot != MY_BIT_NONE)
-      bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     free_root(&own_root, MYF(0));               /* purecov: inspected */
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
@@ -901,7 +886,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   copy_func->set_mem_root(&share->mem_root);
 
   share->field= table->field;
-  share->temp_pool_slot= temp_pool_slot;
   share->blob_field= blob_field;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= param->table_charset;
@@ -1674,7 +1658,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
   TABLE_SHARE *share;
-  uint  temp_pool_slot=MY_BIT_NONE;
   char	*tmpname,path[FN_REFLEN];
   Field **reg_field;
   KEY_PART_INFO *key_part_info;
@@ -1695,19 +1678,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   /*
     STEP 1: Get temporary table name
   */
-  if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
-    temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-
-  if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
-	    current_pid, temp_pool_slot);
-  else
-  {
-    /* if we run out of slots or we are not using tempool */
-    DBUG_ASSERT(sizeof(my_thread_id) == 4);
-    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix,current_pid,
-            thd->thread_id(), thd->tmp_table++);
-  }
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
+  sprintf(path,"%s%lx_%x_%x", tmp_file_prefix,current_pid,
+          thd->thread_id(), thd->tmp_table++);
   fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   /* STEP 2: Figure if we'll be using a key or blob+constraint */
@@ -1731,8 +1704,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                         &bitmaps, bitmap_buffer_size(1) * 3,
                         NullS))
   {
-    if (temp_pool_slot != MY_BIT_NONE)
-      bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);
   }
   my_stpcpy(tmpname,path);
@@ -1759,7 +1730,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   mem_root_save= thd->mem_root;
   thd->mem_root= &share->mem_root;
 
-  share->temp_pool_slot= temp_pool_slot;
   share->blob_field= blob_field;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= NULL;
@@ -2065,7 +2035,6 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   memset(share, 0, sizeof(*share));
   table->field= field;
   table->s= share;
-  share->temp_pool_slot= MY_BIT_NONE;
   share->blob_field= blob_field;
   share->fields= field_count;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
@@ -2296,17 +2265,6 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        )))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
-    /*
-      Table name which was allocated from temp-pool is already occupied
-      in SE. Probably we hit a bug in server or some problem with system
-      configuration. Prevent problem from re-occurring by marking temp-pool
-      slot for this name as permanently busy, to do this we only need to set
-      temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
-      in free_tmp_table().
-    */
-    if (error == EEXIST)
-      table->s->temp_pool_slot= MY_BIT_NONE;
-
     table->db_stat=0;
     goto err;
   }
@@ -2360,22 +2318,6 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   if ((error= table->file->create(share->table_name.str, table, &create_info)))
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
-    /*
-      Table name which was allocated from temp-pool is already occupied
-      in SE. Probably we hit a bug in server or some problem with system
-      configuration. Prevent problem from re-occurring by marking temp-pool
-      slot for this name as permanently busy, to do this we only need to set
-      temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
-      in free_tmp_table().
-
-      Note that currently InnoDB never reports an error in this case but
-      instead aborts on failed assertion. So the below if-statement is here
-      mostly to make code future-proof and consistent with MyISAM case.
-   */
-
-   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_TABLESPACE_EXISTS ||
-       error == HA_ERR_TABLE_EXIST)
-     table->s->temp_pool_slot= MY_BIT_NONE;     /* purecov: inspected */
     table->db_stat= 0;
     DBUG_RETURN(true);
   }
@@ -2547,8 +2489,6 @@ void free_tmp_table(THD *thd, TABLE *entry)
   DBUG_ASSERT(entry->s->ref_count >= 1);
   if (--entry->s->ref_count == 0) // no more TABLE objects
   {
-    if (entry->s->temp_pool_slot != MY_BIT_NONE)
-      bitmap_lock_clear_bit(&temp_pool, entry->s->temp_pool_slot);
     plugin_unlock(0, entry->s->db_plugin);
     /*
       In create_tmp_table(), the share's memroot is allocated inside own_root

@@ -810,7 +810,7 @@ ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool super_read_only= 0, opt_super_readonly= 0;
 my_bool opt_require_secure_transport= 0;
-my_bool use_temp_pool, relay_log_purge;
+my_bool relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
@@ -1045,7 +1045,6 @@ struct System_variables max_system_variables;
 struct System_status_var global_status_var;
 
 MY_TMPDIR mysql_tmpdir_list;
-MY_BITMAP temp_pool;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -1849,7 +1848,6 @@ static void clean_up(bool print_message)
     free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
-  bitmap_free(&temp_pool);
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
   end_slave_list();
@@ -3564,13 +3562,6 @@ int init_common_variables()
   if (debug_sync_init())
     return 1; /* purecov: tested */
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-
-#if defined(__linux__)
-  if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
-    return 1;
-#else
-  use_temp_pool= 0;
-#endif
 
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
@@ -6579,15 +6570,6 @@ struct my_option my_long_options[]=
    &opt_debug_sync_timeout, 0,
    0, GET_UINT, OPT_ARG, 0, 0, UINT_MAX, 0, 0, 0},
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-  {"temp-pool", 0,
-#if defined(__linux__)
-   "Using this option will cause most temporary files created to use a small "
-   "set of names, rather than a unique name for each new file.",
-#else
-   "This option is ignored on this OS.",
-#endif
-   &use_temp_pool, &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
   {"transaction-isolation", 0,
    "Default transaction isolation level.",
    &global_system_variables.tx_isolation,

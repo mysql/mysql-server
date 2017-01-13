@@ -124,7 +124,6 @@ enum enum_server_operational_state
 };
 enum_server_operational_state get_server_state();
 
-extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
 extern my_bool opt_log_slave_updates;
@@ -143,7 +142,7 @@ extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
 extern my_bool opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_local_infile, opt_myisam_use_mmap;
-extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
