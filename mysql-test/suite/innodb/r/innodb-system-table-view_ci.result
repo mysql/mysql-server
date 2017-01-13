@@ -102,7 +102,7 @@ table_id	pos	mtype	prtype	len	name
 22	5	3	525575	4	last_altered
 23	0	6	1795	4	id
 23	1	6	1800	8	catalog_id
-23	2	12	2167055	768	name
+23	2	12	2162959	240	name
 23	3	3	525575	4	last_altered
 23	4	3	525575	4	created
 23	5	12	5443599	768	organization
