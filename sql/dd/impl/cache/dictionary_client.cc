@@ -2220,6 +2220,8 @@ template <typename T>
 void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 {
 #ifndef DBUG_OFF
+  // Note: The ifdef'ed block below is only for consistency checks in
+  // debug builds.
   typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
   for (it= m_registry_dropped.begin<typename T::cache_partition_type>();
        it != m_registry_dropped.end<typename T::cache_partition_type>();
@@ -2235,10 +2237,13 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
     // isolation level READ UNCOMMITTED.
     const typename T::id_key_type id_key(dropped_object->id());
 
-    // Fetch the dictionary object by PK from the DD tables, but only if:
-    // - This is not a bootstrap thread (due to SE being faked).
+    // Fetch the dictionary object by PK from the DD tables, and verify that
+    // it's not available, but only if:
+    // - This is not a DD system thread (due to SE being faked).
     // - The transaction is being committed, not rolled back.
-    if (!m_thd->is_dd_system_thread() && commit_to_shared_cache)
+    // - We're not allowing direct access to DD tables.
+    if (!m_thd->is_dd_system_thread() && commit_to_shared_cache &&
+        DBUG_EVALUATE_IF("skip_dd_table_access_check", false, true))
     {
       const typename T::cache_partition_type *stored_object= nullptr;
       if (!Shared_dictionary_cache::instance()->
