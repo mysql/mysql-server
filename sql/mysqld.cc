@@ -70,23 +70,28 @@
 /**
   @page PAGE_CODING_GUIDELINES Coding Guidelines
 
-  This section shows the guidelines that MySQL's developers
-  follow when writing new code. It has been decided to follow
-  the Google coding style for mysql. Google coding style
-  should be used for new projects/components wherever possible.
+  This section shows the guidelines that MySQL developers
+  follow when writing new code. In general, MySQL development
+  uses the Google coding style:
+
+  - For new projects/components, use Google coding style wherever
+    possible.
+
+  - For old projects or code, use the style already used in the
+    existing code for the time being.
 
   Exceptions in MySQL coding guidelines:
 
-  - Class names : Do not use MyClass but My_class.
-    This exception is because the server has a history of using
-    My_class. It will be confusing with mixing the two
-    (from a code review perspective).
-    InnoDB have had freedom of choice for Class names
+  - Class names: Do not use MyClass. Instead, use My_class.
+    This exception exists because the server has a history of using
+    My_class. It will be confusing to mix the two
+    (from a code-review perspective).
+    InnoDB has had freedom of choice for Class names
     and will therefore not suffer from the mix.
 
-  - Member variables names : Do not use foo_ but
-    m_foo (non-static) and s_foo (static). It is because
-    this is an improvement over the Google style.
+  - Member variable names: Do not use foo_. Instead, use
+    m_foo (non-static) and s_foo (static), which
+    are improvements over the Google style.
 
   Notes:
 
@@ -105,9 +110,6 @@
   - MySQL coding guideline is to have no space before '='
     while assignment “foo= bar”. The Google style is have space
     around '=' in assignment "foo = bar".
-
-  - For new projects Google style should be followed. For old
-    projects/components mysql old style should be used for time being.
 
 
   Consistent style is important for us, because everyone must
