@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -420,6 +420,9 @@ bool trans_rollback(THD *thd, bool rollback_modified_dd_objects)
   after deadlock was discovered.
 
   @param thd     Current thread
+  @param rollback_modified_dd_objects
+                 Should any uncommitted DD objects be removed
+                 from Dictionary_client?
 
   @retval False Success
   @retval True  Failure
@@ -430,7 +433,7 @@ bool trans_rollback(THD *thd, bool rollback_modified_dd_objects)
         transaction rollback request.
 */
 
-bool trans_rollback_implicit(THD *thd)
+bool trans_rollback_implicit(THD *thd, bool rollback_modified_dd_objects)
 {
   int res;
   DBUG_ENTER("trans_rollback_implict");
@@ -458,6 +461,14 @@ bool trans_rollback_implicit(THD *thd)
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
   trans_track_end_trx(thd);
+
+  /*
+    TODO: When InnoDB supports Atomic DDL, we should always
+    remove uncommitted DD objects on rollback. The
+    'rollback_modified_dd_objects' argument can the be removed.
+  */
+  if (rollback_modified_dd_objects)
+    thd->dd_client()->rollback_modified_objects();
 
   DBUG_RETURN(MY_TEST(res));
 }
