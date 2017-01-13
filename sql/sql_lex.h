@@ -3361,7 +3361,8 @@ public:
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
-  String *wild; ///< Widcard from SHOW ... LIKE <wildcard> statements.
+  // Widcard from SHOW ... LIKE <wildcard> statements.
+  String *wild;
   sql_exchange *exchange;
   Query_result *result;
   LEX_STRING binlog_stmt_arg; ///< Argument of the BINLOG event statement.

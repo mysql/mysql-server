@@ -1876,15 +1876,9 @@ bool PT_show_fields_and_keys::contextualize(Parse_context *pc)
       select_lex->set_where_cond(m_where_condition);
     }
 
-    enum enum_schema_tables schema_table;
-    switch(m_type) {
-    case SHOW_FIELDS:
-      schema_table= SCH_TMP_TABLE_COLUMNS;
-      break;
-    case SHOW_KEYS:
-      schema_table= SCH_TMP_TABLE_KEYS;
-      break;
-    }
+    enum enum_schema_tables schema_table=
+      (m_type == SHOW_FIELDS) ? SCH_TMP_TABLE_COLUMNS :
+                                SCH_TMP_TABLE_KEYS;
     if (make_schema_select(thd, select_lex, schema_table))
       return true;
 
