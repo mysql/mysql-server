@@ -3050,8 +3050,13 @@ void Query_result_create::drop_open_table()
     else
     {
       trans_rollback_stmt(thd);
-      if (thd->transaction_rollback_request)
-        trans_rollback_implicit(thd);
+      /*
+        TODO: We have to call this regardless of
+        thd->transaction_rollback_request in order for view metadata
+        on disk to be in synch with the DD cache state in case of
+        deadlock during view metadata update.
+      */
+      trans_rollback_implicit(thd);
 
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
