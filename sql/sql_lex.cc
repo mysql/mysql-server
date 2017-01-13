@@ -4807,6 +4807,18 @@ bool LEX::accept(Select_lex_visitor *visitor)
 }
 
 
+bool LEX::set_wild(LEX_STRING w)
+{
+  if (w.str == nullptr)
+  {
+    wild= nullptr;
+    return false;
+  }
+  wild= new(thd->mem_root) String(w.str, w.length, system_charset_info);
+  return wild == nullptr;
+}
+
+
 void st_lex_master_info::initialize()
 {
   host= user= password= log_file_name= bind_addr = NULL;

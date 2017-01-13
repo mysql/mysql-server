@@ -67,6 +67,7 @@
 #include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
+#include "sql_prepare.h"                     // mysql_test_show
 #include "sql_table.h"                       // mysql_recreate_table
 #include "system_variables.h"
 #include "table.h"
@@ -1592,4 +1593,30 @@ bool Sql_cmd_show_privileges::execute(THD *thd)
   LEX_USER *tmp_user= const_cast<LEX_USER *>(for_user);
   tmp_user= get_current_user(thd, tmp_user);
   DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
+}
+
+
+bool Sql_cmd_show::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show::execute");
+
+  thd->clear_current_query_costs();
+  bool res= show_precheck(thd, thd->lex, true);
+  if (!res)
+    res= execute_show(thd, thd->lex->query_tables);
+  thd->save_current_query_costs();
+
+  DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_show::prepare(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show::prepare");
+
+  if (Sql_cmd::prepare(thd))
+    DBUG_RETURN(true);
+
+  bool rc= mysql_test_show(get_owner(), thd->lex->query_tables);
+  DBUG_RETURN(rc);
 }

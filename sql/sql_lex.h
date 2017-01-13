@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2072,6 +2072,11 @@ union YYSTYPE {
   Locked_row_action locked_row_action;
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
+  struct
+  {
+    LEX_STRING wild;
+    Item *where;
+  } wild_or_where;
 };
 
 #endif
@@ -3356,7 +3361,7 @@ public:
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
-  String *wild;
+  String *wild; ///< Widcard from SHOW ... LIKE <wildcard> statements.
   sql_exchange *exchange;
   Query_result *result;
   LEX_STRING binlog_stmt_arg; ///< Argument of the BINLOG event statement.
@@ -3842,6 +3847,7 @@ public:
 
   bool accept(Select_lex_visitor *visitor);
 
+  bool set_wild(LEX_STRING);
 };
 
 

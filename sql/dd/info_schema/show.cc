@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -760,19 +760,6 @@ build_show_columns_query(const POS &pos,
   if (top_query.add_order_by(alias_ordinal_position))
     return nullptr;
 
-  /*
-    Add table_ident to schema_select_lex, this is used later to
-    validate if the given table exists in select_precheck()
-  */
-  TABLE_LIST **query_tables_last= thd->lex->query_tables_last;
-  SELECT_LEX *schema_select_lex= nullptr;
-  if ((schema_select_lex= thd->lex->new_empty_query_block()) == nullptr)
-    return nullptr;
-  if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
-                                            MDL_SHARED_READ))
-    return nullptr;
-  thd->lex->query_tables_last= query_tables_last;
-
   // Prepare the SELECT_LEX
   SELECT_LEX* sl= top_query.prepare_select_lex();
   if (sl == nullptr)
@@ -780,10 +767,6 @@ build_show_columns_query(const POS &pos,
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
-
-  // Hold the schema_select_lex in the first table_list.
-  TABLE_LIST *table_list= sl->table_list.first;
-  table_list->schema_select_lex= schema_select_lex;
 
   return sl;
 }
@@ -941,19 +924,6 @@ build_show_keys_query(const POS &pos,
       top_query.add_order_by(alias_column_pos))
     return nullptr;
 
-  /*
-    Add table_ident to schema_select_lex, this is used later to
-    validate if the given table exists in select_precheck()
-  */
-  TABLE_LIST **query_tables_last= thd->lex->query_tables_last;
-  SELECT_LEX *schema_select_lex= nullptr;
-  if ((schema_select_lex= thd->lex->new_empty_query_block()) == nullptr)
-    return nullptr;
-  if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
-                                            MDL_SHARED_READ))
-    return nullptr;
-  thd->lex->query_tables_last= query_tables_last;
-
   // Prepare the SELECT_LEX
   SELECT_LEX* sl= top_query.prepare_select_lex();
   if (sl == nullptr)
@@ -961,10 +931,6 @@ build_show_keys_query(const POS &pos,
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command= SQLCOM_SHOW_KEYS;
-
-  // Hold the schema_select_lex in the first table_list.
-  TABLE_LIST *table_list= sl->table_list.first;
-  table_list->schema_select_lex= schema_select_lex;
 
   return sl;
 }

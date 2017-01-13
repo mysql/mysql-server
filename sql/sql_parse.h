@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,6 +137,8 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 #endif /*HAVE_REPLICATION*/
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 
+bool execute_show(THD *thd, TABLE_LIST *all_tables);
+
 /* Bits in sql_command_flags */
 
 #define CF_CHANGES_DATA           (1U << 0)
@@ -245,6 +247,12 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
         after being updated.
 */
 #define CF_NEEDS_AUTOCOMMIT_OFF   (1U << 17)
+
+
+/**
+  Identifies statements which can return rows of data columns (SELECT, SHOW ...)
+*/
+#define CF_HAS_RESULT_SET         (1U << 18)
 
 /* Bits in server_command_flags */
 

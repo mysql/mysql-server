@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,6 @@ using std::max;
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
-static bool execute_show(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
 const LEX_STRING command_name[]={
@@ -413,6 +412,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE |
+                                            CF_HAS_RESULT_SET |
                                             CF_CAN_BE_EXPLAINED;
   // (1) so that subquery is traced when doing "SET @var = (subquery)"
   /*
@@ -433,18 +433,40 @@ void init_update_queries(void)
                                             CF_AUTO_COMMIT_TRANS |
                                             CF_DISALLOW_IN_RO_TRANS;
 
-  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
   sql_command_flags[SQLCOM_SHOW_PLUGINS]=     CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND |
+                                              CF_HAS_RESULT_SET |
+                                              CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_BINLOGS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
@@ -464,7 +486,9 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
   sql_command_flags[SQLCOM_SHOW_PROC_CODE]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
@@ -475,9 +499,11 @@ void init_update_queries(void)
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
+                                                 CF_HAS_RESULT_SET |
                                                  CF_REEXECUTION_FRAGILE);
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                 CF_SHOW_TABLE_COMMAND |
+                                                CF_HAS_RESULT_SET |
                                                 CF_REEXECUTION_FRAGILE);
 
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
@@ -2738,8 +2764,6 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_PLUGINS:
-  case SQLCOM_SHOW_FIELDS:
-  case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
@@ -4407,7 +4431,9 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_REVOKE_ROLE:
   case SQLCOM_ALTER_USER_DEFAULT_ROLE:
   case SQLCOM_SHOW_GRANTS:
-    DBUG_ASSERT(lex->m_sql_cmd != NULL);
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
+    DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;
 
@@ -4804,7 +4830,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
 }
 
 
-static bool execute_show(THD *thd, TABLE_LIST *all_tables)
+bool execute_show(THD *thd, TABLE_LIST *all_tables)
 {
   DBUG_ENTER("execute_show");
   LEX	*lex= thd->lex;
