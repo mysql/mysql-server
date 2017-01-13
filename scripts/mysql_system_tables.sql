@@ -4519,7 +4519,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
 	idx.type AS `TYPE`,
     count(*) AS `N_FIELDS`,
     GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'root') AS `PAGE_NO`,
-    idx.tablespace_id AS `SPACE`,
+    IF (idx.tablespace_id < 4, NULL, idx.tablespace_id-3) AS `SPACE`,
     0 AS `MERGE_THRESHOLD`
   FROM mysql.indexes idx
     JOIN mysql.index_column_usage col ON idx.id=col.index_id

@@ -681,8 +681,7 @@ dd_table_discard_tablespace(
 				ut_ad(index != NULL);
 
 				dd::Properties& p = dd_index->se_private_data();
-				p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT],
-index->page);
+				p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
 			}
 
 			/* Set discard flag. */
@@ -2953,7 +2952,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	const char*	err_msg = NULL;
 	ulint		table_id;
 
-	ut_a(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
@@ -2962,7 +2961,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	field = rec_get_nth_field(rec, offsets, 6, &len);
 
 	/* If "engine" field is not "innodb", return. */
-	if (strcmp((const char*)field, "InnoDB") != 0) {
+	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
 		*table = NULL;
 		mtr_commit(mtr);
 		return(NULL);
@@ -3031,4 +3030,71 @@ dd_getnext_system_rec(
 	btr_pcur_store_position(pcur, mtr);
 
 	return(rec);
+}
+
+/** Process one mysql.indexes record and get the dict_index_t
+@param[in]		heap		temp memory heap
+@param[in,out]	rec			mysql.indexes record
+@param[in,out]	index		dict_index_t to fill
+@param[in]		dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]		mtr			the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_indexes_rec(
+	mem_heap_t*		heap,
+	const rec_t*	rec,
+	dict_index_t*	index,
+	dict_table_t*	dd_indexes)
+{
+	ulint		len;
+	const byte*	field;
+	uint32		index_id;
+	uint32		tablespace_id;
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	field = rec_get_nth_field(rec, offsets, 16, &len);
+
+	/* If "engine" field is not "innodb", return. */
+	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
+		return(false);
+	}
+
+	/* Get the se_private_data field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+
+	if (len == 0) {
+		return(false);
+	}
+
+	/* Get index id. */
+	dd::String_type prop((char*)field);
+	dd::Properties* properties = dd::Properties::parse_properties(prop);
+
+	if (!properties)
+		return(false);
+
+	if (!properties->get_uint32(dd_index_key_strings[DD_INDEX_ID], &index_id)
+		&& index_id != 0) {
+		index->id = index_id;
+	} else {
+		return(false);
+	}
+	
+	/* Get the tablespace_id field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 15, &len);
+	ut_ad(len == 8);
+
+	/* Get the space id*/
+	tablespace_id = mach_read_from_8(field);
+	if (tablespace_id < 4) {
+		index->space = tablespace_id;
+	} else {
+		index->space = tablespace_id - 3;
+	}
+
+	return(true);
 }

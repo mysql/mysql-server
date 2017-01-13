@@ -8600,7 +8600,6 @@ static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /** Populate INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
 @param[in]	thd		user thread
 @param[in]	index		populated dict_index_t struct with index info
@@ -8636,7 +8635,6 @@ i_s_fill_innodb_cached_indexes_row(
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /** Go through each record in SYS_INDEXES, and fill
 INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
@@ -8650,7 +8648,9 @@ i_s_innodb_cached_indexes_fill_table(
 	TABLE_LIST*	tables,
 	Item*		/* not used */)
 {
-#ifdef INNODB_NO_NEW_DD
+	MDL_ticket*		mdl = nullptr;
+	dict_table_t*	dd_indexes;
+
 	DBUG_ENTER("i_s_innodb_cached_indexes_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
@@ -8668,29 +8668,25 @@ i_s_innodb_cached_indexes_fill_table(
 
 	/* Start the scan of SYS_INDEXES. */
 	btr_pcur_t	pcur;
-	const rec_t*	rec = dict_startscan_system(&pcur, &mtr, SYS_INDEXES);
+	const rec_t* rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+		DD_INDEXES, &dd_indexes);
 
 	/* Process each record in the table. */
 	while (rec != NULL) {
-		table_id_t	table_id;
 		dict_index_t	index;
 
 		/* Populate a dict_index_t structure with an information
 		from a SYS_INDEXES row. */
-		const char*	err_msg = dict_process_sys_indexes_rec(
-			heap, rec, &index, &table_id);
+		bool ret = dd_process_dd_indexes_rec(
+			heap, rec, &index, dd_indexes);
 
 		mtr_commit(&mtr);
 
 		mutex_exit(&dict_sys->mutex);
 
-		if (err_msg == NULL) {
+		if (ret) {
 			i_s_fill_innodb_cached_indexes_row(
 				thd, &index, tables->table);
-		} else {
-			push_warning_printf(
-				thd, Sql_condition::SL_WARNING,
-				ER_CANT_FIND_SYSTEM_REC, "%s", err_msg);
 		}
 
 		mem_heap_empty(heap);
@@ -8700,19 +8696,18 @@ i_s_innodb_cached_indexes_fill_table(
 
 		mtr_start(&mtr);
 
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+
+	dd_table_close(dd_indexes, thd, &mdl, true);
 
 	mutex_exit(&dict_sys->mutex);
 
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.

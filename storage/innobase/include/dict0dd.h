@@ -453,6 +453,20 @@ dd_getnext_system_rec(
 	btr_pcur_t*	pcur,
 	mtr_t*		mtr);
 
+/** Process one mysql.indexes record and get the dict_index_t
+@param[in]		heap		temp memory heap
+@param[in,out]	rec			mysql.indexes record
+@param[in,out]	index		dict_index_t to fill
+@param[in]		dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]		mtr			the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_indexes_rec(
+	mem_heap_t*		heap,
+	const rec_t*	rec,
+	dict_index_t*	index,
+	dict_table_t*	dd_indexes);
+
 /** Open foreign tables reference a table.
 @param[in,out]	client		data dictionary client
 @param[in]	fk_list		foreign key name list
