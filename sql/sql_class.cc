@@ -2230,6 +2230,10 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   num_truncated_fields= 0;
   get_transaction()->m_savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
+
+  /* Reset savepoint on transaction write set */
+  get_transaction()->get_transaction_write_set_ctx()
+      ->reset_savepoint_list(this);
 }
 
 
@@ -2297,6 +2301,11 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   inc_examined_row_count(backup->examined_row_count);
   num_truncated_fields+= backup->num_truncated_fields;
+
+  /* Restore savepoint on transaction write set */
+  get_transaction()->get_transaction_write_set_ctx()
+      ->restore_savepoint_list(this);
+
   DBUG_VOID_RETURN;
 }
 
