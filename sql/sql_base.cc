@@ -1445,10 +1445,10 @@ static bool belongs_to_dd_table(const TABLE_LIST *tl)
 
 
 /**
- Performance Schema tables must be accessible independently of the LOCK TABLE
- mode. These macros handle the special case of P_S tables being used under
- LOCK TABLE mode.
- Check if the table belongs to the P_S, excluding setup and threads tables.
+  Performance Schema tables must be accessible independently of the LOCK TABLE
+  mode. These macros handle the special case of P_S tables being used under
+  LOCK TABLE mode.
+  Check if the table belongs to the P_S, excluding setup and threads tables.
 */
 static inline bool belongs_to_p_s(TABLE_LIST *tl)
 {
