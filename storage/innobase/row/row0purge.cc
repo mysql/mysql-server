@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -836,6 +836,9 @@ skip_secondaries:
 	row_purge_upd_exist_or_extern_func(node,undo_rec)
 #endif /* UNIV_DEBUG */
 
+/* Maximum table id for InnoDB system tables */
+#define	INNODB_SYS_TABLE_ID_MAX		16
+
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
 @param[in,out]	node			row undo node
@@ -893,24 +896,22 @@ row_purge_parse_undo_rec(
 try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
-	/* FIX_ME: NEW_DD, after Sept 10th merge, we cannot call
-	dd_table_open_on_id() before server fully up */
-	while (table_id >= 16 && !mysqld_server_started) {
+	/* Cannot call dd_table_open_on_id() before server is fully up */
+	while (table_id >= INNODB_SYS_TABLE_ID_MAX && !mysqld_server_started) {
 		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
                         return(false);
                 }
                 os_thread_sleep(1000000);
         }
 
-	/* FIX_ME: NEW_DD, this is temporary solution as the system
-	tables are not yet coming with InnoDB private data */
-
 	/* SDI tables are hidden tables and are not registered with global
 	dictionary. Open the table internally. Also acquire dict_operation
 	lock for SDI table to prevent concurrent DROP TABLE and purge */
-	if (table_id < 16 || dict_table_is_sdi(table_id)) {
+	if (table_id < INNODB_SYS_TABLE_ID_MAX
+	    || dict_table_is_sdi(table_id)) {
 		if (dict_table_is_sdi(table_id)) {
-			rw_lock_s_lock_inline(dict_operation_lock, 0, __FILE__, __LINE__);
+			rw_lock_s_lock_inline(
+				dict_operation_lock, 0, __FILE__, __LINE__);
 			*dict_op_lock_acquired = true;
 		}
 		node->table = dict_table_open_on_id(
@@ -948,7 +949,7 @@ try_again:
 		/* Need server fully up for virtual column computation */
 		if (!mysqld_server_started) {
 
-			if (node->table->id < 16
+			if (node->table->id < INNODB_SYS_TABLE_ID_MAX
 			    || dict_table_is_sdi(node->table->id)) {
 				dict_table_close(node->table, FALSE, FALSE);
 				node->table = NULL;
@@ -977,7 +978,8 @@ try_again:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		if (node->table->id < 16 || dict_table_is_sdi(node->table->id)) {
+		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
@@ -998,7 +1000,8 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (node->table->id < 16 || dict_table_is_sdi(node->table->id)) {
+		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
@@ -1016,6 +1019,7 @@ err_exit:
 	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)
 	    && !*updated_extern) {
 
+		/* Purge requires no changes to indexes: we may return */
 		goto close_exit;
 	}
 
@@ -1041,8 +1045,7 @@ err_exit:
 	return(true);
 }
 
-/***********************************************************//**
-Purges the parsed record.
+/** Purges the parsed record.
 @param[in,out]  node            row purge node
 @param[in]      undo_rec        undo record to purge
 @param[in,out]  thr             query thread
@@ -1052,7 +1055,6 @@ Purges the parsed record.
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 row_purge_record_func(
-/*==================*/
 	purge_node_t*	node,
 	trx_undo_rec_t*	undo_rec,
 #ifdef UNIV_DEBUG
@@ -1108,7 +1110,8 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (node->table->id < 16 || dict_table_is_sdi(node->table->id)) {
+		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {

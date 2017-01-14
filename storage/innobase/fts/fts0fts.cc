@@ -1019,6 +1019,9 @@ fts_cache_index_cache_create(
 	return(index_cache);
 }
 
+/** Remove a FTS index cache
+@param[in]	table	table with FTS index
+@param[in]	index	FTS index */
 void
 fts_cache_index_cache_remove(
 	dict_table_t*		table,
@@ -1870,7 +1873,6 @@ fts_create_one_common_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		//dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS common table "
 			<< fts_table_name;
@@ -2087,8 +2089,6 @@ fts_create_one_index_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		//dict_table_remove_from_cache(new_table);
-		//dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS index table "
 			<< table_name;

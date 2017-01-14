@@ -269,6 +269,28 @@ dd_table_load_fk(
 	bool				check_charsets,
 	dict_names_t*			fk_tables);
 
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]	client		data dictionary client
+@param[in]	tbl_name	Table Name
+@param[in]	col_names	column names, or NULL
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	thd		thread THD
+@param[in]	char_charsets	whether to check charset compatibility
+@param[in,out]	fk_tables	name list for tables that refer to this table
+@return DB_SUCESS	if successfully load FK constraint */
+dberr_t
+dd_table_check_for_child(
+	dd::cache::Dictionary_client*	client,
+	const char*			tbl_name,
+	const char**			col_names,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
+	THD*				thd,
+	bool				check_charsets,
+	dict_names_t*			fk_tables);
+
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
 based on a Global DD object.
 @param[in,out]	client		data dictionary client

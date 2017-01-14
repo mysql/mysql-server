@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2364,6 +2364,9 @@ bool dd_index_is_candidate_key(const dd::Index *idx_obj)
       continue;
 
     if (idx_elem_obj->column().is_nullable())
+      return false;
+
+    if (idx_elem_obj->column().is_virtual())
       return false;
 
     /*

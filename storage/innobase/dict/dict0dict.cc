@@ -2875,7 +2875,8 @@ dict_index_remove_from_cache_low(
 	rw_lock_free(&index->lock);
 
 	/* The index is being dropped, remove any compression stats for it. */
-	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
+	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)
+	    && !index->table->discard_after_ddl) {
 		index_id_t	id(index->space, index->id);
 		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index.erase(id);
@@ -4584,21 +4585,12 @@ loop:
 
 		if (error == DB_SUCCESS) {
 #endif /* INNODB_NO_NEW_DD */
-#ifdef NO_NEW_DD_FK
-			table->foreign_set.insert(local_fk_set.begin(),
-						  local_fk_set.end());
-
-			std::for_each(local_fk_set.begin(),
-				      local_fk_set.end(),
-				      dict_foreign_add_to_referenced_table());
-#endif /* NO_NEW_DD_FK */
 #ifndef NO_NEW_DD_FK
 			std::for_each(local_fk_set.begin(),
 				      local_fk_set.end(),
 				      dict_foreign_free);
 #endif /* NO_NEW_DD_FK */
 			local_fk_set.clear();
-			dict_mem_table_fill_foreign_vcol_set(table);
 #ifdef INNODB_NO_NEW_DD
 		}
 		return(error);

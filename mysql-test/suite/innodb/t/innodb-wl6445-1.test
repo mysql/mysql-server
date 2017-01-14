@@ -528,6 +528,7 @@ CALL mtr.add_suppression("Skip re-populating collations and character sets table
 let $restart_parameters = restart: --innodb-read-only --read-only;
 --source include/restart_mysqld.inc
 USE testdb_wl6445;
+show tables;
 select * from t1 where i = 4;
 # check if root user able to modify
 --ERROR ER_CANT_LOCK

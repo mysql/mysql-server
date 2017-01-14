@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -505,7 +505,8 @@ public:
 	@return	0 or error number. */
 	int
 	update_dd_for_discard(
-		table_id_t	old_table_id);
+		table_id_t	old_table_id,
+		my_bool		discard);
 
 	int
 	discard_or_import_tablespace(

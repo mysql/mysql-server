@@ -4428,6 +4428,12 @@ prepare_inplace_alter_table_global_dd(
 		(ha_alter_info->handler_ctx);
 	THD*			thd = ctx->prebuilt->trx->mysql_thd;
 
+	if (DICT_TF_HAS_DATA_DIR(new_table->flags)) {
+		ut_ad(dict_table_is_file_per_table(new_table));
+		new_dd_tab->se_private_data().set_bool(
+			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
+	}
+
 	if (need_rebuild) {
 		/* To rebuild, we wtite back the whole table */
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -4476,6 +4482,7 @@ prepare_inplace_alter_table_global_dd(
 				ut_a(false);
 				return(true);
 			}
+
 		} else if (new_table->space == TRX_SYS_SPACE) {
 			dd_space_id = dict_sys_t::dd_sys_space_id;
 		} else {
@@ -7054,7 +7061,6 @@ innobase_drop_foreign_try(
 
 	DBUG_RETURN(false);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /** Rename a column in the data dictionary tables.
 @param[in]	user_table	InnoDB table that was being altered
@@ -7092,7 +7098,6 @@ innobase_rename_column_try(
 	if (new_clustered) {
 		goto rename_foreign;
 	}
-#ifdef INNODB_NO_NEW_DD
 	info = pars_info_create();
 
 	pars_info_add_ull_literal(info, "tableid", user_table->id);
@@ -7165,7 +7170,6 @@ err_exit:
 			}
 		}
 	}
-#endif /* INNODB_NO_NEW_DD */
 rename_foreign:
 	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
 
@@ -7262,13 +7266,11 @@ rename_foreign:
 
 	trx->op_info = "";
 	DBUG_RETURN(false);
-#ifndef INNODB_NO_NEW_DD
 err_exit:
 	my_error_innodb(error, table_name, 0);
 	trx->error_state = DB_SUCCESS;
 	trx->op_info = "";
 	DBUG_RETURN(true);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Rename columns in the data dictionary tables.
@@ -7337,7 +7339,6 @@ processed_field:
 
 	return(false);
 }
-#ifdef INNODB_NO_NEW_DD
 /** Enlarge a column in the data dictionary tables.
 @param user_table InnoDB table that was being altered
 @param trx data dictionary transaction
@@ -7552,7 +7553,6 @@ innobase_rename_or_enlarge_columns_cache(
 		}
 	}
 }
-
 /** Get the auto-increment value of the table on commit.
 @param ha_alter_info Data used during in-place alter
 @param ctx In-place ALTER TABLE context
@@ -7777,7 +7777,7 @@ innobase_update_foreign_cache(
 	dict_names_t	fk_tables;
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(user_thd);
-        dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 	err = dd_table_load_fk(
 		client, user_table->name.m_name, ctx->col_names,
 		user_table, dd_table, user_thd, true, true, &fk_tables);
@@ -8188,14 +8188,12 @@ commit_try_norebuild(
 			DBUG_RETURN(true);
 		}
 	}
-#endif /* INNODB_NO_NEW_DD */
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NAME)
 	    && innobase_rename_columns_try(ha_alter_info, ctx, old_table,
 					   trx, table_name)) {
 		DBUG_RETURN(true);
 	}
-#ifdef INNODB_NO_NEW_DD
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)
 	    && innobase_enlarge_columns_try(ha_alter_info, old_table,
@@ -8963,18 +8961,12 @@ ha_innobase::commit_inplace_alter_table_impl(
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
 
-			error = innobase_update_foreign_cache(
-				ctx, m_user_thd, &new_dd_tab->table());
-
-			if (error != DB_SUCCESS) {
-				goto foreign_fail;
-			}
+			ctx->new_table->discard_after_ddl = true;
 		} else {
 			error = innobase_update_foreign_cache(
 				ctx, m_user_thd, &new_dd_tab->table());
 
 			if (error != DB_SUCCESS) {
-foreign_fail:
 				/* The data dictionary cache
 				should be corrupted now.  The
 				best solution should be to

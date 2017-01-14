@@ -172,31 +172,11 @@ dd_table_open_on_dd_obj(
                     dict_table_t*, table, ut_ad(table->cached),
                     table->id == table_id);
 
-	/* TODO: Remove this once DISCARD can update se_private_id.
-	Currently, the se_private_id is incorrect, so searching by id
-	will report find nothing. One more extra check by name */
-	if (table == NULL && tbl_name != NULL) {
-		const ulint	table_fold = ut_fold_string(tbl_name);
-		HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
-			    dict_table_t*, table, ut_ad(table->cached),
-			    !strcmp(table->name.m_name, tbl_name));
-	}
-
-	if (table == nullptr) {
-	} else {
-		if (table != nullptr) {
-			table->acquire();
-		}
+	if (table != nullptr) {
+		table->acquire();
 	}
 
 	mutex_exit(&dict_sys->mutex);
-
-#if 0
-	ut_ad(table == nullptr
-	      || (dd_part == nullptr
-		  ? dd_table_check(dd_table, *table, true)
-		  : dd_table_check(*dd_part, *table, true)));
-#endif
 
 	if (table || error) {
 		return(error);
@@ -455,7 +435,6 @@ dd_check_corrupted(dict_table_t*& table)
 	dict_index_t* index = table->first_index();
 	if (!dict_table_is_sdi(table->id)
 	    && fil_space_get(index->space) == nullptr) {
-		// TODO: use index&table name
 		my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
 		table = nullptr;
 		return(HA_ERR_TABLESPACE_MISSING);
@@ -1107,13 +1086,6 @@ format_validate(
 				 innobase_hton_name,
 				 "ROW_FORMAT=COMPRESSED", zip_refused);
 			invalid = true;
-		} else {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				ER_DEFAULT(ER_ILLEGAL_HA_CREATE_OPTION),
-				innobase_hton_name,
-				 "ROW_FORMAT=COMPRESSED", zip_refused);
 		}
 	}
 
@@ -1129,13 +1101,16 @@ format_validate(
 			invalid = true;
 		} else if (compression.m_type != Compression::NONE) {
 			if (*zip_ssize != 0) {
-				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-					 innobase_hton_name,
-					 "COMPRESSION",
-					 m_form->s->key_block_size
-					 ? "KEY_BLOCK_SIZE"
-					 : "ROW_FORMAT=COMPRESSED");
-				invalid = true;
+				if (strict) {
+					my_error(ER_ILLEGAL_HA_CREATE_OPTION,
+						 MYF(0),
+						 innobase_hton_name,
+						 "COMPRESSION",
+						 m_form->s->key_block_size
+						 ? "KEY_BLOCK_SIZE"
+						 : "ROW_FORMAT=COMPRESSED");
+					invalid = true;
+				} 
 			}
 
 			if (is_temporary) {
@@ -1143,13 +1118,11 @@ format_validate(
 					 innobase_hton_name,
 					 "COMPRESSION", "TEMPORARY");
 				invalid = true;
-#if 1//WL#7141 TODO: check this in dd_space_invalid()
 			} else if (!m_implicit) {
 				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 					 innobase_hton_name,
 					 "COMPRESSION", "TABLESPACE");
 				invalid = true;
-#endif
 			}
 		}
 	}
@@ -1198,8 +1171,6 @@ format_validate(
 void
 dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc)
 {
-	//ut_ad(dd_table_data_is_valid(se_private_data));
-
 	/* The value of "autoinc" here is the AUTO_INCREMENT attribute
 	specified at table creation. AUTO_INCREMENT=0 will silently
 	be treated as AUTO_INCREMENT=1. Likewise, if no AUTO_INCREMENT
@@ -1794,26 +1765,15 @@ dd_fill_dict_table(
 	      || m_form->s->key_block_size == m_create_info->key_block_size);
 	ut_ad(dd_part != nullptr);
 
-	bool invalid = false;
-
 	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
 		my_error(ER_TOO_MANY_FIELDS, MYF(0));
 		return(NULL);
 	}
 
-	/* TODO: these should be tablespace attributes and be used!*/
+	/* Set encryption option. */
 	dd::String_type	encrypt;
-	dd::String_type	compress;
-	dd_part->table().options().get("compress", compress);
 	dd_part->table().options().get("encrypt_type", encrypt);
 
-	/* Check compression option. */
-	if (!Compression::is_none(compress.c_str())) {
-		/* TODO: check fil_node_t::punch_hole too, and maybe
-		issue a warning when compression is not feasible?*/
-	}
-
-	/* Set encryption option. */
 	if (!Encryption::is_none(encrypt.c_str())) {
 		ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
 		is_encrypted = true;
@@ -1866,8 +1826,8 @@ dd_fill_dict_table(
 	unsigned	zip_ssize;
 
 	if (format_validate(m_thd, m_form, zip_allowed, strict,
-			    &is_redundant, &blob_prefix, &zip_ssize, m_implicit)
-	    || invalid) {
+			    &is_redundant, &blob_prefix, &zip_ssize,
+			    m_implicit)) {
 		return(NULL);
 	}
 
@@ -1889,7 +1849,8 @@ dd_fill_dict_table(
 
 	m_table->id = dd_part->se_private_id();
 
-	if (dd_part->options().exists(data_file_name_key)) {
+	if (dd_part->se_private_data().exists(
+		dd_table_key_strings[DD_TABLE_DATA_DIRECTORY])) {
 		m_table->flags |= DICT_TF_MASK_DATA_DIR;
 	}
 
@@ -2298,6 +2259,53 @@ dd_table_load_fk(
 	err = dd_table_load_fk_from_dd(m_table, dd_table, col_names,
 				       dict_locked);
 
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	if (dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	err = dd_table_check_for_child(client, tbl_name, col_names, m_table,
+				       dd_table, thd, check_charsets,
+				       fk_tables);
+
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	return(err);
+}
+
+/** Load foreign key constraint for the table. Note, it could also open
+the foreign table, if this table is referenced by the foreign table
+@param[in,out]	client		data dictionary client
+@param[in]	tbl_name	Table Name
+@param[in]	col_names	column names, or NULL
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	m_table		InnoDB table handle
+@param[in]	dd_table	Global DD table
+@param[in]	thd		thread THD
+@param[in]	char_charsets	whether to check charset compatibility
+@param[in,out]	fk_tables	name list for tables that refer to this table
+@return DB_SUCESS 	if successfully load FK constraint */
+dberr_t
+dd_table_check_for_child(
+	dd::cache::Dictionary_client*	client,
+	const char*			tbl_name,
+	const char**			col_names,
+	dict_table_t*			m_table,
+	const dd::Table*		dd_table,
+	THD*				thd,
+	bool				check_charsets,
+	dict_names_t*			fk_tables)
+{
+	dberr_t	err = DB_SUCCESS;
+
 	/* TODO: NewDD: Temporary ignore system table until WL#6049 inplace */
 	if (!strstr(tbl_name, "mysql") && fk_tables != nullptr) {
 		std::vector<dd::String_type>	child_schema;
@@ -2325,7 +2333,6 @@ dd_table_load_fk(
 
 			mutex_enter(&dict_sys->mutex);
 
-			ut_ad(!dict_locked);
 			/* Load the foreign table first */
 			dict_table_t*	foreign_table =
 				dd_table_open_on_name_in_mem(
@@ -2333,6 +2340,34 @@ dd_table_load_fk(
 					DICT_ERR_IGNORE_NONE);
 
 			if (foreign_table) {
+				/* TODO: WL6049 needs to fix this.
+				Column renaming needs to update
+				referencing table defintion */
+#if 0
+
+				if (foreign_table->foreign_set.empty()) 	{
+					MDL_ticket*	mdl = nullptr;
+					const dd::Table* dd_f_table = nullptr;
+					dd_mdl_acquire(
+						thd, &mdl,
+						db_name.c_str(),
+						(char*)tb_name.c_str());
+
+					if (client->acquire(
+						db_name.c_str(),
+						tb_name.c_str(),
+						&dd_f_table)) {
+						continue;
+					} else {
+						dd_table_load_fk_from_dd(
+							foreign_table,
+							dd_f_table, nullptr,
+							true);
+					}
+					dd_mdl_release(thd, &mdl);
+				}
+#endif
+
 				for (auto &fk : foreign_table->foreign_set) {
 					if (strcmp(fk->referenced_table_name,
 						   tbl_name) != 0) {
@@ -2400,7 +2435,7 @@ dd_table_get_space_name(
 		->tablespace_id();
 
 	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-			dd_space_id, &dd_space)) {
+		dd_space_id, &dd_space)) {
 		ut_a(false);
 	}
 
@@ -2447,10 +2482,12 @@ dd_load_tablespace(
 		if (table->space == dict_sys_t::space_id) {
 			shared_space_name = mem_strdup(
 				dict_sys_t::dd_space_name);
-		} else if (srv_sys_tablespaces_open) {
+		}
+		else if (srv_sys_tablespaces_open) {
 			shared_space_name = mem_strdup(
 				dd_table_get_space_name(dd_table));
-		} else {
+		}
+		else {
 			/* Make the temporary tablespace name. */
 			shared_space_name = static_cast<char*>(
 				ut_malloc_nokey(
@@ -2461,14 +2498,15 @@ dd_load_tablespace(
 				static_cast<ulint>(table->space));
 		}
 		space_name = shared_space_name;
-	} else {
+	}
+	else {
 		space_name = table->name.m_name;
 	}
 
 	/* The tablespace may already be open. */
 	if (fil_space_for_table_exists_in_mem(
-		    table->space, space_name, false,
-		    true, heap, table->id)) {
+		table->space, space_name, false,
+		true, heap, table->id)) {
 		ut_free(shared_space_name);
 		return;
 	}
@@ -2495,14 +2533,13 @@ dd_load_tablespace(
 				table->name.m_name, IBD, true);
 		}
 
-	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+	}
+	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 		/* Set table->tablespace from either
 		fil_system or SYS_TABLESPACES */
 		dict_get_and_save_space_name(table, true);
 
 #ifdef INNODB_NO_NEW_DD
-		/* Set the filepath from either
-		fil_system or SYS_DATAFILES. */
 		filepath = dict_get_first_path(table->space);
 		if (filepath == NULL) {
 			ib::warn() << "Could not find the filepath"
@@ -2516,7 +2553,7 @@ dd_load_tablespace(
 	false because we do not have an x-lock on dict_operation_lock */
 	bool is_encrypted = dict_table_is_encrypted(table);
 	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags,
-					       is_encrypted);
+		is_encrypted);
 
 	dberr_t err = fil_ibd_open(
 		true, FIL_TYPE_TABLESPACE, table->space,
@@ -2584,6 +2621,10 @@ dd_open_table_one(
 	dict_table_t* m_table = dd_fill_dict_table(
 		dd_table, table, norm_name,
 		NULL, zip_allowed, strict, thd, skip_mdl, implicit);
+
+	if (m_table == nullptr) {
+		return(NULL);
+	}
 
 	/* Create dict_index_t for the table */
 	mutex_enter(&dict_sys->mutex);

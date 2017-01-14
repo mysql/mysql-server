@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -41,8 +41,6 @@ Extracted and modified from NDB memcached project
 #include "hash_item_util.h"
 #include "innodb_cb_api.h"
 #include "my_thread.h"
-
-
 
 /** Define also present in daemon/memcached.h */
 #define KEY_MAX_LENGTH	250

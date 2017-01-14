@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -270,7 +270,7 @@ it is not created by user and so not visible to end-user. */
 #define DICT_TF2_ENCRYPTION		256
 
 /** FTS AUX hidden table bit. */
-#define DICT_TF2_AUX			512	
+#define DICT_TF2_AUX			512
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\

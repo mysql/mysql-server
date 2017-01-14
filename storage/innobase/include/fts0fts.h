@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -433,6 +433,9 @@ fts_cache_index_cache_create(
 	dict_table_t*	table,			/*!< in: table with FTS index */
 	dict_index_t*	index);			/*!< in: FTS index */
 
+/** Remove a FTS index cache
+@param[in]	table	table with FTS index
+@param[in]	index	FTS index */
 void
 fts_cache_index_cache_remove(
 	dict_table_t*	table,

@@ -6951,6 +6951,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
 			if (ib_table != NULL) {
 				if (ib_table->discard_after_ddl) {
+					btr_search_drop_table(ib_table);
 					dict_table_autoinc_lock(ib_table);
 					autoinc = dict_table_autoinc_read(
 						ib_table);
@@ -12156,137 +12157,6 @@ static constexpr size_t innodb_dd_table_size = UT_ARR_SIZE(innodb_dd_table);
 
 #endif /* UNIV_DEBUG */
 
-//FIXME Check whether need to enable this
-#if 0
-/** Check that the engine-private parts of a data dictionary entry
-match the InnoDB-internal representation.
-@tparam		Index		dd::Index or dd::Partition_index
-@param[in]	dd_index	Global Data Dictionary metadata
-@param[in]	index		InnoDB index metadata
-@param[in]	handler_flags	ALTER operation in progress (0 to ignore)
-@return true (abort on mismatch) */
-template<typename Index>
-bool
-dd_index_check(
-	const Index&				dd_index,
-	const dict_index_t&			index,
-	Alter_inplace_info::HA_ALTER_FLAGS	handler_flags)
-{
-	const dd::Properties&	p = dd_index.se_private_data();
-
-	uint64			id;
-	uint32			root;
-	uint64			trx_id;
-
-	/* dd::cache::Dictionary_client may open DD tables,
-	and ha_innobase::open() invokes dict_sys->enter() */
-	ut_ad(!mutex_own(&dict_sys->mutex));
-	//ut_ad(dd_index_data_is_valid(p));
-	ut_ad(!p.get_uint64(dd_index_key_strings[DD_INDEX_ID], &id));
-	ut_ad(!p.get_uint32(dd_index_key_strings[DD_INDEX_ROOT], &root));
-	ut_ad(!p.get_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], &trx_id));
-
-	ut_ad(root == index.root());
-	ut_ad(id == index.id);
-	ut_ad(trx_id == index.trx_id);
-	ut_ad(dd_index.name() == index.name()
-	      || (handler_flags & Alter_inplace_info::RENAME_INDEX));
-	ut_ad(root > 1);
-	ut_ad(root != FIL_NULL);
-	ut_ad(id != 0);
-	ut_ad(((trx_id == 0) == dict_sys_t::hardcoded(index.table->id))
-	      || index.table->is_temporary());
-
-	unsigned	n_fields = 0;
-	for (const dd::Index_element* e : dd_index.index().elements()) {
-		const dict_field_t* f = index.get_field(n_fields++);
-		ut_ad(e->column().name() == f->name(&index)
-		      || (handler_flags
-			  & Alter_inplace_info::ALTER_COLUMN_NAME));
-		ut_ad(e->order() == dd::Index_element::ORDER_ASC);
-		ut_ad(e->length() != 0);
-#if 1 // WL#7141 TODO: make this stricter
-		if (e->is_hidden()) {// TODO: same logic for hidden columns!
-			// ut_ad(!dd_index_element_is_prefix(e));
-		} else if (dd_index_element_is_prefix(e)) {
-			// ut_ad(e->length() == f->prefix_len);
-		} else if (e->length() == ~0U/* unlimited */) {
-			ut_ad(!f->is_prefix());
-			ut_ad(f->fixed_len == 0);
-		} else if (Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
-			   & handler_flags) {
-		} else {
-			ut_ad(!f->is_prefix());
-			ut_ad(e->length() == f->col->len
-			      || f->col->mtype == DATA_INT/*FIXME*/);
-		}
-#endif
-	}
-
-	ut_ad(n_fields == index.n_fields());
-	FilSpace space(index.space_id());
-	ut_ad(space() != nullptr);
-	ut_ad(index.space_id() == space->id);
-	ut_ad(dd_index.tablespace_id() == space->dd_id);
-
-	return(true);
-}
-
-template bool dd_index_check<dd::Index>(
-	const dd::Index&,const dict_index_t&,
-	Alter_inplace_info::HA_ALTER_FLAGS);
-template bool dd_index_check<dd::Partition_index>(
-	const dd::Partition_index&,const dict_index_t&,
-	Alter_inplace_info::HA_ALTER_FLAGS);
-
-/** Check that the engine-private parts of a data dictionary entry
-match the InnoDB-internal representation.
-@tparam		Table		dd::Table or dd::Partition
-@param[in]	dd_part		Global Data Dictionary metadata
-@param[in]	table		InnoDB metadata
-@param[in]	only_committed	whether to only include committed indexes
-@return whether the two definitions match */
-template<typename Table>
-bool
-dd_table_check(
-	const Table&		dd_part,
-	const dict_table_t&	table,
-	bool			only_committed)
-{
-	const dict_index_t*	index	= table.first_index();
-
-	ut_ad(dd_part.se_private_id() == table.id);
-	ut_ad(index->is_committed());
-	ut_ad(!dict_sys_t::hardcoded(table.id)
-	      || dd_part.name() == innodb_dd_table[table.id].name);
-	ut_ad(dd_table_data_is_valid(dd_table(dd_part).se_private_data()));
-
-	for (auto i : dd_part.indexes()) {
-		if (index == nullptr) {
-			/* Index count mismatch */
-			ut_ad(false);
-			return(false);
-		}
-
-		//dd_index_check(*i, *index);
-
-		do {
-			index = index->next();
-		} while (only_committed
-			 && index != nullptr && !index->is_committed());
-	}
-
-	/* Check for index count mismatch */
-	ut_ad(index == nullptr);
-	return(index == nullptr);
-}
-
-template bool dd_table_check<dd::Table>(
-	const dd::Table&,const dict_table_t&,bool);
-template bool dd_table_check<dd::Partition>(
-	const dd::Partition&,const dict_table_t&,bool);
-#endif
-
 /** Maximum length of a table name from InnoDB point of view, including
 partitions and subpartitions, in number of characters.
 The naming is: "table_name#P#partition_name#SP#subpartition_name",
@@ -13264,31 +13134,14 @@ create_table_info_t::create_table(
 	/* There is no concept of foreign key for intrinsic tables. */
 	if (handler == NULL
 	    && stmt != NULL
-#ifdef NO_NEW_DD_FK
-	/* NewDD TODO: Enable this once Bug#25252847 is fixed */
-//	    && !dd_table->foreign_keys().empty()
-#endif /* NO_NEW_DD_FK */
+	    && !dd_table->foreign_keys().empty()
 	) {
 		dberr_t	err = DB_SUCCESS;
 		err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
-			m_create_info->options & HA_LEX_CREATE_TMP_TABLE);
-#ifndef NO_NEW_DD_FK
-		if (err == DB_SUCCESS) {
-			/* Load in-memory foreign keys */
-			dd::cache::Dictionary_client*	client =
-				dd::get_dd_client(m_thd);
-			dd::cache::Dictionary_client::Auto_releaser releaser(
-				client);
-			innobase_table = dd_table_open_on_name_in_mem(
-				m_table_name, true, DICT_ERR_IGNORE_NONE);
-			err = dd_table_load_fk(
-				client, m_table_name, nullptr,
-				innobase_table, dd_table, m_thd, true,
-				true, nullptr);
-			dd_table_close(innobase_table, NULL, NULL, true);
-		}
-#endif /* NO_NEW_DD_FK */
+			m_create_info->options & HA_LEX_CREATE_TMP_TABLE,
+			dd_table);
+
 		if (trx_is_started(m_trx)) {
 			trx_commit(m_trx);
 			m_trx->op_info = "";
@@ -13728,6 +13581,14 @@ create_table_info_t::create_table_update_global_dd(
 		ut_ad(is_dd_table);
 	}
 
+	/* Set DATA DIRECTORY only when DATA DIRECTORY exists and
+	takes effect */
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		dd_table->se_private_data().set_bool(
+			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY],
+			true);
+	}
+
 	set_table_options(dd_table->table(), table);
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
@@ -13835,15 +13696,15 @@ innobase_get_dd_tablespace_id(
 	const dict_table_t*	table,
 	dd::Object_id&		dd_space_id)
 {
-	char    db_name[NAME_LEN + 1];
-	char    table_name[NAME_LEN + 1];
+	char	db_name[NAME_LEN + 1];
+	char	table_name[NAME_LEN + 1];
 
 	innobase_parse_tbl_name(parent_table->name.m_name, db_name,
 				table_name, NULL);
 
 	THD*	thd = current_thd;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	const dd::Table*	dd_table = nullptr;
 	if (client->acquire<dd::Table>(
@@ -13927,8 +13788,8 @@ innobase_fts_create_one_index_dd_table(
 {
 	ut_ad(charset != nullptr);
 
-	char    db_name[NAME_LEN + 1];
-	char    table_name[NAME_LEN + 1];
+	char	db_name[NAME_LEN + 1];
+	char	table_name[NAME_LEN + 1];
 
 	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -13936,7 +13797,7 @@ innobase_fts_create_one_index_dd_table(
 	THD*	thd = current_thd;
 	dd::Schema_MDL_locker	mdl_locker(thd);
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	const dd::Schema*	schema = nullptr;
 	if (mdl_locker.ensure_locked(db_name)
@@ -13979,7 +13840,6 @@ innobase_fts_create_one_index_dd_table(
 
 	dd_table->set_row_format(row_format);
 
-	/* Fixme: set correct fields(get from parent table?) */
 	dd::Properties *table_options= &dd_table->options();
 	table_options->set_bool("pack_record", true);
 	table_options->set_bool("checksum", false);
@@ -14013,7 +13873,6 @@ innobase_fts_create_one_index_dd_table(
 	col->set_numeric_scale(0);
 	col->set_nullable(false);
 	col->set_unsigned(true);
-	/* Fixme? set a right one */
 	col->set_collation_id(charset->number);
 
 	dd::Column*	key_col2 = col;
@@ -14056,7 +13915,6 @@ innobase_fts_create_one_index_dd_table(
 	index->set_ordinal_position(1);
 	index->set_generated(false);
 	index->set_engine(dd_table->engine());
-	//index->->set_uint32("block_size", );
 
 	index->options().set_uint32("flags", 32);
 
@@ -14108,8 +13966,8 @@ innobase_fts_create_one_common_dd_table(
 	dict_table_t*		table,
 	bool			is_config)
 {
-	char    db_name[NAME_LEN + 1];
-	char    table_name[NAME_LEN + 1];
+	char	db_name[NAME_LEN + 1];
+	char	table_name[NAME_LEN + 1];
 
 	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -14125,7 +13983,7 @@ innobase_fts_create_one_common_dd_table(
 		return(false);
 	}
 
-	/* Check if schema is nullptr? */
+	/* Check if schema is nullptr */
 	if (schema == nullptr) {
 		my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
 		return(false);
@@ -14138,7 +13996,6 @@ innobase_fts_create_one_common_dd_table(
 	dd_table->set_engine(innobase_hton_name);
 	dd_table->set_schema_id(schema->id());
 	dd_table->set_hidden(true);
-	//dd_table->set_tablespace_id();
 	dd_table->set_collation_id(my_charset_bin.number);
 
 	dd::Table::enum_row_format row_format;
@@ -14161,7 +14018,6 @@ innobase_fts_create_one_common_dd_table(
 
 	dd_table->set_row_format(row_format);
 
-	/* Fixme: set correct fields(get from parent table?) */
 	dd::Properties *table_options= &dd_table->options();
 	table_options->set_bool("pack_record", true);
 	table_options->set_bool("checksum", false);
@@ -14171,9 +14027,6 @@ innobase_fts_create_one_common_dd_table(
 	table_options->set_uint32("stats_auto_recalc",
 				  HA_STATS_AUTO_RECALC_DEFAULT);
 	table_options->set_uint32("key_block_size", 0);
-	//table_options->set("compress", );
-	//table_options->set("encrypt_type", );
-	//table_options->set_uint32("storage", ); ?
 
 	/* Fill columns */
 	if (!is_config) {
@@ -14185,7 +14038,6 @@ innobase_fts_create_one_common_dd_table(
 		col->set_numeric_scale(0);
 		col->set_nullable(false);
 		col->set_unsigned(true);
-		/* Fixme? set a right one */
 		col->set_collation_id(my_charset_bin.number);
 
 		dd::Column*	key_col1 = col;
@@ -14200,7 +14052,6 @@ innobase_fts_create_one_common_dd_table(
 		index->set_ordinal_position(1);
 		index->set_generated(false);
 		index->set_engine(dd_table->engine());
-		//index->->set_uint32("block_size", );
 
 		index->options().set_uint32("flags", 32);
 
@@ -14237,7 +14088,6 @@ innobase_fts_create_one_common_dd_table(
 		index->set_ordinal_position(1);
 		index->set_generated(false);
 		index->set_engine(dd_table->engine());
-		//index->->set_uint32("block_size", );
 
 		index->options().set_uint32("flags", 32);
 
@@ -14255,7 +14105,7 @@ innobase_fts_create_one_common_dd_table(
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
 
-	MDL_ticket *mdl_ticket= NULL;
+	MDL_ticket*	mdl_ticket= NULL;
 	if (dd::acquire_exclusive_table_mdl(
 		thd, db_name, table_name, false, &mdl_ticket)) {
 		return(false);
@@ -14296,7 +14146,7 @@ innobase_fts_drop_dd_table(
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-	MDL_ticket *mdl_ticket= NULL;
+	MDL_ticket*	mdl_ticket= NULL;
 	if (dd::acquire_exclusive_table_mdl(
 		thd, db_name, table_name, false, &mdl_ticket)) {
 		return(false);
@@ -14306,13 +14156,11 @@ innobase_fts_drop_dd_table(
 	if (client->acquire<dd::Table>(
 			db_name, table_name, &dd_table)) {
 		dd::release_mdl(thd, mdl_ticket);
-		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 		return(false);
 	}
 
 	if (dd_table == nullptr) {
 		dd::release_mdl(thd, mdl_ticket);
-		//my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 		return(false);
 	}
 
@@ -14732,6 +14580,7 @@ ha_innobase::create_table_impl(
 
 	trx = info.trx();
 
+	bool	dict_locked = false;
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.cc.
@@ -14740,6 +14589,7 @@ ha_innobase::create_table_impl(
 	to dictionary. */
 	if (!info.is_intrinsic_temp_table()) {
 		row_mysql_lock_data_dictionary(trx);
+		dict_locked = true;
 	}
 
 	if ((error = info.create_table(&dd_tab->table()))) {
@@ -14751,6 +14601,7 @@ ha_innobase::create_table_impl(
 	if (!info.is_intrinsic_temp_table()) {
 		ut_ad(!srv_read_only_mode);
 		row_mysql_unlock_data_dictionary(trx);
+		dict_locked = false;
 		/* Flush the log to reduce probability that the .frm files and
 		the InnoDB data dictionary get out-of-sync if the user runs
 		with innodb_flush_log_at_trx_commit = 0 */
@@ -14776,7 +14627,9 @@ cleanup:
 	trx_rollback_for_mysql(trx);
 
 	if (!info.is_intrinsic_temp_table()) {
-		row_mysql_unlock_data_dictionary(trx);
+		if (dict_locked) {
+			row_mysql_unlock_data_dictionary(trx);
+		}
 	} else {
 		THD* thd = info.thd();
 
@@ -15065,27 +14918,29 @@ ha_innobase::truncate(dd::Table *table_def)
 			dd_set_autoinc(table_def->se_private_data(), 0);
 		}
 
-#ifdef INNODB_NO_NEW_DD
-		dict_names_t	fk_tables;
+		dict_names_t    fk_tables;
+		THD*		thd = current_thd;
 
-		mutex_enter(&dict_sys->mutex);
+		dd::cache::Dictionary_client*   client
+                         = dd::get_dd_client(thd);
+                dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		const dberr_t	err	= dict_load_foreigns(
-			m_prebuilt->table->name.m_name, NULL, false, true,
-			DICT_ERR_IGNORE_ALL, fk_tables);
+		error = dd_table_check_for_child(
+			client, m_prebuilt->table->name.m_name, nullptr,
+			m_prebuilt->table, table_def, thd, true,
+			&fk_tables);
 
 		DBUG_ASSERT(fk_tables.empty());
 
-		mutex_exit(&dict_sys->mutex);
-
-		if (err != DB_SUCCESS) {
-			push_warning_printf(
-				m_user_thd, Sql_condition::SL_WARNING,
-				HA_ERR_CANNOT_ADD_FOREIGN,
-				"Truncate table '%s' failed to load some"
-				" foreign key constraints.", name);
+		if (error != DB_SUCCESS) {
+		       push_warning_printf(
+			       m_user_thd, Sql_condition::SL_WARNING,
+			       HA_ERR_CANNOT_ADD_FOREIGN,
+			       "Truncate table '%s' failed to load some"
+			       " foreign key constraints.", name);
+		} else {
+			error = 0;
 		}
-#endif /* INNODB_NO_NEW_DD */
 	}
 
 	ut_free(name);
@@ -15900,31 +15755,6 @@ ha_innobase::rename_table_impl(
 		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
 			ut_a(false);
 		}
-#if 0
-		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-		const dd::Tablespace*	space = NULL;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-				dd_space_id, &space)) {
-			ut_a(false);
-		}
-
-		ut_a(space != NULL);
-
-		dd::Tablespace*	dd_space = const_cast<dd::Tablespace*>(space);
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, dd_space->name().c_str(), false)) {
-			ut_a(false);
-		}
-
-		ut_ad(dd_space->files().size() == 1);
-		dd::Tablespace_file*	dd_file = const_cast<
-			dd::Tablespace_file*>(*(dd_space->files().begin()));
-		dd_file->set_filename(new_path);
-		bool fail = client->update(&space, dd_space);
-		ut_a(!fail);
-#endif
 
 		ut_free(new_path);
 	}
