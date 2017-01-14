@@ -7770,7 +7770,7 @@ innobase_update_foreign_cache(
 			dict_foreign_remove_from_cache(fk);
 		}
 	}
-#ifdef INNODB_NO_NEW_DD
+
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
@@ -7828,7 +7828,7 @@ innobase_update_foreign_cache(
 
 		fk_tables.pop_front();
 	}
-#endif /* INNODB_NO_NEW_DD */
+
 	DBUG_RETURN(err);
 }
 

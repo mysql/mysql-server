@@ -2445,6 +2445,119 @@ dd_table_get_space_name(
 	DBUG_RETURN(space_name);
 }
 
+/********************************************************************//**
+Using the table->heap, copy the null-terminated filepath into
+table->data_dir_path and replace the 'databasename/tablename.ibd'
+portion with 'tablename'.
+This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
+Make this data directory path only if it has not yet been saved. */
+static
+void
+dd_save_data_dir_path(
+/*====================*/
+	dict_table_t*	table,		/*!< in/out: table */
+	char*		filepath)	/*!< in: filepath of tablespace */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_a(DICT_TF_HAS_DATA_DIR(table->flags));
+
+	ut_a(!table->data_dir_path);
+	ut_a(filepath);
+
+	/* Be sure this filepath is not the default filepath. */
+	char*	default_filepath = fil_make_filepath(
+			NULL, table->name.m_name, IBD, false);
+	if (default_filepath) {
+		if (0 != strcmp(filepath, default_filepath)) {
+			ulint pathlen = strlen(filepath);
+			ut_a(pathlen < OS_FILE_MAX_PATH);
+			ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
+
+			table->data_dir_path = mem_heap_strdup(
+				table->heap, filepath);
+			os_file_make_data_dir_path(table->data_dir_path);
+		}
+
+		ut_free(default_filepath);
+	}
+}
+
+/** Get the first filepath from mysql.tablespace_datafiles for a given space_id.
+@param[in]	space_id	Tablespace ID
+@return First filepath (caller must invoke ut_free() on it)
+@retval NULL if no mysql.tablespace_datafilesentry was found. */
+template<typename Table>
+char*
+dd_get_first_path(
+	const Table*			dd_table)
+{
+	char*		filepath = NULL;
+
+	dd::Tablespace*		dd_space = nullptr;
+	THD*			thd = current_thd;
+
+	ut_ad(!srv_is_being_shutdown);
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
+		->tablespace_id();
+
+	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+		dd_space_id, &dd_space)) {
+		ut_a(false);
+	}
+
+	ut_a(dd_space != NULL);
+	dd::Tablespace_file*	dd_file = const_cast<
+		dd::Tablespace_file*>(*(dd_space->files().begin()));
+
+	filepath = const_cast<char*>(dd_file->filename().c_str());
+
+	return(filepath);
+}
+
+/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
+was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
+@param[in]	table		Table object
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
+template<typename Table>
+void
+dd_get_and_save_data_dir_path(
+	dict_table_t*	table,
+	const Table*	dd_table,
+	bool		dict_mutex_own)
+{
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+	    && (!table->data_dir_path)) {
+		char*	path = fil_space_get_first_path(table->space);
+
+		if (!dict_mutex_own) {
+			dict_mutex_enter_for_mysql();
+		}
+
+		if (path == NULL) {
+			path = dd_get_first_path(dd_table);
+		}
+
+		if (path != NULL) {
+			dd_save_data_dir_path(table, path);
+		}
+
+		if (table->data_dir_path == NULL) {
+			/* Since we did not set the table data_dir_path,
+			unset the flag. */
+			table->flags &= ~DICT_TF_MASK_DATA_DIR;
+		}
+
+		if (!dict_mutex_own) {
+			dict_mutex_exit_for_mysql();
+		}
+	}
+}
+
+
 /** Opens a tablespace for dd_load_table_one()
 @param[in,out]	dd_table	dd table
 @param[in,out]	table		A table that refers to the tablespace to open
@@ -2525,7 +2638,7 @@ dd_load_tablespace(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		/* This will set table->data_dir_path from either
 		fil_system or SYS_DATAFILES */
-		dict_get_and_save_data_dir_path(table, true);
+		dd_get_and_save_data_dir_path(table, dd_table, true);
 
 		if (table->data_dir_path) {
 			filepath = fil_make_filepath(
