@@ -10,7 +10,9 @@ create table t1 (a datetime,
   # get_datetime_value
   b int as (a > 1),                             # Arg_comparator
   c int as (a in (1,2,3)),                      # in_datetime
-  d int as ((a,a) in ((1,1),(2,1),(NULL,1)))    # cmp_item_datetime
+  d int as ((a,a) in ((1,1),(2,1),(NULL,1))),   # cmp_item_datetime
+  # other issues
+  e int as ((a,1) in ((1,1),(2,1),(NULL,1)))    # cmp_item_row::alloc_comparators()
 );
 show create table t1;
 connect con1, localhost, root;

@@ -6575,7 +6575,9 @@ int update_virtual_fields(THD *thd, TABLE *table,
   int error __attribute__ ((unused))= 0;
   DBUG_ASSERT(table && table->vfield);
 
-  thd->reset_arena_for_cached_items(table->expr_arena);
+  Query_arena backup_arena;
+  thd->set_n_backup_active_arena(table->expr_arena, &backup_arena);
+
   /* Iterate over virtual fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
@@ -6593,7 +6595,7 @@ int update_virtual_fields(THD *thd, TABLE *table,
       DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
     }
   }
-  thd->reset_arena_for_cached_items(0);
+  thd->restore_active_arena(table->expr_arena, &backup_arena);
   DBUG_RETURN(0);
 }
 
