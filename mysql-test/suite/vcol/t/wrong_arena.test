@@ -22,3 +22,14 @@ disconnect con1;
 connection default;
 select * from t1;
 drop table t1;
+
+connect con1, localhost, root;
+create table t1 (a datetime,
+  b datetime as (least(a,1))                    # Item_func_min_max::get_date
+);
+insert t1 (a) values ('2010-10-10 10:10:10');
+select * from t1;
+disconnect con1;
+connection default;
+select * from t1;
+drop table t1;

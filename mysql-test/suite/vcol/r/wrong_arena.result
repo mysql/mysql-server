@@ -44,3 +44,18 @@ Warning	1292	Incorrect datetime value: '1'
 Warning	1292	Incorrect datetime value: '1'
 Warning	1292	Incorrect datetime value: '2'
 drop table t1;
+create table t1 (a datetime,
+b datetime as (least(a,1))                    # Item_func_min_max::get_date
+);
+insert t1 (a) values ('2010-10-10 10:10:10');
+select * from t1;
+a	b
+2010-10-10 10:10:10	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+select * from t1;
+a	b
+2010-10-10 10:10:10	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+drop table t1;

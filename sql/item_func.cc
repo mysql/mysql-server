@@ -2856,7 +2856,6 @@ void Item_func_min_max::fix_length_and_dec()
   decimals=0;
   max_length=0;
   maybe_null=0;
-  thd= current_thd;
   cmp_type=args[0]->result_type();
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -2929,13 +2928,11 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   {
     Item **arg= args + i;
     bool is_null;
-    longlong res= get_datetime_value(thd, &arg, 0, compare_as_dates, &is_null);
+    longlong res= get_datetime_value(0, &arg, 0, compare_as_dates, &is_null);
 
     /* Check if we need to stop (because of error or KILL) and stop the loop */
-    if (thd->is_error() || args[i]->null_value)
-    {
+    if (args[i]->null_value)
       return (null_value= 1);
-    }
 
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
       min_max= res;

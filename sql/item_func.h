@@ -1068,7 +1068,6 @@ class Item_func_min_max :public Item_func
   int cmp_sign;
   /* An item used for issuing warnings while string to DATETIME conversion. */
   Item *compare_as_dates;
-  THD *thd;
 protected:
   enum_field_types cached_field_type;
 public:
