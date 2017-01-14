@@ -777,7 +777,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
-  thd= current_thd;
+  THD *thd= current_thd;
   owner= owner_arg;
   set_null= set_null && owner_arg;
   a= a1;
@@ -846,7 +846,6 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
 void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
                                            Item **a1, Item **b1)
 {
-  thd= current_thd;
   owner= owner_arg;
   a= a1;
   b= b1;
@@ -919,6 +918,9 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (cache_arg && item->const_item() &&
       !(item->type() == Item::CACHE_ITEM && item->cmp_type() == TIME_RESULT))
   {
+    if (!thd)
+      thd= current_thd;
+
     Query_arena backup;
     Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_temporal *cache= new Item_cache_temporal(f_type);
@@ -959,12 +961,12 @@ int Arg_comparator::compare_datetime()
     owner->null_value= 1;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value= get_datetime_value(thd, &a, &a_cache, *b, &a_is_null);
+  a_value= get_datetime_value(0, &a, &a_cache, *b, &a_is_null);
   if (a_is_null)
     return -1;
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value= get_datetime_value(thd, &b, &b_cache, *a, &b_is_null);
+  b_value= get_datetime_value(0, &b, &b_cache, *a, &b_is_null);
   if (b_is_null)
     return -1;
 
@@ -982,10 +984,10 @@ int Arg_comparator::compare_e_datetime()
   longlong a_value, b_value;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value= get_datetime_value(thd, &a, &a_cache, *b, &a_is_null);
+  a_value= get_datetime_value(0, &a, &a_cache, *b, &a_is_null);
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value= get_datetime_value(thd, &b, &b_cache, *a, &b_is_null);
+  b_value= get_datetime_value(0, &b, &b_cache, *a, &b_is_null);
   return a_is_null || b_is_null ? a_is_null == b_is_null
                                 : a_value == b_value;
 }
@@ -3600,7 +3602,7 @@ void in_datetime::set(uint pos,Item *item)
   bool is_null;
   struct packed_longlong *buff= &((packed_longlong*) base)[pos];
 
-  buff->val= get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
+  buff->val= get_datetime_value(0, &tmp_item, 0, warn_item, &is_null);
   buff->unsigned_flag= 1L;
 }
 
@@ -3608,7 +3610,7 @@ uchar *in_datetime::get_value(Item *item)
 {
   bool is_null;
   Item **tmp_item= lval_cache ? &lval_cache : &item;
-  tmp.val= get_datetime_value(thd, &tmp_item, &lval_cache, warn_item, &is_null);
+  tmp.val= get_datetime_value(0, &tmp_item, &lval_cache, warn_item, &is_null);
   if (item->null_value)
     return 0;
   tmp.unsigned_flag= 1L;
@@ -3852,7 +3854,7 @@ void cmp_item_datetime::store_value(Item *item)
 {
   bool is_null;
   Item **tmp_item= lval_cache ? &lval_cache : &item;
-  value= get_datetime_value(thd, &tmp_item, &lval_cache, warn_item, &is_null);
+  value= get_datetime_value(0, &tmp_item, &lval_cache, warn_item, &is_null);
 }
 
 
@@ -3861,7 +3863,7 @@ int cmp_item_datetime::cmp(Item *arg)
   bool is_null;
   Item **tmp_item= &arg;
   return value !=
-    get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
+    get_datetime_value(0, &tmp_item, 0, warn_item, &is_null);
 }
 
 

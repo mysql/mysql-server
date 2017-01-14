@@ -44,7 +44,6 @@ class Arg_comparator: public Sql_alloc
   Arg_comparator *comparators;   // used only for compare_row()
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
-  THD *thd;
   Item *a_cache, *b_cache;         // Cached values of a and b items
                                    //   when one of arguments is NULL.
 public:
@@ -52,10 +51,10 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator():  set_null(TRUE), comparators(0), thd(0),
+  Arg_comparator():  set_null(TRUE), comparators(0),
     a_cache(0), b_cache(0) {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2),  set_null(TRUE),
-    comparators(0), thd(0), a_cache(0), b_cache(0) {};
+    comparators(0), a_cache(0), b_cache(0) {};
 
   int set_compare_func(Item_result_field *owner, Item_result type);
   inline int set_compare_func(Item_result_field *owner_arg)
@@ -944,15 +943,13 @@ public:
 class in_datetime :public in_longlong
 {
 public:
-  THD *thd;
   /* An item used to issue warnings. */
   Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
 
   in_datetime(Item *warn_item_arg, uint elements)
-    :in_longlong(elements), thd(current_thd), warn_item(warn_item_arg),
-     lval_cache(0) {};
+    :in_longlong(elements), warn_item(warn_item_arg), lval_cache(0) {};
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
   Item* create_item()
@@ -1112,14 +1109,13 @@ class cmp_item_datetime :public cmp_item
 {
   longlong value;
 public:
-  THD *thd;
   /* Item used for issuing warnings. */
   Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
 
   cmp_item_datetime(Item *warn_item_arg)
-    :thd(current_thd), warn_item(warn_item_arg), lval_cache(0) {}
+    : warn_item(warn_item_arg), lval_cache(0) {}
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(cmp_item *ci);

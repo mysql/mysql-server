@@ -1,0 +1,39 @@
+create table t1 (a datetime,
+# get_datetime_value
+b int as (a > 1),                             # Arg_comparator
+c int as (a in (1,2,3)),                      # in_datetime
+d int as ((a,a) in ((1,1),(2,1),(NULL,1)))    # cmp_item_datetime
+);
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '2'
+Warning	1292	Incorrect datetime value: '3'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime DEFAULT NULL,
+  `b` int(11) AS (a > 1) VIRTUAL,
+  `c` int(11) AS (a in (1,2,3)) VIRTUAL,
+  `d` int(11) AS ((a,a) in ((1,1),(2,1),(NULL,1))) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '2'
+Warning	1292	Incorrect datetime value: '3'
+insert t1 (a) values ('2010-10-10 10:10:10');
+select * from t1;
+a	b	c	d
+2010-10-10 10:10:10	1	0	0
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '2'
+Warning	1292	Incorrect datetime value: '1'
+select * from t1;
+a	b	c	d
+2010-10-10 10:10:10	1	0	0
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '2'
+Warning	1292	Incorrect datetime value: '1'
+drop table t1;
