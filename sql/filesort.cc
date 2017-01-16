@@ -1516,7 +1516,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           break;
         }
         uint length= static_cast<uint>(res->length());
-        if (sort_field->need_strxnfrm)
+        if (sort_field->need_strnxfrm)
         {
           char *from=(char*) res->ptr();
           size_t tmp_length MY_ATTRIBUTE((unused));
@@ -1680,6 +1680,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
   if (using_varlen_keys())
   {
+    // Store the length of the record as a whole.
     Sort_param::store_varlen_key_length(orig_to,
                                         static_cast<uint>(to - orig_to));
   }
@@ -2373,12 +2374,12 @@ static uint suffix_length(ulong string_length)
   @param sortorder		  Order of items to sort
   @param s_length	          Number of items to sort
   @param[out] multi_byte_charset Set to 1 if we are using multi-byte charset
-                                 (In which case we have to use strxnfrm())
+                                 (In which case we have to use strnxfrm())
 
   @note
     sortorder->length is updated for each sort item.
   @n
-    sortorder->need_strxnfrm is set 1 if we have to use strxnfrm
+    sortorder->need_strnxfrm is set 1 if we have to use strnxfrm
 
   @return
     Total length of sort buffer in bytes
@@ -2398,7 +2399,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 
   for (; s_length-- ; sortorder++)
   {
-    DBUG_ASSERT(sortorder->need_strxnfrm == 0);
+    DBUG_ASSERT(!sortorder->need_strnxfrm);
     DBUG_ASSERT(sortorder->suffix_length == 0);
     if (sortorder->field)
     {
@@ -2407,7 +2408,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 
       if (use_strnxfrm((cs=sortorder->field->sort_charset())))
       {
-        sortorder->need_strxnfrm= 1;
+        sortorder->need_strnxfrm= true;
         *multi_byte_charset= 1;
         // How many bytes do we need (including sort weights) for strnxfrm()?
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
@@ -2442,7 +2443,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 	{ 
           // How many bytes do we need (including sort weights) for strnxfrm()?
           sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
-	  sortorder->need_strxnfrm= 1;
+	  sortorder->need_strnxfrm= true;
 	  *multi_byte_charset= 1;
 	}
         else if (cs == &my_charset_bin)

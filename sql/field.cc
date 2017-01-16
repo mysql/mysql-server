@@ -4245,7 +4245,7 @@ void Field_long::make_sort_key(uchar *to, size_t length)
     if (unsigned_flag)
       to[0] = ptr[0];
     else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
+      to[0] = (char) (ptr[0] ^ 128);		/* Reverse sign bit */
     to[1]   = ptr[1];
     to[2]   = ptr[2];
     to[3]   = ptr[3];

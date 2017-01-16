@@ -73,10 +73,10 @@ struct st_sort_field {
   Item  *item;                   ///< Item if not sorting fields
   uint  length;                  ///< Length of sort field
   uint  suffix_length;           ///< Length suffix (0-4)
-  Item_result result_type;       ///< Type of item
+  Item_result result_type;       ///< Type of item (not used for fields)
   enum_field_types field_type;   ///< Field type of the field or item
   bool reverse;                  ///< if descending sort
-  bool need_strxnfrm;            ///< If we have to use strxnfrm()
+  bool need_strnxfrm;            ///< If we have to use strnxfrm()
   bool is_varlen;                ///< If key part has variable length
   bool maybe_null;               ///< If key part is nullable
 };
