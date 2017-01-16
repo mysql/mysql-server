@@ -148,6 +148,8 @@ void System_views::init()
     "INNODB_SYS_COLUMNS",
     "INNODB_SYS_FIELDS",
     "INNODB_SYS_INDEXES",
+    "INNODB_SYS_FOREIGN",
+    "INNODB_SYS_FOREIGN_COLS",
     nullptr
   };
   for (int i= 0; system_view_names[i] != NULL; ++i)

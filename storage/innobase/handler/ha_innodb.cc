@@ -22615,10 +22615,8 @@ i_s_innodb_sys_tablestats,
 i_s_innodb_sys_indexes,
 i_s_innodb_sys_columns,
 i_s_innodb_sys_fields,
-#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_sys_foreign,
 i_s_innodb_sys_foreign_cols,
-#ifdef INNODB_NO_NEW_DD
 i_s_innodb_sys_tablespaces,
 i_s_innodb_sys_datafiles,
 #endif /* INNODB_NO_NEW_DD */

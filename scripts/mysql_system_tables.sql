@@ -4453,6 +4453,25 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
     AND tbl.engine="INNODB"
   GROUP BY tp.name, tp.se_private_id, tbl.id, tbl.name, tbl.se_private_data, ts.id);
 
+ --
+--- INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+---
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_indexes AS
+  (SELECT
+    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id') AS INDEX_ID,
+    idx.name AS `NAME`,
+    tbl.se_private_id AS `TABLE_ID`,
+	idx.type AS `TYPE`,
+    count(*) AS `N_FIELDS`,
+    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'root') AS `PAGE_NO`,
+    IF (idx.tablespace_id < 4, NULL, idx.tablespace_id-3) AS `SPACE`,
+    0 AS `MERGE_THRESHOLD`
+  FROM mysql.indexes idx
+    JOIN mysql.index_column_usage col ON idx.id=col.index_id
+    LEFT JOIN mysql.tables tbl ON idx.table_id=tbl.id
+  WHERE tbl.engine="InnoDB"
+  GROUP BY idx.name, tbl.se_private_id, idx.se_private_data, idx.tablespace_id, idx.type);
+
 --
 -- INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
 --
@@ -4509,21 +4528,33 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
     JOIN mysql.tablespaces ts ON tf.tablespace_id=ts.id);
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+-- INFORMATION_SCHEMA.INNODB_SYS_FOREIGN
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_indexes AS
-  (SELECT
-    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id') AS INDEX_ID,
-    idx.name AS `NAME`,
-    tbl.se_private_id AS `TABLE_ID`,
-	idx.type AS `TYPE`,
-    count(*) AS `N_FIELDS`,
-    GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'root') AS `PAGE_NO`,
-    IF (idx.tablespace_id < 4, NULL, idx.tablespace_id-3) AS `SPACE`,
-    0 AS `MERGE_THRESHOLD`
-  FROM mysql.indexes idx
-    JOIN mysql.index_column_usage col ON idx.id=col.index_id
-    LEFT JOIN mysql.tables tbl ON idx.table_id=tbl.id
-  WHERE tbl.engine="InnoDB"
-  GROUP BY idx.name, tbl.se_private_id, idx.se_private_data, idx.tablespace_id,
-    idx.type);
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_foreign AS
+(SELECT fk.id AS `ID`,
+    CONCAT(sch.name, "/", tbl.name) AS `FOR_NAME`,
+	CONCAT(fk.referenced_table_schema, "/", fk.referenced_table_name) AS `REF_NAME`,
+    COUNT(*) AS `N_COLS`,
+    0 AS `TYPE`
+  FROM mysql.foreign_keys fk
+    JOIN mysql.tables tbl ON fk.table_id=tbl.id
+    JOIN mysql.schemata sch ON fk.schema_id=sch.id
+	JOIN mysql.foreign_key_column_usage col ON fk.id=col.foreign_key_id
+  WHERE NOT tbl.type = 'VIEW' AND tbl.se_private_id IS NOT NULL
+    AND tbl.engine="INNODB"
+  GROUP BY fk.id);
+
+--
+-- INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_foreign_cols AS
+(SELECT fk.id AS `ID`,
+    col.name AS `FOR_COL_NAME`,
+	referenced_column_name AS `REF_COL_NAME`,
+    fk_col.ordinal_position AS `POS`
+  FROM mysql.foreign_key_column_usage fk_col
+    JOIN mysql.foreign_keys fk ON fk.id=fk_col.foreign_key_id
+    JOIN mysql.tables tbl ON fk.table_id=tbl.id
+	JOIN mysql.columns col ON tbl.id=col.table_id AND fk_col.column_id=col.id
+  WHERE NOT tbl.type = 'VIEW' AND tbl.se_private_id IS NOT NULL
+    AND tbl.engine="INNODB");

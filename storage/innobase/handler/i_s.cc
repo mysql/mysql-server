@@ -6323,7 +6323,7 @@ i_s_sys_tables_fill_table_stats(
 		mutex_exit(&dict_sys->mutex);
 
 		DBUG_EXECUTE_IF("test_sys_tablestats", {
-			if (strcmp("test/t1", table_rec->name.m_name) == 0 ) {
+			if (table_rec && strcmp("test/t1", table_rec->name.m_name) == 0 ) {
 				DEBUG_SYNC_C("dict_table_not_protected");
 			}});
 
