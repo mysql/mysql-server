@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -80,9 +80,8 @@ ngs::chrono::time_point Client::get_accept_time() const
   return m_accept_time;
 }
 
-void Client::reset_accept_time(const Client_state new_state)
+void Client::reset_accept_time()
 {
-  m_state.exchange(new_state);
   m_accept_time = chrono::now();
   m_server.restart_client_supervision_timer();
 }
@@ -302,7 +301,6 @@ void Client::on_accept()
   m_state = Client_accepted;
 
   m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1), ngs::ref(m_protocol_monitor)));
-  reset_accept_time();
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state
