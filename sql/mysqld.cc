@@ -4283,7 +4283,7 @@ static int init_server_components()
 #else
       const char *filename= default_logfile_name;
 #endif
-      fn_format(errorlog_filename_buff, filename, mysql_data_home, ".err",
+      fn_format(errorlog_filename_buff, filename, mysql_real_data_home, ".err",
                 MY_REPLACE_EXT |  /* replace '.<domain>' by '.err', bug#4997 */
                 MY_REPLACE_DIR);
     }
