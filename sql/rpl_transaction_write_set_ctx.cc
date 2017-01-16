@@ -26,6 +26,8 @@
 #include "sql_class.h"                               // THD
 #include "transaction_info.h"
 #include "binlog.h"                                  // mysql_bin_log
+#include "debug_sync.h"                              // debug_sync_set_action
+#include "current_thd.h"                             // current_thd
 
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
@@ -151,6 +153,13 @@ void Rpl_transaction_write_set_ctx::del_savepoint(THD *thd, char* name)
       (thd->variables.option_bits & OPTION_BIN_LOG) &&
       mysql_bin_log.is_open())
   {
+
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_release",
+                    {
+                      const char act[]= "now wait_for signal.recovery_end";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    });
+
     savepoint.erase(identifier);
   }
 
@@ -171,6 +180,12 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(THD *thd, char* name)
       (elem = savepoint.find(identifier)) != savepoint.end())
   {
     DBUG_ASSERT(elem->second <= write_set.size());
+
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_rollback",
+                    {
+                      const char act[]= "now wait_for signal.recovery_end";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    });
 
     position= elem->second;
 
