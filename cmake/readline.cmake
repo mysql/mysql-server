@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -179,12 +179,28 @@ MACRO (FIND_SYSTEM_EDITLINE)
       completion_matches(0,0);
       return res;
     }"
-    EDITLINE_HAVE_COMPLETION)
+    EDITLINE_HAVE_COMPLETION_INT)
 
-    IF(EDITLINE_HAVE_COMPLETION)
+    CHECK_CXX_SOURCE_COMPILES("
+    #include <stdio.h>
+    #include <readline.h>
+    int main(int argc, char **argv)
+    {
+      typedef char* MYFunction(const char*, int);
+      MYFunction* myf= rl_completion_entry_function;
+      char *res= (myf)(NULL, 0);
+      completion_matches(0,0);
+      return res != NULL;
+    }"
+    EDITLINE_HAVE_COMPLETION_CHAR)
+
+    IF(EDITLINE_HAVE_COMPLETION_INT OR EDITLINE_HAVE_COMPLETION_CHAR)
       SET(HAVE_HIST_ENTRY ${EDITLINE_HAVE_HIST_ENTRY})
       SET(USE_LIBEDIT_INTERFACE 1)
       SET(EDITLINE_FOUND 1)
+      IF(EDITLINE_HAVE_COMPLETION_CHAR)
+        SET(USE_NEW_EDITLINE_INTERFACE 1)
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDMACRO()
