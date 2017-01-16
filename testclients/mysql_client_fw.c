@@ -28,7 +28,6 @@
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 #define MAX_KEY MAX_INDEXES
-#define MAX_SERVER_ARGS 64
 
 /* set default options */
 static int   opt_testcase = 0;
@@ -62,15 +61,6 @@ static longlong opt_getopt_ll_test= 0;
 static char **defaults_argv;
 static int   original_argc;
 static char **original_argv;
-static int embedded_server_arg_count= 0;
-static char *embedded_server_args[MAX_SERVER_ARGS];
-
-static const char *embedded_server_groups[]= {
-"server",
-"embedded",
-"mysql_client_test_SERVER",
-NullS
-};
 
 static time_t start_time, end_time;
 static double total_time;
@@ -1226,8 +1216,6 @@ static struct my_option client_test_long_options[] =
  #endif
  "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
  &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"server-arg", 'A', "Send embedded server this as a parameter.",
- 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
  0, 0, 0, 0, 0, 0},
 {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
@@ -1317,26 +1305,6 @@ char *argument)
  break;
  case 'd':
  opt_drop_db= 0;
- break;
- case 'A':
- /*
- When the embedded server is being tested, the test suite needs to be
- able to pass command-line arguments to the embedded server so it can
- locate the language files and data directory. The test suite
- (mysql-test-run) never uses config files, just command-line options.
- */
- if (!embedded_server_arg_count)
- {
-   embedded_server_arg_count= 1;
-   embedded_server_args[0]= (char*) "";
- }
- if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
- !(embedded_server_args[embedded_server_arg_count++]=
- my_strdup(PSI_NOT_INSTRUMENTED,
-           argument, MYF(MY_FAE))))
- {
-   DIE("Can't use server argument");
- }
  break;
  case 'T':
  {
@@ -1438,10 +1406,8 @@ int main(int argc, char **argv)
    tests_to_run[i]= NULL;
  }
 
- if (mysql_server_init(embedded_server_arg_count,
- embedded_server_args,
- (char**) embedded_server_groups))
- DIE("Can't initialize MySQL server");
+ if (mysql_server_init(0, NULL, NULL))
+   DIE("Can't initialize MySQL server");
 
  /* connect to server with no flags, default protocol, auto reconnect true */
  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
@@ -1492,9 +1458,6 @@ int main(int argc, char **argv)
 
  free_defaults(defaults_argv);
  print_test_output();
-
- while (embedded_server_arg_count > 1)
- my_free(embedded_server_args[--embedded_server_arg_count]);
 
  mysql_server_end();
 

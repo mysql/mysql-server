@@ -85,7 +85,6 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 
 #define MAX_VAR_NAME_LENGTH    256
 #define MAX_COLUMNS            256
-#define MAX_EMBEDDED_SERVER_ARGS 64
 #define MAX_DELIMITER_LENGTH 16
 #define DEFAULT_MAX_CONN       128
 
@@ -260,17 +259,6 @@ static struct st_test_file* file_stack_end;
 
 static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
 
-static const char *embedded_server_groups[]=
-{
-  "server",
-  "embedded",
-  "mysqltest_SERVER",
-  NullS
-};
-
-static int embedded_server_arg_count=0;
-static char *embedded_server_args[MAX_EMBEDDED_SERVER_ARGS];
-
 /*
   Timer related variables
   See the timer_output() definition for details
@@ -311,11 +299,9 @@ const char * get_filename_from_path(const char * path)
     return ++fname;
 }
 
-#ifndef EMBEDDED_LIBRARY
 static uint opt_protocol= 0;
-#endif
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static uint opt_protocol_for_default_connection= MYSQL_PROTOCOL_PIPE;
 #endif
 
@@ -367,19 +353,6 @@ struct st_connection
   MYSQL_STMT* stmt;
   /* Set after send to disallow other queries before reap */
   my_bool pending;
-
-#ifdef EMBEDDED_LIBRARY
-  my_thread_handle tid;
-  const char *cur_query;
-  size_t cur_query_len;
-  int command, result;
-  native_mutex_t query_mutex;
-  native_cond_t query_cond;
-  native_mutex_t result_mutex;
-  native_cond_t result_cond;
-  int query_done;
-  my_bool has_thread;
-#endif /*EMBEDDED_LIBRARY*/
 };
 
 struct st_connection *connections= NULL;
@@ -889,152 +862,6 @@ void handle_error(struct st_command*,
 void handle_no_error(struct st_command*);
 void revert_properties();
 
-#ifdef EMBEDDED_LIBRARY
-
-#define EMB_SEND_QUERY 1
-#define EMB_READ_QUERY_RESULT 2
-#define EMB_END_CONNECTION 3
-
-/* attributes of the query thread */
-my_thread_attr_t cn_thd_attrib;
-
-
-/*
-  This procedure represents the connection and actually
-  runs queries when in the EMBEDDED-SERVER mode.
-  The run_query_normal() just sends request for running
-  mysql_send_query and mysql_read_query_result() here.
-*/
-
-extern "C" void *connection_thread(void *arg)
-{
-  struct st_connection *cn= (struct st_connection*)arg;
-
-  mysql_thread_init();
-  while (cn->command != EMB_END_CONNECTION)
-  {
-    if (!cn->command)
-    {
-      native_mutex_lock(&cn->query_mutex);
-      while (!cn->command)
-        native_cond_wait(&cn->query_cond, &cn->query_mutex);
-      native_mutex_unlock(&cn->query_mutex);
-    }
-    switch (cn->command)
-    {
-      case EMB_END_CONNECTION:
-        goto end_thread;
-      case EMB_SEND_QUERY:
-        cn->result= mysql_send_query(&cn->mysql, cn->cur_query,
-                                     static_cast<ulong>(cn->cur_query_len));
-        break;
-      case EMB_READ_QUERY_RESULT:
-        cn->result= mysql_read_query_result(&cn->mysql);
-        break;
-      default:
-        DBUG_ASSERT(0);
-    }
-    cn->command= 0;
-    native_mutex_lock(&cn->result_mutex);
-    cn->query_done= 1;
-    native_cond_signal(&cn->result_cond);
-    native_mutex_unlock(&cn->result_mutex);
-  }
-
-end_thread:
-  cn->query_done= 1;
-  mysql_thread_end();
-  my_thread_exit(0);
-  return 0;
-}
-
-static void wait_query_thread_done(struct st_connection *con)
-{
-  DBUG_ASSERT(con->has_thread);
-  if (!con->query_done)
-  {
-    native_mutex_lock(&con->result_mutex);
-    while (!con->query_done)
-      native_cond_wait(&con->result_cond, &con->result_mutex);
-    native_mutex_unlock(&con->result_mutex);
-  }
-}
-
-
-static void signal_connection_thd(struct st_connection *cn, int command)
-{
-  DBUG_ASSERT(cn->has_thread);
-  cn->query_done= 0;
-  cn->command= command;
-  native_mutex_lock(&cn->query_mutex);
-  native_cond_signal(&cn->query_cond);
-  native_mutex_unlock(&cn->query_mutex);
-}
-
-
-/*
-  Sometimes we try to execute queries when the connection is closed.
-  It's done to make sure it was closed completely.
-  So that if our connection is closed (cn->has_thread == 0), we just return
-  the mysql_send_query() result which is an error in this case.
-*/
-
-static int do_send_query(struct st_connection *cn, const char *q, size_t q_len)
-{
-  if (!cn->has_thread)
-    return mysql_send_query(&cn->mysql, q, static_cast<ulong>(q_len));
-  cn->cur_query= q;
-  cn->cur_query_len= q_len;
-  signal_connection_thd(cn, EMB_SEND_QUERY);
-  return 0;
-}
-
-static int do_read_query_result(struct st_connection *cn)
-{
-  DBUG_ASSERT(cn->has_thread);
-  wait_query_thread_done(cn);
-  signal_connection_thd(cn, EMB_READ_QUERY_RESULT);
-  wait_query_thread_done(cn);
-
-  return cn->result;
-}
-
-
-static void emb_close_connection(struct st_connection *cn)
-{
-  if (!cn->has_thread)
-    return;
-  wait_query_thread_done(cn);
-  signal_connection_thd(cn, EMB_END_CONNECTION);
-  my_thread_join(&cn->tid, NULL);
-  cn->has_thread= FALSE;
-  native_mutex_destroy(&cn->query_mutex);
-  native_cond_destroy(&cn->query_cond);
-  native_mutex_destroy(&cn->result_mutex);
-  native_cond_destroy(&cn->result_cond);
-}
-
-
-static void init_connection_thd(struct st_connection *cn)
-{
-  cn->query_done= 1;
-  cn->command= 0;
-  if (native_mutex_init(&cn->query_mutex, NULL) ||
-      native_cond_init(&cn->query_cond) ||
-      native_mutex_init(&cn->result_mutex, NULL) ||
-      native_cond_init(&cn->result_cond) ||
-      my_thread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
-    die("Error in the thread library");
-  cn->has_thread=TRUE;
-}
-
-#else /*EMBEDDED_LIBRARY*/
-
-#define do_send_query(cn,q,q_len) mysql_send_query(&cn->mysql, q, static_cast<ulong>(q_len))
-#define do_read_query_result(cn) mysql_read_query_result(&cn->mysql)
-
-#endif /*EMBEDDED_LIBRARY*/
-
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
 {
@@ -1392,9 +1219,6 @@ static void close_connections()
   DBUG_ENTER("close_connections");
   for (--next_con; next_con >= connections; --next_con)
   {
-#ifdef EMBEDDED_LIBRARY
-    emb_close_connection(next_con);
-#endif
     if (next_con->stmt)
       mysql_stmt_close(next_con->stmt);
     next_con->stmt= 0;
@@ -1462,8 +1286,6 @@ static void free_used_memory()
     if (var_reg[i].alloced_len)
       my_free(var_reg[i].str_val);
   }
-  while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count]);
   delete q_lines;
   dynstr_free(&ds_res);
   dynstr_free(&ds_result);
@@ -5925,7 +5747,6 @@ static void do_close_connection(struct st_command *command)
     die("connection '%s' not found in connection pool", ds_connection.str);
 
   DBUG_PRINT("info", ("Closing connection %s", con->name));
-#ifndef EMBEDDED_LIBRARY
   if (command->type == Q_DIRTY_CLOSE)
   {
     if (con->mysql.net.vio)
@@ -5935,14 +5756,6 @@ static void do_close_connection(struct st_command *command)
       end_server(&con->mysql);
     }
   }
-#else
-  /*
-    As query could be still executed in a separate theread
-    we need to check if the query's thread was finished and probably wait
-    (embedded-server specific)
-  */
-  emb_close_connection(con);
-#endif /*EMBEDDED_LIBRARY*/
   if (con->stmt)
     mysql_stmt_close(con->stmt);
   con->stmt= 0;
@@ -6217,7 +6030,7 @@ static void do_connect(struct st_command *command)
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   struct st_connection* con_slot;
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   uint save_opt_ssl_mode= opt_ssl_mode;
 #endif
 
@@ -6230,9 +6043,7 @@ static void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
-#if !defined (EMBEDDED_LIBRARY)
   static DYNAMIC_STRING ds_shm;
-#endif
   const struct command_arg connect_args[] = {
     { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
     { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
@@ -6261,10 +6072,8 @@ static void do_connect(struct st_command *command)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
 
-#if !defined (EMBEDDED_LIBRARY)
   /* Shared memory */
   init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
-#endif
 
   /* Sock */
   if (ds_sock.length)
@@ -6339,10 +6148,6 @@ static void do_connect(struct st_command *command)
           opt_max_connections);
   }
 
-#ifdef EMBEDDED_LIBRARY
-  init_connection_thd(con_slot);
-#endif /*EMBEDDED_LIBRARY*/
-
   if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
 
@@ -6359,7 +6164,7 @@ static void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   /*
     If mysqltest --ssl-mode option is set to DISABLED
     and connect(.., SSL) command used, set proper opt_ssl_mode.
@@ -6378,18 +6183,15 @@ static void do_connect(struct st_command *command)
   con_ssl = con_ssl ? TRUE : FALSE;
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   opt_ssl_mode= save_opt_ssl_mode;
 #endif
 
   if (con_pipe && !con_ssl)
   {
-#if !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
-#endif
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
   {
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
@@ -6399,26 +6201,21 @@ static void do_connect(struct st_command *command)
     */
     opt_protocol= 0;
   }
-#endif
 
   if (con_shm)
   {
-#if !defined (EMBEDDED_LIBRARY)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
 
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
-#endif
   }
-#if !defined (EMBEDDED_LIBRARY)
   else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
   }
-#endif
 
   if (con_socket)
   {
@@ -6484,9 +6281,7 @@ static void do_connect(struct st_command *command)
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
-#if !defined (EMBEDDED_LIBRARY)
   dynstr_free(&ds_shm);
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -7431,10 +7226,6 @@ static struct my_option my_long_options[] =
    &opt_result_format_version,
    &opt_result_format_version, 0,
    GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
-  {"server-arg", 'A', "Send option value to embedded server as a parameter.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-file", 'F', "Read embedded server arguments from file.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, 
    &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
@@ -7525,53 +7316,6 @@ static void usage()
 }
 
 
-/*
-  Read arguments for embedded server and put them into
-  embedded_server_args[]
-*/
-
-static void read_embedded_server_arguments(const char *name)
-{
-  char argument[1024],buff[FN_REFLEN], *str=0;
-  FILE *file;
-
-  if (!test_if_hard_path(name))
-  {
-    strxmov(buff, opt_basedir, name, NullS);
-    name=buff;
-  }
-  fn_format(buff, name, "", "", MY_UNPACK_FILENAME);
-
-  if (!embedded_server_arg_count)
-  {
-    embedded_server_arg_count=1;
-    embedded_server_args[0]= (char*) "";		/* Progname */
-  }
-  if (!(file=my_fopen(buff, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
-    die("Failed to open file '%s'", buff);
-
-  while (embedded_server_arg_count < MAX_EMBEDDED_SERVER_ARGS &&
-	 (str=fgets(argument,sizeof(argument), file)))
-  {
-    *(strend(str)-1)=0;				/* Remove end newline */
-    if (!(embedded_server_args[embedded_server_arg_count]=
-	  (char*) my_strdup(PSI_NOT_INSTRUMENTED,
-                            str,MYF(MY_WME))))
-    {
-      my_fclose(file,MYF(0));
-      die("Out of memory");
-
-    }
-    embedded_server_arg_count++;
-  }
-  my_fclose(file,MYF(0));
-  if (str)
-    die("Too many arguments in option file: %s",name);
-
-  return;
-}
-
-
 static my_bool
 get_one_option(int optid, const struct my_option *opt, char *argument)
 {
@@ -7635,27 +7379,10 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
   case 't':
     my_stpnmov(TMPDIR, argument, sizeof(TMPDIR));
     break;
-  case 'A':
-    if (!embedded_server_arg_count)
-    {
-      embedded_server_arg_count=1;
-      embedded_server_args[0]= (char*) "";
-    }
-    if (embedded_server_arg_count == MAX_EMBEDDED_SERVER_ARGS-1 ||
-        !(embedded_server_args[embedded_server_arg_count++]=
-          my_strdup(PSI_NOT_INSTRUMENTED,
-                    argument, MYF(MY_FAE))))
-    {
-      die("Can't use server argument");
-    }
-    break;
   case OPT_LOG_DIR:
     /* Check that the file exists */
     if (access(opt_logdir, F_OK) != 0)
       die("The specified log directory does not exist: '%s'", opt_logdir);
-    break;
-  case 'F':
-    read_embedded_server_arguments(argument);
     break;
   case OPT_RESULT_FORMAT_VERSION:
     set_result_format_version(opt_result_format_version);
@@ -7664,10 +7391,8 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     print_version();
     exit(0);
   case OPT_MYSQL_PROTOCOL:
-#ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
-#endif
     break;
   case '?':
     usage();
@@ -8266,7 +7991,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
     /*
       Send the query
     */
-    if (do_send_query(cn, query, query_len))
+    if (mysql_send_query(&cn->mysql, query, static_cast<ulong>(query_len)))
     {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
@@ -8285,7 +8010,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
       When  on first result set, call mysql_read_query_result to retrieve
       answer to the query sent earlier
     */
-    if ((counter==0) && do_read_query_result(cn))
+    if ((counter==0) && mysql_read_query_result(&cn->mysql))
     {
       /* we've failed to collect the result set */
       cn->pending= TRUE;
@@ -9402,10 +9127,6 @@ static void dump_backtrace(void)
   {
     fprintf(stderr, "conn->name (%p): ", conn->name);
     my_safe_puts_stderr(conn->name, conn->name_len);
-#ifdef EMBEDDED_LIBRARY
-    fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
-    my_safe_puts_stderr(conn->cur_query, conn->cur_query_len);
-#endif
   }
   fputs("Attempting backtrace...\n", stderr);
   my_print_stacktrace(NULL, my_thread_stack_size);
@@ -9516,12 +9237,6 @@ int main(int argc, char **argv)
   /* Init expected errors */
   memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
 
-#ifdef EMBEDDED_LIBRARY
-  /* set appropriate stack for the 'query' threads */
-  (void) my_thread_attr_init(&cn_thd_attrib);
-  my_thread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
-#endif /*EMBEDDED_LIBRARY*/
-
   /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
   file_stack_end=
@@ -9600,9 +9315,7 @@ int main(int argc, char **argv)
                      result_file_name ? result_file_name : ""));
   verbose_msg("Results saved in '%s'.", 
               result_file_name ? result_file_name : "");
-  if (mysql_server_init(embedded_server_arg_count,
-			embedded_server_args,
-			(char**) embedded_server_groups))
+  if (mysql_server_init(0, nullptr, nullptr))
     die("Can't initialize MySQL server");
   server_initialized= 1;
   if (cur_file == file_stack && cur_file->file == 0)
@@ -9658,11 +9371,6 @@ int main(int argc, char **argv)
   cursor_protocol_enabled= cursor_protocol;
 
   st_connection *con= connections;
-#ifdef EMBEDDED_LIBRARY
-  if (ps_protocol)
-    die("--ps-protocol is not supported in embedded mode");
-  init_connection_thd(con);
-#endif /*EMBEDDED_LIBRARY*/
   if (!( mysql_init(&con->mysql)))
     die("Failed in mysql_init()");
   if (opt_connect_timeout)
@@ -9677,13 +9385,11 @@ int main(int argc, char **argv)
     mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
-#ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
     mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#endif
 
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   /* Turn on VERIFY_IDENTITY mode only if host=="localhost". */
   if (opt_ssl_mode == SSL_MODE_VERIFY_IDENTITY)
   {
@@ -9694,7 +9400,7 @@ int main(int argc, char **argv)
   SSL_SET_OPTIONS(&con->mysql);
 
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 

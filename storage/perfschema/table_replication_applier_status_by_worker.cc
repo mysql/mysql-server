@@ -24,9 +24,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 
-#ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION
-#endif /* EMBEDDED_LIBRARY */
 
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"

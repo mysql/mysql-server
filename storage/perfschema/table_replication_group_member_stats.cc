@@ -22,9 +22,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 
-#ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION
-#endif /* EMBEDDED_LIBRARY */
 
 #include "field.h"
 #include "log.h"

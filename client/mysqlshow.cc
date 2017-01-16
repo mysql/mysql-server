@@ -48,7 +48,7 @@ static uint opt_enable_cleartext_plugin= 0;
 static my_bool using_opt_enable_cleartext_plugin= 0;
 static my_bool opt_secure_auth= TRUE;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
   }
   mysql_close(&mysql);			/* Close & free connection */
   my_free(opt_password);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
@@ -256,7 +256,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,

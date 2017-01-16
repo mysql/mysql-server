@@ -58,7 +58,7 @@ static char *opt_password = 0, *current_user = 0,
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 static const char *opt_skip_database= "";
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -183,7 +183,7 @@ static struct my_option my_long_options[] =
   {"repair", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -463,7 +463,7 @@ static int dbConnect(char *host, char *user, char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -557,7 +557,7 @@ int main(int argc, char **argv)
 
   dbDisconnect(current_host);
   my_free(opt_password);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(argv);

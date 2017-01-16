@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ private:
   Nullable<std::string> m_host;
   uint32 m_mysql_port;
   Nullable<std::string> m_mysql_unix_port;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   Nullable<std::string> m_shared_memory_base_name;
 #endif
   Nullable<std::string> m_default_auth;

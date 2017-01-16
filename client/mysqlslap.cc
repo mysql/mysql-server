@@ -111,7 +111,7 @@ TODO:
 #define snprintf _snprintf
 #endif
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -349,7 +349,7 @@ int main(int argc, char **argv)
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -434,7 +434,7 @@ int main(int argc, char **argv)
   statement_cleanup(post_statements);
   option_cleanup(engine_options);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
@@ -698,7 +698,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,

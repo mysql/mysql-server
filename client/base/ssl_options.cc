@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ void Mysql_connection_options::Ssl_options::create_options()
   std::function<void(char*)> callback(
     std::bind(&Mysql_connection_options::Ssl_options::mode_option_callback, this, _1));
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   this->create_new_option(&this->m_ssl_mode_string, "ssl-mode",
       "SSL connection mode.")
 #ifdef MYSQL_CLIENT
