@@ -7939,6 +7939,11 @@ commit_try_rebuild(
 			DBUG_RETURN(true);
 		}
 	}
+	DBUG_EXECUTE_IF("ib_rename_column_error",
+		my_error_innodb(DB_OUT_OF_FILE_SPACE, table_name, 0);
+		trx->error_state = DB_SUCCESS;
+		trx->op_info = "";
+		DBUG_RETURN(true););
 #ifdef INNODB_NO_NEW_DD
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NAME)
@@ -8133,6 +8138,12 @@ commit_try_norebuild(
 	if (innobase_update_foreign_try(ctx, trx, table_name)) {
 		DBUG_RETURN(true);
 	}
+
+	DBUG_EXECUTE_IF("ib_rename_column_error",
+		my_error_innodb(DB_OUT_OF_FILE_SPACE, table_name, 0);
+		trx->error_state = DB_SUCCESS;
+		trx->op_info = "";
+		DBUG_RETURN(true););
 #ifdef INNODB_NO_NEW_DD
 	dberr_t	error;
 
