@@ -747,7 +747,11 @@ bool Sql_cmd_alter_table_exchange_partition::
             reporting an error. Do this before we downgrade metadata locks.
           */
           (void) trans_rollback_stmt(thd);
-          // Full rollback in case we have THD::transaction_rollback_request.
+          /*
+            Full rollback in case we have THD::transaction_rollback_request
+            and to synchronize DD state in cache and on disk (as statement
+            rollback doesn't clear DD cache of modified uncommitted objects).
+          */
           (void) trans_rollback(thd);
           /*
             Call SE post DDL hook. This handles both rollback and commit cases.
@@ -996,7 +1000,11 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (error)
   {
     trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
     trans_rollback(thd);
   }
 

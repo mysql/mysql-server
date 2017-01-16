@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -621,7 +621,11 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   if (error)
   {
     trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
     trans_rollback(thd);
   }
 

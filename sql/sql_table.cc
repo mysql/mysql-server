@@ -4231,13 +4231,21 @@ err_with_rollback:
       */
       Disable_gtid_state_update_guard disabler(thd);
       trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
       trans_rollback(thd);
     }
     else
     {
       trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
       trans_rollback(thd);
     }
 
@@ -7291,7 +7299,11 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (result)
     {
       trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
       trans_rollback(thd);
     }
 
@@ -7914,7 +7926,11 @@ err:
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
     trans_rollback(thd);
 
     if (post_ddl_ht)
@@ -9880,7 +9896,11 @@ cleanup:
 cleanup2:
 
   (void) trans_rollback_stmt(thd);
-  // Full rollback in case we have THD::transaction_rollback_request.
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
   (void) trans_rollback(thd);
 
   if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
@@ -11330,7 +11350,9 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       We need rollback possible changes to data-dictionary before releasing
       or downgrading metadata lock.
 
-      Also do full rollback in case we have THD::transaction_rollback_request.
+      Full rollback will synchronize state of data-dictionary in
+      cache and on disk. Also it is  needed in case we have
+      THD::transaction_rollback_request.
     */
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -11851,9 +11873,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     char* table_name= const_cast<char*>(alter_ctx.table_name);
     // In-place execution of ALTER TABLE for partitioning.
 
-    // WL7743/TODO: We don't care about statement commit/rollback in
-    //              in this case. As this branch is to be removed
-    //              soon.
+    /*
+      TODO: The below legacy code is to be removed once InnoDB supports
+            changes to partitioning through normal in-place ALTER SE
+            API. So we don't care about atomicity and commit/rollback
+            correctness in this case.
+    */
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            const_cast<char*>(alter_ctx.db),
@@ -12805,9 +12830,9 @@ err_new_table_cleanup:
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);
     }
-#ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
     else
     {
+#ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
       /*
         We should not try to remove new version of the table if
         THD::transaction_rollback_request is set and we can't rollback the
@@ -12820,11 +12845,15 @@ err_new_table_cleanup:
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);
 
+#endif
       trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
       trans_rollback(thd);
     }
-#endif
     if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
         new_db_type->post_ddl)
       new_db_type->post_ddl(thd);
@@ -12861,7 +12890,11 @@ err_with_mdl:
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
   trans_rollback_stmt(thd);
-  // Full rollback in case we have THD::transaction_rollback_request.
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
   trans_rollback(thd);
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)

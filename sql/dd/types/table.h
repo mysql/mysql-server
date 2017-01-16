@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
@@ -223,7 +223,7 @@ public:
   /**
     Find and set parent partitions for subpartitions.
 
-    TODO/FIXME: Can we adjust API somehow to avoid need for this method?
+    TODO: Adjust API and code to avoid need for this method.
   */
   virtual void fix_partitions() = 0;
 

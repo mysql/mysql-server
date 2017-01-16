@@ -2471,8 +2471,11 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
                 const T *table_def, bool commit_dd_changes)
 {
   /*
-    WL7743/TODO: Find out why do we need this (main.lock fails
-                 with out but why)?
+    Acquire lock on schema so assert in Dictionary_client::drop() checking
+    that we have proper MDL lock on the object deleted can safely get schema
+    name from the schema ID.
+
+    TODO: Change code to make this unnecessary.
   */
   dd::Schema_MDL_locker mdl_locker(thd);
   if (mdl_locker.ensure_locked(schema_name))

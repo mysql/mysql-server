@@ -3051,10 +3051,10 @@ void Query_result_create::drop_open_table()
     {
       trans_rollback_stmt(thd);
       /*
-        TODO: We have to call this regardless of
-        thd->transaction_rollback_request in order for view metadata
-        on disk to be in synch with the DD cache state in case of
-        deadlock during view metadata update.
+        Rollback transaction both to clear THD::transaction_rollback_request
+        (if it is set) and to synchronize DD state for view metadata in cache
+        and on disk (as statement rollback doesn't clear DD cache of modified
+        uncommitted objects).
       */
       trans_rollback_implicit(thd);
 
@@ -3110,7 +3110,12 @@ void Query_result_create::abort_result_set()
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
+    /*
+      Rollback transaction both to clear THD::transaction_rollback_request
+      (if it is set) and to synchronize DD state in cache and on disk (as
+      statement rollback doesn't clear DD cache of modified uncommitted
+      objects).
+    */
     trans_rollback_implicit(thd);
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,12 +193,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 #else
     if (!thd->transaction_rollback_request)
     {
-      /*
-        QQ: In case of deadlock we just leaving DD and SE in disarray.
-            Should we try to fail gracefully in this case too, perhaps
-            by rolling back transaction and performing a series of
-            SE-only changes?
-      */
       Disable_gtid_state_update_guard disabler(thd);
       trans_commit_stmt(thd);
       trans_commit(thd);
@@ -260,7 +254,11 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (error)
   {
     trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
     trans_rollback(thd);
   }
 

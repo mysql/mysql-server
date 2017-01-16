@@ -673,7 +673,9 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       trans_rollback_stmt(thd);
       /*
         Play safe to be sure that THD::transaction_rollback_request is
-        cleared before work-around code below is run.
+        cleared before work-around code below is run. This also necessary
+        to synchronize state of data-dicitionary on disk and in cache (to
+        clear cache of uncommitted objects).
       */
       trans_rollback_implicit(thd);
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
