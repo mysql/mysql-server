@@ -23,7 +23,7 @@
 #include "print_version.h"
 #include <welcome_copyright_notice.h>
 
-#include "lz4/lz4frame.h"
+#include "lz4frame.h"
 
 static void usage()
 {

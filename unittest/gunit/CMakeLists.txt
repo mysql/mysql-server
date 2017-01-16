@@ -231,7 +231,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${ZLIB_INCLUDE_DIR}
-  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example

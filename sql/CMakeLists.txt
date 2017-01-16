@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/sql/auth
-  ${CMAKE_SOURCE_DIR}/regex 
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql

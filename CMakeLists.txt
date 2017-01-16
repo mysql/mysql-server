@@ -608,6 +608,7 @@ ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in ma
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
   ${CMAKE_SOURCE_DIR}/sql/histograms
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
@@ -670,9 +671,9 @@ ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(vio)
-ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(mysys_ssl)
+ADD_SUBDIRECTORY(extra/regex)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
@@ -701,8 +702,8 @@ IF(NOT WITHOUT_SERVER)
   CONFIGURE_COMPONENTS()
 ENDIF()
 
-ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(client)
+ADD_SUBDIRECTORY(utilities)
 ADD_SUBDIRECTORY(sql/share)
 ADD_SUBDIRECTORY(libservices)
 
