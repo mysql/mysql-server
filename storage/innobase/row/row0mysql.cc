@@ -5595,7 +5595,7 @@ end:
 		if (!old_is_tmp && !new_is_tmp) {
 			for (dict_foreign_set::iterator it
 			     = table->foreign_set.begin();
-			     it != table->foreign_set.end(); ++it) {
+			     it != table->foreign_set.end();) {
 				dict_foreign_t*	foreign = *it;
 				char	buf[MAX_TABLE_NAME_LEN + 1];
 				ulint   db_len = dict_get_db_name_len(
@@ -5606,7 +5606,6 @@ end:
 					buf, MAX_TABLE_NAME_LEN + 1);
 
 				if (strstr(foreign->id, buf)) {
-					table->foreign_set.erase(it);
 					dict_table_t*	ref_table
 					= dict_table_check_if_in_cache_low(
 					foreign->referenced_table_name_lookup);
@@ -5615,7 +5614,10 @@ end:
 					= ref_table->referenced_set.find(
 						foreign);
 
+					table->foreign_set.erase(it++);
 					ref_table->referenced_set.erase(rit);
+				} else {
+					++it;
 				}
 			}
 		}
