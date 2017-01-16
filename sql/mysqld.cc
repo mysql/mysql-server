@@ -4286,8 +4286,16 @@ static int init_server_components()
   {
     // Construct filename if no filename was given by the user.
     if (!log_error_dest[0] || log_error_dest == disabled_my_option)
-      fn_format(errorlog_filename_buff, pidfile_name, mysql_data_home, ".err",
-                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
+    {
+#ifdef _WIN32
+      const char *filename= pidfile_name;
+#else
+      const char *filename= default_logfile_name;
+#endif
+      fn_format(errorlog_filename_buff, filename, mysql_data_home, ".err",
+                MY_REPLACE_EXT |  /* replace '.<domain>' by '.err', bug#4997 */
+                MY_REPLACE_DIR);
+    }
     else
       fn_format(errorlog_filename_buff, log_error_dest, mysql_data_home, ".err",
                 MY_UNPACK_FILENAME);
