@@ -4704,8 +4704,6 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-#define FLT_EXP_DIG (sizeof(float)*8-FLT_MANT_DIG)
-
 void Field_float::make_sort_key(uchar *to, size_t length)
 {
   DBUG_ASSERT(length >= 4);
@@ -4719,34 +4717,23 @@ void Field_float::make_sort_key(uchar *to, size_t length)
 #endif
     memcpy(&nr, ptr, min(length, sizeof(float)));
 
-  uchar *tmp= to;
-  if (nr == (float) 0.0)
-  {						/* Change to zero string */
-    tmp[0]=(uchar) 128;
-    memset(tmp + 1, 0, min(length, sizeof(nr) - 1));
-  }
-  else
-  {
-#ifdef WORDS_BIGENDIAN
-    memcpy(tmp, &nr, sizeof(nr));
-#else
-    tmp[0]= ptr[3]; tmp[1]=ptr[2]; tmp[2]= ptr[1]; tmp[3]=ptr[0];
-#endif
-    if (tmp[0] & 128)				/* Negative */
-    {						/* make complement */
-      uint i;
-      for (i=0 ; i < sizeof(nr); i++)
-	tmp[i]= (uchar) (tmp[i] ^ (uchar) 255);
-    }
-    else
-    {
-      ushort exp_part=(((ushort) tmp[0] << 8) | (ushort) tmp[1] |
-		       (ushort) 32768);
-      exp_part+= (ushort) 1 << (16-1-FLT_EXP_DIG);
-      tmp[0]= (uchar) (exp_part >> 8);
-      tmp[1]= (uchar) exp_part;
-    }
-  }
+  /*
+    -0.0 and +0.0 compare identically, so make sure they use exactly the same
+    bit pattern.
+  */
+  if (nr == 0.0f) nr= 0.0f;
+
+  /*
+    Positive floats sort exactly as ints; negative floats need
+    bit flipping. The bit flipping sets the upper bit to 0
+    unconditionally, so put 1 in there for positive numbers
+    (so they sort later for our unsigned comparison).
+    NOTE: This does not sort infinities or NaN correctly.
+  */
+  int32 nr_int;
+  memcpy(&nr_int, &nr, sizeof(nr));
+  nr_int= (nr_int ^ (nr_int >> 31)) | ((~nr_int) & 0x80000000);
+  store32be(to, nr_int);
 }
 
 

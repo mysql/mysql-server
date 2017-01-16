@@ -2671,45 +2671,32 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
 ** The following should work for IEEE
 */
 
-#define DBL_EXP_DIG (sizeof(double)*8-DBL_MANT_DIG)
-
-void change_double_for_sort(double nr,uchar *to)
+void change_double_for_sort(double nr, uchar *to)
 {
-  uchar *tmp= to;
-  if (nr == 0.0)
-  {						/* Change to zero string */
-    tmp[0]=(uchar) 128;
-    memset(tmp+1, 0, sizeof(nr)-1);
-  }
-  else
-  {
-#ifdef WORDS_BIGENDIAN
-    memcpy(tmp, &nr, sizeof(nr));
-#else
-    {
-      uchar *ptr= (uchar*) &nr;
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-      tmp[0]= ptr[3]; tmp[1]=ptr[2]; tmp[2]= ptr[1]; tmp[3]=ptr[0];
-      tmp[4]= ptr[7]; tmp[5]=ptr[6]; tmp[6]= ptr[5]; tmp[7]=ptr[4];
-#else
-      tmp[0]= ptr[7]; tmp[1]=ptr[6]; tmp[2]= ptr[5]; tmp[3]=ptr[4];
-      tmp[4]= ptr[3]; tmp[5]=ptr[2]; tmp[6]= ptr[1]; tmp[7]=ptr[0];
+  /*
+    -0.0 and +0.0 compare identically, so make sure they use exactly the same
+    bit pattern.
+  */
+  if (nr == 0.0) nr= 0.0;
+
+  /*
+    Positive doubles sort exactly as ints; negative doubles need
+    bit flipping. The bit flipping sets the upper bit to 0
+    unconditionally, so put 1 in there for positive numbers
+    (so they sort later for our unsigned comparison).
+    NOTE: This does not sort infinities or NaN correctly.
+  */
+  int64 nr_int;
+  memcpy(&nr_int, &nr, sizeof(nr));
+  nr_int= (nr_int ^ (nr_int >> 63)) | ((~nr_int) & 0x8000000000000000ULL);
+
+  // TODO: Make store64be() or similar.
+  memcpy(to, &nr_int, sizeof(nr_int));
+#if !defined(WORDS_BIGENDIAN)
+  using std::swap;
+  swap(to[0], to[7]);
+  swap(to[1], to[6]);
+  swap(to[2], to[5]);
+  swap(to[3], to[4]);
 #endif
-    }
-#endif
-    if (tmp[0] & 128)				/* Negative */
-    {						/* make complement */
-      uint i;
-      for (i=0 ; i < sizeof(nr); i++)
-	tmp[i]=tmp[i] ^ (uchar) 255;
-    }
-    else
-    {					/* Set high and move exponent one up */
-      ushort exp_part=(((ushort) tmp[0] << 8) | (ushort) tmp[1] |
-		       (ushort) 32768);
-      exp_part+= (ushort) 1 << (16-1-DBL_EXP_DIG);
-      tmp[0]= (uchar) (exp_part >> 8);
-      tmp[1]= (uchar) exp_part;
-    }
-  }
 }
