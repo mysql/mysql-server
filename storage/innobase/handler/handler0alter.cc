@@ -8144,6 +8144,13 @@ commit_try_norebuild(
 		trx->error_state = DB_SUCCESS;
 		trx->op_info = "";
 		DBUG_RETURN(true););
+
+	DBUG_EXECUTE_IF("ib_resize_column_error",
+		my_error_innodb(DB_OUT_OF_FILE_SPACE, table_name, 0);
+		trx->error_state = DB_SUCCESS;
+		trx->op_info = "";
+		DBUG_RETURN(true););
+
 #ifdef INNODB_NO_NEW_DD
 	dberr_t	error;
 
