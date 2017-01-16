@@ -673,6 +673,15 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
+  if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
+  {
+    // is_fatal_errror is needed to avoid stored procedures to skip the error.
+    thd->is_fatal_error= 1;
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--transaction-write-set-extraction!=OFF");
+    DBUG_RETURN(true);
+  }
+
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
@@ -715,9 +724,6 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
     locks acquired during LOCK TABLES.
   */
   newsv->mdl_savepoint= thd->mdl_context.mdl_savepoint();
-
-  thd->get_transaction()->get_transaction_write_set_ctx()
-      ->add_savepoint(thd, name.str);
 
   DBUG_RETURN(FALSE);
 }
@@ -787,9 +793,6 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (!res && ha_rollback_to_savepoint_can_release_mdl(thd))
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
-  thd->get_transaction()->get_transaction_write_set_ctx()
-      ->rollback_to_savepoint(thd, name.str);
-
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -827,9 +830,6 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
     res= TRUE;
 
   thd->get_transaction()->m_savepoints= sv->prev;
-
-  thd->get_transaction()->get_transaction_write_set_ctx()
-      ->del_savepoint(thd, name.str);
 
   DBUG_RETURN(MY_TEST(res));
 }
