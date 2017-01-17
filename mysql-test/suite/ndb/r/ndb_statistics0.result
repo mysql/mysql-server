@@ -34,13 +34,9 @@ CREATE TABLE t100 LIKE t10;
 INSERT INTO t100(I,J)
 SELECT X.J, X.J+(10*Y.J) FROM t10 AS X,t10 AS Y;
 CREATE TABLE t10000 LIKE t10;
-ALTER TABLE t10000 ENGINE=MYISAM;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t10000', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t10000 ENGINE=INNODB;
 INSERT INTO t10000(I,J)
 SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t10000', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t10000 ENGINE=NDBCLUSTER;
 ANALYZE TABLE t10,t100,t10000;
 Table	Op	Msg_type	Msg_text
