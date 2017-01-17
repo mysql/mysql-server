@@ -1,7 +1,6 @@
 #### suite/funcs_1/t/innodb_storedproc_03.test
 #
 # 1. Check if InnoDB is available
---source include/have_innodb.inc
 
 # 2. Set $engine_type
 let $engine_type= innodb;

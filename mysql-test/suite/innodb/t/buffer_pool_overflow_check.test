@@ -1,7 +1,6 @@
 ## Bug#21512749 REFACTOR SYSVAR INNODB_BUFFER_POOL_SIZE BY REMOVING
 ## INNOBASE_BUFFER_POOL_SIZE
 
---source include/have_innodb.inc
 --source include/have_32bit.inc
 --source include/not_embedded.inc
 

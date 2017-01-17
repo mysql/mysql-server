@@ -4,7 +4,6 @@
 # data that is volatile, are never cached in the query cache.
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop table if exists t1;

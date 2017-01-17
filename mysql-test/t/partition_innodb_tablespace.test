@@ -3,7 +3,6 @@
 # partition engine uses InnoDB.
 #
 --source include/not_embedded.inc
---source include/have_innodb.inc
 --let $old_default_storage_engine = @@default_storage_engine;
 SET default_storage_engine=InnoDB;
 

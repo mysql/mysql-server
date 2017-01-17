@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING

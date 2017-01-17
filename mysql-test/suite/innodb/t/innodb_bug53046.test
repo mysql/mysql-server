@@ -8,7 +8,6 @@
 # correctness.
 #
 
--- source include/have_innodb.inc
 
 CREATE TABLE bug53046_1 (c1 INT PRIMARY KEY) ENGINE=INNODB;
 CREATE TABLE bug53046_2 (c2 INT PRIMARY KEY,

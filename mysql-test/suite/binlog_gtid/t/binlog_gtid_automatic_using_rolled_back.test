@@ -24,7 +24,6 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
---source include/have_gtid.inc
 
 RESET MASTER;
 

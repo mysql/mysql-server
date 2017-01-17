@@ -4,7 +4,6 @@
 # partition related tests with remote tablespaces.
 # See innodb.innodb-restart for tablespace migration tests.
 #
---source include/have_innodb.inc
 SET default_storage_engine=InnoDB;
 
 --echo #

@@ -5,7 +5,6 @@
 
 # Restarting is not supported in embedded
 --source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 # Avoid CrashReporter popup on Mac

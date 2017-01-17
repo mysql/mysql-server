@@ -3,7 +3,6 @@
 #
 --source include/have_debug_sync.inc
 # We need InnoDB to be able use TL_WRITE_ALLOW_WRITE type of locks in our tests.
---source include/have_innodb.inc
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.

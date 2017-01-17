@@ -2,7 +2,6 @@
 --echo # This tests the use of large blobs in InnoDB.
 --echo #
 
---source include/have_innodb.inc
 --source include/have_nodebug.inc
 --source include/big_test.inc
 

@@ -102,8 +102,6 @@
 # BUG#19579811: SET GTID_PURGED DOES NOT STOP WAIT_FOR_EXECUTED_GTID_SET
 # - Rewrote the test, improving general coverage and adding the bug cases.
 
---source include/have_log_bin.inc
---source include/have_gtid.inc
 # Test requires binlog_format=statement to replicate nondeterministic function
 --source include/have_binlog_format_statement.inc
 # Disable auto_position protocol. This is needed since we switch to

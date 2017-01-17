@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 # In old versions that wrote garbage into files, the page size was 16k.
 --source include/have_innodb_16k.inc
 # Embedded server does not support restarting.

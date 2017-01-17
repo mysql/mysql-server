@@ -1,5 +1,4 @@
 --source include/have_binlog_format_row.inc
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 CREATE TABLE t1(c1 VARCHAR(10240)) ENGINE = INNODB;

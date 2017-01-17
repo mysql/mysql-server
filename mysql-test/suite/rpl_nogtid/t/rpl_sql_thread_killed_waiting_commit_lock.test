@@ -34,11 +34,9 @@
 # object will be rolled back. Test script ensures that rli's memory contents
 # are in sync with the positions in rli repository.
 
---source include/not_gtid_enabled.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 call mtr.add_suppression("Query execution was interrupted.");

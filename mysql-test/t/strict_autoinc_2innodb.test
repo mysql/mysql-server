@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 
 #
 # Bug#20573 Strict mode auto-increment

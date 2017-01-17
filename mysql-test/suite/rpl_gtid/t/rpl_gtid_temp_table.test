@@ -20,7 +20,6 @@
 # "Bug #22134026: ON BINLOGLESS SERVER ENFORCE_GTID_CONSISTENCY DOESN'T CHECK
 # FOR ER1785,1786,1787" is fixed.
 --source include/have_binlog_format_row.inc
---source include/have_gtid.inc
 --source include/master-slave.inc
 # Initial Setup
 CREATE TABLE trans_table1 (i INT) ENGINE=INNODB;

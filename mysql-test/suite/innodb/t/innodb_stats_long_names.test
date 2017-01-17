@@ -2,7 +2,6 @@
 # Test mysql.innodb_(table|index)_stats with long table names.
 #
 
--- source include/have_innodb.inc
 
 CREATE TABLE t_cdefgh10abcdefgh20abcdefgh30abcdefgh40abcdefgh50abcdefgh60abcd
 (a INT, b INT) ENGINE=INNODB

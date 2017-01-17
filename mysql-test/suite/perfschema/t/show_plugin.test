@@ -19,7 +19,6 @@
 #                                                                              #
 ################################################################################
 
---source include/have_perfschema.inc
 --source include/not_embedded.inc
 --source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc

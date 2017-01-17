@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 SET @start_global_value = @@session.gtid_next;
 SELECT @start_global_value;

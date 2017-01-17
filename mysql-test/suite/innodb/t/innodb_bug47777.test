@@ -4,7 +4,6 @@
 # should follow the process for the BLOB
 # datatype as well.
 
---source include/have_innodb.inc
 
 create table bug47777(c2 linestring not null, primary key (c2(1))) engine=innodb;
 

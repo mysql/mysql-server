@@ -2,7 +2,6 @@
 # Test what happens when a record is inserted or updated so that some
 # columns are stored off-page.
 
---source include/have_innodb.inc
 # The 7000 in this test is a bit less than half the innodb_page_size.
 --source include/have_innodb_16k.inc
 

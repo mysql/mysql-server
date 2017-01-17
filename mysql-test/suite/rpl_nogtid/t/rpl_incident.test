@@ -1,4 +1,3 @@
---source include/not_gtid_enabled.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/force_restart.inc

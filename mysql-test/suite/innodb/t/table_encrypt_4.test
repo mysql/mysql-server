@@ -2,7 +2,6 @@
 # This test case will test export/import encrypted tablespace.
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

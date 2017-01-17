@@ -1,7 +1,6 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree multi level split.
 
---source include/have_innodb.inc
 --source include/big_test.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc

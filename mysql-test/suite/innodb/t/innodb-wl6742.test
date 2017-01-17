@@ -7,7 +7,6 @@
 
 # Temporarily skipping the test when log-bin is enabled due to Bug#22286170
 --source include/not_log_bin.inc
---source include/have_innodb.inc
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;

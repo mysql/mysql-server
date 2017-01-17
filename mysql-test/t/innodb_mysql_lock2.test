@@ -1,5 +1,4 @@
 # This test covers behavior for InnoDB tables.
---source include/have_innodb.inc
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.

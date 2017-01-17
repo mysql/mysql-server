@@ -1,6 +1,5 @@
 # Test for bug #14676111: WRONG PAGE_LEVEL WRITTEN FOR UPPER THAN FATHER PAGE AT BTR_LIFT_PAGE_UP()
 
--- source include/have_innodb.inc
 -- source include/have_debug.inc
 
 --disable_query_log

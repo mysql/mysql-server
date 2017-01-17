@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 #
 # Bugreport due to Roy Nasser <roy@vem.ca>

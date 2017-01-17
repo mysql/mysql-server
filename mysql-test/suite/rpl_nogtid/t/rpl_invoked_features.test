@@ -6,10 +6,8 @@
 #########################################
 
 --source include/master-slave.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 # Needed since test uses CREATE TABLE ... SELECT
---source include/not_gtid_enabled.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

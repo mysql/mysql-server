@@ -5,8 +5,6 @@
 
 source include/have_semisync_plugin.inc;
 source include/not_embedded.inc;
-source include/have_innodb.inc;
-source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 let $engine_type= InnoDB;

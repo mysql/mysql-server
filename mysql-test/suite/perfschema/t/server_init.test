@@ -1,7 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # This test verifies that the mysys and server instruments are properly
 # initialized and recorded by the performance schema during the bootstrap

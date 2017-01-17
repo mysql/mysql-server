@@ -10,7 +10,6 @@
 #######################################################################
 
 
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/count_sessions.inc
 

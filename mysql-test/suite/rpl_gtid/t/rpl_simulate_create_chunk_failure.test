@@ -20,7 +20,6 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun them for every format.
 --source include/have_binlog_format_row.inc
---source include/have_gtid.inc
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 # Restrict the test runs to only debug builds, since we set DEBUG point in the test.

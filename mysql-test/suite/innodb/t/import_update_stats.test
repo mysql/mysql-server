@@ -3,7 +3,6 @@
 #
 
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;

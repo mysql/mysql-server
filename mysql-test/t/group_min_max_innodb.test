@@ -4,7 +4,6 @@
 # that depends on InnoDB
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop view if exists v1;

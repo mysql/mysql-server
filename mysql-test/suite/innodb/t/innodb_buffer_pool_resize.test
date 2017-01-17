@@ -2,7 +2,6 @@
 # WL6117 : Resize the InnoDB Buffer Pool Online
 #
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/big_test.inc
 

@@ -4,7 +4,6 @@
 #
 
 # We need InnoDB for COMMIT/ROLLBACK related tests.
---source include/have_innodb.inc
 # We need the Debug Sync Facility.
 --source include/have_debug_sync.inc
 # Parts of this test use DDL on events, BINLOG statement and

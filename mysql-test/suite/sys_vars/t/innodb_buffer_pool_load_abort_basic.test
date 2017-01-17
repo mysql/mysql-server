@@ -2,7 +2,6 @@
 # Basic test for innodb_buffer_pool_load_abort
 #
 
--- source include/have_innodb.inc
 
 # Check the default value
 SET @orig = @@global.innodb_buffer_pool_load_abort;

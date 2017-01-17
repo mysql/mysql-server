@@ -3,7 +3,6 @@
 # INFORMATION_SCHEMA.INNODB_CACHED_INDEXES
 #
 
--- source include/have_innodb.inc
 
 CREATE TABLE test_cached_indexes (
 	a INT,

@@ -1,7 +1,6 @@
 --echo Bug #18412598  UNCLEAN SYSTEM SHUTDOWN RECOVERY FAILS
 --echo		      FOR SCHEMA WITH CAPITAL LETTERS
 
---source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/have_case_insensitive_file_system.inc
 

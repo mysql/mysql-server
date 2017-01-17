@@ -17,7 +17,6 @@
 
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
 
---source include/have_innodb.inc
 
 let MYSQLD_DATADIR= `select @@datadir`;
 

@@ -6,7 +6,6 @@
 # Exec_Master_Log_Pos advances as expected.
 
 -- source include/have_log_bin.inc
--- source include/have_innodb.inc
 -- source include/have_myisam.inc
 
 

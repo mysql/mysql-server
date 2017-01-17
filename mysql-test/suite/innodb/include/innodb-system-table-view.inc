@@ -2,7 +2,6 @@
 # that displays the InnoDB system table content through
 # information schema tables.
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_no_undo_tablespaces.inc
 

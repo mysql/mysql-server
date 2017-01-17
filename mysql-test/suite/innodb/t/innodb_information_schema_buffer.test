@@ -1,7 +1,6 @@
 # Exercise the code path for INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS
 # and INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 
--- source include/have_innodb.inc
 
 -- disable_result_log
 SELECT * FROM INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS;

@@ -1,5 +1,4 @@
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 CREATE TABLE worklog5743 (col_1_CHAR CHAR(255) , col_2_CHAR CHAR(255) ,

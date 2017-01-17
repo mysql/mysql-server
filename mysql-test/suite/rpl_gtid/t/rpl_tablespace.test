@@ -13,7 +13,6 @@
 --echo #
 --echo # #######################################################################
 
---source include/have_gtid.inc
 --source include/master-slave.inc
 
 --connection master

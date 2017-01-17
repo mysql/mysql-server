@@ -43,7 +43,6 @@
 --echo ==== Initialization ====
 
 --source include/have_ndb.inc
---source include/have_innodb.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 --echo ---- setup master ----

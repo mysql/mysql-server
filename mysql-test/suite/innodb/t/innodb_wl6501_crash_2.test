@@ -6,7 +6,6 @@
 # non-compressed non-temp table residing in system tablespace.
 # with row_format=compact
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 

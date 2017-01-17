@@ -1,7 +1,6 @@
 # Test of a transaction mixing the two engines
 
 -- source include/have_ndb.inc
--- source include/have_innodb.inc
 -- source suite/ndb_rpl/ndb_master-slave.inc
 
 create table t1 (a int, unique(a)) engine=ndbcluster;

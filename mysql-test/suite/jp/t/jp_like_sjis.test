@@ -1,5 +1,4 @@
 --character_set sjis
---source include/have_innodb.inc
 --disable_warnings
 drop table if exists `‚s‚P`;
 drop table if exists `‚s‚Q`;

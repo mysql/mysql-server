@@ -2,7 +2,6 @@
 # wl#8919 InnoDB: Implement NOWAIT and SKIP LOCKED
 #
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 # should work with embedded server after mysqltest is fixed
 --source include/not_embedded.inc

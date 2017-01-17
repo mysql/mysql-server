@@ -5,7 +5,6 @@
 #
 
 call mtr.add_suppression("Unsafe statement written to the binary log using*");
---source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
 --let $master_uuid= `SELECT @@SERVER_UUID`
 

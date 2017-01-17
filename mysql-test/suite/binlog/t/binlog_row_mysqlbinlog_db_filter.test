@@ -25,7 +25,6 @@
 
 -- source include/have_log_bin.inc
 -- source include/have_binlog_format_row.inc
--- source include/have_innodb.inc
 
 RESET MASTER;
 -- let $MYSQLD_DATADIR= `select @@datadir`

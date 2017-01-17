@@ -3,7 +3,6 @@
 # 2010-01-27 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_io_capacity = @@global.innodb_io_capacity;
 SELECT @start_io_capacity;

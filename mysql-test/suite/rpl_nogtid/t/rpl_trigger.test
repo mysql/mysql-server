@@ -4,7 +4,6 @@
 # TODO: Remove statement include once 12574 is patched
 --source include/have_binlog_format_mixed_or_statement.inc 
 --source include/master-slave.inc
---source include/not_gtid_enabled.inc
 --source include/have_myisam.inc
 
 disable_query_log;
@@ -502,9 +501,7 @@ drop table t1;
 connection master;
 --source include/rpl_reset.inc
 
-source include/have_innodb.inc;
 connection slave;
-source include/have_innodb.inc;
 
 connection master;
 create table t1 ( f int ) engine = innodb;

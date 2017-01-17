@@ -5,7 +5,6 @@
 # Setup
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop schema if exists test1;

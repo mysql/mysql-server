@@ -1,6 +1,5 @@
 # This is the basic function tests for innodb FTS
 
--- source include/have_innodb.inc
 
 call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`articles`");

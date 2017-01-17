@@ -2,7 +2,6 @@
 # Basic test for innodb_buffer_pool_filename
 #
 
--- source include/have_innodb.inc
 # --force-restart from
 # mysql-test/suite/sys_vars/t/innodb_buffer_pool_filename_basic-master.opt
 # does not seem to work on Windows (test being executed without a restart)

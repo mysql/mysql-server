@@ -1,7 +1,6 @@
 # Test for bug #12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
 
 -- source include/have_debug.inc
--- source include/have_innodb.inc
 
 # Don't test under valgrind, undo slots of the previous test might exist still
 # and cause unstable result.

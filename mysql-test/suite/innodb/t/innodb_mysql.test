@@ -10,7 +10,6 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 
--- source include/have_innodb.inc
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYs

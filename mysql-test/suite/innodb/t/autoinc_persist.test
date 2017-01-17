@@ -1,5 +1,4 @@
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 --echo # This test case is introduced to test the persisted autoinc, basic

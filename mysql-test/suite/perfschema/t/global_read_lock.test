@@ -3,7 +3,6 @@
 # Test the effect of a flush tables with read lock on setup_ tables.
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 use performance_schema;
 
