@@ -1292,6 +1292,12 @@ dd_fill_one_dict_index(
 			index->type |= DICT_VIRTUAL;
 		}
 
+		bool	is_asc = true;
+
+		if (key_part->key_part_flag & HA_REVERSE_SORT) {
+			is_asc = false;
+		}
+			
 #if 1//WL#7743 FIXME: do not set HA_PART_KEY_SEG for SPATIAL indexes
 		if (key.flags & HA_SPATIAL) {
 			prefix_len = 0;
@@ -1340,7 +1346,7 @@ dd_fill_one_dict_index(
 			col = &table->cols[field->field_index - t_num_v];
 		}
 
-		dict_index_add_col(index, table, col, prefix_len, true);
+		dict_index_add_col(index, table, col, prefix_len, is_asc);
 	}
 
 	ut_ad(((key.flags & HA_FULLTEXT) == HA_FULLTEXT)

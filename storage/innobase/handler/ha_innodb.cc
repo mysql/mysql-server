@@ -14020,11 +14020,8 @@ innobase_fts_create_one_index_dd_table(
 	mutex_enter(&dict_sys->mutex);
 
 	if (fail) {
-		dd::release_mdl(thd, mdl_ticket);
 		return(false);
 	}
-
-	dd::release_mdl(thd, mdl_ticket);
 
 	return(true);
 }
@@ -14191,11 +14188,8 @@ innobase_fts_create_one_common_dd_table(
 	mutex_enter(&dict_sys->mutex);
 
 	if (fail) {
-		dd::release_mdl(thd, mdl_ticket);
 		return(false);
 	}
-
-	dd::release_mdl(thd, mdl_ticket);
 
 	return(true);
 }
@@ -14229,12 +14223,10 @@ innobase_fts_drop_dd_table(
 	const dd::Table*	dd_table = nullptr;
 	if (client->acquire<dd::Table>(
 			db_name, table_name, &dd_table)) {
-		dd::release_mdl(thd, mdl_ticket);
 		return(false);
 	}
 
 	if (dd_table == nullptr) {
-		dd::release_mdl(thd, mdl_ticket);
 		return(false);
 	}
 
@@ -14261,12 +14253,9 @@ innobase_fts_drop_dd_table(
 	}
 
 	if (client->drop(dd_table)) {
-		dd::release_mdl(thd, mdl_ticket);
 		ut_ad(0);
 		return(false);
 	}
-
-	dd::release_mdl(thd, mdl_ticket);
 
 	return(true);
 }

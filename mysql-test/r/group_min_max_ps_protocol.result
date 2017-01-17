@@ -28,13 +28,8 @@ FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-<<<<<<< HEAD
-Handler_read_key	38
-Handler_read_next	53
-=======
-Handler_read_key	8
+Handler_read_key	17
 Handler_read_next	20
->>>>>>> mysql-trunk-wl7743-wip-3
 FLUSH STATUS;
 SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
 max(b)	a
@@ -126,13 +121,8 @@ FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-<<<<<<< HEAD
-Handler_read_key	20
-Handler_read_next	15
-=======
 Handler_read_key	12
 Handler_read_next	0
->>>>>>> mysql-trunk-wl7743-wip-3
 DELETE FROM t3;
 FLUSH STATUS;
 INSERT INTO t3 SELECT 1, (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) 

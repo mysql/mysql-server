@@ -625,24 +625,14 @@ Handler_read_next	5
 # 17 write (internal I_S)
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	10
-HANDLER_DELETE	8
-HANDLER_EXTERNAL_LOCK	88
-HANDLER_READ_KEY	69
-HANDLER_READ_NEXT	12
-HANDLER_UPDATE	45
-HANDLER_WRITE	25
-=======
-VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	40
-Handler_update	40
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_commit	10
+Handler_delete	8
+Handler_external_lock	88
+Handler_read_key	65
+Handler_read_next	8
+Handler_update	45
+Handler_write	8
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
 FLUSH STATUS;
@@ -987,24 +977,14 @@ Handler_read_next	5
 Handler_write	5
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	14
-HANDLER_DELETE	12
-HANDLER_EXTERNAL_LOCK	120
-HANDLER_READ_KEY	81
-HANDLER_READ_NEXT	18
-HANDLER_UPDATE	45
-HANDLER_WRITE	29
-=======
-VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	40
-Handler_update	40
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_commit	14
+Handler_delete	12
+Handler_external_lock	120
+Handler_read_key	75
+Handler_read_next	12
+Handler_update	45
+Handler_write	12
 # Warm-up data-dictionary cache
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
@@ -1041,18 +1021,6 @@ Handler_read_next	5
 Handler_write	5
 FLUSH STATUS;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
-<<<<<<< HEAD
-SELECT CONCAT(VARIABLE_NAME, ' ', VARIABLE_VALUE) AS 'VARIABLE_NAME  VARIABLE_VALUE' FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
-VARIABLE_NAME  VARIABLE_VALUE
-HANDLER_COMMIT <handler_commit_count>
-HANDLER_EXTERNAL_LOCK <handler_external_lock_count>
-HANDLER_READ_FIRST <handler_read_first_count>
-HANDLER_READ_KEY <handler_read_key_count>
-HANDLER_READ_NEXT 7
-HANDLER_UPDATE 12
-HANDLER_WRITE 38
-=======
 SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM performance_schema.status_by_thread
 WHERE VARIABLE_NAME IN ('Handler_read_first', 'Handler_read_next', 'Handler_write')
@@ -1061,8 +1029,7 @@ AND THREAD_ID IN (SELECT thread_id from test.thread_to_monitor);
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_read_first	5
 Handler_read_next	7
-Handler_write	10
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_write	21
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1213,24 +1180,14 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # Note that it does not support truncating subpartitions
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	6
-HANDLER_DELETE	4
-HANDLER_EXTERNAL_LOCK	56
-HANDLER_READ_KEY	57
-HANDLER_READ_NEXT	6
-HANDLER_UPDATE	45
-HANDLER_WRITE	21
-=======
-VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	40
-Handler_update	40
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_commit	6
+Handler_delete	4
+Handler_external_lock	56
+Handler_read_key	55
+Handler_read_next	4
+Handler_update	45
+Handler_write	4
 # Lots of extra lock acquisitions, reads and etc due to
 # data-dictionary update.
 # Test on non partitioned table

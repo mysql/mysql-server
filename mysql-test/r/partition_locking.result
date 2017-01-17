@@ -1633,24 +1633,14 @@ SET sql_mode = default;
 #
 FLUSH STATUS;
 TRUNCATE TABLE t2;
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	28
-HANDLER_DELETE	26
-HANDLER_EXTERNAL_LOCK	232
-HANDLER_READ_KEY	114
-HANDLER_READ_NEXT	39
-HANDLER_UPDATE	36
-HANDLER_WRITE	43
-=======
-VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	31
-Handler_update	31
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_commit	28
+Handler_delete	26
+Handler_external_lock	232
+Handler_read_key	101
+Handler_read_next	26
+Handler_update	36
+Handler_write	26
 # All partitions needs to be locked
 # 1 commit
 SHOW CREATE TABLE t2;
@@ -1680,24 +1670,14 @@ Handler_write	2
 #
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	4
-HANDLER_DELETE	2
-HANDLER_EXTERNAL_LOCK	40
-HANDLER_READ_KEY	42
-HANDLER_READ_NEXT	3
-HANDLER_UPDATE	36
-HANDLER_WRITE	19
-=======
-VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	31
-Handler_update	31
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_commit	4
+Handler_delete	2
+Handler_external_lock	40
+Handler_read_key	41
+Handler_read_next	2
+Handler_update	36
+Handler_write	2
 # Lots of lock acquisitions, reads and updated due to data-dictionary
 # being updated.
 # Warm-up data-dictionary cache.
@@ -2808,23 +2788,13 @@ DROP VIEW v1_25, v1_25_check;
 FLUSH STATUS;
 CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113, 26);
 VARIABLE_NAME	VARIABLE_VALUE
-<<<<<<< HEAD
-HANDLER_COMMIT	7
-HANDLER_EXTERNAL_LOCK	106
-HANDLER_READ_FIRST	3
-HANDLER_READ_KEY	18
-HANDLER_READ_NEXT	12
-HANDLER_UPDATE	12
-HANDLER_WRITE	34
-=======
 Handler_commit	7
-Handler_external_lock	102
+Handler_external_lock	106
 Handler_read_first	3
-Handler_read_key	9
+Handler_read_key	18
 Handler_read_next	12
-Handler_update	3
-Handler_write	7
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_update	12
+Handler_write	18
 SELECT * FROM t3 ORDER BY a;
 a	b
 0	First row, p0
@@ -2834,25 +2804,13 @@ a	b
 DROP TABLE t3;
 FLUSH STATUS;
 CREATE TABLE t3 SELECT a, b FROM t1 WHERE b LIKE 'First%';
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
-VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	7
-HANDLER_EXTERNAL_LOCK	106
-HANDLER_READ_KEY	28
-HANDLER_READ_NEXT	5
-HANDLER_UPDATE	12
-HANDLER_WRITE	36
-=======
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
-Handler_read_key	19
+Handler_external_lock	106
+Handler_read_key	28
 Handler_read_next	5
-Handler_update	3
-Handler_write	8
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_update	12
+Handler_write	19
 SELECT * FROM t3 ORDER BY a;
 a	b
 0	First row, p0
@@ -4448,26 +4406,14 @@ INSERT INTO t2 VALUES (0, "Zero"), (1, "One"), (2, "Two"),
 (6, "Six"), (7, "Seven"), (8, "Eight");
 FLUSH STATUS;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	6
-HANDLER_EXTERNAL_LOCK	76
-HANDLER_READ_FIRST	1
-HANDLER_READ_KEY	45
-HANDLER_READ_NEXT	4
-HANDLER_READ_RND_NEXT	4
-HANDLER_UPDATE	36
-HANDLER_WRITE	17
-=======
-VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	4
+Handler_commit	4
+Handler_external_lock	68
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	41
+Handler_read_next	2
 Handler_read_rnd_next	4
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_update	36
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	One
@@ -4672,27 +4618,14 @@ CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1), (3), (9), (2), (8), (7);
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 PARTITION (p1, p2);
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
-VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	7
-HANDLER_EXTERNAL_LOCK	106
-HANDLER_READ_FIRST	2
-HANDLER_READ_KEY	15
-HANDLER_READ_RND_NEXT	4
-HANDLER_UPDATE	10
-HANDLER_WRITE	33
-=======
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
+Handler_external_lock	106
 Handler_read_first	2
-Handler_read_key	7
+Handler_read_key	15
 Handler_read_rnd_next	4
-Handler_update	2
-Handler_write	6
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_update	10
+Handler_write	16
 SELECT * FROM t2;
 a
 1
@@ -4702,27 +4635,14 @@ a
 DROP TABLE t2;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 WHERE a IN (1, 3, 9);
-<<<<<<< HEAD
-SELECT * FROM information_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
-VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	7
-HANDLER_EXTERNAL_LOCK	106
-HANDLER_READ_FIRST	2
-HANDLER_READ_KEY	15
-HANDLER_READ_RND_NEXT	4
-HANDLER_UPDATE	10
-HANDLER_WRITE	32
-=======
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
+Handler_external_lock	106
 Handler_read_first	2
-Handler_read_key	7
+Handler_read_key	15
 Handler_read_rnd_next	4
-Handler_update	2
-Handler_write	5
->>>>>>> mysql-trunk-wl7743-wip-3
+Handler_update	10
+Handler_write	15
 SELECT * FROM t2;
 a
 1

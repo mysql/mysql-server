@@ -122,12 +122,6 @@ INSERT INTO t_dyn_in_64k VALUES (1,'a'),(2,'b'),(3,'c');
 #
 DROP TABLESPACE s_64k;
 ERROR HY000: Tablespace `s_64k` is not empty.
-<<<<<<< HEAD
-SHOW WARNINGS;
-Level	Code	Message
-Error	3120	Tablespace `s_64k` is not empty.
-=======
->>>>>>> mysql-trunk-wl7743-wip-3
 #
 # Add more data to the existing Tables
 #
