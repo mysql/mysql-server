@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3514,6 +3514,21 @@ cli_establish_ssl(MYSQL *mysql)
                              ER(CR_SSL_CONNECTION_ERROR),
                              "SSL is required but the server doesn't "
                              "support it");
+    goto error;
+  }
+
+  /*
+    If the ssl_mode is VERIFY_CA or VERIFY_IDENTITY, make sure that the
+    connection doesn't succeed without providing the CA certificate.
+  */
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode > SSL_MODE_REQUIRED &&
+      !(mysql->options.ssl_ca || mysql->options.ssl_capath))
+  {
+    set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                             ER(CR_SSL_CONNECTION_ERROR),
+                             "CA certificate is required if ssl-mode "
+                             "is VERIFY_CA or VERIFY_IDENTITY");
     goto error;
   }
 
