@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -184,7 +184,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     };
 
     int count= (int) array_elements(all_dyloader_mutexes);
-    PSI_MUTEX_CALL(register_mutex)("persistent_dynamic_loader",
+    PSI_MUTEX_CALL(register_mutex)("p_dyn_loader",
                                    all_dyloader_mutexes, count);
 
     mysql_mutex_init(key_component_id_by_urn_mutex,
