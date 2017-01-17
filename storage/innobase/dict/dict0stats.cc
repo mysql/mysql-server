@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -690,6 +690,9 @@ dict_stats_copy(
 	      && (src_idx = dict_table_get_next_index(src_idx)))) {
 
 		if (dict_stats_should_ignore_index(dst_idx)) {
+			if (!(dst_idx->type & DICT_FTS)) {
+				dict_stats_empty_index(dst_idx);
+			}
 			continue;
 		}
 
@@ -3228,12 +3231,6 @@ dict_stats_update(
 		case DB_SUCCESS:
 
 			dict_table_stats_lock(table, RW_X_LATCH);
-
-			/* Initialize all stats to dummy values before
-			copying because dict_stats_table_clone_create() does
-			skip corrupted indexes so our dummy object 't' may
-			have less indexes than the real object 'table'. */
-			dict_stats_empty_table(table);
 
 			dict_stats_copy(table, t);
 
