@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1343,12 +1343,12 @@ sync_latch_meta_init()
 
 	LATCH_ADD_MUTEX(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
-#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-	LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
-#else
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK,
 			buffer_block_mutex_key);
-#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
+#else
+	LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 	LATCH_ADD_MUTEX(BUF_POOL, SYNC_BUF_POOL, buf_pool_mutex_key);
 
@@ -1457,6 +1457,8 @@ sync_latch_meta_init()
 #ifdef UNIV_DEBUG
 	LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK,
 			sync_thread_mutex_key);
+#else
+	LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 #endif /* UNIV_DEBUG */
 
 	LATCH_ADD_MUTEX(BUF_DBLWR, SYNC_DOUBLEWRITE, buf_dblwr_mutex_key);
@@ -1487,12 +1489,13 @@ sync_latch_meta_init()
 #ifndef PFS_SKIP_EVENT_MUTEX
 	LATCH_ADD_MUTEX(EVENT_MANAGER, SYNC_NO_ORDER_CHECK,
 			event_manager_mutex_key);
+	LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, event_mutex_key);
 #else
 	LATCH_ADD_MUTEX(EVENT_MANAGER, SYNC_NO_ORDER_CHECK,
 			PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
 #endif /* !PFS_SKIP_EVENT_MUTEX */
-
-	LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, event_mutex_key);
 
 	LATCH_ADD_MUTEX(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK,
 			sync_array_mutex_key);
@@ -1527,12 +1530,20 @@ sync_latch_meta_init()
 	// Add the RW locks
 	LATCH_ADD_RWLOCK(BTR_SEARCH, SYNC_SEARCH_SYS, btr_search_latch_key);
 
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	LATCH_ADD_RWLOCK(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING,
 			 buf_block_lock_key);
+#else
+	LATCH_ADD_RWLOCK(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING,
+			 PFS_NOT_INSTRUMENTED);
+#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 #ifdef UNIV_DEBUG
 	LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK,
 			 buf_block_debug_latch_key);
+#else
+	LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK,
+			 PFS_NOT_INSTRUMENTED);
 #endif /* UNIV_DEBUG */
 
 	LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
