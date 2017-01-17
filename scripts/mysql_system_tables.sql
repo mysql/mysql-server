@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2016 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -457,7 +457,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES AS
        LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
        LEFT JOIN mysql.table_stats stat ON tbl.name=stat.table_name
        AND sch.name=stat.schema_name
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden");
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND NOT tbl.hidden");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -512,7 +512,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_DYNA
   FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
        JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
        LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden");
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND NOT tbl.hidden");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -578,7 +578,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
        JOIN mysql.collations coll ON col.collation_id=coll.id
        JOIN mysql.character_sets cs ON coll.character_set_id= cs.id
   WHERE INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name, tbl.name, tbl.type, tbl.options) AND
-        CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND
+        CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name, col.hidden) AND
         NOT tbl.hidden");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -657,7 +657,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
     JOIN mysql.schemata sch ON tbl.schema_id=sch.id
     JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
     JOIN mysql.collations coll ON tbl.collation_id=coll.id
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, idx.hidden OR icu.hidden) AND
         NOT tbl.hidden)");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -730,7 +730,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_CONS
          JOIN mysql.schemata sch ON tbl.schema_id= sch.id
          JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
          AND idx.type IN ('PRIMARY', 'UNIQUE')
-    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, idx.hidden) AND NOT tbl.hidden)
   UNION
   (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
           sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
@@ -741,7 +741,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_CONS
     FROM mysql.foreign_keys fk JOIN mysql.tables tbl ON fk.table_id = tbl.id
          JOIN mysql.schemata sch ON fk.schema_id= sch.id
          JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)");
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND NOT tbl.hidden)");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -770,7 +770,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      JOIN mysql.index_column_usage icu ON icu.index_id=idx.id
      JOIN mysql.columns col ON icu.column_id=col.id
      AND idx.type IN ('PRIMARY', 'UNIQUE')
-   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name,
+                           col.hidden OR idx.hidden OR icu.hidden) AND
          NOT tbl.hidden)
   UNION
   (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
@@ -790,7 +791,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      JOIN mysql.schemata sch ON fk.schema_id= sch.id
      JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
      JOIN mysql.columns col ON fkcu.column_id=col.id
-   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)");
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name, col.hidden) AND
+         NOT tbl.hidden)");
                            
 
 PREPARE stmt FROM @str;
@@ -819,7 +821,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.VIEWS AS
        JOIN mysql.collations conn_coll ON conn_coll.id= vw.view_connection_collation_id
        JOIN mysql.collations client_coll ON client_coll.id= vw.view_client_collation_id
        JOIN mysql.character_sets cs ON cs.id= client_coll.character_set_id
-  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name)");
+  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name, FALSE)");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

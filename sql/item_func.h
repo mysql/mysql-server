@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2212,8 +2212,8 @@ public:
 class Item_func_can_access_table : public Item_int_func
 {
 public:
-  Item_func_can_access_table(const POS &pos, Item *a, Item *b)
-    : Item_int_func(pos, a, b)
+  Item_func_can_access_table(const POS &pos, Item *a, Item *b, Item *c)
+    : Item_int_func(pos, a, b, c)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "can_access_table"; }
@@ -2244,8 +2244,9 @@ public:
 class Item_func_can_access_column : public Item_int_func
 {
 public:
-  Item_func_can_access_column(const POS &pos, Item *a, Item *b, Item *c)
-    : Item_int_func(pos, a, b, c)
+  Item_func_can_access_column(const POS &pos, Item *a, Item *b, Item *c,
+                              Item *d)
+    : Item_int_func(pos, a, b, c, d)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "can_access_column"; }

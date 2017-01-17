@@ -9229,7 +9229,7 @@ longlong Item_func_can_access_database::val_int()
     the user does not have rights, the following UDF's is used.
 
   Syntax:
-    int CAN_ACCCESS_TABLE(schema_name, table_name);
+    int CAN_ACCCESS_TABLE(schema_name, table_name, skip_table);
 
   @returns,
     1 - If current user has access.
@@ -9238,6 +9238,19 @@ longlong Item_func_can_access_database::val_int()
 longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
+
+  /*
+    If CAN_ACCCESS_TABLE is called for the hidden database objects then skip
+    listing those .
+    For example,CAN_ACCESS_TABLE is called from the I_S query STATISTICS_BASE.
+    In this case if index or index column is hidden then skip listing of it.
+
+    New keyword EXTENDED is introduced to the SHOW INDEX command to list the
+    hidden Indexes and Indexes columns.
+  */
+  THD *thd= current_thd;
+  if (args[2]->val_bool() && !thd->lex->extended_show)
+    DBUG_RETURN(false);
 
   // Read schema_name, table_name
   String schema_name;
@@ -9255,7 +9268,6 @@ longlong Item_func_can_access_table::val_int()
   table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
-  THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
@@ -9298,7 +9310,8 @@ longlong Item_func_can_access_table::val_int()
   Syntax:
     int CAN_ACCCESS_COLUMN(schema_name,
                            table_name,
-                           field_name);
+                           field_name,
+                           skip_column);
 
   @returns,
     1 - If current user has access.
@@ -9307,6 +9320,19 @@ longlong Item_func_can_access_table::val_int()
 longlong Item_func_can_access_column::val_int()
 {
   DBUG_ENTER("Item_func_can_access_column::val_int");
+
+  THD *thd= current_thd;
+  /*
+    If CAN_ACCCESS_COLUMN is called for the hidden database objects then skip
+    listing those .
+    For example,CAN_ACCESS_COLUMN is called from the I_S query COLUMNS.
+    In this case if column is hidden then skip listing of it.
+
+    New keyword EXTENDED is introduced to the SHOW COLUMNS command to list the
+    hidden columns.
+  */
+  if (args[3]->val_bool() && !thd->lex->extended_show)
+    DBUG_RETURN(false);
 
   // Read schema_name, table_name
   String schema_name;
@@ -9324,7 +9350,6 @@ longlong Item_func_can_access_column::val_int()
   table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
-  THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
