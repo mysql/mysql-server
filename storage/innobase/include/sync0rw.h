@@ -809,7 +809,7 @@ function!
 UNIV_INLINE
 void
 pfs_rw_lock_create_func(
-	PSI_rwlock_key  key,
+	mysql_pfs_key_t	key,
 	rw_lock_t*	lock,
 #ifdef UNIV_DEBUG
 	latch_level_t	level,

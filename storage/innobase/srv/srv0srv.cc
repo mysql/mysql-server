@@ -2544,7 +2544,7 @@ srv_worker_thread()
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
 #ifdef UNIV_PFS_THREAD
-	THD*	thd = create_thd(false, true, true, srv_worker_thread_key);
+	THD*	thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
 #endif /* UNIV_PFS_THREAD */
 
 	slot = srv_reserve_slot(SRV_WORKER);
@@ -2792,7 +2792,8 @@ srv_purge_coordinator_thread()
 	srv_slot_t*	slot;
 
 #ifdef UNIV_PFS_THREAD
-	THD*	thd = create_thd(false, true, true, srv_purge_thread_key);
+	THD*	thd = create_thd(false, true, true,
+				 srv_purge_thread_key.m_value);
 #endif /* UNIV_PFS_THREAD */
 	ulint	n_total_purged = ULINT_UNDEFINED;
 

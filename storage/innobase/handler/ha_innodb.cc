@@ -455,10 +455,10 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
-# define PSI_KEY(n) {&n##_key, #n, 0}
-# define PSI_MUTEX_KEY(n, P1, P2) {&n##_key, #n, P1, P2}
+# define PSI_KEY(n) {&(n##_key.m_value), #n, 0}
+# define PSI_MUTEX_KEY(n, P1, P2) {&(n##_key.m_value), #n, P1, P2}
 /* All RWLOCK used in Innodb are SX-locks */
-# define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
+# define PSI_RWLOCK_KEY(n) {&n##_key.m_value, #n, PSI_RWLOCK_FLAG_SX}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -610,8 +610,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(page_flush_coordinator_thread),
 	PSI_KEY(fts_optimize_thread),
 	PSI_KEY(fts_parallel_merge_thread),
-	PSI_KEY(fts_parallel_tokenization_thread),
-	PSI_KEY(srv_lock_timeout_thread)
+	PSI_KEY(fts_parallel_tokenization_thread)
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -4207,33 +4206,84 @@ innodb_init(
 	/* Register keys with MySQL performance schema */
 	int	count;
 
+#ifdef UNIV_DEBUG
+	/** Count of Performance Schema keys that have been registered. */
+	int	global_count = 0;
+#endif /* UNIV_DEBUG */
+
 	count = static_cast<int>(array_elements(all_pthread_mutexes));
 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 
 # ifdef UNIV_PFS_MUTEX
 	count = static_cast<int>(array_elements(all_innodb_mutexes));
 	mysql_mutex_register("innodb", all_innodb_mutexes, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_RWLOCK
 	count = static_cast<int>(array_elements(all_innodb_rwlocks));
 	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_THREAD
 	count = static_cast<int>(array_elements(all_innodb_threads));
 	mysql_thread_register("innodb", all_innodb_threads, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_THREAD */
+
 
 # ifdef UNIV_PFS_IO
 	count = static_cast<int>(array_elements(all_innodb_files));
 	mysql_file_register("innodb", all_innodb_files, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_IO */
+
 
 	count = static_cast<int>(array_elements(all_innodb_conds));
 	mysql_cond_register("innodb", all_innodb_conds, count);
 
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 	mysql_data_lock_register(& innodb_data_lock_inspector);
+
+#ifdef UNIV_DEBUG
+	if (mysql_pfs_key_t::get_count() != global_count) {
+
+		ib::error() << "You have created new InnoDB PFS key(s) but "
+			    << mysql_pfs_key_t::get_count() - global_count
+			    << " key(s) is/are not registered with PFS. Please"
+			    << " register the keys in PFS arrays in"
+			    << " ha_innodb.cc.";
+
+		DBUG_RETURN(HA_ERR_INITIALIZATION);
+	}
+#endif /* UNIV_DEBUG */
 
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -4330,12 +4380,12 @@ innobase_init_files(
 	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
-	mysql_mutex_init(innobase_share_mutex_key,
+	mysql_mutex_init(innobase_share_mutex_key.m_value,
 			 &innobase_share_mutex,
 			 MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(commit_cond_mutex_key,
+	mysql_mutex_init(commit_cond_mutex_key.m_value,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_cond_init(commit_cond_key, &commit_cond);
+	mysql_cond_init(commit_cond_key.m_value, &commit_cond);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
 	if (innobase_hton != p) {

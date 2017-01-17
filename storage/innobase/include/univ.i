@@ -98,7 +98,31 @@ support cross-platform development and expose comonly used SQL names. */
 #ifdef HAVE_PSI_INTERFACE
 
 /** Define for performance schema registration key */
-using mysql_pfs_key_t = unsigned int;
+struct mysql_pfs_key_t {
+public:
+
+        /** Default Constructor */
+        mysql_pfs_key_t() {
+                s_count++;
+        }
+
+        /** Constructor */
+        mysql_pfs_key_t(unsigned int    val) : m_value(val) {}
+
+        /** Retreive the count.
+        @return number of keys defined */
+        static int get_count() {
+                return s_count;
+        }
+
+        /* Key value. */
+        unsigned int            m_value;
+
+private:
+
+        /** To keep count of number of PS keys defined. */
+        static unsigned int     s_count;
+};
 
 #endif /* HAVE_PFS_INTERFACE */
 
@@ -146,15 +170,6 @@ defined, the rwlocks are simply not tracked. */
 # ifdef HAVE_PSI_MEMORY_INTERFACE
 #  define UNIV_PFS_MEMORY
 # endif /* HAVE_PSI_MEMORY_INTERFACE */
-
-/* There are mutexes/rwlocks that we want to exclude from
-instrumentation even if their corresponding performance schema
-define is set. And this PFS_NOT_INSTRUMENTED is used
-as the key value to identify those objects that would
-be excluded from instrumentation. */
-# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
-
-# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
 
 /* For PSI_MUTEX_CALL() and similar. */
 #include "pfs_thread_provider.h"

@@ -710,7 +710,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 
 # ifdef PFS_GROUP_BUFFER_SYNC
+
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern mysql_pfs_key_t	buffer_block_mutex_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 /********************************************************************//**
 This function registers mutexes and rwlocks in buffer blocks with
@@ -737,7 +740,11 @@ pfs_register_buffer_block(
 		BPageMutex*	mutex;
 
 		mutex = &block->mutex;
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		mutex->pfs_add(buffer_block_mutex_key);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
 #  endif /* UNIV_PFS_MUTEX */
 
 		rw_lock_t*	rwlock;
@@ -745,9 +752,16 @@ pfs_register_buffer_block(
 #  ifdef UNIV_PFS_RWLOCK
 		rwlock = &block->lock;
 		ut_a(!rwlock->pfs_psi);
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		rwlock->pfs_psi = (PSI_server)
 			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
 			: NULL;
+#else
+		rwlock->pfs_psi = (PSI_server)
+			? PSI_server->init_rwlock(PFS_NOT_INSTRUMENTED, rwlock)
+			: NULL;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 #   ifdef UNIV_DEBUG
 		rwlock = &block->debug_latch;

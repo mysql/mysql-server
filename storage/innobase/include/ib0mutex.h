@@ -1079,7 +1079,7 @@ struct PolicyMutex
 	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
 	{
 		ut_ad(m_ptr == 0);
-		m_ptr = PSI_MUTEX_CALL(init_mutex)(key, this);
+		m_ptr = PSI_MUTEX_CALL(init_mutex)(key.m_value, this);
 	}
 
 private:
