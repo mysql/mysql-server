@@ -45,22 +45,23 @@ static const int XCOM_MAX_HANDLERS= 6;
 */
 static const unsigned int WAITING_TIME= 30;
 
+/*
+  Number of attempts to join a group.
+*/
+static const unsigned int JOIN_ATTEMPTS= 3;
+
+/*
+  Sleep time between attempts defined in seconds.
+*/
+static const uint64_t JOIN_SLEEP_TIME= 5;
+
+
 Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
 u_long Gcs_xcom_utils::build_xcom_group_id(Gcs_group_identifier &group_id)
 {
   std::string group_id_str= group_id.get_group_id();
   return mhash((unsigned char *)group_id_str.c_str(), group_id_str.size());
-}
-
-
-std::string *Gcs_xcom_utils::build_xcom_member_id(const std::string &address)
-{
-  std::ostringstream string_builder;
-
-  string_builder << address.c_str();
-
-  return new std::string(string_builder.str());
 }
 
 
@@ -574,10 +575,10 @@ Gcs_xcom_proxy_impl::Xcom_handler::~Xcom_handler()
 }
 
 
-node_address *Gcs_xcom_proxy_impl::new_node_address(unsigned int n,
-                                                    char *names[])
+node_address *Gcs_xcom_proxy_impl::new_node_address_uuid(unsigned int n,
+                                                         char *names[], blob uuids[])
 {
-  return ::new_node_address(n, names);
+  return ::new_node_address_uuid(n, names, uuids);
 }
 
 
@@ -705,9 +706,11 @@ enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_exit()
       )
     }
     else
+    {
       MYSQL_GCS_LOG_ERROR(
         "Error while waiting for group communication to exit!"
       )
+    }
   }
 
   m_lock_xcom_exit.unlock();
@@ -765,8 +768,8 @@ Gcs_xcom_proxy_impl::xcom_wait_for_xcom_comms_status_change(int& status)
 
   if (res != 0)
   {
-    // There was an error
-    status= XCOM_COMMS_ERROR;
+    // There was an error while retrieving the latest status change.
+    status= XCOM_COMMS_OTHER;
 
     if(res == ETIMEDOUT)
     {
@@ -870,12 +873,24 @@ Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
 }
 
 Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
-  : m_node_no(site->nodeno), m_addresses(), m_statuses(), m_size(nodes.node_set_len)
+  : m_node_no(site->nodeno), m_addresses(), m_uuids(), m_statuses(),
+    m_size(nodes.node_set_len)
 {
+  Gcs_uuid uuid;
   for (unsigned int i= 0; i < nodes.node_set_len; ++i)
   {
+    /* Get member address and save it. */
     std::string address(site->nodes.node_list_val[i].address);
     m_addresses.push_back(address);
+
+    /* Get member uuid and save it. */
+    assert(uuid.size ==  site->nodes.node_list_val[i].uuid.data.data_len);
+    uuid.decode(
+      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val)
+    );
+    m_uuids.push_back(uuid);
+
+    /* Get member status and save it */
     m_statuses.push_back(nodes.node_set_val[i] ? true: false);
   }
   assert(m_size == m_addresses.size());
@@ -890,6 +905,11 @@ unsigned int Gcs_xcom_nodes::get_node_no() const
 const std::vector<std::string> &Gcs_xcom_nodes::get_addresses() const
 {
   return m_addresses;
+}
+
+const std::vector<Gcs_uuid> &Gcs_xcom_nodes::get_uuids() const
+{
+  return m_uuids;
 }
 
 const std::vector<bool> &Gcs_xcom_nodes::get_statuses() const
@@ -945,7 +965,10 @@ fix_parameters_syntax(Gcs_interface_parameters &interface_params)
     interface_params.get_parameter("wait_time"));
   std::string *ip_whitelist_str= const_cast<std::string *>(
     interface_params.get_parameter("ip_whitelist"));
-
+  std::string *join_attempts_str= const_cast<std::string *>(
+    interface_params.get_parameter("join_attempts"));
+  std::string *join_sleep_time_str= const_cast<std::string *>(
+    interface_params.get_parameter("join_sleep_time"));
 
   // sets the default value for compression (ON by default)
   if (!compression_str)
@@ -998,6 +1021,22 @@ fix_parameters_syntax(Gcs_interface_parameters &interface_params)
 
     interface_params.add_parameter("ip_whitelist", iplist);
   }
+
+  // sets the default join attempts
+  if (!join_attempts_str)
+  {
+    std::stringstream ss;
+    ss << JOIN_ATTEMPTS;
+    interface_params.add_parameter("join_attempts", ss.str());
+  }
+
+  // sets the default sleep time between join attempts
+  if (!join_sleep_time_str)
+  {
+    std::stringstream ss;
+    ss << JOIN_SLEEP_TIME;
+    interface_params.add_parameter("join_sleep_time", ss.str());
+  }
 }
 
 static enum_gcs_error
@@ -1042,6 +1081,10 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
     interface_params.get_parameter("compression");
   const std::string *wait_time_str=
     interface_params.get_parameter("wait_time");
+  const std::string *join_attempts_str=
+    interface_params.get_parameter("join_attempts");
+  const std::string *join_sleep_time_str=
+    interface_params.get_parameter("join_sleep_time");
 
   /*
     -----------------------------------------------------
@@ -1182,6 +1225,26 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
   {
     MYSQL_GCS_LOG_ERROR("The wait_time parameter (" << wait_time_str <<
                         ") is not valid.")
+    error= GCS_NOK;
+    goto end;
+  }
+
+  if(join_attempts_str &&
+     (join_attempts_str->size() == 0 ||
+      !is_number(*join_attempts_str)))
+  {
+    MYSQL_GCS_LOG_ERROR("The join_attempts parameter ("
+                        << join_attempts_str << ") is not valid.")
+    error= GCS_NOK;
+    goto end;
+  }
+
+  if(join_sleep_time_str &&
+     (join_sleep_time_str->size() == 0 ||
+      !is_number(*join_sleep_time_str)))
+  {
+    MYSQL_GCS_LOG_ERROR("The join_sleep_time parameter ("
+                        << join_sleep_time_str << ") is not valid.")
     error= GCS_NOK;
     goto end;
   }
