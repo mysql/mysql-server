@@ -3393,6 +3393,7 @@ innobase_pk_order_preserved(
 	return(true);
 }
 
+#ifdef INNODB_NO_NEW_DD
 /** Update the mtype from DATA_BLOB to DATA_GEOMETRY for a specified
 GIS column of a table. This is used when we want to create spatial index
 on legacy GIS columns coming from 5.6, where we store GIS data as DATA_BLOB
@@ -3441,6 +3442,7 @@ innobase_update_gis_column_type(
 
 	DBUG_RETURN(error != DB_SUCCESS);
 }
+#endif /* INNODB_NO_NEW_DD */
 
 /** Check if we are creating spatial indexes on GIS columns, which are
 legacy columns from earlier MySQL, such as 5.6. If so, we have to update
@@ -3495,18 +3497,22 @@ innobase_check_gis_columns(
 		}
 
 		const char* col_name = table->get_col_name(col_nr);
+#ifdef INNODB_NO_NEW_DD
 		if (innobase_update_gis_column_type(
 			table->id, col_name, trx)) {
 
 			DBUG_RETURN(DB_ERROR);
 		} else {
+#endif /* INNODB_NO_NEW_DD */
 			col->mtype = DATA_GEOMETRY;
 
 			ib::info() << "Updated mtype of column" << col_name
 				<< " in table " << table->name
 				<< ", whose id is " << table->id
 				<< " to DATA_GEOMETRY";
+#ifdef INNODB_NO_NEW_DD
 		}
+#endif /* INNODB_NO_NEW_DD */
 	}
 
 	DBUG_RETURN(DB_SUCCESS);
