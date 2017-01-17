@@ -26,6 +26,8 @@ call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("Column count of mysql.* is wrong");
 # InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
 # statistics while persistent statistics table is altered during upgrade.
 # This issue doesn't seem to cause any further trouble (as there is no persistent
@@ -158,6 +160,16 @@ DROP TABLE test.proc;
 --copy_file $MYSQLTEST_VARDIR/std_data/initial_t@1o.frm $MYSQL_TMP_DIR/data57/test/initial_t@1o.frm
 --copy_file $MYSQLTEST_VARDIR/std_data/initial_v@1o.frm $MYSQL_TMP_DIR/data57/test/initial_v@1o.frm
 
+#Test case for Bug #25139901 : DB COLLATION CHANGED TO SERVER DEFAULT AFTER UPGRADE
+# Create a folder and db.opt file. Write a character set in db.opt file which is not default.
+--mkdir $MYSQL_TMP_DIR/data57/db_charset_koi8r/
+let DB_OPT_FILE= $MYSQL_TMP_DIR/data57/db_charset_koi8r/db.opt;
+--echo # 1.1 Create db.opt file.
+write_file $DB_OPT_FILE;
+default-character-set=koi8r
+default-collation=koi8r_bin
+EOF
+
 --echo #Files in 'test' dir
 --list_files $MYSQL_TMP_DIR/data57/
 
@@ -232,6 +244,9 @@ SHOW CREATE VIEW aview.view_user2;
 #view with different character_set and connection collation
 SHOW CREATE VIEW aview.view_character_set;
 
+# Data check after upgrade for Bug#25139901
+SHOW CREATE DATABASE db_charset_koi8r;
+
 # Test case for Bug#24580586
 SET names utf8;
 DESC `test`.`initial_vü`;
@@ -291,6 +306,18 @@ SHOW CREATE TRIGGER triggers.t1_bi;
 #I_S query to check Foreign_keys
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
  CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
+
+#Check that views with column names are correct
+
+SHOW CREATE VIEW view_with_column_names.v1;
+SELECT * FROM view_with_column_names.v1;
+SHOW CREATE VIEW view_with_column_names.v2;
+SELECT * FROM view_with_column_names.v2;
+SHOW CREATE VIEW view_with_column_names.v3;
+SELECT * FROM view_with_column_names.v3;
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
+TABLE_SCHEMA='view_with_column_names';
+
 --echo # Stop the server
 --source include/shutdown_mysqld.inc
 

@@ -18,6 +18,7 @@
 #ifndef DEPTH_FIRST_SEARCH_INCLUDED
 #define DEPTH_FIRST_SEARCH_INCLUDED
 
+#include <functional>
 #include <set>
 #include <stack>
 #include <tuple>

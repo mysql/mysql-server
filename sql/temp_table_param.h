@@ -35,7 +35,7 @@ class Item;
   used only internally by the query execution engine.
 */
 
-typedef Mem_root_array<Item*, true> Func_ptr_array;
+typedef Mem_root_array<Item*> Func_ptr_array;
 
 class Temp_table_param :public Sql_alloc
 {
@@ -119,13 +119,13 @@ public:
     that MEMORY tables cannot index BIT columns.
   */
   bool bit_fields_as_long;
-  /*
-    Generally, pk of internal temp table can be used as unique key to eliminate
-    the duplication of records. But because Innodb doesn't support disable PK
-    (cluster key)when doing operations mixed UNION ALL and UNION, the PK can't
-    be used as the unique key in such a case.
-  */
+  /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
+  /**
+    Whether table scan may start from any row defined by a rnd_pos() call.
+    @todo remove in WL#8117.
+  */
+  bool allow_scan_from_position;
 
   Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),
@@ -139,7 +139,7 @@ public:
      table_charset(NULL),
      schema_table(false), precomputed_group_by(false), force_copy_fields(false),
      skip_create_table(false), bit_fields_as_long(false),
-     can_use_pk_for_unique(true)
+     can_use_pk_for_unique(true), allow_scan_from_position(false)
   {}
   ~Temp_table_param()
   {

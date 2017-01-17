@@ -12,8 +12,7 @@
 ##  - listing and killing default mysqlx_max_connections ie 100      #
 ##  - listing,killing clients with ssl xprotocol privileged conn     #
 ##  - listing and killing clients with ssl xprotocol root connection #
-##  - kill_client,list_clients stats with show_compatibility_56='ON' #
-##  - kill_client,list_clients stats with show_compatibility_56='OFF'#
+##  - kill_client,list_clients stats                                 #
 ##  - check sum of these 2 vars with all mysqlx sessions should be as#
 #        that of with mysql client                                   #
 ######################################################################
@@ -2010,8 +2009,8 @@ EOF
 show status like 'Mysqlx%client%';
 #show status like 'Mysqlx_sessions%';
 
-##verify Mysqlx_stmt_kill_client and Mysqlx_stmt_list_clients with show_compatibility_56=OFF which is default in 5.7
-let $restart_parameters = restart: --show_compatibility_56=OFF; 
+##verify Mysqlx_stmt_kill_client and Mysqlx_stmt_list_clients
+let $restart_parameters = restart: ; 
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 drop user abc@localhost;
 drop user xplugin@localhost;

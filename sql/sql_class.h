@@ -57,6 +57,7 @@
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
@@ -70,7 +71,6 @@
 #include "opt_costmodel.h"
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "parse_location.h"
-#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
@@ -98,9 +98,6 @@
 #include "thr_lock.h"
 #include "transaction_info.h"             // Ha_trx_info
 #include "violite.h"
-
-#include "pfs_statement_provider.h"       // IWYU pragma: keep
-#include "mysql/psi/mysql_statement.h"
 
 class Query_arena;
 class Relay_log_info;
@@ -445,19 +442,16 @@ public:
 
 public:
   /**
-    List of regular tables in use by this thread. Contains temporary and
-    base tables that were opened with @see open_tables().
+    List of regular tables in use by this thread. Contains persistent base
+    tables that were opened with @see open_tables().
   */
   TABLE *open_tables;
   /**
     List of temporary tables used by this thread. Contains user-level
     temporary tables, created with CREATE TEMPORARY TABLE, and
-    internal temporary tables, created, e.g., to resolve a SELECT,
-    or for an intermediate table used in ALTER.
-    XXX Why are internal temporary tables added to this list?
+    intermediate tables used in ALTER TABLE implementation.
   */
   TABLE *temporary_tables;
-  TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
     or manual. In automatic mode all necessary tables are locked just before
@@ -937,25 +931,6 @@ public:
   */
   static const char * const DEFAULT_WHERE;
 
-#ifdef EMBEDDED_LIBRARY
-  struct st_mysql  *mysql;
-  unsigned long	 client_stmt_id;
-  unsigned long  client_param_count;
-  struct st_mysql_bind *client_params;
-  char *extra_data;
-  ulong extra_length;
-  struct st_mysql_data *cur_data;
-  struct st_mysql_data *first_data;
-  struct st_mysql_data **data_tail;
-  void clear_data_list();
-  struct st_mysql_data *alloc_new_dataset();
-  /*
-    In embedded server it points to the statement that is processed
-    in the current query. We store some results directly in statement
-    fields then.
-  */
-  struct st_mysql_stmt *current_stmt;
-#endif
   /*
     'first_query_cache_block' should be accessed only via query cache
     functions and methods to maintain proper locking.
@@ -2418,19 +2393,17 @@ public:
 
   partition_info *work_part_info;
 
-#ifndef EMBEDDED_LIBRARY
   /**
     Array of active audit plugins which have been used by this THD.
     This list is later iterated to invoke release_thd() on those
     plugins.
   */
-  Prealloced_array<plugin_ref, 2> audit_class_plugins;
+  Plugin_array audit_class_plugins;
   /**
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
   Prealloced_array<unsigned long, 11> audit_class_mask;
-#endif
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Debug Sync facility. See debug_sync.cc. */
@@ -2799,7 +2772,6 @@ public:
     DBUG_RETURN(false);
   }
 
-#ifndef EMBEDDED_LIBRARY
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -2817,9 +2789,6 @@ public:
     else
       return get_protocol()->connection_alive();
   }
-#else
-  virtual bool is_connected() { return true; }
-#endif
   /**
     Mark the current error as fatal. Warning: this does not
     set any error, it sets a property of the error, so must be

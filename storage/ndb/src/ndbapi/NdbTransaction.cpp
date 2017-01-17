@@ -1248,7 +1248,7 @@ NdbTransaction::release(){
   theMagicNumber = 0xFE11DC;
   theInUseState = false;
 #ifdef VM_TRACE
-  if (theListState != NotInList) {
+  if (theListState != NotInList && theListState != InPreparedList) {
     theNdb->printState("release %lx", (long)this);
     abort();
   }
@@ -1290,8 +1290,6 @@ NdbTransaction::releaseOperations()
   theFirstExecOpInList = NULL;
   theLastOpInList = NULL;
   theLastExecOpInList = NULL;
-  theScanningOp = NULL;
-  m_scanningQuery = NULL;
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;
@@ -1529,8 +1527,7 @@ NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
 
 
 /*****************************************************************************
-NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp,
-                              bool useRec)
+NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp)
 
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
                 was succesful.
@@ -1546,22 +1543,20 @@ NdbOperation*
 NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
                                 NdbOperation* aNextOp)
 { 
-  NdbOperation* tOp;
-
   if (theScanningOp != NULL || m_scanningQuery != NULL){
     setErrorCode(4607);
     return NULL;
   }
-  
-  tOp = theNdb->getOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
-
   if (!checkSchemaObjects(tab))
   {
     setErrorCode(1231);
     return NULL;
-  } 
+  }
+  
+  NdbOperation* tOp = theNdb->getOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -1672,12 +1667,12 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
   if (theCommitStatus == Started){
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
-      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if (!checkSchemaObjects(table, index))
       {
         setErrorCode(1231);
         return NULL;
       } 
+      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if(tOp)
       {
 	tOp->m_currentTable = table;
@@ -1738,17 +1733,16 @@ Remark:         Get an operation from NdbScanOperation object idlelist and get t
 NdbIndexScanOperation*
 NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
 { 
-  NdbIndexScanOperation* tOp;
-  
-  tOp = theNdb->getScanOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
   if (!checkSchemaObjects(tab))
   {
     setErrorCode(1231);
     return NULL;
   } 
   
+  NdbIndexScanOperation* tOp = theNdb->getScanOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
     // Mark that this NdbIndexScanOperation is used as NdbScanOperation
@@ -1870,17 +1864,15 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
                                      const NdbTableImpl * aTable,
                                      NdbOperation* aNextOp)
 { 
-  NdbIndexOperation* tOp;
-  
-  tOp = theNdb->getIndexOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
-
   if (!checkSchemaObjects(aTable, anIndex))
   {
     setErrorCode(1231);
     return NULL;
   } 
+  NdbIndexOperation* tOp = theNdb->getIndexOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -2663,6 +2655,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbOperation::OperationOptions *opts,
                           Uint32 sizeOfOptions)
 {
+  bool upgraded_lock = false;
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
@@ -2670,10 +2663,12 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  /* It appears that unique index operations do no support readCommitted. */
   if (key_rec->flags & NdbRecord::RecIsIndex &&
       lock_mode == NdbOperation::LM_CommittedRead)
+  {
     lock_mode= NdbOperation::LM_Read;
+    upgraded_lock = true;
+  }
 
   NdbOperation::OperationType opType=
     (lock_mode == NdbOperation::LM_Exclusive ?
@@ -2687,6 +2682,11 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   if (!op)
     return NULL;
 
+  if (upgraded_lock)
+  {
+    DBUG_PRINT("info", ("Set ReadCommittedBase true"));
+    op->setReadCommittedBase();
+  }
   if (op->theLockMode == NdbOperation::LM_CommittedRead)
   {
     op->theDirtyIndicator= 1;

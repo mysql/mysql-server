@@ -88,11 +88,11 @@ private:
 class Dummy_error_handler : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     /* Ignore error */
     return true;
@@ -127,11 +127,11 @@ public:
 class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
       m_need_reopen= true;
@@ -191,11 +191,11 @@ public:
     : m_handled_errors(0), m_unhandled_errors(0)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_NO_SUCH_TABLE)
     {
@@ -294,11 +294,11 @@ private:
 class Tablespace_name_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
+  bool handle_condition(THD*,
                         uint sql_errno,
-                        const char *sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char *msg)
+                        const char*,
+                        Sql_condition::enum_severity_level*,
+                        const char*)
   {
     return (sql_errno == ER_WRONG_TABLESPACE_NAME ||
             sql_errno == ER_TOO_LONG_IDENT);

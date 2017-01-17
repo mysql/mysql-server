@@ -23,22 +23,26 @@ Full Text Search interface
 
 #include "ha_prototypes.h"
 #include <current_thd.h>
+#include <new>
 
-#include "trx0roll.h"
-#include "row0mysql.h"
-#include "row0upd.h"
+#include "btr0pcur.h"
+#include "dict0priv.h"
+#include "dict0stats.h"
 #include "dict0types.h"
-#include "row0sel.h"
 #include "fts0fts.h"
+#include "fts0plugin.h"
 #include "fts0priv.h"
 #include "fts0types.h"
 #include "fts0types.ic"
 #include "fts0vlc.ic"
-#include "fts0plugin.h"
-#include "dict0priv.h"
-#include "dict0stats.h"
-#include "btr0pcur.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
+#include "row0mysql.h"
+#include "row0sel.h"
+#include "row0upd.h"
 #include "sync0sync.h"
+#include "trx0roll.h"
 #include "ut0new.h"
 #include "lob0lob.h"
 #include "dict0dd.h"
@@ -1850,9 +1854,9 @@ fts_create_one_common_table(
 			new_table->space, DICT_UNIQUE|DICT_CLUSTERED, 1);
 
 		if (!is_config) {
-			index->add_field("doc_id", 0);
+			index->add_field("doc_id", 0, true);
 		} else {
-			index->add_field("key", 0);
+			index->add_field("key", 0, true);
 		}
 
 		/* We save and restore trx->dict_operation because
@@ -1979,7 +1983,7 @@ fts_create_common_tables(
 	index = dict_mem_index_create(
 		name, FTS_DOC_ID_INDEX_NAME, table->space,
 		DICT_UNIQUE, 1);
-	index->add_field(FTS_DOC_ID_COL_NAME, 0);
+	index->add_field(FTS_DOC_ID_COL_NAME, 0, true);
 
 	op = trx_get_dict_operation(trx);
 
@@ -2071,8 +2075,8 @@ fts_create_one_index_table(
 		dict_index_t*	index = dict_mem_index_create(
 			table_name, "FTS_INDEX_TABLE_IND", new_table->space,
 			DICT_UNIQUE|DICT_CLUSTERED, 2);
-		index->add_field("word", 0);
-		index->add_field("first_doc_id", 0);
+		index->add_field("word", 0, true);
+		index->add_field("first_doc_id", 0, true);
 
 		trx_dict_op_t op = trx_get_dict_operation(trx);
 

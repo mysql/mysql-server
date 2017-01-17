@@ -25,9 +25,9 @@
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include "my_macros.h"
 #include "mysql/psi/psi_stage.h"
 
 #define PSI_STAGE_CALL(M) pfs_ ## M ## _v1
@@ -46,7 +46,6 @@ void pfs_end_stage_v1();
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 

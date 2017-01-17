@@ -40,6 +40,7 @@
 #include "xcom_base.h"
 #include "task_net.h"
 #include "node_connection.h"
+#include "node_no.h"
 
 #include <vector>
 #include <string>
@@ -68,9 +69,7 @@ public:
     Creates an XCom member identifier. It shall be on the format
     node_number:address:port.
 
-    @param node_number node identifier in XCom
     @param address peer address
-    @param port peer port
 
     @return member id
   */
@@ -189,7 +188,6 @@ public:
     @param nl The list of nodes to remove from the group
     @param group_id The identifier of the group from which the nodes will
            be removed
-    @param to_remove the node to remove
   */
 
   virtual int xcom_client_remove_node(node_list *nl, uint32_t group_id)= 0;
@@ -214,7 +212,6 @@ public:
     @param nl The list of nodes to remove from the group
     @param group_id The identifier of the group from which the nodes will
            be removed
-    @param to_remove the node to remove
   */
   virtual int xcom_client_remove_node(connection_descriptor* fd, node_list* nl,
                                       uint32_t group_id)= 0;
@@ -400,7 +397,7 @@ public:
     Even though this is used to connect to a local XCom, it can be used to
     connect to a standalone XCom.
 
-    @param addr The XCom address
+    @param saddr The XCom address
     @param port The XCom port
 
     @return false on success, true otherwise. If there was an error, no
@@ -441,7 +438,7 @@ public:
   /**
     Releases the handler and unlocks it.
 
-    @param fd The handler that was previously acquired
+    @param index The handler that was previously acquired
   */
 
   virtual void xcom_release_handler(int index)= 0;
@@ -476,7 +473,7 @@ public:
     the status (XCOM_COMMS_OK or XCOM_COMMS_ERROR) is written into the status
     out parameters.
 
-    @param status[out] value of the XCom communication layer status.
+    @param [out] status value of the XCom communication layer status.
                        It can be either XCOM_COMMS_OK or XCOM_COMMS_ERROR
    */
   virtual void xcom_wait_for_xcom_comms_status_change(int& status)= 0;
@@ -607,7 +604,7 @@ private:
   };
 public:
   explicit Gcs_xcom_proxy_impl();
-  Gcs_xcom_proxy_impl(int wt);
+  Gcs_xcom_proxy_impl(unsigned int wt);
   virtual ~Gcs_xcom_proxy_impl();
 
   node_address *new_node_address(unsigned int n, char *names[]);
@@ -675,7 +672,7 @@ private:
     Maximum waiting time used by timed_waits in xcom_wait_ready and
     xcom_wait_for_xcom_comms_status_change.
   */
-  int m_wait_time;
+  unsigned int m_wait_time;
 
   /* A list of local XCom connections. */
   Xcom_handler **m_xcom_handlers;
@@ -795,6 +792,22 @@ public:
 
   unsigned int get_size() const;
 
+
+  /**
+    Return with the configuration is valid or not.
+  */
+  inline bool is_valid() const
+  {
+    /*
+      Unfortunately a node may get notifications even when its configuration
+      inside XCOM is not properly established and this may trigger view
+      changes and may lead to problems because the node is not really ready.
+
+      We detect this fact by checking the node identification is valid.
+    */
+    return m_node_no != VOID_NODE_NO;
+  }
+
 private:
   /*
     Number of the current node which is used as an index to
@@ -840,7 +853,7 @@ inline bool is_number(const std::string &s)
 /**
  Parses the string "host:port" and checks if it is correct.
 
- @param the server hostname and port in the form hostname:port.
+ @param server_and_port the server hostname and port in the form hostname:port.
  @return true if it is a valid URL, false otherwise.
  */
 bool is_valid_hostname(const std::string &server_and_port);

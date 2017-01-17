@@ -70,6 +70,9 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
@@ -82,14 +85,12 @@
 #include "partition_element.h"
 #include "partition_info.h"           // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "psi_memory_key.h"           // key_memory_gdl
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
 #include "rpl_gtid.h"
-#include "sdi_utils.h"                // create_serialized_meta_data
 #include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
@@ -125,16 +126,6 @@
 #include "trigger.h"
 #include "typelib.h"
 #include "xa.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
-
-#include "pfs_table_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_table.h"
-
 
 using std::max;
 using std::min;
@@ -1478,7 +1469,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
                                             db,
                                             table_name,
                                             false,
-                                            true /* WL7743/TODO to be removed with partitioning SE */))
+                                            true))
               break;
           }
         }
@@ -2027,10 +2018,11 @@ void release_ddl_log()
 
 
 /**
-  For a regular table: create table definition in the Data Dictionary.
-  For a temporary table: create a dd::Table-object specifying the table
+  Create a dd::Table-object specifying the temporary table
   definition, but do not put it into the Data Dictionary. The created
   dd::Table-instance is returned via tmp_table_def out-parameter.
+  The temporary table is also created in the storage engine, depending
+  on the 'no_ha_table' argument.
 
   @param thd           Thread handler
   @param path          Name of file (including database)
@@ -2040,15 +2032,103 @@ void release_ddl_log()
   @param create_fields Fields to create
   @param keys          number of keys to create
   @param key_info      Keys to create
+  @param keys_onoff    Enable or disable keys.
+  @param file          Handler to use
+  @param no_ha_table   Indicates that only definitions needs to be created
+                       and not a table in the storage engine.
+  @param[out] binlog_to_trx_cache
+                       Which binlog cache should be used?
+                       If true => trx cache
+                       If false => stmt cache
+  @param[out] tmp_table_def  Placeholder for data-dictionary object for
+                             temporary table which was created. It will
+                             contain nullptr if no_ha_table was false.
+
+  @retval false  ok
+  @retval true   error
+*/
+
+static bool rea_create_tmp_table(THD *thd, const char *path,
+                                 const char *db, const char *table_name,
+                                 HA_CREATE_INFO *create_info,
+                                 List<Create_field> &create_fields,
+                                 uint keys, KEY *key_info,
+                                 Alter_info::enum_enable_or_disable keys_onoff,
+                                 handler *file, bool no_ha_table,
+                                 bool *binlog_to_trx_cache,
+                                 dd::Table **tmp_table_def)
+{
+  DBUG_ENTER("rea_create_tmp_table");
+
+  *tmp_table_def= NULL;
+
+  std::unique_ptr<dd::Table> tmp_table_ptr=
+    dd::create_tmp_table(thd, db, table_name, create_info, create_fields,
+                         key_info, keys, keys_onoff, file);
+  if (!tmp_table_ptr)
+    DBUG_RETURN(true);
+
+  if (no_ha_table)
+  {
+    *tmp_table_def= tmp_table_ptr.release();
+    DBUG_RETURN(false);
+  }
+
+  // Create the table in the storage engine.
+  if (ha_create_table(thd, path, db, table_name, create_info,
+                      false, false, tmp_table_ptr.get()))
+  {
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Open a table (skipping table cache) and add it into
+    THD::temporary_tables list.
+  */
+  TABLE *table= open_table_uncached(thd, path, db, table_name, true, true,
+                                    tmp_table_ptr.get());
+
+  if (!table)
+  {
+    (void) rm_temporary_table(thd, create_info->db_type, path,
+                              tmp_table_ptr.get());
+    DBUG_RETURN(true);
+  }
+
+  // Transfer ownership of dd::Table object to TABLE_SHARE.
+  table->s->tmp_table_def= tmp_table_ptr.release();
+
+  thd->thread_specific_used= TRUE;
+
+  if (binlog_to_trx_cache != NULL)
+    *binlog_to_trx_cache= table->file->has_transactions();
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Create table definition in the Data Dictionary. The table is also
+  created in the storage engine, depending on the 'no_ha_table' argument.
+
+  @param thd           Thread handler
+  @param path          Name of file (including database)
+  @param db            Data base name
+  @param table_name    Table name
+  @param create_info   create info parameters
+  @param create_fields Fields to create
+  @param keys          number of keys to create
+  @param key_info      Keys to create
+  @param keys_onoff    Enable or disable keys.
   @param fk_keys       Number of foreign keys to create
   @param fk_key_info   Foreign keys to create
   @param file          Handler to use
   @param no_ha_table   Indicates that only definitions needs to be created
                        and not a table in the storage engine.
-  @param keys_onoff    Enable or disable keys.
-  @param[out] tmp_table_def  Placeholder for data-dictionary object for
-                             temporary table which was created. It will
-                             contain NULL for regular tables.
+  @param part_info     Reference to partitioning data structure.
+  @param[out] binlog_to_trx_cache
+                       Which binlog cache should be used?
+                       If true => trx cache
+                       If false => stmt cache
   @param[out] post_ddl_ht    Set to handlerton for table's SE, if this SE
                              supports atomic DDL, so caller can call SE
                              post DDL hook after committing transaction.
@@ -2061,66 +2141,112 @@ void release_ddl_log()
   @retval true   error
 */
 
-static bool rea_create_table(THD *thd, const char *path,
-                             const char *db, const char *table_name,
-                             HA_CREATE_INFO *create_info,
-                             List<Create_field> &create_fields,
-                             uint keys, KEY *key_info,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             uint fk_keys, FOREIGN_KEY *fk_key_info,
-                             handler *file, bool no_ha_table,
-                             dd::Table **tmp_table_def,
-                             handlerton **post_ddl_ht)
+static bool rea_create_base_table(THD *thd, const char *path,
+                                  const char *db, const char *table_name,
+                                  HA_CREATE_INFO *create_info,
+                                  List<Create_field> &create_fields,
+                                  uint keys, KEY *key_info,
+                                  Alter_info::enum_enable_or_disable keys_onoff,
+                                  uint fk_keys, FOREIGN_KEY *fk_key_info,
+                                  handler *file, bool no_ha_table,
+                                  partition_info *part_info,
+                                  bool *binlog_to_trx_cache,
+                                  handlerton **post_ddl_ht)
 {
-  DBUG_ENTER("rea_create_table");
+  DBUG_ENTER("rea_create_base_table");
 
-  std::unique_ptr<dd::Table> tmp_table_ptr(nullptr);
+  if (dd::create_table(thd, db, table_name,
+                       create_info,
+                       create_fields,
+                       key_info,
+                       keys,
+                       keys_onoff,
+                       fk_key_info,
+                       fk_keys,
+                       file,
+                       !(create_info->db_type->flags &
+                         HTON_SUPPORTS_ATOMIC_DDL)))
+    DBUG_RETURN(true);
 
-  *tmp_table_def= NULL;
-
-  // Add table details into new DD, both for user tables and dd tables
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (no_ha_table)
   {
-    tmp_table_ptr= dd::create_tmp_table(thd, db, table_name,
-                                        create_info, create_fields,
-                                        key_info, keys, keys_onoff, file);
-    if (!tmp_table_ptr)
-      DBUG_RETURN(true);
-  }
-  else
-  {
-    if (!dd::create_table(thd, db, table_name,
-                          create_info,
-                          create_fields,
-                          key_info,
-                          keys,
-                          keys_onoff,
-                          fk_key_info,
-                          fk_keys,
-                          file,
-                          !(create_info->db_type->flags &
-                            HTON_SUPPORTS_ATOMIC_DDL)))
-      DBUG_RETURN(true);
-  }
-
-  if (thd->variables.keep_files_on_create)
-    create_info->options|= HA_CREATE_KEEP_FILES;
-
-  if (!no_ha_table)
-  {
-    if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-        create_info->db_type->post_ddl)
-      *post_ddl_ht= create_info->db_type;
-
-    if(ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, tmp_table_ptr.get()))
+    if (part_info)
     {
-      goto err;
+      /*
+        For partitioned tables we can't find some problems with table
+        until table is opened. Therefore in order to disallow creation
+        of corrupted tables we have to try to open table as the part
+        of its creation process.
+        In cases when both .FRM and SE part of table are created table
+        is implicitly open in ha_create_table() call.
+        In cases when we create .FRM without SE part we have to open
+        table explicitly.
+      */
+      TABLE table;
+      TABLE_SHARE share;
+
+      init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
+
+      bool result= open_table_def(thd, &share, false, nullptr) ||
+        open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
+                              0, &table, true, nullptr);
+
+      /*
+        Assert that the change list is empty as no partition function currently
+        needs to modify item tree. May need call THD::rollback_item_tree_changes
+        later before calling closefrm if the change list is not empty.
+      */
+      DBUG_ASSERT(thd->change_list.is_empty());
+      if (!result)
+        (void) closefrm(&table, 0);
+
+      free_table_share(&share);
+
+      if (result)
+      {
+        /*
+          If changes were committed remove table from DD.
+          We ignore the errors returned from there functions
+          as we anyway report error.
+        */
+        if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+          (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
+
+        DBUG_RETURN(true);
+      }
     }
+
+    DBUG_RETURN(false);
   }
 
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    *tmp_table_def= tmp_table_ptr.release();
+  // Create the table in the storage engine.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+
+  if (thd->dd_client()->acquire_for_modification(db, table_name,
+                                                 &table_def))
+    goto err;
+
+  // Table just has been created in DD.
+  DBUG_ASSERT(table_def);
+
+  if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      create_info->db_type->post_ddl)
+    *post_ddl_ht= create_info->db_type;
+
+  if (ha_create_table(thd, path, db, table_name, create_info,
+                      false, false, table_def))
+  {
+    goto err;
+  }
+
+  /*
+    If the SE supports atomic DDL, we can use the trx binlog cache.
+    Otherwise we must use the statement cache.
+  */
+  if (binlog_to_trx_cache != NULL)
+    *binlog_to_trx_cache=
+      (create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
   DBUG_RETURN(false);
 
@@ -2129,8 +2255,7 @@ err:
     Remove table from data-dictionary if it was added and rollback
     won't do this automatically.
   */
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE ||
-        create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
     /*
       Creation of Dictionary tables may fail inside SE if there is
@@ -2155,7 +2280,7 @@ err:
   }
 
   DBUG_RETURN(true);
-} /* rea_create_table */
+}
 
 
 /**
@@ -2278,40 +2403,21 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           lpt->table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
          lpt->alter_info->keys_onoff);
 
-      if (!dd::create_table(lpt->thd,
-                            lpt->db,
-                            shadow_name,
-                            lpt->create_info,
-                            lpt->alter_info->create_list,
-                            lpt->key_info_buffer,
-                            lpt->key_count,
-                            keys_onoff,
-                            not_used1,
-                            not_used2,
-                            lpt->table->file,
-                            true))
+      if (dd::create_table(lpt->thd,
+                           lpt->db,
+                           shadow_name,
+                           lpt->create_info,
+                           lpt->alter_info->create_list,
+                           lpt->key_info_buffer,
+                           lpt->key_count,
+                           keys_onoff,
+                           not_used1,
+                           not_used2,
+                           lpt->table->file,
+                           true))
       {
         DBUG_RETURN(true);
       }
-    }
-  }
-  if (flags & WSDI_COMPRESS_SDI)
-  {
-    /*
-      We need to compress the serialized dictionary information.
-      This is only used for handlers that have the main version of
-      the SDI stored in the handler.
-    */
-    uchar *data;
-    size_t length;
-    if (create_serialized_meta_data(lpt->db, shadow_name, &data, &length) ||
-        compress_serialized_meta_data(data, length, &lpt->pack_frm_data,
-                                      &lpt->pack_frm_len))
-    {
-      my_free(data);
-      my_free(lpt->pack_frm_data);
-      mem_alloc_error(length);
-      DBUG_RETURN(true);
     }
   }
 
@@ -2426,13 +2532,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   bool error;
   Drop_table_error_handler err_handler;
   TABLE_LIST *table;
-  /*
-    The following flags will be used to check if this statement will be split
-  */
   uint have_non_tmp_table= 0;
-  uint have_trans_tmp_table= 0;
-  uint have_non_trans_tmp_table= 0;
-  bool not_used;
 
   DBUG_ENTER("mysql_rm_table");
 
@@ -2450,17 +2550,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(true);
     }
-    /*
-      Here we are sure that the tmp table exists and will set the flag based on
-      table transactional type.
-    */
-    if (is_temporary_table(table))
-    {
-      if (table->table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
-        have_trans_tmp_table= 1;
-      else if (table->table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-        have_non_trans_tmp_table= 1;
-    }
   }
 
   if (!drop_temporary)
@@ -2477,8 +2566,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
         if (is_temporary_table(table))
           continue;
 
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
-                         false);
         /* Here we are sure that a non-tmp table exists */
         have_non_tmp_table= 1;
       }
@@ -2527,31 +2614,17 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     }
   }
 
-  /*
-    DROP TABLE statements mixing non-temporary and temporary tables or
-    transactional and non-transactional temporary tables are unsafe to execute
-    if GTID_NEXT is set to GTID_GROUP because these statements will be split to
-    be sent to binlog and there is only one GTID is available to log multiple
-    statements.
-    See comments in the beginning of mysql_rm_table_no_locks() for more info.
-  */
-  if (thd->variables.gtid_next.type == GTID_GROUP &&
-      (have_non_tmp_table + have_trans_tmp_table +
-       have_non_trans_tmp_table > 1))
-  {
-    DBUG_PRINT("err",("have_non_tmp_table: %d, have_trans_tmp_table: %d, "
-                      "have_non_trans_tmp_table: %d", have_non_tmp_table,
-                      have_trans_tmp_table, have_non_trans_tmp_table));
-    my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP, MYF(0));
-    DBUG_RETURN(true);
-  }
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   std::set<handlerton*> post_ddl_htons;
+  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
+  bool not_used;
 
   /* mark for close and remove all cached entries */
   thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
-                                 false, &not_used, &post_ddl_htons, nullptr);
+                                 false, &not_used, &post_ddl_htons,
+                                 &dropped_atomic);
   thd->pop_internal_handler();
 
   if (!drop_temporary)
@@ -2563,16 +2636,13 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       Leave LOCK TABLES mode if we managed to drop all tables which were
       locked. Additional check for 'non_temp_tables_count' is to avoid
       leaving LOCK TABLES mode if we have dropped only temporary tables.
-
-      WL7743/TODO/QQ: What if we have failed to drop some table in SE
-                      supporting atomic DDL? Should not we wait with
-                      releasing locks until stmt rollback?
     */
     if (thd->locked_tables_mode)
     {
       if (thd->lock && thd->lock->table_count == 0 &&
           have_non_tmp_table > 0)
       {
+        thd->mdl_context.release_statement_locks();
         thd->locked_tables_list.unlock_locked_tables(thd);
       }
       else
@@ -2613,6 +2683,116 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
 
 /**
+  Runtime context for DROP TABLES statement.
+*/
+
+class Drop_tables_ctx
+{
+public:
+  Drop_tables_ctx(bool if_exists_arg, bool drop_temporary_arg,
+                  bool drop_database_arg)
+    : if_exists(if_exists_arg),
+      drop_temporary(drop_temporary_arg),
+      drop_database(drop_database_arg),
+      base_atomic_tables(PSI_INSTRUMENT_ME),
+      base_non_atomic_tables(PSI_INSTRUMENT_ME),
+      tmp_trans_tables(PSI_INSTRUMENT_ME),
+      tmp_non_trans_tables(PSI_INSTRUMENT_ME),
+      nonexistent_tables(PSI_INSTRUMENT_ME),
+      views(PSI_INSTRUMENT_ME),
+      dropped_non_atomic(PSI_INSTRUMENT_ME),
+      gtid_and_table_groups_state(NO_GTID)
+  {
+    /* DROP DATABASE implies if_exists and absence of drop_temporary. */
+    DBUG_ASSERT(!drop_database || (if_exists && !drop_temporary));
+  }
+
+  /* Parameters of DROP TABLES statement. */
+  const bool if_exists;
+  const bool drop_temporary;
+  const bool drop_database;
+
+  /* Different table groups of tables to be dropped. */
+  Prealloced_array<TABLE_LIST*, 1> base_atomic_tables;
+  Prealloced_array<TABLE_LIST*, 1> base_non_atomic_tables;
+  Prealloced_array<TABLE_LIST*, 1> tmp_trans_tables;
+  Prealloced_array<TABLE_LIST*, 1> tmp_non_trans_tables;
+  Prealloced_array<TABLE_LIST*, 1> nonexistent_tables;
+  Prealloced_array<TABLE_LIST*, 1> views;
+
+  /* Methods which simplify checking state of the above groups. */
+  bool has_base_atomic_tables() const
+  {
+    return base_atomic_tables.size() != 0;
+  }
+
+  bool has_base_non_atomic_tables() const
+  {
+    return base_non_atomic_tables.size() != 0;
+  }
+
+  bool has_tmp_trans_tables() const
+  {
+    return tmp_trans_tables.size() != 0;
+  }
+
+  bool has_tmp_non_trans_tables() const
+  {
+    return tmp_non_trans_tables.size() != 0;
+  }
+
+  bool has_any_nonexistent_tables() const
+  {
+    return nonexistent_tables.size() != 0;
+  }
+  bool has_base_nonexistent_tables() const
+  {
+    return !drop_temporary && nonexistent_tables.size() != 0;
+  }
+
+  bool has_tmp_nonexistent_tables() const
+  {
+    return drop_temporary && nonexistent_tables.size() != 0;
+  }
+
+  bool has_views() const
+  {
+    return views.size() != 0;
+  }
+
+  /**
+    Base tables in SE which do not support atomic DDL which we managed to
+    drop so far.
+  */
+  Prealloced_array<TABLE_LIST*, 1> dropped_non_atomic;
+
+  bool has_dropped_non_atomic() const
+  {
+    return dropped_non_atomic.size() != 0;
+  }
+
+  /**
+    In which of three situations regarding GTID mode and different types
+    of tables to be dropped we are.
+  */
+  enum { NO_GTID,
+         GTID_MANY_TABLE_GROUPS,
+         GTID_SINGLE_TABLE_GROUP } gtid_and_table_groups_state;
+
+  /* Methods to simplify quering the above state. */
+  bool has_gtid_many_table_groups() const
+  {
+    return gtid_and_table_groups_state == GTID_MANY_TABLE_GROUPS;
+  }
+
+  bool has_gtid_single_table_group() const
+  {
+    return gtid_and_table_groups_state == GTID_SINGLE_TABLE_GROUP;
+  }
+};
+
+
+/**
   Auxiliary function which appends to the string table identifier with proper
   quoting and schema part if necessary.
 */
@@ -2645,71 +2825,117 @@ static void append_table_name(String *to, const TABLE_LIST *table)
   to->append(String(table->table_name, system_charset_info));
 }
 
+
 /**
-  Execute the drop of a normal or temporary table.
-
-  @param  thd             Thread handler
-  @param  tables          Tables to drop
-  @param  if_exists       If set, don't give an error if table doesn't exists.
-                          In this case we give an warning of level 'NOTE'
-  @param  drop_temporary  Only drop temporary tables
-  @param  drop_database   This is DROP DATABASE statement. Drop views
-                          and handle binary logging in a special way.
-  @param[out] dropped_non_atomic Indicates whether we have dropped some tables
-                                 in SEs which don't support atomic DDL.
-  @param[out] post_ddl_htons     Set of handlertons for tables in SEs supporting
-                                 atomic DDL for which post-DDL hook needs to
-                                 be called after statement commit or rollback.
-  @param[out] dropped_atomic     List of tables in SEs supporting atomic DDL
-                                 which we have managed to drop. This parameter
-                                 is a workaround used by DROP DATABASE until
-                                 WL#7016 is implemented.
-
-  @retval  0  ok
-  @retval  1  Error
-  @retval -1  Thread was killed
-
-  @note This function assumes that metadata locks have already been taken.
-        It is also assumed that the tables have been removed from TDC.
-
-  @note This function assumes that temporary tables to be dropped have
-        been pre-opened using corresponding table list elements.
-
-  @todo When logging to the binary log, we should log
-        tmp_tables and transactional tables as separate statements if we
-        are in a transaction;  This is needed to get these tables into the
-        cached binary log that is only written on COMMIT.
-        The current code only writes DROP statements that only uses temporary
-        tables to the cache binary log.  This should be ok on most cases, but
-        not all.
+  Auxiliary class which is used to construct synthesized DROP TABLES
+  statements for the binary log during execution of DROP TABLES statement.
 */
 
-int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
-                            bool drop_temporary, bool drop_database,
-                            bool *dropped_non_atomic,
-                            std::set<handlerton*> *post_ddl_htons
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                            , std::vector<TABLE_LIST*> *dropped_atomic
-#endif
-                            )
+class Drop_tables_query_builder
 {
-  std::vector<TABLE_LIST*> base_atomic_tables;
-  std::vector<TABLE_LIST*> base_non_atomic_tables;
-  std::vector<TABLE_LIST*> tmp_trans_tables;
-  std::vector<TABLE_LIST*> tmp_non_trans_tables;
-  std::vector<TABLE_LIST*> nonexistent_tables;
-  std::vector<TABLE_LIST*> views;
-  bool gtid_group_many_table_groups= false;
-  bool gtid_group_single_table_group= false;
-  bool default_db_doesnt_exist= false;
+public:
+  Drop_tables_query_builder(THD *thd, bool temporary, bool if_exists,
+                            bool is_trans, bool no_db)
+    : m_bin_log_is_open(mysql_bin_log.is_open()),
+      m_thd(thd), m_is_trans(is_trans), m_no_db(no_db)
+  {
+    if (m_bin_log_is_open)
+    {
+      m_built_query.set_charset(system_charset_info);
+      m_built_query.append("DROP ");
+      if (temporary)
+        m_built_query.append("TEMPORARY ");
+      m_built_query.append("TABLE ");
+      if (if_exists)
+        m_built_query.append("IF EXISTS ");
+    }
+  }
 
-  DBUG_ENTER("mysql_rm_table_no_locks");
+  /*
+    Constructor for the most common case:
+    - base tables
+    - write to binlog trx cache
+    - Database exists
+  */
+  Drop_tables_query_builder(THD *thd, bool if_exists)
+    : m_bin_log_is_open(mysql_bin_log.is_open()),
+      m_thd(thd), m_is_trans(true), m_no_db(false)
+  {
+    if (m_bin_log_is_open)
+    {
+      m_built_query.set_charset(system_charset_info);
+      m_built_query.append("DROP TABLE ");
+      if (if_exists)
+        m_built_query.append("IF EXISTS ");
+    }
+  }
 
-  /* DROP DATABASE implies if_exists and absence of drop_temporary. */
-  DBUG_ASSERT(!drop_database || (if_exists && !drop_temporary));
+private:
+  void add_table_impl(const TABLE_LIST *table)
+  {
+    append_table_ident(m_thd, &m_built_query, table, m_no_db);
+    m_built_query.append(",");
 
-  *dropped_non_atomic= false;
+    m_thd->add_to_binlog_accessed_dbs(table->db);
+  }
 
+public:
+  void add_table(const TABLE_LIST *table)
+  {
+    if (m_bin_log_is_open)
+      add_table_impl(table);
+  }
+
+  void add_array(const Prealloced_array<TABLE_LIST *, 1> &tables)
+  {
+    if (m_bin_log_is_open)
+    {
+      for (TABLE_LIST *table : tables)
+        add_table_impl(table);
+    }
+  }
+
+  bool write_bin_log()
+  {
+    if (m_bin_log_is_open)
+    {
+      /* Chop off the last comma */
+      m_built_query.chop();
+      m_built_query.append(" /* generated by server */");
+
+      /*
+        We can't use ::write_bin_log() here as this method is sometimes used
+        in case when DROP TABLES statement is supposed to report an error.
+        And ::write_bin_log() either resets error in DA or uses it for binlog
+        event (which we would like to avoid too).
+      */
+      if (m_thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              m_built_query.ptr(), m_built_query.length(),
+                              m_is_trans , false /* direct */,
+                              m_no_db /* suppress_use */, 0 /* errcode */))
+        return true;
+    }
+    return false;
+  }
+
+private:
+  bool m_bin_log_is_open;
+  THD *m_thd;
+  bool m_is_trans;
+  bool m_no_db;
+  String m_built_query;
+};
+
+
+/**
+  Auxiliary function which prepares for DROP TABLES execution by sorting
+  tables to be dropped into groups according to their types.
+*/
+
+static bool
+rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
+                          TABLE_LIST *tables)
+{
   /*
     Sort tables into groups according to type of handling they require:
 
@@ -2812,9 +3038,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
          never splits a statement into two.  This is crucial when GTIDs
          are enabled, since otherwise the statement, which already has
          a GTID, would need two different GTIDs.
-
-    WL7743/TODO/QQ: Consider moving the below loop to auxiliary function.
-                    OTOH context is rather big?
   */
   for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
@@ -2823,50 +3046,46 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       This can be relevant for DROP DATABASE, for example.
     */
     if (thd->killed)
-      DBUG_RETURN(-1);
+      return true;
 
     if (table->open_type != OT_BASE_ONLY)
     {
-      bool is_trans;
-
       /* DROP DATABASE doesn't deal with temporary tables. */
-      DBUG_ASSERT(!drop_database);
+      DBUG_ASSERT(!drop_ctx->drop_database);
 
-      /*
-        prepare_drop_temporary_table may return one of the following error
-        codes:
-        .  0 - a temporary table was found and can be successfully dropped.
-        .  1 - a temporary table was not found.
-        . -1 - a temporary table is used by an outer statement.
-      */
-      int error= prepare_drop_temporary_table(thd, table, &is_trans);
-
-      if (error < 0)
+      if (!is_temporary_table(table))
       {
-        /* Error was reported already. */
-        DBUG_RETURN(1);
-      }
-      else if (!error)
-      {
-        if (is_trans)
-          tmp_trans_tables.push_back(table);
-        else
-          tmp_non_trans_tables.push_back(table);
-        continue;
-      }
-      else if (drop_temporary)
-      {
-        nonexistent_tables.push_back(table);
-        continue;
-      }
-      else
-      {
+        // A temporary table was not found.
+        if (drop_ctx->drop_temporary)
+        {
+          drop_ctx->nonexistent_tables.push_back(table);
+          continue;
+        }
         /*
           Not DROP TEMPORARY and no matching temporary table.
           Continue with base tables.
         */
       }
+      else
+      {
+        /*
+          A temporary table was found and can be successfully dropped.
+
+          The fact that this temporary table is used by an outer statement
+          should be detected and reported as error earlier.
+        */
+        DBUG_ASSERT(table->table->query_id == thd->query_id);
+
+        if (table->table->file->has_transactions())
+          drop_ctx->tmp_trans_tables.push_back(table);
+        else
+          drop_ctx->tmp_non_trans_tables.push_back(table);
+        continue;
+      }
     }
+
+    /* We should not try to drop active log tables. Callers enforce this. */
+    DBUG_ASSERT(query_logger.check_if_log_table(table, true) == QUERY_LOG_NONE);
 
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Abstract_table *abstract_table_def= NULL;
@@ -2874,7 +3093,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                   &abstract_table_def))
     {
       /* Error should have been reported by data-dictionary subsystem. */
-      DBUG_RETURN(1);
+      return true;
     }
 
     if (!abstract_table_def)
@@ -2887,14 +3106,14 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (result > 0)
       {
         // Error during discovery, error should be reported already.
-        DBUG_RETURN(1);
+        return true;
       }
       else if (result == 0)
       {
         // Table was discovered. Re-try to retrieve its definition.
         if (thd->dd_client()->acquire(table->db, table->table_name,
                                       &abstract_table_def))
-          DBUG_RETURN(1);
+          return true;
       }
       else // result < 0
       {
@@ -2903,7 +3122,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
 
     if (!abstract_table_def)
-      nonexistent_tables.push_back(table);
+      drop_ctx->nonexistent_tables.push_back(table);
     else if (abstract_table_def->type() == dd::enum_table_type::BASE_TABLE)
     {
       const dd::Table *table_def=
@@ -2912,79 +3131,40 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       handlerton *hton;
       if (dd::table_storage_engine(thd, table->db, table->table_name,
                                    table_def, &hton))
-        DBUG_RETURN(1);
+        return true;
 
       if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
-        base_atomic_tables.push_back(table);
+        drop_ctx->base_atomic_tables.push_back(table);
       else
-        base_non_atomic_tables.push_back(table);
+        drop_ctx->base_non_atomic_tables.push_back(table);
     }
     else // View
     {
-      if (! drop_database)
+      if (! drop_ctx->drop_database)
       {
         /*
           Historically, DROP TABLES treats situation when we have a view
           instead of table to be dropped as non-existent table.
         */
-        nonexistent_tables.push_back(table);
+        drop_ctx->nonexistent_tables.push_back(table);
       }
       else
-        views.push_back(table);
+        drop_ctx->views.push_back(table);
     }
   }
 
-  if (!if_exists && nonexistent_tables.size())
-  {
-    /*
-      No IF EXISTS clause and some non-existing tables.
+  return false;
+}
 
-      Fail before dropping any tables. This gives us nice "atomic" (succeed
-      or don't drop anything) behavior for most common failure scenario even
-      for tables which don't support atomic DDL.
 
-      Do this check after getting full list of missing tables to produce
-      better error message.
-    */
-    String wrong_tables;
+/**
+  Auxiliary function which evaluates in which situation DROP TABLES
+  is regarding GTID and different table groups.
+*/
 
-    for (TABLE_LIST *table : nonexistent_tables)
-    {
-      if (wrong_tables.length())
-        wrong_tables.append(',');
-      append_table_name(&wrong_tables, table);
-    }
-
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), wrong_tables.c_ptr());
-    DBUG_RETURN(1);
-  }
-
-  /*
-    Check early if default database exists. We don't want code responsible
-    for dropping temporary tables fail due to this check after some tables
-    were dropped already.
-  */
-  if (thd->db().str != NULL)
-  {
-    bool exists= false;
-    if (dd::schema_exists(thd, thd->db().str, &exists))
-      DBUG_RETURN(1);
-    default_db_doesnt_exist= !exists;
-  }
-
-  if (if_exists && nonexistent_tables.size())
-  {
-    for (TABLE_LIST *table : nonexistent_tables)
-    {
-      String tbl_name;
-      append_table_name(&tbl_name, table);
-      push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_BAD_TABLE_ERROR,
-                          ER_THD(thd, ER_BAD_TABLE_ERROR),
-                          tbl_name.c_ptr());
-    }
-  }
-
+static bool
+rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
+{
   if (thd->variables.gtid_next.type == GTID_GROUP)
   {
     /*
@@ -2994,29 +3174,32 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       and commits, as statement can't be logged/split into several
       statements in this case.
 
-      Two different situations are possible in this case:
+      Three different situations are possible in this case:
       - "normal" when we have one GTID assigned and one group
         to go as single statement to binary logs
+      - "prohibited" when we have one GTID assigned and two
+        kinds of temporary tables or mix of temporary and
+        base tables
       - "awkward" when we have one GTID but several groups or
         several tables in non-atomic base group (1.a).
-
-      Note that when GTID is assigned caller blocks statements which try
-      to drop both base and temporary, or different kinds of temporary
-      tables.
-
-      WL7743/TODO/QQ: Move this check here?
     */
-    if (drop_database)
+
+    if (drop_ctx->drop_database)
     {
-      if (!base_non_atomic_tables.size())
+      /* DROP DATABASE doesn't drop any temporary tables. */
+      DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
+      DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+
+      if (!drop_ctx->has_base_non_atomic_tables())
       {
         /*
-          Normal case. This is DROP DATABASE and we don't any tables in SEs
-          which don't support atomic DDL. Remaining tables, views, routines
-          and events can be dropped atomically and atomically logged as a
-          single DROP DATABASE statement by the caller.
+          Normal case. This is DROP DATABASE and we don't have any tables in
+          SEs which don't support atomic DDL. Remaining tables, views,
+          routines and events can be dropped atomically and atomically logged
+          as a single DROP DATABASE statement by the caller.
         */
-        gtid_group_single_table_group= true;
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
       }
       else
       {
@@ -3032,89 +3215,424 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           that statement can't be logged correctly and manual intervention is
           required.
         */
-        gtid_group_many_table_groups= true;
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_MANY_TABLE_GROUPS;
       }
-    }
-    else if (base_non_atomic_tables.size() == 1 &&
-             !base_atomic_tables.size() && !views.size() &&
-             !nonexistent_tables.size())
-    {
-      /*
-        Normal case. Single base table in SE which don't support atomic DDL
-        so it will be logged as a single-table DROP TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else if ((base_atomic_tables.size() || views.size() ||
-              (!drop_temporary && nonexistent_tables.size())) &&
-             !base_non_atomic_tables.size())
-
-    {
-      /*
-        Normal case. Several base tables which can be dropped atomically.
-        Can be logged as one atomic multi-table DROP TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else if (tmp_trans_tables.size() ||
-             (drop_temporary && !tmp_non_trans_tables.size() &&
-              nonexistent_tables.size()))
-    {
-      /*
-        Normal case. Some temporary transactional tables (and/or possibly
-        some non-existent temporary tables) to be logged as one multi-table
-        DROP TEMPORARY TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(!base_non_atomic_tables.size());
-      DBUG_ASSERT(!base_atomic_tables.size() && !views.size() &&
-                  (drop_temporary || !nonexistent_tables.size()));
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
-    }
-    else if (tmp_non_trans_tables.size())
-    {
-      /*
-        Normal case. Some temporary non-transactional tables (and possibly
-        some non-existent temporary tables) to be logged as one multi-table
-        DROP TEMPORARY TABLES statement.
-        Other groups are empty.
-      */
-      DBUG_ASSERT(!base_non_atomic_tables.size());
-      DBUG_ASSERT(!base_atomic_tables.size() && !views.size() &&
-                  (drop_temporary || !nonexistent_tables.size()));
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      gtid_group_single_table_group= true;
     }
     else
     {
-      /*
-        Awkward case. We have several tables from non-atomic group 1.a, or
-        tables from both atomic (1.b, 1.c, 1.d) and non-atomic groups.
+      /* Only DROP DATABASE drops views. */
+      DBUG_ASSERT(!drop_ctx->has_views());
 
-        Most probably we are replicating from older (pre-5.8) master or tables
-        on master and slave have different SEs.
-        We try to handle this situation gracefully by writing single multi-table
-        DROP TABLES statement including tables from all groups under GTID provided.
-        Of course this means that we are not crash-safe in this case. But we can't
-        be fully crash-safe in cases when non-atomic tables are involved anyway.
+      if ((drop_ctx->has_tmp_trans_tables() &&
+           drop_ctx->has_tmp_non_trans_tables()) ||
+          ((drop_ctx->has_base_non_atomic_tables() ||
+            drop_ctx->has_base_atomic_tables() ||
+            drop_ctx->has_base_nonexistent_tables()) &&
+           (drop_ctx->has_tmp_trans_tables() ||
+            drop_ctx->has_tmp_non_trans_tables())))
+      {
+        /*
+          Prohibited case. We have either both kinds of temporary tables or
+          mix of non-temporary and temporary tables.
 
-        Note that temporary tables groups still should be empty in this case.
-      */
-      DBUG_ASSERT(tmp_trans_tables.size() == 0);
-      DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
-      gtid_group_many_table_groups= true;
+          Normally, such DROP TEMPORARY TABLES or DROP TABLES statements are
+          written into the binary log at least in two pieces. This is, of
+          course, impossible with a single GTID assigned.
+
+          Executing such statements with a GTID assigned is prohibited at
+          least since 5.7, so should not create new problems with backward
+          compatibility and cross-version replication.
+
+          (Writing deletion of different kinds of temporary and/or base tables
+           as single multi-table DROP TABLES under single GTID might be
+           theoretically possible in some cases, but has its own problems).
+        */
+        my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP,
+                 MYF(0));
+        return true;
+      }
+      else if (drop_ctx->base_non_atomic_tables.size() == 1 &&
+               !drop_ctx->has_base_atomic_tables() &&
+               !drop_ctx->has_base_nonexistent_tables())
+      {
+        /*
+          Normal case. Single base table in SE which don't support atomic DDL
+          so it will be logged as a single-table DROP TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_nonexistent_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
+      }
+      else if ((drop_ctx->has_base_atomic_tables() ||
+                drop_ctx->has_base_nonexistent_tables()) &&
+               !drop_ctx->has_base_non_atomic_tables())
+      {
+        /*
+          Normal case. Several base tables which can be dropped atomically.
+          Can be logged as one atomic multi-table DROP TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
+      }
+      else if (drop_ctx->has_tmp_trans_tables() ||
+               (!drop_ctx->has_tmp_non_trans_tables() &&
+                drop_ctx->has_tmp_nonexistent_tables()))
+      {
+        /*
+          Normal case. Some temporary transactional tables (and/or possibly
+          some non-existent temporary tables) to be logged as one multi-table
+          DROP TEMPORARY TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(!drop_ctx->has_base_non_atomic_tables());
+        DBUG_ASSERT(!drop_ctx->has_base_atomic_tables() &&
+                    !drop_ctx->has_base_nonexistent_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
+      }
+      else if (drop_ctx->has_tmp_non_trans_tables())
+      {
+        /*
+          Normal case. Some temporary non-transactional tables (and possibly
+          some non-existent temporary tables) to be logged as one multi-table
+          DROP TEMPORARY TABLES statement.
+          Other groups are empty.
+        */
+        DBUG_ASSERT(!drop_ctx->has_base_non_atomic_tables());
+        DBUG_ASSERT(!drop_ctx->has_base_atomic_tables() &&
+                    !drop_ctx->has_base_nonexistent_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
+      }
+      else
+      {
+        /*
+          Awkward case. We have several tables from non-atomic group 1.a, or
+          tables from both atomic (1.b, 1.c, 1.d) and non-atomic groups.
+
+          Most probably we are replicating from older (pre-5.8) master or tables
+          on master and slave have different SEs.
+          We try to handle this situation gracefully by writing single multi-table
+          DROP TABLES statement including tables from all groups under GTID provided.
+          Of course this means that we are not crash-safe in this case. But we can't
+          be fully crash-safe in cases when non-atomic tables are involved anyway.
+
+          Note that temporary tables groups still should be empty in this case.
+        */
+        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+        drop_ctx->gtid_and_table_groups_state=
+          Drop_tables_ctx::GTID_MANY_TABLE_GROUPS;
+      }
     }
-
   }
 
-  if (base_non_atomic_tables.size())
+  return false;
+}
+
+/**
+  Auxiliary function which drops single base table.
+
+  @param        thd             Thread handler.
+  @param        drop_ctx        DROP TABLES runtime context.
+  @param        table           Table to drop.
+  @param        atomic          Indicates whether table to be dropped is in SE
+                                which supports atomic DDL, so changes to the
+                                data-dictionary should not be committed.
+  @param[in,out] post_ddl_htons Set of handlertons for tables in SEs supporting
+                                atomic DDL for which post-DDL hook needs to
+                                be called after statement commit or rollback.
+
+  @sa mysql_rm_table_no_locks().
+
+  @retval  False - ok
+  @retval  True  - error
+*/
+
+static bool
+drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
+                TABLE_LIST *table, bool atomic,
+                std::set<handlerton*> *post_ddl_htons)
+{
+  char path[FN_REFLEN + 1];
+
+  /* Check that we have an exclusive lock on the table to be dropped. */
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 table->db, table->table_name, MDL_EXCLUSIVE));
+
+  /*
+    Good point to check if we were killed for non-atomic tables group.
+    All previous tables are dropped both in SE and data-dictionary and
+    corresponding DROP TABLE statements are written to binary log.
+    We didn't do anything for the current table yet.
+
+    For atomic tables the exact place of this check should not matter.
+  */
+  if (thd->killed)
+    return true;
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire<dd::Table>(table->db, table->table_name,
+                                           &table_def))
+    return true;
+
+  if (!table_def)
+  {
+    DBUG_ASSERT(0);
+    String tbl_name;
+    append_table_name(&tbl_name, table);
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+    return true;
+  }
+
+  handlerton *hton;
+  if (dd::table_storage_engine(thd, table->db, table->table_name,
+                               table_def, &hton))
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+
+  if (thd->locked_tables_mode)
+  {
+    /*
+      Under LOCK TABLES we still have table open at this point.
+      Close it and remove all instances from Table/Table Definition
+      cache.
+
+      Note that we won't try to reopen tables in storage engines
+      supporting atomic DDL those removal will be later rolled back
+      thanks to some error. Such situations should be fairly rare.
+    */
+    close_all_tables_for_name(thd, table->table->s, true, NULL);
+    /*
+      Prepare TABLE_LIST element for Query Cache invalidation,
+      also marks table as needing MDL release.
+    */
+    table->table= 0;
+  }
+  else
+  {
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                     false);
+  }
+
+  (void) build_table_filename(path, sizeof(path) - 1, table->db,
+                              table->table_name, "",
+                              table->internal_tmp_table ? FN_IS_TMP : 0);
+
+  int error= ha_delete_table(thd, hton, path, table->db, table->table_name,
+                             table_def, !drop_ctx.drop_database);
+
+  /*
+    Table was present in data-dictionary but is missing in storage engine.
+    This situation can occur for SEs which don't support atomic DDL due
+    to crashes. In this case we allow table removal from data-dictionary
+    and reporting success if IF EXISTS clause was specified.
+
+    Such situation should not be possible for SEs supporting atomic DDL,
+    but we still play safe even in this case and allow table removal.
+  */
+#ifdef ASSERT_TO_BE_ENABLED_ONCE_WL7016_IS_READY
+   DBUG_ASSERT(!atomic || (error != ENOENT && error != HA_ERR_NO_SUCH_TABLE));
+#endif
+
+  if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && drop_ctx.if_exists)
+  {
+    error= 0;
+    thd->clear_error();
+  }
+
+  if (atomic && hton->post_ddl)
+    post_ddl_htons->insert(hton);
+
+  if (error)
+  {
+    if (error == HA_ERR_ROW_IS_REFERENCED)
+      my_error(ER_ROW_IS_REFERENCED, MYF(0));
+    else if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
+      my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
+    else
+    {
+      String tbl_name;
+      append_table_name(&tbl_name, table);
+      my_error(((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) ?
+                ER_ENGINE_CANT_DROP_MISSING_TABLE :
+                ER_ENGINE_CANT_DROP_TABLE),
+               MYF(0), tbl_name.c_ptr());
+    }
+    return true;
+  }
+
+  /*
+    Invalidate query cache once we deleted table in SE even if we will
+    fail to fully delete the table.
+  */
+  query_cache.invalidate_single(thd, table, false);
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  if (remove_all_triggers_from_perfschema(thd, table))
+    return true;
+#endif
+  /*
+    Don't delete entry from DD in case we are dropping
+    DD tables in case of upgrade.
+  */
+  if (!dd_upgrade_flag)
+  {
+    /*
+      Remove table from data-dictionary and immediately commit this change
+      if we are removing table in SE which does not support atomic DDL.
+      This way chances of SE and data-dictionary getting out of sync in
+      case of crash are reduced.
+
+      Things will go bad if we will fail to delete table from data-dictionary
+      as table is already gone in SE. But this should be really rare situation
+      (OOM, out of disk space, bugs). Also user can fix it by running DROP TABLE
+      IF EXISTS on the same table again.
+
+      Don't commit the changes if table belongs to SE supporting atomic DDL.
+    */
+    error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
+                                     table_def, !atomic) ||
+           update_referencing_views_metadata(thd, table, !atomic, nullptr);
+  }
+
+  if (error)
+    return true;
+
+  return false;
+}
+
+
+/**
+  Execute the drop of a normal or temporary table.
+
+  @param  thd             Thread handler
+  @param  tables          Tables to drop
+  @param  if_exists       If set, don't give an error if table doesn't exists.
+                          In this case we give an warning of level 'NOTE'
+  @param  drop_temporary  Only drop temporary tables
+  @param  drop_database   This is DROP DATABASE statement. Drop views
+                          and handle binary logging in a special way.
+  @param[out] dropped_non_atomic_flag Indicates whether we have dropped some
+                                      tables in SEs which don't support atomic
+                                      DDL.
+  @param[out] post_ddl_htons     Set of handlertons for tables in SEs supporting
+                                 atomic DDL for which post-DDL hook needs to
+                                 be called after statement commit or rollback.
+  @param[out] dropped_atomic     List of tables in SEs supporting atomic DDL
+                                 which we have managed to drop. This parameter
+                                 is a workaround used by DROP DATABASE until
+                                 WL#7016 is implemented.
+
+  @retval  False - ok
+  @retval  True  - error
+
+  @note This function assumes that metadata locks have already been taken.
+        It is also assumed that the tables have been removed from TDC.
+
+  @note This function assumes that temporary tables to be dropped have
+        been pre-opened using corresponding table list elements.
+
+  @todo When logging to the binary log, we should log
+        tmp_tables and transactional tables as separate statements if we
+        are in a transaction;  This is needed to get these tables into the
+        cached binary log that is only written on COMMIT.
+        The current code only writes DROP statements that only uses temporary
+        tables to the cache binary log.  This should be ok on most cases, but
+        not all.
+*/
+
+bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+                             bool drop_temporary, bool drop_database,
+                             bool *dropped_non_atomic_flag,
+                             std::set<handlerton*> *post_ddl_htons
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+                             , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
+#endif
+                             )
+{
+  Drop_tables_ctx drop_ctx(if_exists, drop_temporary, drop_database);
+
+  bool default_db_doesnt_exist= false;
+
+  DBUG_ENTER("mysql_rm_table_no_locks");
+
+  *dropped_non_atomic_flag= false;
+
+  if (rm_table_sort_into_groups(thd, &drop_ctx, tables))
+    DBUG_RETURN(true);
+
+  /*
+    Figure out in which situation we are regarding GTID and different
+    table groups.
+  */
+  if (rm_table_eval_gtid_and_table_groups_state(thd, &drop_ctx))
+    DBUG_RETURN(true);
+
+  if (!drop_ctx.if_exists && drop_ctx.has_any_nonexistent_tables())
+  {
+    /*
+      No IF EXISTS clause and some non-existing tables.
+
+      Fail before dropping any tables. This gives us nice "atomic" (succeed
+      or don't drop anything) behavior for most common failure scenario even
+      for tables which don't support atomic DDL.
+
+      Do this check after getting full list of missing tables to produce
+      better error message.
+    */
+    String wrong_tables;
+
+    for (TABLE_LIST *table : drop_ctx.nonexistent_tables)
+    {
+      if (wrong_tables.length())
+        wrong_tables.append(',');
+      append_table_name(&wrong_tables, table);
+    }
+
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), wrong_tables.c_ptr());
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Check early if default database exists. We don't want code responsible
+    for dropping temporary tables fail due to this check after some tables
+    were dropped already.
+  */
+  if (thd->db().str != NULL)
+  {
+    bool exists= false;
+    if (dd::schema_exists(thd, thd->db().str, &exists))
+      DBUG_RETURN(true);
+    default_db_doesnt_exist= !exists;
+  }
+
+  if (drop_ctx.if_exists && drop_ctx.has_any_nonexistent_tables())
+  {
+    for (TABLE_LIST *table : drop_ctx.nonexistent_tables)
+    {
+      String tbl_name;
+      append_table_name(&tbl_name, table);
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
+                          ER_BAD_TABLE_ERROR,
+                          ER_THD(thd, ER_BAD_TABLE_ERROR),
+                          tbl_name.c_ptr());
+    }
+  }
+
+  if (drop_ctx.has_base_non_atomic_tables())
   {
     /*
       Handle base tables in storage engines which don't support atomic DDL.
@@ -3133,151 +3651,18 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       avoid situations when DROP TABLES for mixed set of tables will fail
       and leave changes to atomic, "transactional" tables around.
     */
-    for (TABLE_LIST *table : base_non_atomic_tables)
+    for (TABLE_LIST *table : drop_ctx.base_non_atomic_tables)
     {
-      char path[FN_REFLEN + 1];
+      if (drop_base_table(thd, drop_ctx,
+                          table, false /* non-atomic */,
+                          nullptr))
+        goto err_with_rollback;
 
-      /* Check that we have an exclusive lock on the table to be dropped. */
-      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                     table->db, table->table_name,
-                                     MDL_EXCLUSIVE));
+      *dropped_non_atomic_flag= true;
 
-      /*
-        Good point to check if we were killed for this group.
-        All previous tables are dropped both in SE and data-dictionary and
-        corresponding DROP TABLE statements are written to binary log.
-        We didn't do anything for the current table yet.
+      drop_ctx.dropped_non_atomic.push_back(table);
 
-        WL#7743/TODO/QQ: What if we are in gtid_group_many_table_groups mode
-                         should we be immune to kill in this case? Or flush
-                         out all tables we have dropped so far. Or report
-                         consitency violation?
-                         Same question actually applies to all DBUG_RETURN
-                         below.
-      */
-      if (thd->killed)
-        DBUG_RETURN(-1);
-
-      thd->add_to_binlog_accessed_dbs(table->db);
-
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *table_def= NULL;
-      if (thd->dd_client()->acquire<dd::Table>(table->db, table->table_name,
-                                               &table_def))
-        DBUG_RETURN(1);
-
-      if (!table_def)
-      {
-        DBUG_ASSERT(0);
-        String tbl_name;
-        append_table_name(&tbl_name, table);
-        my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
-        DBUG_RETURN(1);
-      }
-
-      handlerton *hton;
-      if (dd::table_storage_engine(thd, table->db, table->table_name,
-                                     table_def, &hton))
-      {
-        DBUG_ASSERT(0);
-        DBUG_RETURN(1);
-      }
-
-      if (thd->locked_tables_mode)
-      {
-        /*
-          Under LOCK TABLES we still have table open at this point.
-          Close it and remove all instances from Table/Table Definition
-          cache.
-
-          For engines which don't support atomic DDL we also remove table
-          from Locked_tables_list since after ha_delete_table() is called
-          we won't be able to reopen the table even if we will fail later.
-        */
-        close_all_tables_for_name(thd, table->table->s, true, NULL);
-        /*
-          Prepare TABLE_LIST element for Query Cache invalidation,
-          also marks table as needing MDL release.
-        */
-        table->table= 0;
-      }
-
-      (void) build_table_filename(path, sizeof(path) - 1, table->db,
-                                  table->table_name, "",
-                                  table->internal_tmp_table ? FN_IS_TMP : 0);
-
-      int error= ha_delete_table(thd, hton, path, table->db, table->table_name,
-                                 table_def, !drop_database);
-
-      /*
-        Table was present in data-dictionary but is missing in storage engine.
-        This situation can occur for SEs which don't support atomic DDL due
-        to crashes. Allow table removal from data-dictionary and reporting
-        success if IF EXISTS clause was specified.
-      */
-      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && if_exists)
-      {
-        error= 0;
-        thd->clear_error();
-      }
-
-      if (error)
-      {
-        if (error == HA_ERR_ROW_IS_REFERENCED)
-          my_error(ER_ROW_IS_REFERENCED, MYF(0));
-        else if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
-          my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
-        else
-        {
-          String tbl_name;
-          append_table_name(&tbl_name, table);
-          my_error(((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) ?
-                    ER_ENGINE_CANT_DROP_MISSING_TABLE :
-                    ER_ENGINE_CANT_DROP_TABLE),
-                   MYF(0), tbl_name.c_ptr());
-        }
-        DBUG_RETURN(1);
-      }
-
-#ifdef HAVE_PSI_SP_INTERFACE
-      if (remove_all_triggers_from_perfschema(thd, table))
-        DBUG_RETURN(1);
-#endif
-      /*
-         Don't delete entry from DD in case we are dropping
-         DD tables in case of upgrade.
-      */
-      if (!dd_upgrade_flag)
-      {
-        /*
-          Remove table from data-dictionary and immediately commit this change.
-          This way chances of SE and data-dictionary getting out of sync in
-          case of crash are reduced.
-
-          Things will go bad if we will fail to delete table from data-dictionary
-          as table is already gone in SE. But this should be really rare situation
-          (OOM, out of disk space, bugs). Also user can fix it by running DROP TABLE
-          IF EXISTS on the same table again.
-
-          WL7743/TODO/QQ: Should we write incident to binary log in this case?
-                          After all replication might be broken after that...
-        */
-        error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                         table_def, true);
-
-        error|= update_referencing_views_metadata(thd, table);
-      }
-
-      /* Invalidate even if we failed fully delete the table. */
-      query_cache.invalidate_single(thd, table, FALSE);
-
-      if (error)
-        DBUG_RETURN(1);
-
-      *dropped_non_atomic= true;
-
-
-      if (!gtid_group_many_table_groups)
+      if (!drop_ctx.has_gtid_many_table_groups())
       {
         /*
           We don't have GTID assigned, or we have GTID assigned and this is
@@ -3289,42 +3674,48 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           as this descreases chance of things getting out of sync in case of
           crash.
         */
-        String built_query;
-
-        built_query.set_charset(system_charset_info);
-        if (if_exists)
-          built_query.append("DROP TABLE IF EXISTS ");
-        else
-          built_query.append("DROP TABLE ");
-
-        if (drop_database)
-          append_identifier(thd, &built_query, table->table_name,
-                            table->table_name_length, system_charset_info,
-                            thd->charset());
-        else
-          append_table_ident(thd, &built_query, table, false);
-
-        built_query.append(" /* generated by server */");
-
-        if (drop_database && mysql_bin_log.is_open())
+        if (drop_ctx.drop_database)
         {
-          Query_log_event qinfo(thd, built_query.ptr(),
+          if (mysql_bin_log.is_open())
+          {
+            String built_query;
+
+            built_query.set_charset(system_charset_info);
+            built_query.append("DROP TABLE IF EXISTS ");
+
+            append_identifier(thd, &built_query, table->table_name,
+                              table->table_name_length, system_charset_info,
+                              thd->charset());
+
+            built_query.append(" /* generated by server */");
+
+            thd->add_to_binlog_accessed_dbs(table->db);
+
+
+            Query_log_event qinfo(thd, built_query.ptr(),
                                 built_query.length(), false,
                                 true, false, 0);
-          qinfo.db= table->db;
-          qinfo.db_len= table->db_length;
+            qinfo.db= table->db;
+            qinfo.db_len= table->db_length;
 
-          if (mysql_bin_log.write_event(&qinfo))
-            DBUG_RETURN(1);
+            if (mysql_bin_log.write_event(&qinfo))
+              goto err_with_rollback;
+          }
         }
         else
         {
-          if (write_bin_log(thd, true, built_query.ptr(),
-                            built_query.length(), false /*is_trans*/))
-            DBUG_RETURN(1);
+          Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
+                                                drop_ctx.if_exists,
+                                                false /* stmt binlog cache */,
+                                                false /* db exists */);
+
+          built_query.add_table(table);
+
+          if (built_query.write_bin_log())
+            goto err_with_rollback;
         }
 
-        if (!gtid_group_single_table_group)
+        if (!drop_ctx.has_gtid_single_table_group())
         {
           /*
             We don't have GTID assigned. Commit change to binary log (if
@@ -3334,8 +3725,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             write to binary log.
           */
           thd->is_commit_in_middle_of_statement= true;
-          error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+          bool error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
           thd->is_commit_in_middle_of_statement= false;
+
+          if (error)
+            goto err_with_rollback;
         }
         else
         {
@@ -3344,7 +3738,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             for this specific table. Commit change to binary log and/or
             mark GTID as executed instead.
           */
-          error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+          if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+            goto err_with_rollback;
         }
       }
       else
@@ -3358,14 +3753,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           committed earlier.
         */
       }
-
-      if (error)
-        DBUG_RETURN(1);
-     }
+    }
   }
 
-  if (base_atomic_tables.size() || views.size() ||
-      (!drop_temporary && nonexistent_tables.size()))
+  if (drop_ctx.has_base_atomic_tables() || drop_ctx.has_views() ||
+      drop_ctx.has_base_nonexistent_tables())
   {
     /*
       Handle base tables in SEs which support atomic DDL, as well as views
@@ -3375,239 +3767,88 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       transaction. Write corresponding multi-table DROP TABLE statement to
       the binary log as part of the same transaction.
     */
-    String built_query;
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-    bool table_dropped= false;
-#endif
-    if (!drop_database && !gtid_group_many_table_groups)
-    {
-      built_query.set_charset(system_charset_info);
-      if (if_exists)
-        built_query.append("DROP TABLE IF EXISTS ");
-      else
-        built_query.append("DROP TABLE ");
-    }
+    Drop_tables_query_builder built_query(thd, drop_ctx.if_exists);
 
     DEBUG_SYNC(thd, "rm_table_no_locks_before_delete_table");
     DBUG_EXECUTE_IF("sleep_before_no_locks_delete_table",
                     my_sleep(100000););
 
-    for (TABLE_LIST *table : base_atomic_tables)
+    DBUG_EXECUTE_IF("rm_table_no_locks_abort_before_atomic_tables",
+                    {
+                      my_error(ER_UNKNOWN_ERROR, MYF(0));
+                      goto err_with_rollback;
+                    });
+
+    for (TABLE_LIST *table : drop_ctx.base_atomic_tables)
     {
-      char path[FN_REFLEN + 1];
-
-      /* Check that we have an exclusive lock on the table to be dropped. */
-      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                     table->db, table->table_name,
-                                     MDL_EXCLUSIVE));
-
-      /*
-        Check if we were killed. Technically for this group exact place
-        where this is done should not matter. Still let us be consistent
-        with non-atomic case.
-
-        WL#7743/TODO/QQ: What if we are in !gtid_group_many_table_groups mode
-                         should we be immune to kill in this case? Or flush
-                         out all tables we have dropped so far.
-      */
-      if (thd->killed)
+      if (drop_base_table(thd, drop_ctx,
+                          table, true /* atomic */,
+                          post_ddl_htons))
       {
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-        if (table_dropped && !drop_database && mysql_bin_log.is_open())
+        if (thd->transaction_rollback_request)
+          goto err_with_rollback;
+
+        if (!drop_ctx.drop_database &&
+            (dropped_atomic->size() != 0 ||
+             (drop_ctx.has_gtid_many_table_groups() &&
+              drop_ctx.has_dropped_non_atomic())))
         {
-          built_query.chop();
-          built_query.append(" /* generated by server */");
-          thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            built_query.ptr(), built_query.length(),
-                            true/*is_trans*/, false/*direct*/,
-                            false/*suppress_use*/, 0)/*errcode*/;
+          if (drop_ctx.has_gtid_many_table_groups() &&
+              drop_ctx.has_dropped_non_atomic())
+            built_query.add_array(drop_ctx.dropped_non_atomic);
+          built_query.add_array(*dropped_atomic);
+          built_query.write_bin_log();
         }
-        thd->is_commit_in_middle_of_statement= true;
-        (void) trans_commit_stmt(thd);
-        (void) trans_commit_implicit(thd);
-        thd->is_commit_in_middle_of_statement= false;
-#else
-        if (!drop_database)
+
+        if (drop_ctx.drop_database)
         {
-          /*
-            Be consistent with successfull case. Rollback statement
-            and call post-DDL hooks within this function.
-          */
-          trans_rollback_stmt(thd);
-          // QQ: Should we play safe and rollback the whole txn?
-          for (handlerton *hton : *post_ddl_htons)
-            hton->post_ddl(thd);
+          Disable_gtid_state_update_guard disabler(thd);
+          (void) trans_commit_stmt(thd);
+          (void) trans_commit_implicit(thd);
         }
-#endif
-        DBUG_RETURN(-1);
-      }
-
-      thd->add_to_binlog_accessed_dbs(table->db);
-
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *table_def= NULL;
-      if (thd->dd_client()->acquire<dd::Table>(table->db, table->table_name,
-                                               &table_def))
-        goto err_with_rollback;
-
-      if (!table_def)
-      {
-        DBUG_ASSERT(0);
-        String tbl_name;
-        append_table_name(&tbl_name, table);
-        my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
-        goto err_with_rollback;
-      }
-
-      handlerton *hton;
-      if (dd::table_storage_engine(thd, table->db, table->table_name,
-                                     table_def, &hton))
-      {
-        DBUG_ASSERT(0);
-        goto err_with_rollback;
-      }
-
-      if (thd->locked_tables_mode)
-      {
-        /*
-          Under LOCK TABLES we still have table open at this point.
-          Close it and remove all instances from Table/Table Definition
-          cache.
-
-          WL7743/TODO/QQ: Should we try to handle tables supporting atomic
-          DDL nicely, and try to reopen them if we fail? This can be tricky
-          (and require more methods in Locked_tables_list...)
-        */
-        close_all_tables_for_name(thd, table->table->s, true, NULL);
-        /* Mark table as needing MDL release. */
-        table->table= 0;
-      }
-
-      (void) build_table_filename(path, sizeof(path) - 1, table->db,
-                                  table->table_name, "",
-                                  table->internal_tmp_table ? FN_IS_TMP : 0);
-
-      int error= ha_delete_table(thd, hton, path, table->db, table->table_name,
-                                 table_def, !drop_database);
-
-      /*
-        Table was present in data-dictionary but is missing in storage engine.
-        In theory, such situation should not be possible for SEs supporting
-        atomic DDL. Let us still play safe even in this case and allow table
-        removal from data-dictionary and reporting success if IF EXISTS clause
-        was specified.
-      */
-#ifdef ASSERT_TO_BE_ENABLED_ONCE_WL7016_IS_READY
-      DBUG_ASSERT(error != ENOENT && error != HA_ERR_NO_SUCH_TABLE);
-#endif
-      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && if_exists)
-      {
-        error= 0;
-        thd->clear_error();
-      }
-
-      if (hton->post_ddl)
-        post_ddl_htons->insert(hton);
-
-      if (error)
-      {
-        if (error == HA_ERR_ROW_IS_REFERENCED)
-          my_error(ER_ROW_IS_REFERENCED, MYF(0));
-        else if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
-          my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
         else
         {
-          String tbl_name;
-          append_table_name(&tbl_name, table);
-          my_error(((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) ?
-                    ER_ENGINE_CANT_DROP_MISSING_TABLE :
-                    ER_ENGINE_CANT_DROP_TABLE),
-                   MYF(0), tbl_name.c_ptr());
+          (void) trans_commit_stmt(thd);
+          (void) trans_commit_implicit(thd);
         }
-        /*
-          WL7743/TODO/QQ: It is a bit unclear what to do in single-gtid many
-                          groups case. Should we at least binlog non-atomic
-                          tables which we have managed to drop? What about
-                          GTID, should we treat it as executed? Perhaps do
-                          something else (report error, bark to log, write
-                          incident)?
-        */
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-        if (table_dropped && !drop_database && mysql_bin_log.is_open())
-        {
-          built_query.chop();
-          built_query.append(" /* generated by server */");
-          thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            built_query.ptr(), built_query.length(),
-                            true/*is_trans*/, false/*direct*/,
-                            false/*suppress_use*/, 0)/*errcode*/;
-        }
-        thd->is_commit_in_middle_of_statement= true;
-        (void) trans_commit_stmt(thd);
-        (void) trans_commit_implicit(thd);
-        thd->is_commit_in_middle_of_statement= false;
+        DBUG_RETURN(true);
 #else
         goto err_with_rollback;
 #endif
-        DBUG_RETURN(1);
       }
-
-#ifdef HAVE_PSI_SP_INTERFACE
-      if (remove_all_triggers_from_perfschema(thd, table))
-        goto err_with_rollback;
-#endif
-
-      /*
-         Don't delete entry from DD in case we are dropping
-         DD tables in case of upgrade.
-      */
-      if (!dd_upgrade_flag &&
-          (dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                     table_def, false) ||
-           update_referencing_views_metadata(thd, table)))
-        goto err_with_rollback;
 
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      table_dropped= true;
-
-      if (drop_database)
-      {
-        dropped_atomic->push_back(table);
-      }
+      dropped_atomic->push_back(table);
 #endif
-
-      if (!drop_database && !gtid_group_many_table_groups)
-      {
-        append_table_ident(thd, &built_query, table, false);
-        built_query.append(",");
-      }
-
-      query_cache.invalidate_single(thd, table, FALSE);
     }
 
-    for (TABLE_LIST *table : views)
+    for (TABLE_LIST *table : drop_ctx.views)
     {
       /* Check that we have an exclusive lock on the view to be dropped. */
       DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                                      table->db, table->table_name,
                                      MDL_EXCLUSIVE));
 
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                       false);
+
       if (dd::drop_table<dd::Abstract_table>(thd, table->db,
                                              table->table_name,
                                              false) ||
-          update_referencing_views_metadata(thd, table))
+          update_referencing_views_metadata(thd, table, false, nullptr))
         goto err_with_rollback;
 
       /*
         No need to log anything since we drop views here only if called by
         DROP DATABASE implementation.
       */
-      DBUG_ASSERT(drop_database);
+      DBUG_ASSERT(drop_ctx.drop_database);
 
       query_cache.invalidate_single(thd, table, FALSE);
     }
 
-    for (TABLE_LIST *table : nonexistent_tables)
+    for (TABLE_LIST *table : drop_ctx.nonexistent_tables)
     {
       /*
         Check that we have an exclusive lock on the table which we were
@@ -3616,21 +3857,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                                      table->db, table->table_name,
                                      MDL_EXCLUSIVE));
-
-      thd->add_to_binlog_accessed_dbs(table->db);
-
-      if (!drop_database && !gtid_group_many_table_groups)
-      {
-        append_table_ident(thd, &built_query, table, false);
-        built_query.append(",");
-      }
     }
 
     DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
 
     int error= 0;
 
-    if (drop_database)
+    if (drop_ctx.drop_database)
     {
       /*
         This is DROP DATABASE.
@@ -3656,7 +3889,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 #endif
     }
-    else if (!gtid_group_many_table_groups)
+    else if (!drop_ctx.has_gtid_many_table_groups())
     {
       /*
         We don't have GTID assigned, or we have GTID assigned and our DROP
@@ -3664,14 +3897,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         multi-table DROP TABLES statement.
       */
 
-      /* Chop off the last comma */
-      built_query.chop();
-      built_query.append(" /* generated by server */");
-      if (write_bin_log(thd, true, built_query.ptr(),
-                        built_query.length(), true /*is_trans*/))
+      built_query.add_array(drop_ctx.base_atomic_tables);
+      built_query.add_array(drop_ctx.nonexistent_tables);
+
+      if (built_query.write_bin_log())
         goto err_with_rollback;
 
-      if (!gtid_group_single_table_group)
+      if (!drop_ctx.has_gtid_single_table_group())
       {
         /*
           We don't have GTID assigned. Commit changes to SE, data-dictionary
@@ -3698,23 +3930,28 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       /*
         We have GTID assigned, some tables from SEs which don't support
-        atomic DDL and some from SEs which do. Postpone writing to binary
-        log and marking GTID as executed until later stage.
+        atomic DDL and some from SEs which do.
 
-        Still we need to commit our changes to SE and data-dictionary
-        (WL7743/TODO/QQ: Really? Perhaps it is better to post-pone commit
-        as well? To get less difference between binlog and DD in case of
-        crash? Also more transactional feel...)
+        Postpone writing to binary log and marking GTID as executed until
+        later stage. We also postpone committing removal of tables in SEs
+        supporting atomic DDL and corresponding changes to the data-
+        dictionary until the same stage. This allows to minimize change
+        difference between SEs/data-dictionary and binary log in case of
+        crash.
+
+        If crash occurs binary log won't contain any traces about removal
+        of tables in both SEs support and not-supporting atomic DDL.
+        And only tables in SEs not supporting atomic DDL will be missing
+        from SEs and the data-dictionary. Since removal of tables in SEs
+        supporting atomic DDL will be rolled back during recovery.
       */
-      Disable_gtid_state_update_guard disabler(thd);
-      error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
     }
 
     if (error)
       goto err_with_rollback;
   }
 
-  if (!drop_database && gtid_group_many_table_groups)
+  if (!drop_ctx.drop_database && drop_ctx.has_gtid_many_table_groups())
   {
     /*
       We DROP TABLES statement with GTID assigned and either several tables
@@ -3723,42 +3960,19 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       We have postponed write to binlog earlier. Now it is time to do it.
     */
+    Drop_tables_query_builder built_query(thd, drop_ctx.if_exists);
 
-    String built_query;
+    built_query.add_array(drop_ctx.base_non_atomic_tables);
+    built_query.add_array(drop_ctx.base_atomic_tables);
+    built_query.add_array(drop_ctx.nonexistent_tables);
 
-    built_query.set_charset(system_charset_info);
-
-    if (if_exists)
-      built_query.append("DROP TABLE IF EXISTS ");
-    else
-      built_query.append("DROP TABLE ");
-
-    for (TABLE_LIST *table : base_non_atomic_tables)
-    {
-      append_table_ident(thd, &built_query, table, false);
-      built_query.append(",");
-    }
-    for (TABLE_LIST *table : base_atomic_tables)
-    {
-      append_table_ident(thd, &built_query, table, false);
-      built_query.append(",");
-    }
-    for (TABLE_LIST *table : nonexistent_tables)
-    {
-      append_table_ident(thd, &built_query, table, false);
-      built_query.append(",");
-    }
-
-    /* Chop off the last comma */
-    built_query.chop();
-    built_query.append(" /* generated by server */");
-    if (write_bin_log(thd, true, built_query.ptr(),
-                      built_query.length(), true /*is_trans*/))
+    if (built_query.write_bin_log())
       goto err_with_rollback;
 
     /*
       Commit our changes to the binary log (if any) and mark GTID
-      as executed.
+      as executed. This also commits removal of tables in SEs
+      supporting atomic DDL from SE and the data-dictionary.
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_with_rollback;
@@ -3776,44 +3990,37 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     ahead of transaction (so we need to tell binlog that these changes
     are non-transactional), while changes to transactional tables
     should be binlogged as part of transaction.
-
-    WL7743/TODO/QQ: Move below code to helper function?
   */
-  if (tmp_non_trans_tables.size())
+  if (drop_ctx.has_tmp_non_trans_tables())
   {
     /*
       Handle non-transactional temporary tables.
     */
-    String built_query;
-    bool is_drop_tmp_if_exists_with_no_defaultdb= false;
 
     /* DROP DATABASE doesn't deal with temporary tables. */
-    DBUG_ASSERT(!drop_database);
+    DBUG_ASSERT(!drop_ctx.drop_database);
 
-    if (thd->is_current_stmt_binlog_format_row() || if_exists)
-    {
-      /*
-        If the current format is row, the IF EXISTS clause needs to be
-        appended because one does not know if CREATE TEMPORARY was
-        previously written to the binary log.
+    /*
+      If the current format is row, the IF EXISTS clause needs to be
+      appended because one does not know if CREATE TEMPORARY was
+      previously written to the binary log.
 
-        If default database does not exist, set
-        'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
-        so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
-        with a fully-qualified table name and we don't write "USE db"
-        prefix.
-      */
-      is_drop_tmp_if_exists_with_no_defaultdb= default_db_doesnt_exist;
-      built_query.set_charset(system_charset_info);
-      built_query.append("DROP TEMPORARY TABLE IF EXISTS ");
-    }
-    else
-    {
-      built_query.set_charset(system_charset_info);
-      built_query.append("DROP TEMPORARY TABLE ");
-    }
+      If default database does not exist, set
+      'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
+      so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
+      with a fully-qualified table name and we don't write "USE db"
+      prefix.
+    */
+    bool log_if_exists= (thd->is_current_stmt_binlog_format_row() ||
+                         drop_ctx.if_exists);
+    bool is_drop_tmp_if_exists_with_no_defaultdb= log_if_exists &&
+                                                  default_db_doesnt_exist;
 
-    for (TABLE_LIST *table : tmp_non_trans_tables)
+    Drop_tables_query_builder built_query(thd, true /* DROP TEMPORARY */,
+                                log_if_exists, false /* stmt cache */,
+                                is_drop_tmp_if_exists_with_no_defaultdb);
+
+    for (TABLE_LIST *table : drop_ctx.tmp_non_trans_tables)
     {
       /*
         Don't check THD::killed flag. We can't rollback deletion of
@@ -3822,15 +4029,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         OTOH it is unlikely that we have many temporary tables to drop
         so being immune to KILL is not that horrible in most cases.
       */
-
-      thd->add_to_binlog_accessed_dbs(table->db);
-
       drop_temporary_table(thd, table);
-
-      append_table_ident(thd, &built_query, table,
-                         is_drop_tmp_if_exists_with_no_defaultdb);
-      built_query.append(",");
     }
+
+    built_query.add_array(drop_ctx.tmp_non_trans_tables);
 
     /*
       If there are no transactional temporary tables to be dropped
@@ -3838,106 +4040,107 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       slave we won't split DROP TEMPORARY TABLES even if some tables
       are missing on it (which is no-no for GTID mode).
     */
-    if (drop_temporary && !tmp_trans_tables.size())
-    {
-      for (TABLE_LIST *table : nonexistent_tables)
-      {
-        thd->add_to_binlog_accessed_dbs(table->db);
-
-        append_table_ident(thd, &built_query, table,
-                           is_drop_tmp_if_exists_with_no_defaultdb);
-        built_query.append(",");
-      }
-    }
+    if (drop_ctx.drop_temporary && !drop_ctx.has_tmp_trans_tables())
+      built_query.add_array(drop_ctx.nonexistent_tables);
 
     thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
     thd->thread_specific_used= true;
 
-    if (mysql_bin_log.is_open())
+    if (built_query.write_bin_log())
+      goto err_with_rollback;
+
+    if (!drop_ctx.has_gtid_single_table_group())
     {
-      built_query.chop();
-      built_query.append(" /* generated by server */");
-      int error= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                                   built_query.ptr(), built_query.length(),
-                                   false/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_with_no_defaultdb
-                                   /*suppress_use*/, 0/*errcode*/);
-
       /*
-        WL7743/TODO/QQ: The below looks like horrible hack:
-
-        *) Why do we commit only if binlog is enabled? Should not we generate
-           separate GTID even if it is off?
-        *) Why do we use thd->in_active_multi_stmt_transaction() instead of
-           e.g. thd->in_multi_stmt_transaction_mode()? Does it really worth it?
-        *) Probably related - why can't we use trans_commit_implicit() here?
-
-        Discuss with Runtime and Replication if things can be improved.
+        We don't have GTID assigned. If we are not inside of transaction
+        commit transaction in binary log to get one for our statement.
       */
-      if (!gtid_group_single_table_group)
+      if (mysql_bin_log.is_open() &&
+          ! thd->in_active_multi_stmt_transaction())
       {
         /*
-          We don't have GTID assigned. If we are not inside of transaction
-          commit transaction in binary log to get one for our statement.
-        */
-        if (!thd->in_active_multi_stmt_transaction())
-        {
-          thd->is_commit_in_middle_of_statement= true;
-          error|= mysql_bin_log.commit(thd, true);
-          thd->is_commit_in_middle_of_statement= false;
-        }
-      }
-      else
-      {
-        /*
-          We have GTID assigned. Rely on commit at the end of statement or
-          transaction to flush changes to binary log and mark GTID as executed.
-        */
-      }
+          The single purpose of this hack is to generate GTID for the DROP
+          TEMPORARY TABLES statement we just have written.
 
-      if (error)
-        goto err_with_rollback;
+          Some notes about it:
+
+          *) if the binary log is closed GTIDs are not generated, so there is
+             no point in the below "commit".
+          *) thd->in_active_multi_stmt_transaction() is true means that there
+             is an active transaction with some changes to transactional tables
+             and in binlog transactional cache. Doing "commit" in such a case
+             will commit these changes in SE and flush binlog's cache to disk,
+             so can not be allowed.
+             OTOH, when thd->in_active_multi_stmt_transaction() false and
+             thd->in_multi_stmt_transaction_mode() is true there is
+             transaction from user's point of view. However there were no
+             changes to transactional tables to commit (all changes were only
+             to non-transactional tables) and nothing in binlog transactional
+             cache (all changes to non-transactional tables were written to
+             binlog directly). Calling "commit" in this case won't do anything
+             besides generating GTID and can be allowed.
+          *) We use MYSQL_BIN_LOG::commit() and not trans_commit_implicit(),
+             for example, because we don't want to end user's explicitly
+             started transaction.
+
+          TODO: Consider if there is some better way to achieve this.
+                For example, can we use trans_commit_implicit() to split
+                out temporary parts from DROP TABLES statement or when
+                splitting DROP TEMPORARY TABLES and there is no explicit
+                user transaction. And just write two temporary parts
+                to appropriate caches in case when DROP TEMPORARY is used
+                inside of user's transaction?
+        */
+        thd->is_commit_in_middle_of_statement= true;
+        bool error= mysql_bin_log.commit(thd, true);
+        thd->is_commit_in_middle_of_statement= false;
+
+        if (error)
+          goto err_with_rollback;
+      }
     }
-
+    else
+    {
+      /*
+        We have GTID assigned. Rely on commit at the end of statement or
+        transaction to flush changes to binary log and mark GTID as executed.
+      */
+    }
   }
 
-  if (tmp_trans_tables.size() ||
-      (drop_temporary && !tmp_non_trans_tables.size() && nonexistent_tables.size()))
+  if (drop_ctx.has_tmp_trans_tables() ||
+      (!drop_ctx.has_tmp_non_trans_tables() &&
+       drop_ctx.has_tmp_nonexistent_tables()))
   {
     /*
       Handle transactional temporary tables (and possibly non-existent
       temporary tables if they were not handled earlier).
     */
-    String built_query;
-    bool is_drop_tmp_if_exists_with_no_defaultdb= false;
 
     /* DROP DATABASE doesn't deal with temporary tables. */
-    DBUG_ASSERT(!drop_database);
+    DBUG_ASSERT(!drop_ctx.drop_database);
 
-    if (thd->is_current_stmt_binlog_format_row() || if_exists)
-    {
-      /*
-        If the current format is row, the IF EXISTS clause needs to be
-        appended because one does not know if CREATE TEMPORARY was
-        previously written to the binary log.
+    /*
+      If the current format is row, the IF EXISTS clause needs to be
+      appended because one does not know if CREATE TEMPORARY was
+      previously written to the binary log.
 
-        If default database does not exist, set
-        'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
-        so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
-        with a fully-qualified table name and we don't write "USE db"
-        prefix.
-      */
-      is_drop_tmp_if_exists_with_no_defaultdb= default_db_doesnt_exist;
-      built_query.set_charset(system_charset_info);
-      built_query.append("DROP TEMPORARY TABLE IF EXISTS ");
-    }
-    else
-    {
-      built_query.set_charset(system_charset_info);
-      built_query.append("DROP TEMPORARY TABLE ");
-    }
+      If default database does not exist, set
+      'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
+      so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
+      with a fully-qualified table name and we don't write "USE db"
+      prefix.
+    */
+    bool log_if_exists= (thd->is_current_stmt_binlog_format_row() ||
+                         drop_ctx.if_exists);
+    bool is_drop_tmp_if_exists_with_no_defaultdb= log_if_exists &&
+                                                  default_db_doesnt_exist;
 
-    for (TABLE_LIST *table : tmp_trans_tables)
+    Drop_tables_query_builder built_query(thd, true /* DROP TEMPORARY */,
+                                log_if_exists, true /* trx cache */,
+                                is_drop_tmp_if_exists_with_no_defaultdb);
+
+    for (TABLE_LIST *table : drop_ctx.tmp_trans_tables)
     {
       /*
         Don't check THD::killed flag. We can't rollback deletion of
@@ -3946,15 +4149,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         OTOH it is unlikely that we have many temporary tables to drop
         so being immune to KILL is not that horrible in most cases.
       */
-
-      thd->add_to_binlog_accessed_dbs(table->db);
-
       drop_temporary_table(thd, table);
-
-      append_table_ident(thd, &built_query, table,
-                         is_drop_tmp_if_exists_with_no_defaultdb);
-      built_query.append(",");
     }
+
+    built_query.add_array(drop_ctx.tmp_trans_tables);
 
     /*
       Add non-existent temporary tables to this group if there are some
@@ -3962,82 +4160,123 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       This ensures that on slave we won't split DROP TEMPORARY TABLES
       even if some tables are missing on it (which is no-no for GTID mode).
     */
-    if (drop_temporary)
-    {
-      for (TABLE_LIST *table : nonexistent_tables)
-      {
-        thd->add_to_binlog_accessed_dbs(table->db);
-
-        append_table_ident(thd, &built_query, table,
-                           is_drop_tmp_if_exists_with_no_defaultdb);
-        built_query.append(",");
-      }
-    }
+    if (drop_ctx.drop_temporary)
+      built_query.add_array(drop_ctx.nonexistent_tables);
 
     thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
     thd->thread_specific_used= true;
 
-    if (mysql_bin_log.is_open())
+    if (built_query.write_bin_log())
+      goto err_with_rollback;
+
+    if (!drop_ctx.has_gtid_single_table_group())
     {
-      built_query.chop();
-      built_query.append(" /* generated by server */");
-      int error= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                                   built_query.ptr(), built_query.length(),
-                                   true/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_with_no_defaultdb
-                                   /*suppress_use*/, 0/*errcode*/);
-
       /*
-        WL7743/TODO/QQ: The below looks like horrible hack - see questions
-                        to discuss above.
+        We don't have GTID assigned. If we are not inside of transaction
+        commit transaction in binary log to get one for our statement.
       */
-      if (!gtid_group_single_table_group)
+      if (mysql_bin_log.is_open() &&
+          ! thd->in_active_multi_stmt_transaction())
       {
         /*
-          We don't have GTID assigned. If we are not inside of transaction
-          commit transaction in binary log to get one for our statement.
+          See the rationale for the hack with "commit" above.
         */
-        if (!thd->in_active_multi_stmt_transaction())
-        {
-          thd->is_commit_in_middle_of_statement= true;
-          error|= mysql_bin_log.commit(thd, true);
-          thd->is_commit_in_middle_of_statement= false;
-        }
-      }
-      else
-      {
-        /*
-          We have GTID assigned. Rely on commit at the end of statement or
-          transaction to flush changes to binary log and mark GTID as executed.
-        */
-      }
+        thd->is_commit_in_middle_of_statement= true;
+        bool error= mysql_bin_log.commit(thd, true);
+        thd->is_commit_in_middle_of_statement= false;
 
-      if (error)
-        goto err_with_rollback;
+        if (error)
+          goto err_with_rollback;
+      }
+    }
+    else
+    {
+      /*
+        We have GTID assigned. Rely on commit at the end of statement or
+        transaction to flush changes to binary log and mark GTID as executed.
+      */
     }
   }
 
-  if (!drop_database)
+  if (!drop_ctx.drop_database)
   {
     for (handlerton *hton : *post_ddl_htons)
       hton->post_ddl(thd);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 
 err_with_rollback:
-  if (!drop_database)
+  if (!drop_ctx.drop_database)
   {
     /*
       Be consistent with successfull case. Rollback statement
       and call post-DDL hooks within this function.
+
+      Note that this will rollback deletion of tables in SEs
+      supporting atomic DDL only. Tables in engines which
+      don't support atomic DDL are completely gone at this
+      point.
     */
-    trans_rollback_stmt(thd);
-    // QQ: Should we play safe and rollback the whole txn?
+
+    if (drop_ctx.has_gtid_many_table_groups() &&
+        drop_ctx.has_dropped_non_atomic())
+    {
+      /*
+        So far we have been postponing writing DROP TABLES statement for
+        tables in engines not supporting atomic DDL. We are going to write
+        it now and let it to consume GTID assigned. Hence rollback of
+        tables deletion of in SEs supporting atomic DDL should not rollback
+        GTID. Use guard class to disable this.
+      */
+      Disable_gtid_state_update_guard disabler(thd);
+      trans_rollback_stmt(thd);
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
+      trans_rollback(thd);
+    }
+    else
+    {
+      trans_rollback_stmt(thd);
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
+      trans_rollback(thd);
+    }
+
     for (handlerton *hton : *post_ddl_htons)
          hton->post_ddl(thd);
+
+    if (drop_ctx.has_gtid_many_table_groups() &&
+        drop_ctx.has_dropped_non_atomic())
+    {
+      /*
+        We have some tables dropped in SEs which don't support atomic DDL for
+        which there were no binlog events written so far. Now we are going to
+        write DROP TABLES statement for them and mark GTID as executed.
+        This is not totally correct since original statement is only partially
+        executed, but is consistent with 5.7 behavior.
+
+        TODO: Long-term we probably should generate new slave-based GTID for
+              this event, or report special error about partial execution.
+      */
+      Drop_tables_query_builder built_query(thd, drop_ctx.if_exists);
+
+      built_query.add_array(drop_ctx.dropped_non_atomic);
+
+      (void) built_query.write_bin_log();
+
+      // Write statement to binary log and mark GTID as executed.
+      (void) trans_commit_stmt(thd);
+      (void) trans_commit_implicit(thd);
+    }
   }
-  DBUG_RETURN(1);
+  DBUG_RETURN(true);
 }
 
 
@@ -4070,7 +4309,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                               db, table_name, "", flags);
 
 
-  const dd::Table *table_def= 0;
+  const dd::Table *table_def= nullptr;
   if (thd->dd_client()->acquire<dd::Table>(db, table_name, &table_def))
     DBUG_RETURN(true);
 
@@ -4079,18 +4318,14 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
     DBUG_RETURN(false);
 
   if (ha_delete_table(thd, base, path, db, table_name, table_def, 0))
-  {
-    delete table_def;
     DBUG_RETURN(true);
-  }
 
   // Remove the table object from the data dictionary. If this fails, the
   // DD operation is already rolled back, and we must return with an error.
   // Note that the DD operation is done after invoking the SE. This is
   // because the DDL code will handle situations where a table is present
   // in the DD while missing from the SE, but not the opposite.
-  if (!(flags & NO_DD_UPDATE) &&
-      !dd::get_dictionary()->is_dd_table_name(db, table_name) &&
+  if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
       dd::drop_table<dd::Table>(thd, db, table_name, table_def,
                                 !(flags & NO_DD_COMMIT)))
   {
@@ -4610,13 +4845,14 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
          key_part++, k_part++)
     {
       /*
-        Key definition is different if we are using a different field or
-        if the used key part length is different. Note since both KEY
-        objects come from mysql_prepare_create_table() we can compare
-        field numbers directly.
+        Key definition is different if we are using a different field,
+        if the used key part length is different or key parts has different
+        direction. Note since both KEY objects come from
+        mysql_prepare_create_table() we can compare field numbers directly.
       */
       if ((key_part->length != k_part->length) ||
-          (key_part->fieldnr != k_part->fieldnr))
+          (key_part->fieldnr != k_part->fieldnr) ||
+          (key_part->key_part_flag != k_part->key_part_flag))
       {
         all_columns_are_identical= false;
         break;
@@ -4690,10 +4926,10 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field)
 
   for (uint i= 0; i < sql_field->interval->count; i++)
   {
-    if (sql_field->charset->coll->instr(sql_field->charset,
-                                        sql_field->interval->type_names[i],
-                                        sql_field->interval->type_lengths[i],
-                                        comma_buf, comma_length, NULL, 0))
+    if (sql_field->charset->coll->strstr(sql_field->charset,
+                                         sql_field->interval->type_names[i],
+                                         sql_field->interval->type_lengths[i],
+                                         comma_buf, comma_length, NULL, 0))
     {
       ErrConvString err(sql_field->interval->type_names[i],
                         sql_field->interval->type_lengths[i],
@@ -5057,12 +5293,14 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[out] key_parts    Returned number of key segments (excluding FK).
    @param[out] fk_key_count Returned number of foreign keys.
    @param[in,out] redundant_keys  Array where keys to be ignored will be marked.
+   @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
                        uint *key_count, uint *key_parts,
                        uint *fk_key_count,
-                       Mem_root_array<bool> *redundant_keys)
+                       Mem_root_array<bool> *redundant_keys,
+                       bool is_ha_has_desc_index)
 {
   *key_count= 0;
   *key_parts= 0;
@@ -5107,6 +5345,7 @@ static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
         break;
       }
     }
+
     if (!redundant_keys->at(key_counter))
     {
       if (key->type == KEYTYPE_FOREIGN)
@@ -5115,9 +5354,19 @@ static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
       {
         (*key_count)++;
         (*key_parts)+= key->columns.size();
+        for (uint i= 0; i < key->columns.size(); i++)
+        {
+          const Key_part_spec *kp= key->columns[i];
+          if (!kp->is_ascending && !is_ha_has_desc_index)
+          {
+            my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "descending indexes");
+            return true;
+          }
+        }
       }
     }
   }
+  return false;
 }
 
 
@@ -5344,6 +5593,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   key_part_info->fieldnr= field;
   key_part_info->offset=  static_cast<uint16>(sql_field->offset);
+  key_part_info->key_part_flag|= column->is_ascending ? 0 : HA_REVERSE_SORT;
 
   size_t key_part_length= sql_field->key_length;
 
@@ -5478,6 +5728,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         key_part_length == MAX_LEN_GEOM_POINT_FIELD))
   {
     key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+    key_part_info->key_part_flag|= HA_PART_KEY_SEG;
   }
 
   key_info->key_length+= key_part_length;
@@ -5643,7 +5894,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
                         List<Create_field> *create_list, const Key_spec *key,
                         KEY **key_info_buffer, KEY *key_info,
                         KEY_PART_INFO **key_part_info,
-                        Mem_root_array<const KEY *, true> &keys_to_check,
+                        Mem_root_array<const KEY *> &keys_to_check,
                         uint key_number, const handler *file,
                         int *auto_increment)
 {
@@ -6113,8 +6364,10 @@ bool mysql_prepare_create_table(THD *thd,
   uint key_parts;
   Mem_root_array<bool> redundant_keys(thd->mem_root,
                                       alter_info->key_list.size(), false);
-  count_keys(alter_info->key_list, key_count, &key_parts,
-             fk_key_count, &redundant_keys);
+  if (count_keys(alter_info->key_list, key_count, &key_parts,
+                 fk_key_count, &redundant_keys,
+                 (file->ha_table_flags() & HA_DESCENDING_INDEX)))
+    DBUG_RETURN(true);
   if (*key_count > file->max_keys())
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0), file->max_keys());
@@ -6136,7 +6389,7 @@ bool mysql_prepare_create_table(THD *thd,
   if (!*key_info_buffer || !key_part_info || !fk_key_info)
     DBUG_RETURN(true);				// Out of memory
 
-  Mem_root_array<const KEY *, true> keys_to_check(thd->mem_root);
+  Mem_root_array<const KEY *> keys_to_check(thd->mem_root);
   if (keys_to_check.reserve(*key_count))
     DBUG_RETURN(true);				// Out of memory
 
@@ -6829,109 +7082,31 @@ bool create_table_impl(THD *thd,
     create_info->data_file_name= create_info->index_file_name= 0;
   }
 
+  if (thd->variables.keep_files_on_create)
+    create_info->options|= HA_CREATE_KEEP_FILES;
+
   /*
     Create table definitions.
     If "no_ha_table" is false also create table in storage engine.
   */
-  if (rea_create_table(thd, path, db, table_name,
-                       create_info, alter_info->create_list,
-                       *key_count, *key_info, keys_onoff, *fk_key_count,
-                       *fk_key_info, file, no_ha_table,
-                       tmp_table_def, post_ddl_ht))
-    goto err;
-
-  if (!no_ha_table && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    /*
-      Open a table (skipping table cache) and add it into
-      THD::temporary_tables list.
-    */
-
-    TABLE *table= open_table_uncached(thd, path, db, table_name, true, true,
-                                      *tmp_table_def);
-
-    if (!table)
-    {
-      (void) rm_temporary_table(thd, create_info->db_type, path,
-                                *tmp_table_def);
-      delete *tmp_table_def;
-      *tmp_table_def= NULL;
+    if (rea_create_tmp_table(thd, path, db, table_name,
+                             create_info, alter_info->create_list,
+                             *key_count, *key_info, keys_onoff,
+                             file, no_ha_table, is_trans,
+                             tmp_table_def))
       goto err;
-    }
-
-    /*
-      Transfer ownership of dd::Table object to TABLE_SHARE.
-      Reset own reference for extra safety.
-    */
-    table->s->tmp_table_def= *tmp_table_def;
-    *tmp_table_def= NULL;
-
-    if (is_trans != NULL)
-      *is_trans= table->file->has_transactions();
-
-    thd->thread_specific_used= TRUE;
   }
-  else if (part_info && no_ha_table)
+  else
   {
-    /*
-      For partitioned tables we can't find some problems with table
-      until table is opened. Therefore in order to disallow creation
-      of corrupted tables we have to try to open table as the part
-      of its creation process.
-      In cases when both .FRM and SE part of table are created table
-      is implicitly open in ha_create_table() call.
-      In cases when we create .FRM without SE part we have to open
-      table explicitly.
-    */
-    TABLE table;
-    TABLE_SHARE share;
-
-    /*
-      We don't support partitioned temporary tables at the moment.
-      Supporting them in the code below will require more careful
-      error handling.
-    */
-    DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-                *tmp_table_def == NULL);
-
-    init_tmp_table_share(thd, &share, db, 0, table_name, path);
-
-    bool result= open_table_def(thd, &share, false, nullptr) ||
-                 open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
-                                        0, &table, true, nullptr);
-
-    /*
-      Assert that the change list is empty as no partition function currently
-      needs to modify item tree. May need call THD::rollback_item_tree_changes
-      later before calling closefrm if the change list is not empty.
-    */
-    DBUG_ASSERT(thd->change_list.is_empty());
-    if (!result)
-      (void) closefrm(&table, 0);
-
-    free_table_share(&share);
-
-    if (result)
-    {
-      /*
-        If changes were committed remove table from DD.
-        We ignore the errors returned from there functions
-        as we anyway report error.
-      */
-      if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-        (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
-
+    if (rea_create_base_table(thd, path, db, table_name,
+                              create_info, alter_info->create_list,
+                              *key_count, *key_info, keys_onoff, *fk_key_count,
+                              *fk_key_info, file, no_ha_table, part_info,
+                              is_trans, post_ddl_ht))
       goto err;
-    }
   }
-
-  /*
-    Mark statement as be able to rollback if we have not done
-    intermediate commits and are not creating temporary table.
-  */
-  if (!((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-        is_trans == NULL))
-    *is_trans= (create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
   error= FALSE;
 err:
@@ -7101,6 +7276,18 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
+    // Update view metadata.
+    if (!result)
+    {
+      Uncommitted_tables_guard uncommitted_tables(thd);
+
+      if (! create_table->table && !create_table->is_view())
+        uncommitted_tables.add_table(create_table);
+
+      result= update_referencing_views_metadata(thd, create_table, !is_trans,
+                                                &uncommitted_tables);
+    }
+
     /*
       Unless we are executing CREATE TEMPORARY TABLE we need to commit
       changes to the data-dictionary, SE and binary log and possibly run
@@ -7109,15 +7296,16 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!result)
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(!result);
-
-    // Update view metadata.
-    if (!result)
-      result= update_referencing_views_metadata(thd, create_table);
-
     if (result)
+    {
       trans_rollback_stmt(thd);
-    // QQ should we play safe and rollback txn as well?
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
+      trans_rollback(thd);
+    }
 
     /*
       In case of CREATE TABLE post-DDL hook is mostly relevant for case
@@ -7269,10 +7457,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   if (!(flags & NO_TARGET_CHECK))
   {
-    /*
-      Check if target name is already occupied. Use uncommitted read, so this
-      call can be used by atomic ALTER TABLE implementation.
-    */
+    // Check if target name is already occupied.
     const dd::Abstract_table *conf_tab= NULL;
     if (thd->dd_client()->acquire(new_db, new_name, &conf_tab))
     {
@@ -7282,8 +7467,10 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
     if (conf_tab)
     {
+      /* purecov: begin tested */
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
       DBUG_RETURN(true);
+      /* purecov: end */
     }
   }
 
@@ -7302,11 +7489,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     DBUG_RETURN(true);
   }
 
-  /*
-    Get original dd::Table object (also emits error if it doesn't exist).
-    Use uncommitted read, so this call can be used by atomic multi-table
-    RENAME TABLE and atomic ALTER TABLE implementations.
-  */
+  // Get original dd::Table object (also emits error if it doesn't exist).
   if (thd->dd_client()->acquire<dd::Table>(old_db, old_name,
                                           &from_table_def) ||
       thd->dd_client()->acquire_for_modification<dd::Table>(old_db,
@@ -7381,42 +7564,42 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                  error, my_strerror(errbuf, sizeof(errbuf), error));
       }
     }
+    delete file;
+    DBUG_RETURN(true);
   }
-  else if (!(flags & NO_DD_UPDATE))
+
+  /*
+    Note that before WL#7743 we have renamed table in the data-dictionary
+    before renaming it in storage engine. However with WL#7743 engines
+    supporting atomic DDL are allowed to update dd::Table object describing
+    new version of table in handler::rename_table(). Hence it should saved
+    after this call.
+    So to avoid extra calls to DD layer and to keep code simple the
+    renaming of table in the DD was moved past rename in SE for all SEs.
+    From crash-safety point of view order doesn't matter for engines
+    supporting atomic DDL. And for engines which can't do atomic DDL in
+    either case there are scenarios in which DD and SE get out of sync.
+  */
+  if (dd::rename_table(thd, to_table_def, (flags & FN_TO_IS_TMP),
+                       !(flags & NO_DD_COMMIT)))
   {
     /*
-      Note that before WL#7743 we have renamed table in the data-dictionary
-      before renaming it in storage engine. However with WL#7743 engines
-      supporting atomic DDL are allowed to update dd::Table object describing
-      new version of table in handler::rename_table(). Hence it should saved
-      after this call.
-      So to avoid extra calls to DD layer and to keep code simple the
-      renaming of table in the DD was moved past rename in SE for all SEs.
-      From crash-safety point of view order doesn't matter for engines
-      supporting atomic DDL. And for engines which can't do atomic DDL in
-      either case there are scenarios in which DD and SE get out of sync.
-    */
-    if (dd::rename_table(thd, to_table_def, (flags & FN_TO_IS_TMP),
-                         !(flags & NO_DD_COMMIT)))
-    {
-      /*
-        In cases when we are executing atomic DDL it is responsibility of the
-        caller to revert the changes to SE by rolling back transaction.
+      In cases when we are executing atomic DDL it is responsibility of the
+      caller to revert the changes to SE by rolling back transaction.
 
-        If storage engine supports atomic DDL but commit was requested by the
-        caller the above call to dd::rename_table() will roll back transaction
-        on failure and thus revert change to SE.
-      */
-      if (!(flags & NO_HA_TABLE)
+      If storage engine supports atomic DDL but commit was requested by the
+      caller the above call to dd::rename_table() will roll back transaction
+      on failure and thus revert change to SE.
+    */
+    if (!(flags & NO_HA_TABLE)
 #ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-          && !(flags & NO_DD_COMMIT)
+        && !(flags & NO_DD_COMMIT)
 #endif
-         )
-        (void) file->ha_rename_table(to_base, from_base, to_table_def,
-                                     const_cast<dd::Table*>(from_table_def));
-      delete file;
-      DBUG_RETURN(true);
-    }
+       )
+      (void) file->ha_rename_table(to_base, from_base, to_table_def,
+                                   const_cast<dd::Table*>(from_table_def));
+    delete file;
+    DBUG_RETURN(true);
   }
   delete file;
 
@@ -7425,16 +7608,13 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     Remove the old table share from the pfs table share array. The new table
     share will be created when the renamed table is first accessed.
   */
-  if (likely(error == 0))
-  {
-    my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
-    PSI_TABLE_CALL(drop_table_share)
-      (temp_table, old_db, static_cast<int>(strlen(old_db)),
-       old_name, static_cast<int>(strlen(old_name)));
-  }
+  my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
+  PSI_TABLE_CALL(drop_table_share)
+    (temp_table, old_db, static_cast<int>(strlen(old_db)),
+     old_name, static_cast<int>(strlen(old_name)));
 #endif
 
-  DBUG_RETURN(error != 0);
+  DBUG_RETURN(false);
 }
 
 /*
@@ -7625,7 +7805,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        // FIXME ?
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         bool new_table= FALSE; // Whether newly created table is open.
 
@@ -7672,6 +7851,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             {
               DBUG_ASSERT(thd->open_tables == table->table);
               close_thread_table(thd, &thd->open_tables);
+              table->table= nullptr;
             }
             goto err;
           }
@@ -7697,6 +7877,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               without risking to close some locked table.
             */
             close_thread_table(thd, &thd->open_tables);
+            table->table= nullptr;
           }
 
           if (write_bin_log(thd, true, query.ptr(), query.length(), is_trans))
@@ -7718,13 +7899,22 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
+    /*
+      Update view metadata. Use nested block to ensure that TDC
+      invalidation happens before commit.
+    */
+    {
+      Uncommitted_tables_guard uncommitted_tables(thd);
+
+      if (! table->table && !table->is_view())
+        uncommitted_tables.add_table(table);
+
+      if (update_referencing_views_metadata(thd, table, !is_trans,
+                                            &uncommitted_tables))
+        goto err;
+    }
+
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
-      goto err;
-
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
-
-    // Update view metadata.
-    if (update_referencing_views_metadata(thd, table))
       goto err;
 
     if (post_ddl_ht)
@@ -7736,7 +7926,12 @@ err:
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     trans_rollback_stmt(thd);
-    // QQ: should we play safe and rollback txn as well?
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    trans_rollback(thd);
 
     if (post_ddl_ht)
       post_ddl_ht->post_ddl(thd);
@@ -7745,8 +7940,8 @@ err:
 }
 
 /* table_list should contain just one table */
-int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list)
+bool mysql_discard_or_import_tablespace(THD *thd,
+                                        TABLE_LIST *table_list)
 {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   int error;
@@ -7784,14 +7979,14 @@ int mysql_discard_or_import_tablespace(THD *thd,
     for the case general ALTER TABLE.
   */
   table_list->mdl_request.set_type(MDL_EXCLUSIVE);
-  table_list->lock_type= TL_WRITE;
+  table_list->set_lock({TL_WRITE, THR_DEFAULT});
   /* Do not open views. */
   table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
     /* purecov: begin inspected */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
     /* purecov: end */
   }
 
@@ -7807,7 +8002,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
       table_list->partition_names= &thd->lex->alter_info.partition_names;
       /* Set all [named] partitions as used. */
       if (table_list->table->part_info->set_partition_bitmaps(table_list))
-        DBUG_RETURN(-1);
+        DBUG_RETURN(true);
     }
   }
   else
@@ -7821,21 +8016,41 @@ int mysql_discard_or_import_tablespace(THD *thd,
     }
   }
 
+  bool is_non_tmp_table= (table_list->table->s->tmp_table == NO_TMP_TABLE);
+  handlerton *hton= table_list->table->s->db_type();
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *non_tmp_table_def= nullptr;
+
+  if (is_non_tmp_table)
+  {
+    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
+                            table_list->table_name, &non_tmp_table_def))
+      DBUG_RETURN(true);
+
+    /* Table was successfully opened above. */
+    DBUG_ASSERT(non_tmp_table_def != nullptr);
+  }
+
   /*
     Under LOCK TABLES we need to upgrade SNRW metadata lock to X lock
     before doing discard or import of tablespace.
 
     Skip this step for temporary tables as metadata locks are not
     applicable for them.
+
+    Remember the ticket for the future downgrade.
   */
-  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
+  MDL_ticket *mdl_ticket= nullptr;
+
+  if (is_non_tmp_table &&
       (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
-      thd->mdl_context.upgrade_shared_lock(table_list->table->mdl_ticket,
-                                           MDL_EXCLUSIVE,
-                                           thd->variables.lock_wait_timeout))
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
-    DBUG_RETURN(-1);
+    mdl_ticket= table_list->table->mdl_ticket;
+    if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                             thd->variables.lock_wait_timeout))
+      DBUG_RETURN(true);
   }
 
   /*
@@ -7853,44 +8068,85 @@ int mysql_discard_or_import_tablespace(THD *thd,
 
   bool discard= (thd->lex->alter_info.flags &
                  Alter_info::ALTER_DISCARD_TABLESPACE);
-  error= table_list->table->file->ha_discard_or_import_tablespace(discard);
+  error= table_list->table->file->ha_discard_or_import_tablespace(
+                                    discard,
+                                    (is_non_tmp_table ?
+                                     non_tmp_table_def :
+                                     table_list->table->s->tmp_table_def));
 
   THD_STAGE_INFO(thd, stage_end);
 
   if (error)
-    goto err;
-
-  /*
-    The 0 in the call below means 'not in a transaction', which means
-    immediate invalidation; that is probably what we wish here
-  */
-  query_cache.invalidate(thd, table_list, FALSE);
-
-  /* The ALTER TABLE is always in its own transaction */
-  error= trans_commit_stmt(thd);
-  if (trans_commit_implicit(thd))
-    error=1;
-  if (error)
-    goto err;
-  error= write_bin_log(thd, false, thd->query().str, thd->query().length);
-
-err:
-  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
-      (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
-    table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    table_list->table->file->print_error(error, MYF(0));
   }
+  else
+  {
+    /*
+      The 0 in the call below means 'not in a transaction', which means
+      immediate invalidation; that is probably what we wish here
+    */
+    query_cache.invalidate(thd, table_list, FALSE);
+
+    /*
+      Storage engine supporting atomic DDL can fully rollback discard/
+      import if any problem occurs. This will happen during statement
+      rollback.
+
+      In case of success we need to save dd::Table object which might
+      have been updated by SE. If this step or subsequent write to binary
+      log fail then statement rollback will also restore status quo ante.
+    */
+    if (is_non_tmp_table &&
+        (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        thd->dd_client()->update<dd::Table>(non_tmp_table_def))
+      error= 1;
+
+    if (!error)
+      error= write_bin_log(thd, false, thd->query().str, thd->query().length,
+                           (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
+    /*
+      TODO/QQ: In theory since we have updated table definition in the
+               data-dictionary above we need to remove its TABLE/TABLE_SHARE
+               from TDC now. However this makes InnoDB to produce too many
+               warnings about discarded tablespace which are not always well
+               justified. What to do here?
+    */
+#ifdef NEEDS_SUPPORT_FROM_INNODB
+    if (is_non_tmp_table)
+      close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
+    table_list->table= nullptr; // Safety.
+#endif
+  }
+
+  if (!error)
+    error= trans_commit_stmt(thd) || trans_commit_implicit(thd);
+
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback_implicit(thd);
+  }
+
+  if (is_non_tmp_table &&
+      (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
+
+  if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+    error= 1;
+
+  if (mdl_ticket)
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   if (error == 0)
   {
     my_ok(thd);
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
-  table_list->table->file->print_error(error, MYF(0));
-
-  DBUG_RETURN(-1);
+  DBUG_RETURN(true);
 }
 
 
@@ -8050,12 +8306,15 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   {
     /*
       Key definition has changed if we are using a different field or
-      if the used key part length is different. It makes sense to
-      check lengths first as in case when fields differ it is likely
-      that lengths differ too and checking fields is more expensive
-      in general case.
+      if the used key part length is different, or key part direction has
+      changed. It makes sense to check lengths first as in case when fields
+      differ it is likely that lengths differ too and checking fields is more
+      expensive in general case.
+
     */
-    if (key_part->length != new_part->length)
+    if (key_part->length != new_part->length ||
+        (key_part->key_part_flag & HA_REVERSE_SORT) !=
+        (new_part->key_part_flag & HA_REVERSE_SORT))
       return true;
 
     new_field= get_field_by_index(alter_info, new_part->fieldnr);
@@ -9132,7 +9391,6 @@ static bool mysql_inplace_alter_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
-  bool keep_altered_table= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
@@ -9282,81 +9540,79 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   {
-  dd::Schema_MDL_locker mdl_locker_1(thd), mdl_locker_2(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  const dd::Table *old_table_def= nullptr;
-  if (mdl_locker_1.ensure_locked(table->s->db.str) ||
-      thd->dd_client()->acquire<dd::Table>(table->s->db.str,
-                                           table->s->table_name.str,
-                                           &old_table_def))
-    goto cleanup;
+    const dd::Table *old_table_def= nullptr;
+    if (thd->dd_client()->acquire<dd::Table>(table->s->db.str,
+                                             table->s->table_name.str,
+                                             &old_table_def))
+      goto cleanup;
 
-  dd::Table *altered_table_def= nullptr;
-  if (mdl_locker_2.ensure_locked(alter_ctx->new_db) ||
-      thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
-                          alter_ctx->tmp_name, &altered_table_def))
-    goto cleanup;
+    dd::Table *altered_table_def= nullptr;
+    if (thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
+                                                   alter_ctx->tmp_name,
+                                                   &altered_table_def))
+      goto cleanup;
 
-  /*
-    We want warnings/errors about data truncation emitted when
-    values of virtual columns are evaluated in INPLACE algorithm.
-  */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields= 0L;
+    /*
+      We want warnings/errors about data truncation emitted when
+      values of virtual columns are evaluated in INPLACE algorithm.
+    */
+    thd->count_cuted_fields= CHECK_FIELD_WARN;
+    thd->cuted_fields= 0L;
 
-  if (table->file->ha_prepare_inplace_alter_table(altered_table,
-                                                  ha_alter_info,
-                                                  old_table_def,
-                                                  altered_table_def))
-  {
-    goto rollback;
-  }
-
-  /*
-    Downgrade the lock if storage engine has told us that exclusive lock was
-    necessary only for prepare phase (unless we are not under LOCK TABLES) and
-    user has not explicitly requested exclusive lock.
-  */
-  if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
-       inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE) &&
-      !(thd->locked_tables_mode == LTM_LOCK_TABLES ||
-        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
-      (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE))
-  {
-    /* If storage engine or user requested shared lock downgrade to SNW. */
-    if (inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
-        alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED)
-      table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_WRITE);
-    else
+    if (table->file->ha_prepare_inplace_alter_table(altered_table,
+                                                    ha_alter_info,
+                                                    old_table_def,
+                                                    altered_table_def))
     {
-      DBUG_ASSERT(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
-      table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+      goto rollback;
     }
-  }
 
-  DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
-  THD_STAGE_INFO(thd, stage_alter_inplace);
+    /*
+      Downgrade the lock if storage engine has told us that exclusive lock was
+      necessary only for prepare phase (unless we are not under LOCK TABLES) and
+      user has not explicitly requested exclusive lock.
+    */
+    if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+         inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE) &&
+        !(thd->locked_tables_mode == LTM_LOCK_TABLES ||
+          thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
+        (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE))
+    {
+      /* If storage engine or user requested shared lock downgrade to SNW. */
+      if (inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+          alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED)
+        table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_WRITE);
+      else
+      {
+        DBUG_ASSERT(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
+        table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+      }
+    }
 
-  if (table->file->ha_inplace_alter_table(altered_table,
-                                          ha_alter_info,
-                                          old_table_def,
-                                          altered_table_def))
-  {
-    goto rollback;
-  }
+    DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
+    THD_STAGE_INFO(thd, stage_alter_inplace);
 
-  // Upgrade to EXCLUSIVE before commit.
-  if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
-    goto rollback;
+    if (table->file->ha_inplace_alter_table(altered_table,
+                                            ha_alter_info,
+                                            old_table_def,
+                                            altered_table_def))
+    {
+      goto rollback;
+    }
 
-  /*
-    If we are killed after this point, we should ignore and continue.
-    We have mostly completed the operation at this point, there should
-    be no long waits left.
-  */
+    // Upgrade to EXCLUSIVE before commit.
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+      goto rollback;
 
-  DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
+    /*
+      If we are killed after this point, we should ignore and continue.
+      We have mostly completed the operation at this point, there should
+      be no long waits left.
+    */
+
+    DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
       table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
                                                  false,
@@ -9367,93 +9623,105 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup;
     });
 
-  DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
-  THD_STAGE_INFO(thd, stage_alter_inplace_commit);
+    DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
+    THD_STAGE_INFO(thd, stage_alter_inplace_commit);
 
-  /*
-    Acquire SRO locks on parent tables to prevent concurrent DML on them to
-    perform cascading actions. These actions require acquring InnoDB locks,
-    which might otherwise create deadlock with locks acquired by
-    ha_innobase::commit_inplace_alter_table(). This deadlock can be
-    be resolved by aborting expensive ALTER TABLE statement, which
-    we would like to avoid.
-
-    Note that we ignore FOREIGN_KEY_CHECKS=0 setting completely here since
-    we need to avoid deadlock even if user is ready to sacrifice some
-    consistency and set FOREIGN_KEY_CHECKS=0.
-
-    It is possible that acquisition of locks on parent tables will result
-    in MDL deadlocks. But since deadlocks involving two or more DDL
-    statements should be rare, it is unlikely that our ALTER TABLE will
-    be aborted due to such deadlock.
-  */
-  if (lock_fk_dependent_tables(thd, table))
-    goto rollback;
-
-  if (table->file->ha_commit_inplace_alter_table(altered_table,
-                                                 ha_alter_info,
-                                                 true, old_table_def,
-                                                 altered_table_def))
-  {
-    goto rollback;
-  }
-
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-
-  close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
-  table_list->table= table= NULL;
-  close_temporary_table(thd, altered_table, true, false);
-
-  /*
-    Replace table definition in the data-dictionary.
-
-    Note that any error after this point is really awkward for storage engines
-    which don't support atomic DDL. Changes to table in SE are already committed
-    and can't be rolled back. Failure to update data-dictionary or binary log
-    will create inconsistency between them and SE. Since we can't do much in this
-    situation we simply return error and hope that old table definition is
-    compatible enough with a new one.
-    We keep '#sql...' table description in DD to give user a chance to sort-out
-    things manually.
-
-    QQ: Should we really do this? OTOH any attempt to delete this description can
-        fail too...
-
-    For engines supporting atomic DDL error is business-as-usual situation.
-    Rollback of statement which happens on error should revert changes to
-    table in SE as well.
-  */
-  keep_altered_table= true;
-
-  //
-  // QQ: Perhaps move to separate helper function e.g. dd::replace_table()
-  //     after solving problem with system tables.
-  //
-  altered_table_def->set_schema_id(old_table_def->schema_id());
-  altered_table_def->set_name(alter_ctx->alias);
-  altered_table_def->set_hidden(false);
-
-  if (thd->dd_client()->drop(old_table_def))
-    goto cleanup2;
-
-  if (thd->dd_client()->update(altered_table_def))
-    goto cleanup2;
-
-  if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-  {
     /*
-      Persist changes to data-dictionary for storage engines which don't
-      support atomic DDL. Such SEs can't rollback in-place changes if error
-      or crash happens after this point, so we are better to have
-      data-dictionary in sync with SE.
-    */
-    Disable_gtid_state_update_guard disabler(thd);
+      Acquire SRO locks on parent tables to prevent concurrent DML on them to
+      perform cascading actions. These actions require acquring InnoDB locks,
+      which might otherwise create deadlock with locks acquired by
+      ha_innobase::commit_inplace_alter_table(). This deadlock can be
+      be resolved by aborting expensive ALTER TABLE statement, which
+      we would like to avoid.
 
-    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      Note that we ignore FOREIGN_KEY_CHECKS=0 setting completely here since
+      we need to avoid deadlock even if user is ready to sacrifice some
+      consistency and set FOREIGN_KEY_CHECKS=0.
+
+      It is possible that acquisition of locks on parent tables will result
+      in MDL deadlocks. But since deadlocks involving two or more DDL
+      statements should be rare, it is unlikely that our ALTER TABLE will
+      be aborted due to such deadlock.
+    */
+    if (lock_fk_dependent_tables(thd, table))
+      goto rollback;
+
+    if (table->file->ha_commit_inplace_alter_table(altered_table,
+                                                   ha_alter_info,
+                                                   true, old_table_def,
+                                                   altered_table_def))
+    {
+      goto rollback;
+    }
+
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
+    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    table_list->table= table= NULL;
+    reopen_tables= true;
+    close_temporary_table(thd, altered_table, true, false);
+
+    /*
+      Replace table definition in the data-dictionary.
+
+      Note that any error after this point is really awkward for storage engines
+      which don't support atomic DDL. Changes to table in SE are already committed
+      and can't be rolled back. Failure to update data-dictionary or binary log
+      will create inconsistency between them and SE. Since we can't do much in this
+      situation we simply return error and hope that old table definition is
+      compatible enough with a new one.
+
+      For engines supporting atomic DDL error is business-as-usual situation.
+      Rollback of statement which happens on error should revert changes to
+      table in SE as well.
+    */
+
+    //
+    // QQ: Perhaps move to separate helper function e.g. dd::replace_table()
+    //     after solving problem with system tables.
+    //
+    altered_table_def->set_schema_id(old_table_def->schema_id());
+    altered_table_def->set_name(alter_ctx->alias);
+    altered_table_def->set_hidden(false);
+
+    if (thd->dd_client()->drop(old_table_def))
       goto cleanup2;
 
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
-  }
+    if (thd->dd_client()->update(altered_table_def))
+      goto cleanup2;
+
+
+    /*
+      Transfer pre-existing foreign keys and triggers to the new table
+      definition. Since fk and trigger names have to be unique per schema,
+      we cannot create them while both the old and the temp version of the
+      table definition exist.
+
+      Do this atomically with deletion of old table definition and replacing
+      it with a new one.
+    */
+    if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
+        dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
+                                          alter_ctx->new_alias,
+                                          alter_ctx->fk_info,
+                                          alter_ctx->fk_count,
+                                          &alter_ctx->trg_info,
+                                          false))
+      goto cleanup2;
+
+    if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+    {
+      /*
+        Persist changes to data-dictionary for storage engines which don't
+        support atomic DDL. Such SEs can't rollback in-place changes if error
+        or crash happens after this point, so we are better to have
+        data-dictionary in sync with SE.
+      */
+      Disable_gtid_state_update_guard disabler(thd);
+
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+        goto cleanup2;
+    }
 
   }
 
@@ -9490,15 +9758,19 @@ static bool mysql_inplace_alter_table(THD *thd,
     DBUG_ASSERT(table_list->table == thd->open_tables);
     close_thread_table(thd, &thd->open_tables);
     table_list->table= NULL;
+
+    /*
+      Remove TABLE and TABLE_SHARE for from the TDC as we might have to
+      rename table later.
+    */
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                     alter_ctx->db, alter_ctx->table_name, false);
+
   }
 
   // Rename altered table if requested.
   if (alter_ctx->is_table_renamed())
   {
-    // Remove TABLE and TABLE_SHARE for old name from TDC.
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
-                     alter_ctx->db, alter_ctx->table_name, false);
-
     if (mysql_rename_table(thd, db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias,
                            NO_TARGET_CHECK |
@@ -9512,30 +9784,6 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup2;
     }
   }
-
-  /*
-    Remove TABLE and TABLE_SHARE for new name from TDC to force re-opening
-    in order to reload triggers.
-  */
-  if (!alter_ctx->trg_info.empty())
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
-                     alter_ctx->new_db, alter_ctx->new_alias, false);
-
-  /*
-    Transfer pre-existing foreign keys and triggers to the new table.
-    Since fk and trigger names have to be unique per schema, we cannot
-    create them while both the old and the temp version of the
-    table exist.
-  */
-  if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
-      dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
-                                        alter_ctx->new_alias,
-                                        alter_ctx->fk_info,
-                                        alter_ctx->fk_count,
-                                        &alter_ctx->trg_info,
-                                        !(db_type->flags &
-                                          HTON_SUPPORTS_ATOMIC_DDL)))
-    goto cleanup2;
 
   THD_STAGE_INFO(thd, stage_end);
 
@@ -9556,6 +9804,32 @@ static bool mysql_inplace_alter_table(THD *thd,
                     (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)))
     goto cleanup2;
 
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    uncommitted_tables.add_table(table_list);
+
+    bool views_err=
+      (alter_ctx->is_table_renamed() ?
+       update_referencing_views_metadata(thd, table_list,
+                                         alter_ctx->new_db,
+                                         alter_ctx->new_name,
+                                         !(db_type->flags &
+                                           HTON_SUPPORTS_ATOMIC_DDL),
+                                         &uncommitted_tables) :
+       update_referencing_views_metadata(thd, table_list,
+                                         !(db_type->flags &
+                                           HTON_SUPPORTS_ATOMIC_DDL),
+                                         &uncommitted_tables));
+
+    if (alter_ctx->is_table_renamed())
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                       alter_ctx->new_db, alter_ctx->new_name, false);
+
+    if (views_err)
+      goto cleanup2;
+  }
+
   if (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)
   {
     /*
@@ -9564,8 +9838,6 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
-
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
     /* Call SE DDL post-commit hook. */
     if (db_type->post_ddl)
@@ -9624,10 +9896,12 @@ cleanup:
 cleanup2:
 
   (void) trans_rollback_stmt(thd);
-  // Full rollback in case we have THD::transaction_rollback_request.
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
   (void) trans_rollback(thd);
-
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
 
   if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       db_type->post_ddl)
@@ -9640,18 +9914,21 @@ cleanup2:
   */
   if (reopen_tables)
   {
-    /* Close the only table instance which is still around. */
-    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    /* Close the only table instance which might be still around. */
+    if (table)
+      close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
     if (thd->locked_tables_list.reopen_tables(thd))
       thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
     /* QQ; do something about metadata locks ? */
   }
 
   if (
-#ifdef NEEDS_WL7141_TREE
-      !(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+#ifdef WORKAROUND_NEEDS_WL7141_TREE
+      !(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)
+#else
+      true
 #endif
-      !keep_altered_table)
+     )
   {
     (void) dd::drop_table<dd::Table>(thd, alter_ctx->new_db,
                                      alter_ctx->tmp_name, true);
@@ -10357,8 +10634,11 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
 	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
-      key_parts.push_back(new Key_part_spec(to_lex_cstring(cfield->field_name),
-                                            key_part_length));
+      key_parts.push_back(
+        new Key_part_spec(to_lex_cstring(cfield->field_name),
+                          key_part_length,
+                          key_part->key_part_flag & HA_REVERSE_SORT ?
+                            ORDER_DESC : ORDER_ASC));
     }
     if (key_parts.elements)
     {
@@ -11033,6 +11313,25 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     error= write_bin_log(thd, true, thd->query().str, thd->query().length,
                          atomic_ddl);
 
+    // Update referencing views metadata.
+    if (!error)
+    {
+      Uncommitted_tables_guard uncommitted_tables(thd);
+
+      error= update_referencing_views_metadata(thd, table_list,
+                                               alter_ctx->new_db,
+                                               alter_ctx->new_alias,
+                                               !atomic_ddl,
+                                               &uncommitted_tables);
+
+      if (alter_ctx->is_table_renamed())
+      {
+        uncommitted_tables.add_table(table_list);
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, alter_ctx->new_db,
+                         alter_ctx->new_alias, false);
+      }
+    }
+
     /*
       Commit changes to data-dictionary, SE and binary log if it was not done
       earlier. We need to do this before releasing/downgrading MDL.
@@ -11045,20 +11344,15 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       my_ok(thd);
   }
 
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(!error);
-
-  // Update referencing views metadata.
-  if (!error)
-    error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
-                                             alter_ctx->new_alias);
-
   if (error)
   {
     /*
       We need rollback possible changes to data-dictionary before releasing
       or downgrading metadata lock.
 
-      Also do full rollback in case we have THD::transaction_rollback_request.
+      Full rollback will synchronize state of data-dictionary in
+      cache and on disk. Also it is  needed in case we have
+      THD::transaction_rollback_request.
     */
     trans_rollback_stmt(thd);
     trans_rollback(thd);
@@ -11303,6 +11597,20 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   Alter_table_ctx alter_ctx(thd, table_list, tables_opened, new_db, new_name);
+
+  /*
+    Acquire and keep schema locks until commit time, so the DD layer can
+    safely assert that we have proper MDL on objects stored in the DD.
+  */
+  dd::Schema_MDL_locker mdl_locker_1(thd), mdl_locker_2(thd);
+  /*
+    This releaser allows us to keep uncommitted DD objects cached
+    in the Dictionary_client until commit time.
+  */
+  dd::cache::Dictionary_client::Auto_releaser releaser2(thd->dd_client());
+  if (mdl_locker_1.ensure_locked(alter_ctx.db) ||
+      mdl_locker_2.ensure_locked(alter_ctx.new_db))
+    DBUG_RETURN(true);
 
   /*
     Add old and new (if any) databases to the list of accessed databases
@@ -11565,9 +11873,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     char* table_name= const_cast<char*>(alter_ctx.table_name);
     // In-place execution of ALTER TABLE for partitioning.
 
-    // WL7743/TODO: We don't care about statement commit/rollback in
-    //              in this case. As this branch is to be removed
-    //              soon.
+    /*
+      TODO: The below legacy code is to be removed once InnoDB supports
+            changes to partitioning through normal in-place ALTER SE
+            API. So we don't care about atomicity and commit/rollback
+            correctness in this case.
+    */
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            const_cast<char*>(alter_ctx.db),
@@ -11755,8 +12066,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
   }
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
   tmp_disable_binlog(thd);
 
   error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
@@ -11793,6 +12102,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
+
+  /* Indicates special case when we do ALTER TABLE which is really no-op. */
+  bool is_noop= false;
 
   if (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_COPY)
   {
@@ -11879,12 +12191,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                                  &tab_obj))
           goto err_new_table_cleanup;
 
-        if (!tab_obj)
-        {
-          my_error(ER_NO_SUCH_TABLE, MYF(0), alter_ctx.new_db,
-                                             alter_ctx.tmp_name);
-          goto err_new_table_cleanup;
-        }
+        DBUG_ASSERT(tab_obj);
 
         /*
           We need to revert changes to data-dictionary but
@@ -11893,6 +12200,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         if (thd->dd_client()->drop(tab_obj))
           goto err_new_table_cleanup;
       }
+      is_noop= true;
       goto end_inplace_noop;
     }
 
@@ -12019,9 +12327,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::Table *table_def= tmp_table_def;
+    if (!table_def)
+    {
+      if (thd->dd_client()->acquire_for_modification<dd::Table>(
+                              alter_ctx.new_db, alter_ctx.tmp_name,
+                              &table_def))
+        goto err_new_table_cleanup;
+
+      DBUG_ASSERT(table_def);
+    }
+
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false, false, tmp_table_def))
+                        create_info, false, false, table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -12031,16 +12351,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       if (!open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                alter_ctx.new_db, alter_ctx.tmp_name,
-                               true, true, tmp_table_def))
+                               true, true, table_def))
         goto err_new_table_cleanup;
       /* in case of alter temp table send the tracker in OK packet */
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
-
-    // It's now safe to take the table level lock.
-    if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
-      goto err_new_table_cleanup;
 
     /* Open the table since we need to copy the data. */
     if (table->s->tmp_table != NO_TMP_TABLE)
@@ -12060,13 +12376,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       /* table is a normal table: Create temporary table in same directory */
       /* Open our intermediate table. */
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *table_def= nullptr;
-      if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
-                                               alter_ctx.tmp_name,
-                                               &table_def))
-        goto err_new_table_cleanup;
-
       new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                      alter_ctx.new_db, alter_ctx.tmp_name,
                                      true, true, table_def);
@@ -12077,6 +12386,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       Note: In case of MERGE table, we do not attach children. We do not
       copy data for MERGE tables. Only the children have data.
     */
+
+    // It's now safe to take the table level lock.
+    if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
+      goto err_new_table_cleanup;
   }
 
   /*
@@ -12171,8 +12484,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
     {
-      // QQ: Should we rollback failed statement for consistency with
-      //      non-temporary case.
+      /*
+        We can't revert replacement of old table version with a new one
+        at this point. So, if possible, commit the statement to avoid
+        new table version being emptied by statement rollback.
+      */
+      if (!thd->transaction_rollback_request)
+      {
+        (void) trans_commit_stmt(thd);
+        (void) trans_commit_implicit(thd);
+      }
       DBUG_RETURN(true);
     }
 
@@ -12227,8 +12548,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
-
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
 
@@ -12260,6 +12579,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
                                     thd->variables.lock_wait_timeout))
     {
+      /* purecov: begin tested */
       /*
         We need to clear THD::transaction_rollback_request (which might
         be set due to MDL deadlock) before attempting to remove new version
@@ -12284,6 +12604,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       }
 #endif
       goto err_with_mdl;
+      /* purecov: end */
     }
   }
 
@@ -12345,10 +12666,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                             alter_ctx.tmp_name, FN_IS_TMP);
 
       // Restore the backup of the original table to its original name.
-      // In lieu of wl#7785, if the operation fails, we need to retry it
-      // to avoid leaving the dictionary inconsistent.
+      // If the operation fails, we need to retry it to avoid leaving
+      // the dictionary inconsistent.
       //
-      // WL7743/TODO: think about how this situation can be handled?
+      // This hack might become unnecessary once InnoDB stops acquiring
+      // gap locks on DD tables (which might cause deadlocks).
       uint retries= 20;
       while (retries-- &&
              mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
@@ -12428,12 +12750,27 @@ end_inplace_noop:
                     atomic_replace))
     goto err_with_mdl;
 
+  if (!is_noop)
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    uncommitted_tables.add_table(table_list);
+
+    if (update_referencing_views_metadata(thd, table_list,
+                                          new_db, new_name,
+                                          !atomic_replace,
+                                          &uncommitted_tables))
+      goto err_with_mdl;
+
+    if (alter_ctx.is_table_renamed())
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                       alter_ctx.new_db, alter_ctx.new_name, false);
+  }
+
   // Commit if it was not done before in order to be able to reopen tables.
   if (atomic_replace &&
       (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
     goto err_with_mdl;
-
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
 
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
@@ -12460,9 +12797,6 @@ end_inplace_noop:
   }
 
 end_inplace:
-
-  if (update_referencing_views_metadata(thd, table_list, new_db, new_name))
-    goto err_with_mdl;
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
@@ -12513,9 +12847,9 @@ err_new_table_cleanup:
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);
     }
-#ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
     else
     {
+#ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
       /*
         We should not try to remove new version of the table if
         THD::transaction_rollback_request is set and we can't rollback the
@@ -12528,11 +12862,15 @@ err_new_table_cleanup:
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);
 
+#endif
       trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
       trans_rollback(thd);
     }
-#endif
     if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
         new_db_type->post_ddl)
       new_db_type->post_ddl(thd);
@@ -12569,7 +12907,11 @@ err_with_mdl:
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
   trans_rollback_stmt(thd);
-  // Full rollback in case we have THD::transaction_rollback_request.
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
   trans_rollback(thd);
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
@@ -12924,7 +13266,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   DBUG_ENTER("mysql_recreate_table");
   DBUG_ASSERT(!table_list->next_global);
   /* Set lock type which is appropriate for ALTER TABLE. */
-  table_list->lock_type= TL_READ_NO_INSERT;
+  table_list->set_lock({TL_READ_NO_INSERT, THR_DEFAULT});
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
@@ -12988,7 +13330,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     /* Remember old 'next' pointer and break the list.  */
     save_next_global= table->next_global;
     table->next_global= NULL;
-    table->lock_type= TL_READ;
+    table->set_lock({TL_READ, THR_DEFAULT});
     /* Allow to open real tables only. */
     table->required_type= dd::enum_table_type::BASE_TABLE;
 

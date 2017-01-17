@@ -36,5 +36,6 @@ SET GLOBAL mysqlx_connect_timeout = 300;
 
 ## Postamble
 --remove_file $MYSQL_TMP_DIR/validate_empty_message.tmp
+--remove_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
 
 uninstall plugin mysqlx;

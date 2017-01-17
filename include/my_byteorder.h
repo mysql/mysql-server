@@ -19,15 +19,38 @@
 
 /**
   @file include/my_byteorder.h
-  Functions for reading and storing in machine independent
-  format (low byte first). There are 'korr' (assume 'corrector') variants
+  Functions for reading and storing in machine-independent format.
+  The little-endian variants are 'korr' (assume 'corrector') variants
   for integer types, but 'get' (assume 'getter') for floating point types.
 */
+
+#include "my_config.h"
+
+#include <string.h>
+#include <sys/types.h>
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#if defined(_MSC_VER)
+#include <stdlib.h>
+#endif
+
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 
 #if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
 #include "byte_order_generic_x86.h"  // IWYU pragma: export
 #else
 #include "byte_order_generic.h"  // IWYU pragma: export
+#endif
+
+#include "my_inttypes.h"
+
+#ifdef __cplusplus
+#include "template_utils.h"
 #endif
 
 static inline int32 sint3korr(const uchar *A)
@@ -222,6 +245,72 @@ static inline void float8get(double *V, const char *M)
 static inline void float8store(char *V, double M)
 {
   float8store(static_cast<uchar*>(static_cast<void*>(V)), M);
+}
+
+#endif /* __cplusplus */
+
+#ifdef __cplusplus
+
+/*
+ Functions for big-endian loads and stores. These are safe to use
+ no matter what the compiler, CPU or alignment, and also with -fstrict-aliasing.
+
+ The stores return a pointer just past the value that was written.
+*/
+
+static inline uint16 load16be(const char *ptr)
+{
+  uint16 val;
+  memcpy(&val, ptr, sizeof(val));
+  return ntohs(val);
+}
+
+static inline uint32 load32be(const char *ptr)
+{
+  uint32 val;
+  memcpy(&val, ptr, sizeof(val));
+  return ntohl(val);
+}
+
+static inline char *store16be(char *ptr, uint16 val)
+{
+#if defined(_MSC_VER)
+  // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
+  val= _byteswap_ushort(val);
+#else
+  val= htons(val);
+#endif
+  memcpy(ptr, &val, sizeof(val));
+  return ptr + sizeof(val);
+}
+
+static inline char *store32be(char *ptr, uint32 val)
+{
+  val= htonl(val);
+  memcpy(ptr, &val, sizeof(val));
+  return ptr + sizeof(val);
+}
+
+// Adapters for using uchar * instead of char *.
+
+static inline uint16 load16be(const uchar *ptr)
+{
+  return load16be(pointer_cast<const char *>(ptr));
+}
+
+static inline uint32 load32be(const uchar *ptr)
+{
+  return load32be(pointer_cast<const char *>(ptr));
+}
+
+static inline uchar *store16be(uchar *ptr, uint16 val)
+{
+  return pointer_cast<uchar *>(store16be(pointer_cast<char *>(ptr), val));
+}
+
+static inline uchar *store32be(uchar *ptr, uint32 val)
+{
+  return pointer_cast<uchar *>(store32be(pointer_cast<char *>(ptr), val));
 }
 
 #endif /* __cplusplus */

@@ -1,7 +1,7 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "handler.h"
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_executor.h"  // QEP_operation

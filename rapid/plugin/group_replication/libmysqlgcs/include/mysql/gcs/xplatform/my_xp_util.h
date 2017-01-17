@@ -42,6 +42,7 @@
 #include <iostream>
 #include <errno.h>
 #include <stdint.h>
+#include <cassert>
 
 #define INT_MAX32     0x7FFFFFFFL
 #define MY_MIN(a, b)  ((a) < (b) ? (a) : (b))
@@ -145,6 +146,7 @@ public:
 
   /**
     Diff two timespec structs.
+    ts1 has to be larger than ts2, otherwise it will return unexpected value.
 
     @return  difference between the two arguments.
   */
@@ -152,8 +154,8 @@ public:
   static inline uint64_t diff_timespec(struct timespec *ts1,
                                        struct timespec *ts2)
   {
-    return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
-      ts1->tv_nsec - ts2->tv_nsec;
+    return static_cast<uint64_t>(ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
+      static_cast<uint64_t>(ts1->tv_nsec) - static_cast<uint32_t>(ts2->tv_nsec);
   }
 };
 

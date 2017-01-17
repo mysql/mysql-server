@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,24 +25,26 @@ Created 6/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "btr0btr.h"
+
 #include "fsp0sysspace.h"
+#include "gis0rtree.h"
+#include "my_dbug.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "gis0rtree.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "btr0pcur.h"
+#include "btr0sea.h"
 #include "buf0stats.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
-#include "trx0trx.h"
-#include "srv0mon.h"
-#include "gis0geo.h"
-#include "ut0new.h"
 #include "dict0boot.h"
+#include "gis0geo.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "rem0cmp.h"
+#include "srv0mon.h"
+#include "trx0trx.h"
+#include "ut0new.h"
 
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
@@ -2144,7 +2146,8 @@ btr_page_insert_fits(
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 		end_rec = page_rec_get_next(btr_cur_get_rec(cursor));
 
-	} else if (cmp_dtuple_rec(tuple, split_rec, *offsets) >= 0) {
+	} else if (cmp_dtuple_rec(tuple, split_rec, cursor->index,
+				  *offsets) >= 0) {
 
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 		end_rec = split_rec;
@@ -2454,7 +2457,7 @@ btr_page_tuple_smaller(
 		first_rec, cursor->index, *offsets,
 		n_uniq, heap);
 
-	return(cmp_dtuple_rec(tuple, first_rec, *offsets) < 0);
+	return(cmp_dtuple_rec(tuple, first_rec, cursor->index, *offsets) < 0);
 }
 
 /** Insert the tuple into the right sibling page, if the cursor is at the end
@@ -2746,7 +2749,8 @@ func_start:
 		*offsets = rec_get_offsets(split_rec, cursor->index, *offsets,
 					   n_uniq, heap);
 
-		insert_left = cmp_dtuple_rec(tuple, split_rec, *offsets) < 0;
+		insert_left = cmp_dtuple_rec(
+			tuple, split_rec, cursor->index, *offsets) < 0;
 
 		if (!insert_left && new_page_zip && n_iterations > 0) {
 			/* If a compressed page has already been split,
@@ -4332,7 +4336,8 @@ btr_check_node_ptr(
 			tuple, btr_cur_get_rec(&cursor),
 			offsets, PAGE_CUR_WITHIN));
 	} else {
-		ut_a(!cmp_dtuple_rec(tuple, btr_cur_get_rec(&cursor), offsets));
+		ut_a(!cmp_dtuple_rec(
+			     tuple, btr_cur_get_rec(&cursor), index, offsets));
 	}
 func_exit:
 	mem_heap_free(heap);
@@ -4936,7 +4941,7 @@ loop:
 				page_rec_get_next(page_get_infimum_rec(page)),
 				0, heap, btr_page_get_level(page, &mtr));
 
-			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr,
+			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr, index,
 					   offsets)) {
 				const rec_t* first_rec = page_rec_get_next(
 					page_get_infimum_rec(page));

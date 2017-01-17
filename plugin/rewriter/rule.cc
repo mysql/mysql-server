@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -17,13 +17,15 @@
 #define MYSQL_SERVER
 #endif
 
-#include "my_config.h"
-#include "rule.h"
-#include "query_builder.h"
-#include "services.h"
-#include "mysqld_error.h"
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "my_config.h"
+#include "my_dbug.h"
+#include "mysqld_error.h"
+#include "query_builder.h"
+#include "rule.h"
+#include "services.h"
 
 using std::string;
 using std::vector;

@@ -161,7 +161,7 @@ private:
     @retval 0      compatible
     @retval >0     not compatible with the group
   */
-  int check_group_compatibility(int number_of_members) const;
+  int check_group_compatibility(size_t number_of_members) const;
 
   /**
     When the member is joining, cycle through all members on group and see if it

@@ -537,6 +537,10 @@ ut_strerr(
 		return("Success");
 	case DB_SUCCESS_LOCKED_REC:
 		return("Success, record lock created");
+	case DB_SKIP_LOCKED:
+		return("Skip locked records");
+	case DB_LOCK_NOWAIT:
+		return("Don't wait for locks");
 	case DB_ERROR:
 		return("Generic error");
 	case DB_READ_ONLY:

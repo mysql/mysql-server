@@ -4,10 +4,6 @@
 -- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
-#Running this test with show_compatibility_56=ON until Bug#21789221 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 # Save the global value to be used to restore the original value.
 SET @global_saved_tmp =  @@global.offline_mode;
 let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
@@ -78,4 +74,3 @@ DROP USER 'user1'@'localhost';
 
 --echo # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

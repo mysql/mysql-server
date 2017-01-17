@@ -218,7 +218,8 @@ dd_table_open_on_dd_obj(
 
 	init_tmp_table_share(thd,
 			     &ts, table_cache_key, table_cache_key_len,
-			     dd_table.name().c_str(), ""/* file name */);
+			     dd_table.name().c_str(), ""/* file name */,
+			     nullptr);
 
 	error = open_table_def(thd, &ts, false, &dd_table);
 
@@ -1339,7 +1340,7 @@ dd_fill_one_dict_index(
 			col = &table->cols[field->field_index - t_num_v];
 		}
 
-		dict_index_add_col(index, table, col, prefix_len);
+		dict_index_add_col(index, table, col, prefix_len, true);
 	}
 
 	ut_ad(((key.flags & HA_FULLTEXT) == HA_FULLTEXT)
@@ -1607,7 +1608,7 @@ dd_fill_dict_index(
 				m_table->name.m_name,
 				FTS_DOC_ID_INDEX_NAME,
 				0, DICT_UNIQUE, 1);
-			doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0);
+			doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0, true);
 
 			dberr_t	new_err = dict_index_add_to_cache(
 				m_table, doc_id_index,
@@ -2623,7 +2624,8 @@ dd_open_table_one(
 
 	bool	implicit;
 
-	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
+	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id
+	    || dd_table->tablespace_id() == 10001) {
 		/* DD tables are in shared DD tablespace */
 		implicit = false;
 	} else if (dd_tablespace_is_implicit(
@@ -2678,7 +2680,8 @@ dd_open_table_one(
 			dd_index->tablespace_id();
 		dd::Tablespace*	index_space = nullptr;
 
-		if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
+		if (dd_table->tablespace_id() == dict_sys_t::dd_space_id
+		    || dd_table->tablespace_id() == 10001) {
 			sid = dict_sys_t::space_id;
 		} else if (dd_table->tablespace_id()
 			   == dict_sys_t::dd_temp_space_id) {
@@ -2831,7 +2834,7 @@ dd_open_fk_tables(
 			init_tmp_table_share(thd,
 				&ts, db_buf, strlen(db_buf),
 				dd_table->name().c_str(),
-				""/* file name */);
+				""/* file name */, nullptr);
 
 			ulint error = open_table_def(thd, &ts, false,
 						     dd_table);

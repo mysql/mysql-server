@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,11 +37,14 @@ class PFS_index_mems_by_user_by_event_name : public PFS_engine_index
 public:
   PFS_index_mems_by_user_by_event_name()
     : PFS_engine_index(&m_key_1, &m_key_2),
-    m_key_1("USER"), m_key_2("EVENT_NAME")
-  {}
+      m_key_1("USER"),
+      m_key_2("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_mems_by_user_by_event_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_user *pfs);
   virtual bool match(PFS_instr_class *instr_class);
@@ -68,26 +71,28 @@ struct row_mems_by_user_by_event_name
   Index 1 on user (0 based)
   Index 2 on memory class (1 based)
 */
-struct pos_mems_by_user_by_event_name
-: public PFS_double_index
+struct pos_mems_by_user_by_event_name : public PFS_double_index
 {
-  pos_mems_by_user_by_event_name()
-    : PFS_double_index(0, 1)
-  {}
-
-  inline void reset(void)
+  pos_mems_by_user_by_event_name() : PFS_double_index(0, 1)
   {
-    m_index_1= 0;
-    m_index_2= 1;
   }
 
-  inline void next_user(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 1;
+  }
+
+  inline void
+  next_user(void)
   {
     m_index_1++;
-    m_index_2= 1;
+    m_index_2 = 1;
   }
 
-  inline void next_class(void)
+  inline void
+  next_class(void)
   {
     m_index_2++;
   }
@@ -99,7 +104,7 @@ class table_mems_by_user_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -121,10 +126,11 @@ private:
 
 public:
   ~table_mems_by_user_by_event_name()
-  {}
+  {
+  }
 
 private:
-  void make_row(PFS_user *user, PFS_memory_class *klass);
+  int make_row(PFS_user *user, PFS_memory_class *klass);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -133,8 +139,6 @@ private:
 
   /** Current row. */
   row_mems_by_user_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_mems_by_user_by_event_name m_pos;
   /** Next position. */

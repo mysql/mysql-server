@@ -60,7 +60,7 @@ class Item_sum;
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
-typedef Mem_root_array<Key_use, true> Key_use_array;
+typedef Mem_root_array<Key_use> Key_use_array;
 
 class Cost_model_server;
 
@@ -80,6 +80,91 @@ typedef struct st_rollup
   Ref_item_array *ref_item_arrays;
   List<Item> *fields;
 } ROLLUP;
+
+/**
+  Wrapper for ORDER* pointer to trace origins of ORDER list 
+  
+  As far as ORDER is just a head object of ORDER expression
+  chain, we need some wrapper object to associate flags with
+  the whole ORDER list.
+*/
+class ORDER_with_src
+{
+  /**
+    Private empty class to implement type-safe NULL assignment
+
+    This private utility class allows us to implement a constructor
+    from NULL and only NULL (or 0 -- this is the same thing) and
+    an assignment operator from NULL.
+    Assignments from other pointers still prohibited since other
+    pointer types are incompatible with the "null" type, and the
+    casting is impossible outside of ORDER_with_src class, since
+    the "null" type is private.
+  */
+  struct null {};
+
+public:
+  ORDER *order;  ///< ORDER expression that we are wrapping with this class
+  Explain_sort_clause src; ///< origin of order list
+
+private:
+  /**
+    True means that sort direction (ASC/DESC) could be ignored. Used for
+    picking index for ordering dataset for DISTINCT or GROUP BY.
+  */
+  bool ignore_order;
+  int flags; ///< bitmap of Explain_sort_property
+
+public:
+  ORDER_with_src() { clean(); }
+
+  ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
+  : order(order_arg), src(src_arg),
+    ignore_order(src_arg == ESC_ORDER_BY ? false : true),
+    flags(order_arg ? ESP_EXISTS : ESP_none)
+  { }
+
+  /**
+    Type-safe NULL assignment
+
+    See a commentary for the "null" type above.
+  */
+  ORDER_with_src &operator=(null *) { clean(); return *this; }
+
+  /**
+    Type-safe constructor from NULL
+
+    See a commentary for the "null" type above.
+  */
+  ORDER_with_src(null *) { clean(); }
+
+  /**
+    Transparent access to the wrapped order list
+
+    These operators are safe, since we don't do any conversion of
+    ORDER_with_src value, but just an access to the wrapped
+    ORDER pointer value. 
+    We can use ORDER_with_src objects instead ORDER pointers in
+    a transparent way without accessor functions.
+
+    @note     This operator also implements safe "operator bool()"
+              functionality.
+  */
+  operator       ORDER *()       { return order; }
+  operator const ORDER *() const { return order; }
+
+  ORDER* operator->() const { return order; }
+
+  void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
+
+  int get_flags() const { DBUG_ASSERT(order); return flags; }
+  /**
+    Inform optimizer that ASC/DESC direction of this list should be
+    honored.
+  */
+  void force_order() { ignore_order= false; }
+  bool can_ignore_order() { return ignore_order; }
+};
 
 class JOIN :public Sql_alloc
 {
@@ -382,78 +467,6 @@ public:
   int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
-    Wrapper for ORDER* pointer to trace origins of ORDER list 
-    
-    As far as ORDER is just a head object of ORDER expression
-    chain, we need some wrapper object to associate flags with
-    the whole ORDER list.
-  */
-  class ORDER_with_src
-  {
-    /**
-      Private empty class to implement type-safe NULL assignment
-
-      This private utility class allows us to implement a constructor
-      from NULL and only NULL (or 0 -- this is the same thing) and
-      an assignment operator from NULL.
-      Assignments from other pointers still prohibited since other
-      pointer types are incompatible with the "null" type, and the
-      casting is impossible outside of ORDER_with_src class, since
-      the "null" type is private.
-    */
-    struct null {};
-
-  public:
-    ORDER *order;  ///< ORDER expression that we are wrapping with this class
-    Explain_sort_clause src; ///< origin of order list
-
-  private:
-    int flags; ///< bitmap of Explain_sort_property
-
-  public:
-    ORDER_with_src() { clean(); }
-
-    ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
-    : order(order_arg), src(src_arg), flags(order_arg ? ESP_EXISTS : ESP_none)
-    {}
-
-    /**
-      Type-safe NULL assignment
-
-      See a commentary for the "null" type above.
-    */
-    ORDER_with_src &operator=(null *) { clean(); return *this; }
-
-    /**
-      Type-safe constructor from NULL
-
-      See a commentary for the "null" type above.
-    */
-    ORDER_with_src(null *) { clean(); }
-
-    /**
-      Transparent access to the wrapped order list
-
-      These operators are safe, since we don't do any conversion of
-      ORDER_with_src value, but just an access to the wrapped
-      ORDER pointer value. 
-      We can use ORDER_with_src objects instead ORDER pointers in
-      a transparent way without accessor functions.
-
-      @note     This operator also implements safe "operator bool()"
-                functionality.
-    */
-    operator       ORDER *()       { return order; }
-    operator const ORDER *() const { return order; }
-
-    ORDER* operator->() const { return order; }
- 
-    void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
-
-    int get_flags() const { DBUG_ASSERT(order); return flags; }
-  };
-
-  /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
   */
   ORDER_with_src order, group_list;
@@ -703,7 +716,7 @@ public:
 
   bool cache_const_exprs();
   bool generate_derived_keys();
-  void drop_unused_derived_keys();
+  void finalize_derived_keys();
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();

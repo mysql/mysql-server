@@ -56,6 +56,13 @@ struct Gtid;
 
 typedef int64 query_id_t;
 
+/*
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows
+        overflow/truncate.
+ */
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
+
 struct Binlog_user_var_event
 {
   user_var_entry *user_var_event;
@@ -120,7 +127,7 @@ public:
     }
 
     void init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
               PSI_mutex_key key_LOCK_queue
 #endif
               ) {
@@ -206,7 +213,7 @@ public:
   };
 
   void init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
             PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue,
@@ -222,17 +229,17 @@ public:
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                               key_LOCK_flush_queue
 #endif
                               );
     m_queue[SYNC_STAGE].init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                              key_LOCK_sync_queue
 #endif
                              );
     m_queue[COMMIT_STAGE].init(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                                key_LOCK_commit_queue
 #endif
                                );
@@ -515,10 +522,12 @@ class MYSQL_BIN_LOG: public TC_LOG
             PSI_file_key log_file_key,
 #endif
             const char *log_name,
-            const char *new_name);
+            const char *new_name,
+            uint32 new_index_number);
   bool init_and_set_log_file_name(const char *log_name,
-                                  const char *new_name);
-  int generate_new_name(char *new_name, const char *log_name);
+                                  const char *new_name,
+                                  uint32 new_index_number);
+  int generate_new_name(char *new_name, const char *log_name, uint32 new_index_number= 0);
 
 public:
   const char *generate_name(const char *log_name, const char *suffix,
@@ -799,8 +808,8 @@ public:
     unlock_binlog_end_pos();
   }
 
-  int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
-  int wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  int wait_for_update_relay_log(THD *thd, const struct timespec * timeout);
+  int wait_for_update_bin_log(const struct timespec * timeout);
   bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();
@@ -823,13 +832,16 @@ public:
     @param extra_description_event The master's FDE to be written by the I/O
     thread while creating a new relay log file. This should be NULL for
     binary log files.
+    @param new_index_number The binary log file index number to start from
+    after the RESET MASTER TO command is called.
   */
   bool open_binlog(const char *log_name,
                    const char *new_name,
                    ulong max_size_arg,
                    bool null_created_arg,
                    bool need_lock_index, bool need_sid_lock,
-                   Format_description_log_event *extra_description_event);
+                   Format_description_log_event *extra_description_event,
+                   uint32 new_index_number= 0);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_lock_index);
   /* Use this to start writing a new log file */

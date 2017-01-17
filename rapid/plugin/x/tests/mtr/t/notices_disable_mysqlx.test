@@ -792,14 +792,6 @@ create user xplugin@localhost identified by 'xplugin';
 ## Disable multiple notices both read-only and read-write with single StmtExecute,expect error from the first error is sees
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_notices 2>&1
 
-##verify Mysqlx_notice_other_sent,Mysqlx_stmt_disable_notices with show_compatibility_56=ON
-let $restart_parameters = restart: --show_compatibility_56=ON;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
-##expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with both native and xconnection
-##change result file once Bug#21781263 is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_disable 2>&1
-show status like 'Mysqlx%notice%';
-
 --remove_file $xtest_result
 --remove_file $xtest_readonly
 --remove_file $xtest_warnings

@@ -423,7 +423,7 @@ private:
 
     virtual bool send_eof() { return FALSE; }
     virtual bool send_data(List<Item> &items);
-    virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+    virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   };
 
 public:

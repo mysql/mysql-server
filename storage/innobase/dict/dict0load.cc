@@ -28,27 +28,30 @@ Created 4/24/1996 Heikki Tuuri
 #include "current_thd.h"
 
 #include "dict0load.h"
+#include <set>
+#include <stack>
 
-#include "mysql_version.h"
-#include "btr0pcur.h"
 #include "btr0btr.h"
+#include "btr0pcur.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0dd.h"
+#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
+#include "my_dbug.h"
+#include "mysql_version.h"
 #include "page0page.h"
 #include "rem0cmp.h"
-#include "srv0start.h"
 #include "srv0srv.h"
-#include <stack>
-#include <set>
+#include "srv0start.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
@@ -995,6 +998,7 @@ dict_load_field_low(
 	ulint		len;
 	ulint		pos_and_prefix_len;
 	ulint		prefix_len;
+	bool		is_ascending;
 	ibool		first_field;
 	ulint		position;
 
@@ -1050,10 +1054,12 @@ err_len:
 	}
 
 	if (first_field || pos_and_prefix_len > 0xFFFFUL) {
-		prefix_len = pos_and_prefix_len & 0xFFFFUL;
+		prefix_len = pos_and_prefix_len & 0x7FFFUL;
+		is_ascending = !(pos_and_prefix_len & 0x8000UL);
 		position = (pos_and_prefix_len & 0xFFFF0000UL)  >> 16;
 	} else {
 		prefix_len = 0;
+		is_ascending = true;
 		position = pos_and_prefix_len & 0xFFFFUL;
 	}
 
@@ -1077,7 +1083,7 @@ err_len:
 	if (index) {
 		index->add_field(
 			mem_heap_strdupl(heap, (const char*) field, len),
-			prefix_len);
+			prefix_len, is_ascending);
 	} else {
 		ut_a(sys_field);
 		ut_a(pos);
@@ -1789,9 +1795,10 @@ dict_check_sys_tablespaces(
 			continue;
 		}
 
-		/* Ignore system and file-per-table tablespaces,
+		/* Ignore system, undo and file-per-table tablespaces,
 		and tablespaces that already are in the tablespace cache. */
 		if (fsp_is_system_or_temp_tablespace(space_id)
+		    || fsp_is_undo_tablespace(space_id)
 		    || !fsp_is_shared_tablespace(fsp_flags)
 		    || fil_space_for_table_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
@@ -1978,6 +1985,7 @@ dict_check_sys_tables(
 					 &n_cols, &flags, &flags2);
 		if (flags == ULINT_UNDEFINED
 		    || fsp_is_system_or_temp_tablespace(space_id)) {
+                        ut_ad(!fsp_is_undo_tablespace(space_id));
 			ut_free(table_name.m_name);
 			continue;
 		}
@@ -3635,6 +3643,7 @@ loop:
 
 	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
 			       dfield_get_type(dfield)->prtype,
+			       true,
 			       static_cast<const byte*>(
 				       dfield_get_data(dfield)),
 			       dfield_get_len(dfield),

@@ -18,3 +18,4 @@ perfschema.innodb_is_data_locks             : Bug#24688694 2016-09-19 Marc Frequ
 #NewDD disable some test cases for wl#9532.
 variables_info : Waiting for wl#9532
 table_name	                            : wait for Bug 25338895 - NEWDD: RENAME TABLE DID NOT CHANGE FOREIGN KEY NAME ACCORDIN
+perfschema.stage_mdl_table                  : Bug#24688694 2017-01-06 Erlend Frequent failures on PB2

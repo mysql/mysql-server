@@ -296,7 +296,6 @@ void opt_trace_print_expanded_query(THD *thd, SELECT_LEX *select_lex,
 
 void opt_trace_disable_if_no_security_context_access(THD *thd)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_check_disable_if_no_security_context_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || // (1)
@@ -365,13 +364,11 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
                           thd->security_context()->priv_host().str)))
     trace->missing_privilege();
   DBUG_VOID_RETURN;
-#endif
 }
 
 
 void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_disable_if_no_stored_proc_func_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || thd->system_thread)
@@ -393,14 +390,12 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
   if (rc)
     trace->missing_privilege();
   DBUG_VOID_RETURN;
-#endif
 }
 
 
 void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
                                          TABLE_LIST *underlying_tables)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_disable_if_no_view_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || thd->system_thread)
@@ -439,7 +434,6 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   */
   opt_trace_disable_if_no_tables_access(thd, underlying_tables);
   DBUG_VOID_RETURN;
-#endif
 }
 
 
@@ -462,7 +456,6 @@ namespace {
 */
 void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_disable_if_no_tables_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || thd->system_thread)
@@ -523,7 +516,6 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
   }
   thd->set_security_context(backup_thd_sctx);
   DBUG_VOID_RETURN;
-#endif
 }
 
 } // namespace

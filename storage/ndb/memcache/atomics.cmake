@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ IF(NOT MSVC)
 # we're going to retest using "-march=pentium"
 
 
-  if(CMAKE_COMPILER_IS_GNUCC AND NOT HAVE_GCC_ATOMIC_BUILTINS)
+  if(CMAKE_COMPILER_IS_GNUCC AND NOT (HAVE_GCC_ATOMIC_BUILTINS OR HAVE_GCC_SYNC_BUILTINS))
      set(OLD_FLAGS ${CMAKE_REQUIRED_FLAGS})
      set(CMAKE_REQUIRED_FLAGS "${OLD_FLAGS} -march=pentium")
      CHECK_C_SOURCE_RUNS(
@@ -71,7 +71,7 @@ IF(HAVE_GCC_ATOMICS_WITH_ARCH_FLAG)
   add_definitions(-march=pentium)
 ENDIF()
 
-IF(HAVE_GCC_ATOMIC_BUILTINS OR HAVE_GCC_ATOMICS_WITH_ARCH_FLAG)
+IF(HAVE_GCC_ATOMIC_BUILTINS OR HAVE_GCC_SYNC_BUILTINS OR HAVE_GCC_ATOMICS_WITH_ARCH_FLAG)
   MESSAGE(STATUS "Using gcc atomic builtins") 
 ELSEIF(HAVE_DARWIN_ATOMICS) 
   MESSAGE(STATUS "Using Darwin OSAtomic") 

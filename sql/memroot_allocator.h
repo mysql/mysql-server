@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,11 @@
 #ifndef MEMROOT_ALLOCATOR_INCLUDED
 #define MEMROOT_ALLOCATOR_INCLUDED
 
-#include "sql_alloc.h"
-
-#include <new>
 #include <limits>
+#include <new>
+
+#include "my_dbug.h"
+#include "sql_alloc.h"
 
 
 /**
@@ -90,7 +91,7 @@ public:
   ~Memroot_allocator()
   {}
 
-  pointer allocate(size_type n, const_pointer hint= 0)
+  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused))= 0)
   {
     if (n == 0)
       return NULL;
@@ -103,7 +104,7 @@ public:
     return p;
   }
 
-  void deallocate(pointer p, size_type n) { }
+  void deallocate(pointer, size_type) { }
 
   void construct(pointer p, const T& val)
   {

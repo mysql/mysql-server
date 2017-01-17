@@ -75,11 +75,6 @@ Character_sets::Character_sets()
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(name)");
 
-  // Add an explicit index for the FK column to avoid errors regarding
-  // different number of indexes known to InnoDB and MySQL
-  // WL#7743 FIXME
-  m_target_def.add_index("UNIQUE KEY(default_collation_id)");
-
   m_target_def.add_cyclic_foreign_key("FOREIGN KEY (default_collation_id) "
                                       "REFERENCES collations(id)");
 }

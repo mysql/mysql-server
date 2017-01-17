@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_dbug.h"
 #include "myisamdef.h"
 #include "rt_index.h"
 #include "rt_key.h"
@@ -28,13 +29,6 @@
 #else
   #define my_isfinite(X) finite(X)
 #endif
-#ifdef HAVE_ISINF
-  /* System-provided isinf() is available and safe to use */
-  #define my_isinf(X) isinf(X)
-#else /* !HAVE_ISINF */
-  #define my_isinf(X) (!my_isfinite(X) && !isnan(X))
-#endif
-
 
 typedef struct
 {
@@ -84,7 +78,7 @@ static double mbr_join_square(const double *a, const double *b, int n_dim)
   }while (a != end);
 
   /* Check for infinity or NaN */
-  if (my_isinf(square) || isnan(square))
+  if (!my_isfinite(square))
     square = DBL_MAX;
 
   return square;

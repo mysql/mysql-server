@@ -159,7 +159,7 @@ SET SESSION debug=@save_debug;
 create table t1(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6217" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 4008
+--error 1296
 alter table t1 add partition partitions 2;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT

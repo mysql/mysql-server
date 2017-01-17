@@ -79,7 +79,7 @@ struct PSI_idle_bootstrap
     @sa PSI_IDLE_VERSION_2
     @sa PSI_CURRENT_IDLE_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
 
@@ -123,15 +123,14 @@ typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
   @param src_line the source line number
   @return an idle locker, or NULL
 */
-typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
-  (struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
+  struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
 
 /**
   Record an idle instrumentation wait end event.
   @param locker a thread locker for the running thread
 */
-typedef void (*end_idle_wait_v1_t)
-  (struct PSI_idle_locker *locker);
+typedef void (*end_idle_wait_v1_t)(struct PSI_idle_locker *locker);
 
 /**
   Performance Schema Idle Interface, version 1.
@@ -165,4 +164,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_idle_service_t *psi_idle_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_IDLE_H */
-

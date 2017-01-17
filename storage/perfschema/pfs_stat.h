@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,12 +17,13 @@
 #define PFS_STAT_H
 
 #include <algorithm>
+
+#include "my_dbug.h"
+#include "pfs_error.h"
+#include "pfs_global.h"
 #include "sql_const.h"
 /* memcpy */
 #include "string.h"
-
-#include "pfs_error.h"
-#include "pfs_global.h"
 
 struct PFS_builtin_memory_class;
 

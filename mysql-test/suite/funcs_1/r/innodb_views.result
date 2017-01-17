@@ -4183,7 +4183,7 @@ CREATE OR REPLACE VIEW v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`column1`,`column2`) AS select `t1`.`f1` AS `my_column`,`t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1 ORDER BY 1;
 column1	column2
 8.800	8.800
@@ -4191,7 +4191,7 @@ CREATE OR REPLACE VIEW test.v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM test.t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`column1`,`column2`) AS select `t1`.`f1` AS `my_column`,`t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1 ORDER BY 1;
 column1	column2
 8.800	8.800

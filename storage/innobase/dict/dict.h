@@ -30,14 +30,18 @@ external tools. */
 
 #ifndef dict_dict_h
 #define dict_dict_h
-/*******************************************************************//**
-Adds a column to index. */
+/** Adds a column to index.
+@param[in,out]	index		index
+@param[in]	table		table
+@param[in]	col		column
+@param[in]	prefix_len	column prefix length
+@param[in]	is_ascending	true=ASC, false=DESC */
 void
 dict_index_add_col(
-/*===============*/
-	dict_index_t*		index,		/*!< in/out: index */
-	const dict_table_t*	table,		/*!< in: table */
-	dict_col_t*		col,		/*!< in: column */
-	ulint			prefix_len);	/*!< in: column prefix length */
+	dict_index_t*		index,
+	const dict_table_t*	table,
+	dict_col_t*		col,
+	ulint			prefix_len,
+	bool			is_ascending);
 
 #endif

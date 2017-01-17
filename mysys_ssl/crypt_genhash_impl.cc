@@ -23,24 +23,28 @@
 #ifdef HAVE_OPENSSL
 
 #ifdef HAVE_YASSL
-#include <sha.hpp>
 #include <openssl/ssl.h>
+#include <sha.hpp>
 #else
-#include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #endif
 
-#include "crypt_genhash_impl.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
+#include "crypt_genhash_impl.h"
 #include "m_string.h"
 #include "mysql/service_my_snprintf.h"
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
-
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
+
+#ifdef _WIN32
+#include <malloc.h>
 #endif
 
 #ifndef HAVE_YASSL

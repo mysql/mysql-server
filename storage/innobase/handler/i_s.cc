@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,13 +23,12 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <field.h>
 #include <sql_acl.h>
 #include <sql_show.h>
 #include <sql_time.h>
 
-#include "i_s.h"
+#include "btr0btr.h"
 #include "btr0pcur.h"
 #include "btr0types.h"
 #include "dict0dict.h"
@@ -38,23 +37,27 @@ Created July 18, 2007 Vasil Dimov
 #include "buf0buddy.h"
 #include "buf0buf.h"
 #include "buf0stats.h"
-#include "ibuf0ibuf.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0types.h"
+#include "fsp0sysspace.h"
+#include "fts0opt.h"
+#include "fts0priv.h"
+#include "fts0types.h"
+#include "fut0fut.h"
+#include "ha_prototypes.h"
+#include "i_s.h"
+#include "ibuf0ibuf.h"
+#include "my_dbug.h"
+#include "page0zip.h"
+#include "pars0pars.h"
+#include "srv0mon.h"
 #include "srv0start.h"
 #include "trx0i_s.h"
 #include "trx0trx.h"
-#include "srv0mon.h"
-#include "fut0fut.h"
-#include "pars0pars.h"
-#include "fts0types.h"
-#include "fts0opt.h"
-#include "fts0priv.h"
-#include "btr0btr.h"
-#include "page0zip.h"
-#include "fsp0sysspace.h"
 #include "ut0new.h"
-#include "dict0crea.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */

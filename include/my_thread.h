@@ -26,9 +26,12 @@
 
 #include "my_compiler.h"
 #include "my_config.h"
-#include "my_global.h"              /* my_bool */
+#include "my_inttypes.h"
+#include "my_macros.h"
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <pthread.h>                // IWYU pragma: export
 #include <sched.h>                  // IWYU pragma: export
 #endif
@@ -45,10 +48,16 @@
   MySQL can survive with 32K, but some glibc libraries require > 128K stack
   To resolve hostnames. Also recursive stored procedures needs stack.
 */
-#if SIZEOF_CHARP > 4
-#define DEFAULT_THREAD_STACK	(256*1024L)
+#if defined(__sparc) && (defined(__SUNPRO_CC) || defined(__SUNPRO_C))
+#define STACK_MULTIPLIER 2UL
 #else
-#define DEFAULT_THREAD_STACK	(192*1024)
+#define STACK_MULTIPLIER 1UL
+#endif
+
+#if SIZEOF_CHARP > 4
+#define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 256UL * 1024UL)
+#else
+#define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 192UL * 1024UL)
 #endif
 
 #ifdef  __cplusplus

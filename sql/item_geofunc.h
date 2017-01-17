@@ -193,11 +193,11 @@ public:
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
   template<typename Coordsys>
-  void merge_components(my_bool *pnull_value);
+  void merge_components(bool *pnull_value);
 private:
   template<typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
-                     my_bool *pnull_value);
+                     bool *pnull_value);
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);
 };
@@ -274,6 +274,10 @@ public:
   Item_func_geometry_from_text(const POS &pos, Item *a, Item *srid,
                                Functype functype)
     :Item_geometry_func(pos, a, srid), m_functype(functype)
+  {}
+  Item_func_geometry_from_text(const POS &pos, Item *a, Item *srid,
+                               Item *option, Functype functype)
+    :Item_geometry_func(pos, a, srid, option), m_functype(functype)
   {}
 
   bool itemize(Parse_context *pc, Item **res) override;
@@ -844,29 +848,6 @@ public:
   String *val_str(String *) override;
 };
 
-class Item_func_startpoint : public Item_func_spatial_decomp
-{
-public:
-  Item_func_startpoint(const POS &pos, Item *a)
-    : Item_func_spatial_decomp(POS(), a, Item_func::SP_STARTPOINT)
-  {}
-};
-
-class Item_func_endpoint : public Item_func_spatial_decomp
-{
-public:
-  Item_func_endpoint(const POS &pos, Item *a)
-    : Item_func_spatial_decomp(POS(), a, Item_func::SP_ENDPOINT)
-  {}
-};
-
-class Item_func_exteriorring : public Item_func_spatial_decomp
-{
-public:
-  Item_func_exteriorring(const POS &pos, Item *a)
-    : Item_func_spatial_decomp(POS(), a, Item_func::SP_EXTERIORRING)
-  {}
-};
 
 class Item_func_spatial_decomp_n: public Item_geometry_func
 {
@@ -1015,7 +996,7 @@ public:
 
   template<typename CoordinateSystemType>
   static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
-                                   Functype relchk_type, my_bool *);
+                                   Functype relchk_type, bool *);
 
 protected:
 
@@ -1024,25 +1005,25 @@ protected:
 
   template<typename Geotypes>
   static int within_check(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value);
+                          bool *pnull_value);
   template<typename Geotypes>
   static int equals_check(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value);
+                          bool *pnull_value);
   template<typename Geotypes>
   static int disjoint_check(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
   template<typename Geotypes>
   static int intersects_check(Geometry *g1, Geometry *g2,
-                              my_bool *pnull_value);
+                              bool *pnull_value);
   template<typename Geotypes>
   static int overlaps_check(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
   template<typename Geotypes>
   static int touches_check(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value);
+                           bool *pnull_value);
   template<typename Geotypes>
   static int crosses_check(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value);
+                           bool *pnull_value);
 
   template<typename Coordsys>
   int multipoint_within_geometry_collection(Gis_multi_point *mpts,
@@ -1372,6 +1353,15 @@ public:
 };
 
 
+class Item_func_swap_xy : public Item_geometry_func
+{
+public:
+  Item_func_swap_xy(const POS &pos, Item *a) : Item_geometry_func(pos, a) {}
+  const char *func_name() const { return "st_swapxy"; }
+  String *val_str(String *);
+};
+
+
 class Item_func_numgeometries: public Item_int_func
 {
   String value;
@@ -1503,30 +1493,56 @@ public:
 
 class Item_func_distance: public Item_real_func
 {
-  // Default earth radius in meters.
-  bool is_spherical_equatorial;
-  double earth_radius;
-  String tmp_value1;
-  String tmp_value2;
-
   double geometry_collection_distance(const Geometry *g1, const Geometry *g2);
 
   template <typename Coordsys, typename BG_geometry>
   double distance_dispatch_second_geometry(const BG_geometry& bg1,
                                            const Geometry* g2);
 
-  double distance_point_geometry_spherical(const Geometry *g1,
-                                           const Geometry *g2);
-  double distance_multipoint_geometry_spherical(const Geometry *g1,
-                                                const Geometry *g2);
 public:
-  double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
   template <typename Coordsys>
   double bg_distance(const Geometry *g1, const Geometry *g2);
 
-  Item_func_distance(const POS &pos, PT_item_list *ilist, bool isspherical)
-    : Item_real_func(pos, ilist), is_spherical_equatorial(isspherical),
-      earth_radius(6370986.0)                   /* Default earth radius. */
+  Item_func_distance(const POS &pos, PT_item_list *ilist)
+    : Item_real_func(pos, ilist)
+  {
+    /*
+      Either operand can be an empty geometry collection, and it's meaningless
+      for a distance between them.
+    */
+    maybe_null= true;
+  }
+
+  virtual bool resolve_type(THD *thd) override
+  {
+    if (Item_real_func::resolve_type(thd))
+      return true;
+    maybe_null= true;
+    return false;
+  }
+
+  double val_real() override;
+  const char *func_name() const override
+  {
+    return "st_distance";
+  }
+};
+
+
+class Item_func_distance_sphere: public Item_real_func
+{
+  double distance_point_geometry_spherical(const Geometry *g1,
+                                           const Geometry *g2,
+                                           double earth_radius);
+  double distance_multipoint_geometry_spherical(const Geometry *g1,
+                                                const Geometry *g2,
+                                                double earth_radius);
+public:
+  double bg_distance_spherical(const Geometry *g1, const Geometry *g2,
+                               double earth_radius);
+
+  Item_func_distance_sphere(const POS &pos, PT_item_list *ilist)
+    : Item_real_func(pos, ilist)
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless
@@ -1546,7 +1562,7 @@ public:
   double val_real() override;
   const char *func_name() const override
   {
-    return is_spherical_equatorial ? "st_distance_sphere" : "st_distance";
+    return "st_distance_sphere";
   }
 };
 

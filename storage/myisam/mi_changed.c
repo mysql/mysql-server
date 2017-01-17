@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2001, 2005, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 /* Check if somebody has changed table since last check. */
 
+#include "my_dbug.h"
 #include "myisamdef.h"
 
        /* Return 0 if table isn't changed */

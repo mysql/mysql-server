@@ -58,7 +58,7 @@ extern TYPELIB bool_typelib;
 
 /* Number of system variable elements to preallocate. */
 #define SHOW_VAR_PREALLOC 200
-typedef Prealloced_array<SHOW_VAR, SHOW_VAR_PREALLOC, false> Show_var_array;
+typedef Prealloced_array<SHOW_VAR, SHOW_VAR_PREALLOC> Show_var_array;
 
 struct sys_var_chain
 {

@@ -20,7 +20,10 @@
   @file include/my_default.h
 */
 
-#include "my_global.h"
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 C_MODE_START
 

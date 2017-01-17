@@ -940,7 +940,7 @@ ndbd_run(bool foreground, int report_fd,
     ndbout_c("Failed to open signal logging file '%s', errno: %d",
              signal_log_name, errno);
   }
-  NdbMem_Free(signal_log_name);
+  free(signal_log_name);
 #endif
 
   /** Create all the blocks used by the run-time environment. */

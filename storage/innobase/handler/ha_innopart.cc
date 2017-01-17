@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,18 +21,18 @@ Code for native partitioning in InnoDB.
 
 Created Nov 22, 2013 Mattias Jonsson */
 
-#include "univ.i"
-
 /* Include necessary SQL headers */
 #include <debug_sync.h>
+#include <fcntl.h>
 #include <log.h>
+#include <my_check_opt.h>
 #include <mysqld.h>
-#include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
-#include <my_check_opt.h>
+#include <strfunc.h>
+#include <new>
 
 #include "dd/dd.h"
 #include "dd/dictionary.h"
@@ -46,21 +46,22 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "dict0priv.h"
 #include "dict0dd.h"
 #include "dict0stats.h"
+#include "fsp0sysspace.h"
+#include "ha_innodb.h"
+#include "ha_innopart.h"
+#include "key.h"
 #include "lock0lock.h"
+#include "my_dbug.h"
+#include "partition_info.h"
 #include "row0import.h"
+#include "row0ins.h"
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "row0sel.h"
-#include "row0ins.h"
 #include "row0upd.h"
-#include "fsp0sysspace.h"
+#include "univ.i"
 #include "ut0ut.h"
-
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "partition_info.h"
-#include "key.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -1201,6 +1202,8 @@ ha_innopart::clone(
 
 		new_handler->m_prebuilt->select_lock_type =
 			m_prebuilt->select_lock_type;
+		new_handler->m_prebuilt->select_mode =
+			m_prebuilt->select_mode;
 	}
 
 	DBUG_RETURN(new_handler);
@@ -2558,7 +2561,7 @@ create_table_info_t::set_remote_path_flags()
 partitions, columns and indexes etc.
 @param[in]	create_info	Additional create information, like
 create statement string.
-@parami[in,out]	table_def	dd::Table object for table to be created.
+@param[in,out]	table_def	dd::Table object for table to be created.
 Can be adjusted by this call. Changes to the table definition will be
 persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
@@ -3060,11 +3063,16 @@ ha_innopart::update_dd_for_discard(
 }
 
 /** Discards or imports an InnoDB tablespace.
-@param[in]	discard	True if discard, else import.
+@param[in]	discard		True if discard, else import.
+@param[in,out]	table_def	dd::Table describing table which
+tablespaces are to be imported or discarded. Can be adjusted by SE,
+the changes will be saved into the data-dictionary at statement
+commit time.
 @return	0 or error number. */
 int
 ha_innopart::discard_or_import_tablespace(
-	my_bool	discard)
+	my_bool		discard,
+	dd::Table*	table_def)
 {
 	int		error = 0;
 	uint		i;
@@ -3078,7 +3086,8 @@ ha_innopart::discard_or_import_tablespace(
 
 		m_prebuilt->table = m_part_share->get_table_part(i);
 		old_table_id = m_prebuilt->table->id;
-		error= ha_innobase::discard_or_import_tablespace(discard);
+		error= ha_innobase::discard_or_import_tablespace(discard,
+				table_def);
 		if (error != 0) {
 			break;
 		}

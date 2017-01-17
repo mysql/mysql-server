@@ -37,17 +37,17 @@ TEST_F(WildCaseCompareTest, BasicTest)
   EXPECT_EQ(1, wild_case_compare(system_charset_info, "db1aaaa", "db_"));
   EXPECT_EQ(0, wild_case_compare(system_charset_info, "db02aaaa", "db__aaaa"));
   EXPECT_EQ(1, wild_case_compare(system_charset_info, "db02aaaa", "db_aaaa"));
-  EXPECT_EQ(0, wild_case_compare(system_charset_info, "db02aaaa", "db\%aaaa"));
-  EXPECT_EQ(1, wild_case_compare(system_charset_info, "db02aaaa", "db\%aaab"));
+  EXPECT_EQ(0, wild_case_compare(system_charset_info, "db02aaaa", "db%aaaa"));
+  EXPECT_EQ(1, wild_case_compare(system_charset_info, "db02aaaa", "db%aaab"));
   EXPECT_EQ(1, wild_case_compare(system_charset_info,
             "Com_alter_user",
-            "\%users_lost\%"));
+            "%users_lost%"));
   EXPECT_EQ(0, wild_case_compare(system_charset_info,
             "Performance_schema_users_lost",
-            "\%users_lost\%"));
+            "%users_lost%"));
   EXPECT_EQ(0, wild_case_compare(system_charset_info,
             "aaaa_users_lost_aaaa",
-            "\%users_lost\%"));
+            "%users_lost%"));
   EXPECT_EQ(0, wild_case_compare(system_charset_info,
             "",
             "%"));
@@ -56,7 +56,7 @@ TEST_F(WildCaseCompareTest, BasicTest)
             ""));
   EXPECT_EQ(0, wild_case_compare(system_charset_info,
             "aaaa",
-            "\%\%\%\%"));
+            "%%%%"));
   EXPECT_EQ(1, wild_case_compare(system_charset_info,
             "\\_\\_\\_",
             "_\\_\\_"));

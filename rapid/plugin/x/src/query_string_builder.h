@@ -40,28 +40,28 @@ public:
   Query_string_builder(size_t reserve = 256);
   ~Query_string_builder();
 
-  inline Query_string_builder &bquote()
+  Query_string_builder &bquote()
   {
     m_str.push_back('\'');
     m_in_quoted = true;
     return *this;
   }
 
-  inline Query_string_builder &equote()
+  Query_string_builder &equote()
   {
     m_str.push_back('\'');
     m_in_quoted = false;
     return *this;
   }
 
-  inline Query_string_builder &bident()
+  Query_string_builder &bident()
   {
     m_str.push_back('`');
     m_in_identifier = true;
     return *this;
   }
 
-  inline Query_string_builder &eident()
+  Query_string_builder &eident()
   {
     m_str.push_back('`');
     m_in_identifier = false;
@@ -72,39 +72,48 @@ public:
   Query_string_builder &quote_identifier(const char *s, size_t length);
   Query_string_builder &quote_string(const char *s, size_t length);
 
-  inline Query_string_builder &quote_identifier_if_needed(const std::string &s) { return quote_identifier_if_needed(s.data(), s.length()); }
-  inline Query_string_builder &quote_identifier(const std::string &s) { return quote_identifier(s.data(), s.length()); }
-  inline Query_string_builder &quote_string(const std::string &s) { return quote_string(s.data(), s.length()); }
+  Query_string_builder &quote_identifier_if_needed(const std::string &s)
+  {
+    return quote_identifier_if_needed(s.data(), s.length());
+  }
+
+  Query_string_builder &quote_identifier(const std::string &s)
+  {
+    return quote_identifier(s.data(), s.length());
+  }
+
+  Query_string_builder &quote_string(const std::string &s)
+  {
+    return quote_string(s.data(), s.length());
+  }
 
   Query_string_builder &escape_identifier(const char *s, size_t length);
   Query_string_builder &escape_string(const char *s, size_t length);
 
-  Query_string_builder &dot();
+  Query_string_builder &dot() { return put(".", 1); }
 
-  Query_string_builder &put(const int64_t i);
-  Query_string_builder &put(const uint64_t ui);
+  Query_string_builder &put(const int64_t i) { return put(ngs::to_string(i)); }
+  Query_string_builder &put(const uint64_t u) { return put(ngs::to_string(u)); }
 
-  Query_string_builder &put(const int32_t i);
-  Query_string_builder &put(const uint32_t ui);
+//  NOTE: Commented for coverage. Uncomment when needed.
+//  Query_string_builder &put(const int32_t i) { return put(ngs::to_string(i)); }
 
-  Query_string_builder &put(const float f);
-  Query_string_builder &put(const double d);
+  Query_string_builder &put(const uint32_t u) { return put(ngs::to_string(u)); }
+  Query_string_builder &put(const float f) { return put(ngs::to_string(f)); }
+  Query_string_builder &put(const double d) { return put(ngs::to_string(d)); }
 
   Query_string_builder &put(const char *s, size_t length);
 
   Query_formatter format();
 
-  inline Query_string_builder &put(const char *s)
-  {
-    return put(s, strlen(s));
-  }
+  Query_string_builder &put(const char *s) { return put(s, strlen(s)); }
 
-  inline Query_string_builder &put(const std::string &s)
+  Query_string_builder &put(const std::string &s)
   {
     return put(s.data(), s.length());
   }
 
-  inline Query_string_builder &put(const ngs::PFS_string &s)
+  Query_string_builder &put(const ngs::PFS_string &s)
   {
     return put(s.data(), s.length());
   }
@@ -119,7 +128,7 @@ public:
     m_str.reserve(bytes);
   }
 
-  inline const ngs::PFS_string &get() const { return m_str; }
+  const ngs::PFS_string &get() const { return m_str; }
 
 private:
   ngs::PFS_string m_str;

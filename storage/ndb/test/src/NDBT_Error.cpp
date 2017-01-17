@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +19,6 @@
 /* This program deals with error handling */
 
 #include <ndb_global.h>
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
@@ -233,7 +231,7 @@ void ErrorData::printCmdLineArgs(NdbOut & out)
 }//printCmdLineArgs()
 
 
-bool ErrorData::parseCmdLineArg(const char** argv, int & i)
+bool ErrorData::parseCmdLineArg(char** argv, int & i)
 {
   bool ret_Value = true;
   if (strcmp(argv[i], "-key_err") == 0){

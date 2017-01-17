@@ -53,6 +53,12 @@
     - Setting server default character set
 */
 
+extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf32_unicode_ci;
+extern CHARSET_INFO my_charset_cp932_japanese_ci;
+
 my_bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
 {
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));

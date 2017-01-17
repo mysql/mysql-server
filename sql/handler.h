@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
 
 #include <fcntl.h>
 #include <float.h>
+#include <random>       // std::mt19937
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -446,6 +447,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
+/**
+  Supports descending indexes
+*/
+#define HA_DESCENDING_INDEX (1LL << 48)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.
@@ -618,6 +624,10 @@ enum enum_binlog_command {
   LOGCOM_ACL_NOTIFY
 };
 
+enum class enum_sampling_method
+{
+  SYSTEM
+};
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO             (1L << 0)
@@ -791,8 +801,6 @@ enum enum_schema_tables
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
-  SCH_GLOBAL_STATUS,
-  SCH_GLOBAL_VARIABLES,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
   SCH_PARAMETERS,
@@ -803,14 +811,10 @@ enum enum_schema_tables
   SCH_REFERENTIAL_CONSTRAINTS,
   SCH_PROCEDURES,
   SCH_SCHEMA_PRIVILEGES,
-  SCH_SESSION_STATUS,
-  SCH_SESSION_VARIABLES,
-  SCH_STATUS,
   SCH_TABLESPACES,
   SCH_TABLE_PRIVILEGES,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
-  SCH_VARIABLES,
   SCH_TMP_TABLE_COLUMNS,
   SCH_TMP_TABLE_KEYS,
   SCH_LAST=SCH_TMP_TABLE_KEYS
@@ -1063,7 +1067,7 @@ typedef int (*get_tablespace_t)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table
                               operation on it.
   @param          old_ts_def  dd::Tablespace object describing old version
                               of tablespace.
-  @param [in/out] new_ts_def  dd::Tablespace object describing new version
+  @param [in,out] new_ts_def  dd::Tablespace object describing new version
                               of tablespace. Engines which support atomic DDL
                               can adjust this object. The updated information
                               will be saved to the data-dictionary.
@@ -3198,7 +3202,7 @@ public:
   /** Length of ref (1-8 or the clustered key length) */
   uint ref_length;
   FT_INFO *ft_handler;
-  enum {NONE=0, INDEX, RND} inited;
+  enum {NONE=0, INDEX, RND, SAMPLING} inited;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const Item *pushed_cond;
 
@@ -3240,6 +3244,8 @@ public:
   */
   PSI_table *m_psi;
 
+  std::mt19937 m_random_number_engine;
+  double m_sampling_percentage;
 private:
   /** Internal state of the batch instrumentation. */
   enum batch_mode_t
@@ -3293,6 +3299,17 @@ public:
   void start_psi_batch_mode();
   /** End a batch started with @c start_psi_batch_mode. */
   void end_psi_batch_mode();
+  /**
+     If a PSI batch was started, turn if off.
+     @returns true if it was started.
+  */
+  bool end_psi_batch_mode_if_started()
+  {
+    bool rc= m_psi_batch_mode;
+    if (rc)
+      end_psi_batch_mode();
+    return rc;
+  }
 
 private:
   /**
@@ -3354,18 +3371,6 @@ public:
   }
   /* TODO: reorganize the methods and have proper public/protected/private qualifiers!!! */
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
-
-protected:
-  /*
-    Helper methods which simplify custom clone() implementations by
-    storage engines.
-
-    WL7743/TODO: Check with InnoDB guys if we really need these methods.
-  */
-  handler* ha_clone_prepare(MEM_ROOT *mem_root) const;
-  void ha_open_psi();
-
-public:
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
@@ -3467,7 +3472,7 @@ public:
   bool ha_check_and_repair(THD *thd);
   int ha_disable_indexes(uint mode);
   int ha_enable_indexes(uint mode);
-  int ha_discard_or_import_tablespace(my_bool discard);
+  int ha_discard_or_import_tablespace(my_bool discard, dd::Table *table_def);
   int ha_rename_table(const char *from, const char *to,
                       const dd::Table *from_table_def,
                       dd::Table *to_table_def);
@@ -3663,6 +3668,10 @@ public:
 
   double index_in_memory_estimate(uint keyno) const;
 
+  int ha_sample_init(double sampling_percentage, int sampling_seed,
+                     enum_sampling_method sampling_method);
+  int ha_sample_next(uchar *buf);
+  int ha_sample_end();
 private:
   /**
     Make a guestimate for how much of a table or index is in a memory
@@ -3956,7 +3965,7 @@ public:
                      enum_range_scan_direction direction);
   int compare_key(key_range *range);
   int compare_key_icp(const key_range *range) const;
-  int compare_key_in_buffer(const uchar *buf);
+  int compare_key_in_buffer(const uchar *buf) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags MY_ATTRIBUTE((unused)),
@@ -4912,7 +4921,7 @@ protected:
     @param [in]     to              Path for the new table name.
     @param [in]     from_table_def  Old version of definition for table
                                     being renamed (i.e. prior to rename).
-    @param [in/out] to_table_def    New version of definition for table
+    @param [in,out] to_table_def    New version of definition for table
                                     being renamed. Storage engines which
                                     support atomic DDL (i.e. having
                                     HTON_SUPPORTS_ATOMIC_DDL flag set)
@@ -5099,6 +5108,10 @@ private:
   */
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
   { *max_rows= 0; return false; }
+
+  virtual int sample_init();
+  virtual int sample_next(uchar *buf);
+  virtual int sample_end();
 protected:
   virtual int index_read(uchar *buf MY_ATTRIBUTE((unused)),
                          const uchar *key MY_ATTRIBUTE((unused)),
@@ -5155,7 +5168,7 @@ public:
   /**
     Quickly remove all rows from a table.
 
-    @param[in/out]  table_def  dd::Table object for table being truncated.
+    @param[in,out]  table_def  dd::Table object for table being truncated.
 
     @remark This method is responsible for implementing MySQL's TRUNCATE
             TABLE statement, which is a DDL operation. As such, a engine
@@ -5228,21 +5241,40 @@ public:
 
   virtual int enable_indexes(uint mode MY_ATTRIBUTE((unused)))
   { return HA_ERR_WRONG_COMMAND; }
-  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)))
+
+
+  /**
+    Discard or import tablespace.
+
+    @param  [in]      discard   Indicates whether this is discard operation.
+    @param  [in,out]  table_def dd::Table object describing the table
+                                in which tablespace needs to be discarded
+                                or imported. This object can be adjusted by
+                                storage engine if it supports atomic DDL
+                                (i.e. has HTON_SUPPORTS_ATOMIC_DDL flag set).
+                                These changes will be persisted in the
+                                data-dictionary.
+    @retval   0     Success.
+    @retval   != 0  Error.
+  */
+
+  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)),
+                dd::Table *table_def MY_ATTRIBUTE((unused)))
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);
     return HA_ERR_WRONG_COMMAND;
   }
+
   virtual void drop_table(const char *name);
 
   /**
     Create table (implementation).
 
-    @param  [in]      path      Path to table file (without extension).
+    @param  [in]      name      Table name.
     @param  [in]      form      TABLE object describing the table to be
                                 created.
     @param  [in]      info      HA_CREATE_INFO describing table.
-    @param  [in/out]  table_def dd::Table object describing the table
+    @param  [in,out]  table_def dd::Table object describing the table
                                 to be created. This object can be
                                 adjusted by storage engine if it
                                 supports atomic DDL (i.e. has
@@ -5267,10 +5299,10 @@ public:
 
     @param  [in]      create_info   HA_CREATE_INFO describing the table.
     @param  [in]      create_list   List of columns in the table.
-    @param  [in]      key           Array of KEY objects describing table
+    @param  [in]      key_info      Array of KEY objects describing table
                                     indexes.
     @param  [in]      key_count     Number of indexes in the table.
-    @param  [in/out]  table_def     dd::Table object describing the table
+    @param  [in,out]  table         dd::Table object describing the table
                                     to be created. Implicit columns and
                                     indexes are to be added to this object.
                                     Adjusted table description will be
@@ -5528,7 +5560,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *tmp_table_def);
+                    dd::Table *table_def);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias,

@@ -102,7 +102,7 @@ ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'ONN'
 SET @@session.low_priority_updates = ONF;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'ONF'
 SET @@session.low_priority_updates = OF;
-ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.low_priority_updates = 'OFN';
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'OFN'
 SET @@session.low_priority_updates = -2;

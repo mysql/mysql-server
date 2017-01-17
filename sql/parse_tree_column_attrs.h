@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef PARSE_TREE_COL_ATTRS_INCLUDED
 #define PARSE_TREE_COL_ATTRS_INCLUDED
 
-#include "my_global.h"
-#include "parse_tree_node_base.h"
-#include "mysql_com.h"
-#include "sql_alter.h"
-#include "mysql/mysql_lex_string.h"
-#include "sql_class.h"
 #include "item_timefunc.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+#include "sql_alter.h"
+#include "sql_class.h"
 #include "sql_parse.h"
 
 
@@ -56,12 +57,12 @@ protected:
 public:
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
-  virtual void apply_type_flags(ulong *type_flags) const {}
-  virtual void apply_alter_info_flags(uint *flags) const {}
-  virtual void apply_comment(LEX_STRING *comment) const {}
-  virtual void apply_default_value(Item **value) const {}
-  virtual void apply_on_update_value(Item **value) const {}
-  virtual bool apply_collation(const CHARSET_INFO **cs) const { return false; }
+  virtual void apply_type_flags(ulong*) const {}
+  virtual void apply_alter_info_flags(uint*) const {}
+  virtual void apply_comment(LEX_STRING*) const {}
+  virtual void apply_default_value(Item**) const {}
+  virtual void apply_on_update_value(Item**) const {}
+  virtual bool apply_collation(const CHARSET_INFO**) const { return false; }
 };
 
 

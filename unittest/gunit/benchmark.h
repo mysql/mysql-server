@@ -39,5 +39,6 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t));
 
 void StartBenchmarkTiming();
 void StopBenchmarkTiming();
+void SetBytesProcessed(size_t num_bytes);
 
 #endif  // BENCHMARK_H_INCLUDED

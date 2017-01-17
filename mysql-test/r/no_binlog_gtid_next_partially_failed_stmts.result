@@ -1,15 +1,41 @@
 RESET MASTER;
 SET SESSION GTID_NEXT='MASTER_UUID:1';
-CREATE TABLE t1 (a int);
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
 SET SESSION GTID_NEXT='MASTER_UUID:2';
+CREATE TABLE t5 (a int) ENGINE=InnoDB;
+SET SESSION GTID_NEXT='MASTER_UUID:3';
 #
-# Execute a partially failed DROP TABLE statement.
+# Original test case.
 #
-DROP TABLE t1, t2;
-ERROR 42S02: Unknown table 'test.t2'
+# The below DROP TABLE has partially failed before WL#7743.
+# Now if fails without side-effects and thus should not consume gitd.
 #
-# The table t1 was dropped, which means DROP TABLE
-# can be failed partially.
+DROP TABLE t1, t3;
+ERROR 42S02: Unknown table 'test.t3'
+#
+# The table t1 was not dropped.
+#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+#
+# Verify that the above DROP TABLE statement has not consumed gtid.
+#
+include/assert.inc [Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:2 into mysql.gtid_executed table]
+#
+# Now we simulate error after dropping MyISAM table. In this case
+# DROP TABLE is partially executed/failed and should consume gtid.
+#
+SET @@debug="+d,rm_table_no_locks_abort_before_atomic_tables";
+SET SESSION GTID_NEXT='MASTER_UUID:3';
+DROP TABLE t1, t5;
+ERROR HY000: Unknown error
+SET @@debug="-d,rm_table_no_locks_abort_before_atomic_tables";
+#
+# The above DROP TABLE should have deleted t1.
 #
 SHOW CREATE TABLE t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -21,19 +47,21 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 #
 include/assert.inc [Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED]
 include/assert.inc [Saved gtid MASTER_UUID:2 into mysql.gtid_executed table]
-SET SESSION GTID_NEXT='MASTER_UUID:3';
-CREATE TEMPORARY TABLE tmp1 (a int);
 SET SESSION GTID_NEXT='MASTER_UUID:4';
+CREATE TEMPORARY TABLE tmp1 (a int);
+SET SESSION GTID_NEXT='MASTER_UUID:5';
 #
-# Execute a partially failed DROP TEMPORARY TABLE statement.
+# The below DROP TEMPORARY TABLE has partially failed before WL#7743.
+# Now if fails without side-effects and thus should not consume gitd.
 #
+# There is no way for DROP TEMPORARY TABLE to partially fail now,
+# so unlike for DROP TABLE, there is no way to test scenario with
+# partial failure for it.
 DROP TEMPORARY TABLE tmp1, t2;
 ERROR 42S02: Unknown table 'test.t2'
 #
-# Verify that the partially failed DROP TEMPORARY TABLE statement can
-# consume its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
-# mysql.gtid_executed table when binlog is disabled as it did when
-# binlog is enabled.
+# Verify that failed DROP TEMPORARY TABLE statement has not
+# consumed its gtid.
 #
 include/assert.inc [Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED]
 include/assert.inc [Saved gtid MASTER_UUID:4 into mysql.gtid_executed table]
@@ -231,7 +259,46 @@ Error	1146	Table 'test.t_non_existent' doesn't exist
 #
 include/assert.inc [Did not commit gtid MASTER_UUID:12 into @@GLOBAL.GTID_EXECUTED]
 include/assert.inc [Did not save gtid MASTER_UUID:12 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:13';
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+ERROR HY000: Operation RENAME USER failed for 'u3'@'h'
+#
+# The u1 is not renamed on mysql.user which means that RENAME USER
+# cannot be failed partially.
+#
+SELECT user FROM mysql.user where user='u1';
+user
+u1
+#
+# Verify that the failed RENAME USER statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:13 and :14 into mysql.gtid_executed table]
+SELECT password_expired FROM mysql.user where user='u1';
+password_expired
+N
 SET SESSION GTID_NEXT='MASTER_UUID:15';
-DROP TABLE t1;
+ALTER USER u1@h, u3@h PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'u3'@'h'
+#
+# The u1 is not altered on mysql.user which means that ALTER USER
+# cannot be failed partially.
+#
+SELECT password_expired FROM mysql.user where user='u1';
+password_expired
+N
+#
+# Verify that the failed ALTER USER statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:15 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:15 into mysql.gtid_executed table]
 SET SESSION GTID_NEXT='MASTER_UUID:16';
+DROP TABLE t1;
+SET SESSION GTID_NEXT='MASTER_UUID:17';
+DROP TABLE t5;
+SET SESSION GTID_NEXT='MASTER_UUID:18';
 DROP USER u1@h;

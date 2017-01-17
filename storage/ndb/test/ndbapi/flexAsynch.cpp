@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include <ndb_global.h>
 #include "NdbApi.hpp"
 #include <NdbSchemaCon.hpp>
-#include <NdbMain.h>
 #include <md5_hash.hpp>
 
 #include <NdbThread.h>
@@ -88,7 +87,7 @@ struct ThreadNdb
 extern "C" { static void* threadLoop(void*); }
 static void setAttrNames(void);
 static void setTableNames(void);
-static int readArguments(int argc, const char** argv);
+static int readArguments(int argc, char** argv);
 static void dropTables(Ndb* pMyNdb);
 static int createTables(Ndb*);
 static void defineOperation(NdbConnection* aTransObject, StartType aType, 
@@ -230,7 +229,7 @@ tellThreads(StartType what)
 
 static Ndb_cluster_connection *g_cluster_connection[64];
 
-NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   ThreadNdb*            pThreadData;
@@ -2294,7 +2293,7 @@ too_large_number_error:
 
 static
 int 
-readArguments(int argc, const char** argv){
+readArguments(int argc, char** argv){
   
   int i = 1;
   while (argc > 1){

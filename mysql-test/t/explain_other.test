@@ -480,14 +480,10 @@ DROP TABLE tbl1, tbl2;
 
 connection default;
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
-
 create table t1(a char(10) charset latin1, key(a)) engine=innodb;
 create table t2(a binary(10), key(a)) engine=innodb;
 
-insert into t1 values('1'),('2'),('3');
+insert into t1 values('1'),('2'),('3'),('4');
 insert into t2 values('1'),('2'),('s');
 analyze table t1,t2;
 

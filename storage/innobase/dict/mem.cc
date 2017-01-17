@@ -28,6 +28,8 @@ Created 1/8/1996 Heikki Tuuri
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include <new>
+
 #include "dict0dict.h"
 #include "lock0lock.h"
 
@@ -123,6 +125,11 @@ dict_mem_table_free(
 
 	if (table->s_cols != NULL) {
 		UT_DELETE(table->s_cols);
+	}
+
+	if (table->temp_prebuilt != NULL) {
+		ut_ad(table->is_intrinsic());
+		UT_DELETE(table->temp_prebuilt);
 	}
 
 	mem_heap_free(table->heap);

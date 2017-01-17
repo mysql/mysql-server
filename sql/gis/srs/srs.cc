@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "srs.h"
 
+#include <boost/variant/get.hpp>
 #include <stddef.h>
 #include <cmath>
 #include <map>
@@ -25,8 +26,8 @@
 #include <utility>
 #include <vector>
 
-#include <boost/variant/get.hpp>
 #include "m_ctype.h"                       // my_strcasecmp
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*
@@ -170,7 +171,7 @@ static bool set_parameters(srid_t srid,
 namespace gis { namespace srs {
 
 
-bool Geographic_srs::init(srid_t srid, gis::srs::wkt_parser::Geographic_cs *g)
+bool Geographic_srs::init(srid_t, gis::srs::wkt_parser::Geographic_cs *g)
 {
   m_semi_major_axis= g->datum.spheroid.semi_major_axis;
   m_inverse_flattening= g->datum.spheroid.inverse_flattening;

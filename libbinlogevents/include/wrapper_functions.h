@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #ifdef HAVE_MYSYS
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+
 extern "C" {
 extern PSI_memory_key key_memory_log_event;
 }
@@ -47,6 +48,9 @@ extern PSI_memory_key key_memory_log_event;
 #endif
 
 #if !defined(DBUG_OFF)
+
+#include "my_dbug.h"
+
 #ifdef HAVE_MYSYS
 #define BAPI_ASSERT(x) DBUG_ASSERT(x)
 #else

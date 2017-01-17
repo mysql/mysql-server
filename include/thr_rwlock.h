@@ -36,9 +36,13 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "my_dbug.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "thr_cond.h"
 #include "thr_mutex.h"

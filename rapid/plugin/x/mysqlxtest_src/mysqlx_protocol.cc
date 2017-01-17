@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -27,20 +27,22 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
-#include "ngs_common/protocol_protobuf.h"
+#include <stdlib.h>
+
+#include "my_config.h"
+#include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_row.h"
-#include "mysqlx_error.h"
 #include "mysqlx_version.h"
-
-#include "my_config.h"
 #include "ngs_common/bind.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #ifdef MYSQLXTEST_STANDALONE
 #include "mysqlx/auth_mysql41.h"
 #else
 #include "password_hasher.h"
+
 namespace mysqlx {
   std::string build_mysql41_authentication_response(const std::string &salt_data,
     const std::string &user,
@@ -73,9 +75,9 @@ namespace mysqlx {
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif // HAVE_SYS_UN_H
-#include <string>
 #include <iostream>
 #include <limits>
+#include <string>
 
 #ifdef WIN32
 #  define snprintf _snprintf

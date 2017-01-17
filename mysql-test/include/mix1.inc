@@ -1134,7 +1134,10 @@ drop table t1;
 
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
-  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4),
+  (201, 'member', 2), (NULL, 'member', 5), (191, 'member', 6),
+  (191, 'member', 7), (191, 'member', 8), (191, 'member', 9),
+  (191, 'member', 10);
 
 -- disable_query_log
 -- disable_result_log
@@ -1169,6 +1172,7 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
 
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+INSERT INTO t1 (a,b,c) SELECT a+8,b,c FROM t1;
 
 -- disable_query_log
 -- disable_result_log
@@ -1179,7 +1183,7 @@ ANALYZE TABLE t1;
 # should be range access
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
-# should produce '8 7 6 5 4' for a
+# should produce '16 15 14 13 12' for a
 SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 DROP TABLE t1;

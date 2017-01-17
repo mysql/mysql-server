@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 */
 
 #include <assert.h>
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>
@@ -33,7 +34,10 @@
 #include <my_sys.h>
 #include <mysql_version.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <new>
 
+#include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
 

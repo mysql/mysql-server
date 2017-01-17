@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -908,7 +909,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   if (ret != SP_OK)
     DBUG_RETURN(ret);
 
-  ret= dd::remove_routine(thd, routine, true);
+  ret= dd::remove_routine(thd, routine);
 
   if (ret != SP_OK)
     DBUG_RETURN(ret);
@@ -1180,12 +1181,6 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
   enum_sp_return_code ret_code= SP_OK;
   for (const dd::Routine *routine : routines)
   {
-    // TODO: This extra acquire is required for now as Dictionary_client::drop()
-    // requires the object to be present in the DD cache. Since fetch_schema_components()
-    // bypasses the cache, the object is not there.
-    // Remove this code once either fetch_schema_components() uses the cache or
-    // Dictionary_client::drop() works with uncached objects.
-    const dd::Routine *routine2= NULL;
     sp_name name({ db, strlen(db) },
                  { const_cast<char *>(routine->name().c_str()),
                    routine->name().length() },
@@ -1193,16 +1188,14 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
     enum_sp_type type=
       is_dd_routine_type_function(routine) ? enum_sp_type::FUNCTION :
                                              enum_sp_type::PROCEDURE;
-    if (dd::find_routine(thd->dd_client(), &name, type, &routine2) != SP_OK)
-      DBUG_RETURN(SP_INTERNAL_ERROR);
 
     DBUG_EXECUTE_IF("fail_drop_db_routines",
                     { my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
                       DBUG_RETURN(SP_DROP_FAILED);} );
 
-    ret_code= dd::remove_routine(thd, routine2, false);
-    if (ret_code != SP_OK)
+    if (thd->dd_client()->drop(routine))
     {
+      ret_code= SP_DROP_FAILED;
       my_error(ER_SP_DROP_FAILED, MYF(0),
                is_dd_routine_type_function(routine) ? "FUNCTION" : "PROCEDURE",
                routine->name().c_str());

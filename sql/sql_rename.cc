@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names
 #include "mysqld_error.h"
+#include "sp_cache.h"         // sp_cache_invalidate
 #include "sql_base.h"         // tdc_remove_table,
                               // lock_table_names,
 #include "sql_cache.h"        // query_cache
@@ -66,12 +67,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
-  bool error= 1;
   TABLE_LIST *ren_table= 0;
-  int to_table;
-  char *rename_log_table[2]= {NULL, NULL};
-  bool int_commit_done= false;
-  std::set<handlerton*> post_ddl_htons;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -97,6 +93,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
       query_logger.is_log_table_enabled(QUERY_LOG_SLOW))
   {
+    int to_table;
+    const char *rename_log_table[2]= {NULL, NULL};
 
     /*
       Rules for rename of a log table:
@@ -133,7 +131,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            goto err;
+            DBUG_RETURN(true);
           }
         }
         else
@@ -146,13 +144,12 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            goto err;
+            DBUG_RETURN(true);
           }
           else
           {
             /* save the name of the log table to report an error */
-            rename_log_table[log_table_rename]=
-              const_cast<char*>(ren_table->table_name);
+            rename_log_table[log_table_rename]= ren_table->table_name;
           }
         }
       }
@@ -165,19 +162,21 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
       else
         my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[1],
                  rename_log_table[1]);
-      goto err;
+      DBUG_RETURN(true);
     }
   }
 
   if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0)
       || lock_trigger_names(thd, table_list))
-    goto err;
+    DBUG_RETURN(true);
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
                      ren_table->table_name, FALSE);
 
-  error=0;
+  bool error= false;
+  bool int_commit_done= false;
+  std::set<handlerton*> post_ddl_htons;
   /*
     An exclusive lock on table names is satisfactory to ensure
     no other thread accesses this table.
@@ -194,12 +193,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 #else
     if (!thd->transaction_rollback_request)
     {
-      /*
-        QQ: In case of deadlock we just leaving DD and SE in disarray.
-            Should we try to fail gracefully in this case too, perhaps
-            by rolling back transaction and performing a series of
-            SE-only changes?
-      */
       Disable_gtid_state_update_guard disabler(thd);
       trans_commit_stmt(thd);
       trans_commit(thd);
@@ -220,7 +213,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
       table_list= reverse_table_list(table_list);
     }
 
-    error= 1;
+    error= true;
   }
 
   if (!error)
@@ -233,28 +226,41 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
                          !int_commit_done);
   }
 
-  if (!error && !int_commit_done)
-    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-
-  thd->dd_client()->remove_uncommitted_objects<dd::Abstract_table>(!error);
-
   if (!error)
   {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
     for (ren_table= table_list; ren_table;
          ren_table= ren_table->next_local->next_local)
     {
       TABLE_LIST *new_table= ren_table->next_local;
       DBUG_ASSERT(new_table);
+
+      uncommitted_tables.add_table(ren_table);
+      uncommitted_tables.add_table(new_table);
+
       if ((error= update_referencing_views_metadata(thd, ren_table,
                                                     new_table->db,
-                                                    new_table->table_name)))
-        goto err;
+                                                    new_table->table_name,
+                                                    int_commit_done,
+                                                    &uncommitted_tables)))
+        break;
     }
   }
 
+  if (!error && !int_commit_done)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
   if (error)
+  {
     trans_rollback_stmt(thd);
-  // QQ: Should we play safe and rollback trx as well?
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    trans_rollback(thd);
+  }
 
   for (handlerton *hton : post_ddl_htons)
     hton->post_ddl(thd);
@@ -262,7 +268,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (!error)
     my_ok(thd);
 
-err:
   DBUG_RETURN(error);
 }
 
@@ -302,9 +307,9 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
   @param[in]      new_table_name    The new table/view name.
   @param[in]      new_table_alias   The new table/view alias.
   @param[in]      skip_error        Whether to skip errors.
-  @param[in/out]  int_commit_done   Whether intermediate commits
+  @param[in,out]  int_commit_done   Whether intermediate commits
                                     were done.
-  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+  @param[in,out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
 
@@ -405,9 +410,16 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, new_db);
         DBUG_RETURN(!skip_error);
       }
-      else if (mysql_rename_view(thd, new_db, new_alias, ren_table,
-                                 *int_commit_done))
+
+      /* Rename view in the data-dictionary. */
+      if (dd::rename_table<dd::View>(thd,
+                                     ren_table->db, ren_table->table_name,
+                                     new_db, new_alias, false, *int_commit_done))
+      {
         DBUG_RETURN(!skip_error);
+      }
+
+      sp_cache_invalidate();
       break;
     }
   default:
@@ -432,9 +444,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   @param[in]      thd               Thread handle.
   @param[in]      table_list        List of tables to rename.
   @param[in]      skip_error        Whether to skip errors.
-  @param[in/out]  int_commit_done   Whether intermediate commits
+  @param[in,out]  int_commit_done   Whether intermediate commits
                                     were done.
-  @param[in/out]  post_ddl_htons    Set of SEs supporting atomic DDL
+  @param[in,out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
 

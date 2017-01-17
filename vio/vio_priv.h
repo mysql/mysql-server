@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,13 +46,11 @@ size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
 int vio_shutdown_pipe(Vio * vio);
 
-#ifndef EMBEDDED_LIBRARY
 size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_shared_memory(Vio *vio);
 int vio_shutdown_shared_memory(Vio * vio);
 void vio_delete_shared_memory(Vio *vio);
-#endif /* !EMBEDDED_LIBRARY */
 #endif /* _WIN32 */
 
 my_bool vio_buff_has_data(Vio *vio);

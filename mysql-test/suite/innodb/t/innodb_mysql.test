@@ -82,7 +82,9 @@ CREATE TABLE bar (a int, b int, c char(10),
 
 INSERT INTO foo VALUES
    (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
-   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe'), (5,6,'trondheim'),
+   (6,7,'stockholm'), (7,8,'copenhagen'), (8,9,'helsinki'),
+   (9,10,'reykjavik');
 
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;

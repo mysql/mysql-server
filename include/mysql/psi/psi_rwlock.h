@@ -93,7 +93,7 @@ struct PSI_rwlock_bootstrap
     @sa PSI_RWLOCK_VERSION_2
     @sa PSI_CURRENT_RWLOCK_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
 
@@ -115,26 +115,26 @@ typedef struct PSI_rwlock_locker PSI_rwlock_locker;
 enum PSI_rwlock_operation
 {
   /** Read lock. */
-  PSI_RWLOCK_READLOCK= 0,
+  PSI_RWLOCK_READLOCK = 0,
   /** Write lock. */
-  PSI_RWLOCK_WRITELOCK= 1,
+  PSI_RWLOCK_WRITELOCK = 1,
   /** Read lock attempt. */
-  PSI_RWLOCK_TRYREADLOCK= 2,
+  PSI_RWLOCK_TRYREADLOCK = 2,
   /** Write lock attempt. */
-  PSI_RWLOCK_TRYWRITELOCK= 3,
+  PSI_RWLOCK_TRYWRITELOCK = 3,
 
   /** Shared lock. */
-  PSI_RWLOCK_SHAREDLOCK= 4,
+  PSI_RWLOCK_SHAREDLOCK = 4,
   /** Shared Exclusive lock. */
-  PSI_RWLOCK_SHAREDEXCLUSIVELOCK= 5,
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK = 5,
   /** Exclusive lock. */
-  PSI_RWLOCK_EXCLUSIVELOCK= 6,
+  PSI_RWLOCK_EXCLUSIVELOCK = 6,
   /** Shared lock attempt. */
-  PSI_RWLOCK_TRYSHAREDLOCK= 7,
+  PSI_RWLOCK_TRYSHAREDLOCK = 7,
   /** Shared Exclusive lock attempt. */
-  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK= 8,
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK = 8,
   /** Exclusive lock attempt. */
-  PSI_RWLOCK_TRYEXCLUSIVELOCK= 9
+  PSI_RWLOCK_TRYEXCLUSIVELOCK = 9
 
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
@@ -163,7 +163,8 @@ struct PSI_rwlock_info_v1
 typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 
 /**
-  State data storage for @c start_rwlock_rdwait_v1_t, @c start_rwlock_wrwait_v1_t.
+  State data storage for @c start_rwlock_rdwait_v1_t, @c
+  start_rwlock_wrwait_v1_t.
   This structure provide temporary storage to a rwlock locker.
   The content of this structure is considered opaque,
   the fields are only hints of what an implementation
@@ -197,8 +198,9 @@ typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state_v1;
   @param info an array of rwlock info to register
   @param count the size of the info array
 */
-typedef void (*register_rwlock_v1_t)
-  (const char *category, struct PSI_rwlock_info_v1 *info, int count);
+typedef void (*register_rwlock_v1_t)(const char *category,
+                                     struct PSI_rwlock_info_v1 *info,
+                                     int count);
 
 /**
   Rwlock instrumentation initialisation API.
@@ -206,8 +208,8 @@ typedef void (*register_rwlock_v1_t)
   @param identity the address of the rwlock itself
   @return an instrumented rwlock
 */
-typedef struct PSI_rwlock* (*init_rwlock_v1_t)
-  (PSI_rwlock_key key, const void *identity);
+typedef struct PSI_rwlock *(*init_rwlock_v1_t)(PSI_rwlock_key key,
+                                               const void *identity);
 
 /**
   Rwlock instrumentation destruction API.
@@ -224,19 +226,20 @@ typedef void (*destroy_rwlock_v1_t)(struct PSI_rwlock *rwlock);
   @param src_line the source line number
   @return a rwlock locker, or NULL
 */
-typedef struct PSI_rwlock_locker* (*start_rwlock_rdwait_v1_t)
-  (struct PSI_rwlock_locker_state_v1 *state,
-   struct PSI_rwlock *rwlock,
-   enum PSI_rwlock_operation op,
-   const char *src_file, uint src_line);
+typedef struct PSI_rwlock_locker *(*start_rwlock_rdwait_v1_t)(
+  struct PSI_rwlock_locker_state_v1 *state,
+  struct PSI_rwlock *rwlock,
+  enum PSI_rwlock_operation op,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a rwlock instrumentation read wait end event.
   @param locker a thread locker for the running thread
   @param rc the wait operation return code
 */
-typedef void (*end_rwlock_rdwait_v1_t)
-  (struct PSI_rwlock_locker *locker, int rc);
+typedef void (*end_rwlock_rdwait_v1_t)(struct PSI_rwlock_locker *locker,
+                                       int rc);
 
 /**
   Record a rwlock instrumentation write wait start event.
@@ -247,26 +250,26 @@ typedef void (*end_rwlock_rdwait_v1_t)
   @param src_line the source line number
   @return a rwlock locker, or NULL
 */
-typedef struct PSI_rwlock_locker* (*start_rwlock_wrwait_v1_t)
-  (struct PSI_rwlock_locker_state_v1 *state,
-   struct PSI_rwlock *rwlock,
-   enum PSI_rwlock_operation op,
-   const char *src_file, uint src_line);
+typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
+  struct PSI_rwlock_locker_state_v1 *state,
+  struct PSI_rwlock *rwlock,
+  enum PSI_rwlock_operation op,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a rwlock instrumentation write wait end event.
   @param locker a thread locker for the running thread
   @param rc the wait operation return code
 */
-typedef void (*end_rwlock_wrwait_v1_t)
-  (struct PSI_rwlock_locker *locker, int rc);
+typedef void (*end_rwlock_wrwait_v1_t)(struct PSI_rwlock_locker *locker,
+                                       int rc);
 
 /**
   Record a rwlock instrumentation unlock event.
   @param rwlock the rwlock instrumentation
 */
-typedef void (*unlock_rwlock_v1_t)
-  (struct PSI_rwlock *rwlock);
+typedef void (*unlock_rwlock_v1_t)(struct PSI_rwlock *rwlock);
 
 /**
   Performance Schema Rwlock Interface, version 1.
@@ -314,4 +317,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_rwlock_service_t *psi_rwlock_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_RWLOCK_H */
-

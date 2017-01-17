@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,8 +47,7 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
                          unsigned long auto_increment_offset_arg,
                          unsigned int number,
                          unsigned long long table_map_for_update_arg,
-                         int errcode,
-                         unsigned int db_arg_len, unsigned int catalog_arg_len)
+                         int errcode)
 : Binary_log_event(QUERY_EVENT),
   query(query_arg), db(db_arg), catalog(catalog_arg),
   user(0), user_len(0), host(0), host_len(0),
@@ -109,8 +108,7 @@ static void copy_str_and_move(Log_event_header::Byte **dst,
 Query_event::Query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event,
                          Log_event_type event_type)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version),
+: Binary_log_event(&buf, description_event->binlog_version),
   query(0), db(0), catalog(0), time_zone_str(0),
   user(0), user_len(0), host(0), host_len(0),
   db_len(0), status_vars_len(0), q_len(0),
@@ -446,8 +444,7 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf,
 User_var_event::
 User_var_event(const char* buf, unsigned int event_len,
                const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
+  :Binary_log_event(&buf, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -563,8 +560,7 @@ err:
 */
 Intvar_event::Intvar_event(const char* buf,
                            const Format_description_event* description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version)
+: Binary_log_event(&buf, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -577,8 +573,7 @@ Intvar_event::Intvar_event(const char* buf,
 
 Rand_event::Rand_event(const char* buf,
                        const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
+  :Binary_log_event(&buf, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header

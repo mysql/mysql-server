@@ -235,22 +235,22 @@ Error	1528	Failed to create TABLESPACE ts6
 Error	1114	The table 'ts6' is full
 SET SESSION debug="-d,out_of_tablespace_disk";
 #
-# Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API".
 #
+# Check that limits on tablespace comment and datafile path lengths
+# are enforced.
 #
-# Create a tablespace.
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-connect  con1, localhost, root;
-#
-# Without the patch, the next create statement will acquire the
-# tablespace object without using an auto releaser, because the
-# tablespace with the same name already exists in the global DD.
-# This will give an assert when the thd is deleted, when the
-#  connection is closed.
-# The fix is simply to add an auto releaser at the right place.
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-ERROR HY000: Tablespace 'ts' exists.
-disconnect con1;
-connection default;
-# Clean-up.
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT="TOO_LONG_COMMENT" ENGINE=InnoDB;
+ERROR HY000: Comment for tablespace 'ts' is too long (max = 2048)
+CREATE TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH' ENGINE=InnoDB;
+ERROR HY000: The path specified for DATAFILE is too long.
+# Also coverage for ALTER TABLESPACE case.
+ALTER TABLESPACE no_such_ts ADD DATAFILE 'ts.ibd';
+ERROR HY000: Tablespace no_such_ts doesn't exist.
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+ALTER TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH';
+ERROR HY000: The path specified for DATAFILE is too long.
+ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
+ERROR HY000: Incorrect File Name 'no_such_file.ibd'.
 DROP TABLESPACE ts;

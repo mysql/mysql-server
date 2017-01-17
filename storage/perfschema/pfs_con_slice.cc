@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -12,7 +12,6 @@
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 #include "my_global.h"
 #include "my_thread.h"
@@ -31,52 +30,69 @@
   @{
 */
 
-void PFS_connection_slice::reset_waits_stats()
+void
+PFS_connection_slice::reset_waits_stats()
 {
-  PFS_single_stat *stat= m_instr_class_waits_stats;
-  PFS_single_stat *stat_last= stat + wait_class_max;
-  for ( ; stat < stat_last; stat++)
+  PFS_single_stat *stat = m_instr_class_waits_stats;
+  PFS_single_stat *stat_last = stat + wait_class_max;
+  for (; stat < stat_last; stat++)
+  {
     stat->reset();
+  }
 }
 
-void PFS_connection_slice::reset_stages_stats()
+void
+PFS_connection_slice::reset_stages_stats()
 {
-  PFS_stage_stat *stat= m_instr_class_stages_stats;
-  PFS_stage_stat *stat_last= stat + stage_class_max;
-  for ( ; stat < stat_last; stat++)
+  PFS_stage_stat *stat = m_instr_class_stages_stats;
+  PFS_stage_stat *stat_last = stat + stage_class_max;
+  for (; stat < stat_last; stat++)
+  {
     stat->reset();
+  }
 }
 
-void PFS_connection_slice::reset_statements_stats()
+void
+PFS_connection_slice::reset_statements_stats()
 {
-  PFS_statement_stat *stat= m_instr_class_statements_stats;
-  PFS_statement_stat *stat_last= stat + statement_class_max;
-  for ( ; stat < stat_last; stat++)
+  PFS_statement_stat *stat = m_instr_class_statements_stats;
+  PFS_statement_stat *stat_last = stat + statement_class_max;
+  for (; stat < stat_last; stat++)
+  {
     stat->reset();
+  }
 }
 
-void PFS_connection_slice::reset_transactions_stats()
+void
+PFS_connection_slice::reset_transactions_stats()
 {
-  PFS_transaction_stat *stat=
-                    &m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
+  PFS_transaction_stat *stat =
+    &m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
   if (stat)
+  {
     stat->reset();
+  }
 }
 
-void PFS_connection_slice::reset_errors_stats()
+void
+PFS_connection_slice::reset_errors_stats()
 {
-  PFS_error_stat *stat=  &m_instr_class_errors_stats[GLOBAL_ERROR_INDEX];
+  PFS_error_stat *stat = &m_instr_class_errors_stats[GLOBAL_ERROR_INDEX];
   if (stat)
+  {
     stat->reset();
+  }
 }
 
-void PFS_connection_slice::rebase_memory_stats()
+void
+PFS_connection_slice::rebase_memory_stats()
 {
-  PFS_memory_stat *stat= m_instr_class_memory_stats;
-  PFS_memory_stat *stat_last= stat + memory_class_max;
-  for ( ; stat < stat_last; stat++)
+  PFS_memory_stat *stat = m_instr_class_memory_stats;
+  PFS_memory_stat *stat_last = stat + memory_class_max;
+  for (; stat < stat_last; stat++)
+  {
     stat->reset();
+  }
 }
 
 /** @} */
-

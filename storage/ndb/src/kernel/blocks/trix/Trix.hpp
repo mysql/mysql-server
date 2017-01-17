@@ -242,7 +242,6 @@ private:
       Uint32 m_cleanCount;
       // bounds on index_id, index_version, sample_version
       Uint32 m_bound[3 * 3];
-      Uint32 m_boundCount;
       Uint32 m_boundSize;
       Clean() {}
     };

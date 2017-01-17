@@ -487,27 +487,20 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum_sp_return_code remove_routine(THD *thd, const Routine *routine,
-                                   bool commit_dd_changes)
+enum_sp_return_code remove_routine(THD *thd, const Routine *routine)
 {
   DBUG_ENTER("dd::remove_routine");
-
-  Disable_gtid_state_update_guard disabler(thd);
 
   // Drop routine.
   if(thd->dd_client()->drop(routine))
   {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     DBUG_RETURN(SP_DROP_FAILED);
   }
 
-  bool error= commit_dd_changes &&
-              (trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= (trans_commit_stmt(thd) || trans_commit(thd));
   DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
 }
 
@@ -592,8 +585,6 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
   }
 
   bool error= (trans_commit_stmt(thd) || trans_commit(thd));
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<Routine>(!error);
   DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
 }
 

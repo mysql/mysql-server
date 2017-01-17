@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,36 +24,37 @@ Recovery
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include <vector>
-#include <map>
-#include <string>
-
-#include "log0recv.h"
 #include <my_aes.h>
+#include <map>
+#include <new>
+#include <string>
+#include <vector>
 
-#include "mem0mem.h"
+#include "btr0btr.h"
+#include "btr0cur.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "dict0dd.h"
 #include "mtr0mtr.h"
+#include "fil0fil.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
+#include "log0recv.h"
+#include "mem0mem.h"
 #include "mtr0log.h"
+#include "mtr0mtr.h"
+#include "my_dbug.h"
+#include "os0thread-create.h"
 #include "page0cur.h"
 #include "page0zip.h"
-#include "btr0btr.h"
-#include "btr0cur.h"
-#include "ibuf0ibuf.h"
-#include "trx0undo.h"
 #include "trx0rec.h"
-#include "fil0fil.h"
+#include "trx0undo.h"
 #include "ut0new.h"
-#include "os0thread-create.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
+# include "row0merge.h"
 # include "srv0srv.h"
 # include "srv0start.h"
-# include "row0merge.h"
 # include "trx0purge.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the
@@ -836,6 +837,8 @@ recv_writer_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
+	my_thread_init();
+
 	/* The code flow is as follows:
 	Step 1: In recv_recovery_from_checkpoint_start().
 	Step 2: This recv_writer thread is started.
@@ -853,8 +856,10 @@ recv_writer_thread()
 		recv_writer_thread_active = true;
 	} else {
 		mutex_exit(&recv_sys->writer_mutex);
+		my_thread_end();
 		return;
 	}
+
 	mutex_exit(&recv_sys->writer_mutex);
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -878,6 +883,8 @@ recv_writer_thread()
 	}
 
 	recv_writer_thread_active = false;
+
+	my_thread_end();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1495,9 +1502,7 @@ fil_write_encryption_parse(
 		fprintf(stderr, "Got %lu from redo log:", space->id);
 	}
 #endif
-	if (!fsp_header_decode_encryption_info(key,
-					       iv,
-					       ptr)) {
+	if (!Encryption::decode_encryption_info(key, iv, ptr)) {
 		recv_sys->found_corrupt_log = TRUE;
 		ib::warn() << "Encryption information"
 			<< " in the redo log of space "
@@ -2342,7 +2347,7 @@ recv_recover_page_func(
 		was re-inited and that would lead to an error while applying
 		such action. */
 		if (recv->start_lsn >= page_lsn
-		    && !undo::Truncate::is_tablespace_truncated(recv_addr->space)) {
+		    && !undo::is_under_construction(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -3166,6 +3171,8 @@ loop:
 
 		ulint	total_len	= 0;
 		ulint	n_recs		= 0;
+		bool	only_mlog_file	= true;
+		ulint	mlog_rec_len	= 0;
 
 		for (;;) {
 			len = recv_parse_log_rec(
@@ -3194,6 +3201,22 @@ loop:
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
+			/* MLOG_FILE_NAME redo log records doesn't make changes
+			to persistent data. If only MLOG_FILE_NAME redo
+			log record exists then reset the parsing buffer pointer
+			by changing recovered_lsn and recovered_offset. */
+			if (type != MLOG_FILE_NAME && only_mlog_file == true) {
+				only_mlog_file = false;
+			}
+
+			if (only_mlog_file) {
+				new_recovered_lsn = recv_calc_lsn_on_data_add(
+					recv_sys->recovered_lsn, len);
+				mlog_rec_len += len;
+				recv_sys->recovered_offset += len;
+				recv_sys->recovered_lsn = new_recovered_lsn;
+			}
+
 			total_len += len;
 			n_recs++;
 
@@ -3207,6 +3230,7 @@ loop:
 					    " n=" ULINTPF,
 					    recv_sys->recovered_lsn,
 					    total_len, n_recs));
+				total_len -= mlog_rec_len;
 				break;
 			}
 
@@ -3431,6 +3455,7 @@ recv_scan_log_recs(
 	ulint		data_len;
 	bool		more_data	= false;
 	bool		apply		= recv_sys->mlog_checkpoint_lsn != 0;
+	ulint		recv_parsing_buf_size = RECV_PARSING_BUF_SIZE;
 
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -3539,7 +3564,7 @@ recv_scan_log_recs(
 			non-zero */
 
 			if (recv_sys->len + 4 * OS_FILE_LOG_BLOCK_SIZE
-			    >= RECV_PARSING_BUF_SIZE) {
+			    >= recv_parsing_buf_size) {
 				ib::error() << "Log parsing buffer overflow."
 					" Recovery may have failed!";
 
@@ -3603,7 +3628,7 @@ recv_scan_log_recs(
 			*store_to_hash = STORE_NO;
 		}
 
-		if (recv_sys->recovered_offset > RECV_PARSING_BUF_SIZE / 4) {
+		if (recv_sys->recovered_offset > recv_parsing_buf_size / 4) {
 			/* Move parsing buffer data to the buffer start */
 
 			recv_sys_justify_left_parsing_buf();

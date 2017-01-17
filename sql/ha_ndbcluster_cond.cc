@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,11 @@
   This file defines the NDB Cluster handler engine_condition_pushdown
 */
 
-#include "ha_ndbcluster_glue.h"
 #include <ndbapi/NdbApi.hpp>
+
 #include "ha_ndbcluster_cond.h"
+#include "ha_ndbcluster_glue.h"
+#include "my_dbug.h"
 
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;
@@ -254,6 +256,13 @@ ndb_serialize_cond(const Item *item, void *arg)
           Item_field *field_item= (Item_field *) item;
           Field *field= field_item->field;
           const enum_field_types type= field->real_type();
+
+          /* Check whether field is computed at MySQL layer */
+          if(field->is_virtual_gcol())
+          {
+            context->supported= FALSE;
+            DBUG_VOID_RETURN;
+          }
           /*
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
@@ -1298,9 +1307,9 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       }
       else
       {
-        DBUG_PRINT("info", ("Generating GE filter")); 
+        DBUG_PRINT("info", ("Generating GE filter on field %d", field->get_field_no()));
         if (filter->cmp(NdbScanFilter::COND_GE, 
-                        field->get_field_no(),
+                        field->get_field_no(),      // FIXME ????
                         field->get_val(),
                         field->pack_length()) == -1)
           DBUG_RETURN(1);

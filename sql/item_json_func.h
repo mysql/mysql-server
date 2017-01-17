@@ -66,7 +66,7 @@ private:
   String m_path_value;
 
   /// List of paths.
-  Prealloced_array<Json_path, 8, false> m_paths;
+  Prealloced_array<Json_path, 8> m_paths;
 
   /// Enum that tells the status of a cell in m_paths.
   enum class enum_path_status : uint8
@@ -80,7 +80,7 @@ private:
   };
 
   /// Map argument indexes to indexes into m_paths.
-  Mem_root_array<Path_cell, true> m_arg_idx_to_vector_idx;
+  Mem_root_array<Path_cell> m_arg_idx_to_vector_idx;
 
 public:
   Json_path_cache(THD *thd, uint size);
@@ -732,6 +732,26 @@ public:
 };
 
 /**
+  Represents the JSON_PRETTY function.
+*/
+class Item_func_json_pretty final :public Item_str_func
+{
+public:
+  Item_func_json_pretty(const POS &pos, Item *a) : Item_str_func(pos, a)
+  {}
+
+  const char *func_name() const override { return "json_pretty"; }
+
+  bool resolve_type(THD *thd) override
+  {
+    fix_length_and_charset(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
+    return false;
+  }
+
+  String *val_str(String *str) override;
+};
+
+/**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification revison 1.0.
   This method is implemented in item_geofunc.cc.
 
@@ -784,7 +804,6 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
   @param[in]  arg_item    An argument Item
   @param[out] value       Where to materialize the arg_item's string value
   @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
-  @param[in]  func_name   Name of the user-invoked JSON_ function
   @param[out] safep       String pointer after any relevant conversion
   @param[out] safe_length Corresponding string length
 
@@ -793,7 +812,6 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 bool get_json_string(Item *arg_item,
                      String *value,
                      String *utf8_res,
-                     const char *func_name,
                      const char **safep,
                      size_t *safe_length);
 

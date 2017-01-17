@@ -261,7 +261,7 @@ static bool fill_dd_view_columns(THD *thd,
   // reuse them for all the fields.
   TABLE table;
   TABLE_SHARE share;
-  init_tmp_table_share(thd, &share, "", 0, "", "");
+  init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
   memset(&table, 0, sizeof(table));
   table.s= &share;
   handler *file= get_new_handler(&share, false, thd->mem_root,
@@ -274,12 +274,16 @@ static bool fill_dd_view_columns(THD *thd,
 
   Context_handler ctx_handler(thd, file);
 
+  const dd::Properties &names_dict= view_obj->column_names();
+
   // Iterate through all the items of first SELECT_LEX of the view query.
   Item *item;
   List<Create_field> create_fields;
   List_iterator_fast<Item> it(thd->lex->select_lex->item_list);
+  uint i= 0;
   while ((item= it++) != nullptr)
   {
+    i++;
     bool is_sp_func_item= false;
     // Create temporary Field object from the item.
     Field *tmp_field;
@@ -365,6 +369,18 @@ static bool fill_dd_view_columns(THD *thd,
 
     if (is_sp_func_item)
       cr_field->field_name= item->item_name.ptr();
+    if (!names_dict.empty())                     // Explicit names were provided
+    {
+      std::string i_s= std::to_string(i);
+      String_type value=
+        names_dict.value(String_type(i_s.begin(), i_s.end()));
+      char *name= static_cast<char*>(strmake_root(thd->mem_root, value.c_str(),
+                                                  value.length()));
+      if (!name)
+        DBUG_RETURN(true);                      /* purecov: inspected */
+      cr_field->field_name= name;
+    }
+
     cr_field->after= nullptr;
     cr_field->offset= 0;
     cr_field->pack_length_override= 0;
@@ -504,7 +520,8 @@ static void fill_dd_view_routines(
 bool create_view(THD *thd,
                  TABLE_LIST *view,
                  const char *schema_name,
-                 const char *view_name)
+                 const char *view_name,
+                 bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
 
@@ -589,6 +606,18 @@ bool create_view(THD *thd,
 
   view_obj->set_connection_collation_id(collation->number);
 
+  if (view->derived_column_names())
+  {
+    dd::Properties &names_dict= view_obj->column_names();
+    uint i= 0;
+    for (auto name : *view->derived_column_names())
+    {
+      std::string i_s= std::to_string(++i);
+      names_dict.set(String_type(i_s.begin(), i_s.end()),
+                     String_type(name.str, name.length));
+    }
+  }
+
   time_t tm= my_time(0);
   get_date(view->timestamp.str,
            GETDATE_DATE_TIME|GETDATE_GMT|GETDATE_FIXEDLENGTH,
@@ -615,18 +644,21 @@ bool create_view(THD *thd,
   // Store info in DD views table.
   if (client->store(view_obj.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
-void read_view(TABLE_LIST *view,
+bool read_view(TABLE_LIST *view,
                const dd::View &view_obj,
                MEM_ROOT *mem_root)
 {
@@ -684,21 +716,50 @@ void read_view(TABLE_LIST *view,
   DBUG_ASSERT(collation);
   view->view_connection_cl_name.length= strlen(collation->name);
   view->view_connection_cl_name.str= strdup_root(mem_root, collation->name);
+
+  if (!(view->definer.user.str && view->definer.host.str && // OOM
+        view->view_body_utf8.str && view->select_stmt.str &&
+        view->view_client_cs_name.str && view->view_connection_cl_name.str))
+    return true;                                /* purecov: inspected */
+
+  const dd::Properties &names_dict= view_obj.column_names();
+  if (!names_dict.empty())                     // Explicit names were provided
+  {
+    auto *names_array= static_cast<Create_col_name_list *>
+      (alloc_root(mem_root, sizeof(Create_col_name_list)));
+    if (!names_array)
+      return true;                              /* purecov: inspected */
+    names_array->init(mem_root);
+    uint i= 0;
+    while (true)
+    {
+      std::string i_s= std::to_string(++i);
+      String_type key(i_s.begin(), i_s.end());
+      if (!names_dict.exists(key))
+        break;
+      String_type value= names_dict.value(key);
+      char *name= static_cast<char*>(strmake_root(mem_root, value.c_str(),
+                                                  value.length()));
+      if (!name || (names_array->push_back({ name, value.length() })))
+        return true;                            /* purecov: inspected */
+    }
+    view->set_derived_column_names(names_array);
+  }
+  return false;
 }
 
 
 bool update_view_status(THD *thd, const char *schema_name,
-                        const char *view_name, bool status)
+                        const char *view_name, bool status,
+                        bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::View *old_view= nullptr;
   dd::View *new_view= nullptr;
-  if (client->acquire(schema_name, view_name, &old_view) ||
-      client->acquire_for_modification(schema_name, view_name,
+  if (client->acquire_for_modification(schema_name, view_name,
                                        &new_view))
     return true;
-  if (old_view == nullptr)
+  if (new_view == nullptr)
     return false;
 
   // Update view error status.
@@ -710,15 +771,16 @@ bool update_view_status(THD *thd, const char *schema_name,
   // Update DD tables.
   if (client->update(new_view))
   {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<dd::Abstract_table>(!error);
-  return error;
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 } // namespace dd

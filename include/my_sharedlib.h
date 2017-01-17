@@ -45,6 +45,12 @@
 #define dlopen_errno GetLastError()
 
 #else /* _WIN32 */
+
+#ifndef MYSQL_ABI_CHECK
+#include <dlfcn.h>
+#include <errno.h>
+#endif
+
 #define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
 #define dlopen_errno errno
 #endif /* _WIN32 */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,14 +38,21 @@ on 1/27/1998 */
 #include "dict0crea.h"
 #include "dict0dd.h"
 #include "que0que.h"
-#include "pars0grm.h"
-#include "pars0opt.h"
 #include "data0data.h"
 #include "data0type.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "lock0lock.h"
 #include "eval0eval.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "my_dbug.h"
+#include "pars0grm.h"
+#include "pars0opt.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "row0ins.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -1919,7 +1926,8 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		index->add_field(column->name, 0);
+		/* The internal parser only supports ascending indexes. */
+		index->add_field(column->name, 0, true);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

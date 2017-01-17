@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #define FT_CORE
+#include <fcntl.h>
+
 #include "ftdefs.h"
+#include "my_dbug.h"
 
 /* search with natural language queries */
 
@@ -259,7 +262,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (flags & FT_EXPAND && ft_query_expansion_limit)
   {
     QUEUE best;
-    init_queue(&best,ft_query_expansion_limit,0,0, (queue_compare) &FT_DOC_cmp,
+    init_queue(&best,key_memory_QUEUE,ft_query_expansion_limit,0,0, (queue_compare) &FT_DOC_cmp,
 	       0);
     tree_walk(&aio.dtree, (tree_walk_action) &walk_and_push,
               &best, left_root_right);

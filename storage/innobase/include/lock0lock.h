@@ -345,60 +345,69 @@ lock_sec_rec_modify_check_and_lock(
 				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	MY_ATTRIBUTE((warn_unused_result));
-/*********************************************************************//**
-Like lock_clust_rec_read_check_and_lock(), but reads a
+
+/** Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
+@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record or page supremum record which should
+				be read or passed over by a read cursor
+@param[in]	index		secondary index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		mode of the lock which the read cursor should
+				set on records: LOCK_S or LOCK_X; the latter is
+				possible in SELECT FOR UPDATE
+@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t
 lock_sec_rec_read_check_and_lock(
-/*=============================*/
-	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
-					bit is set, does nothing */
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
-	const rec_t*		rec,	/*!< in: user record or page
-					supremum record which should
-					be read or passed over by a
-					read cursor */
-	dict_index_t*		index,	/*!< in: secondary index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	lock_mode		mode,	/*!< in: mode of the lock which
-					the read cursor should set on
-					records: LOCK_S or LOCK_X; the
-					latter is possible in
-					SELECT FOR UPDATE */
-	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr);	/*!< in: query thread */
-/*********************************************************************//**
-Checks if locks of other transactions prevent an immediate read, or passing
+	ulint			flags,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	lock_mode		mode,
+	ulint			gap_mode,
+	que_thr_t*		thr);
+
+/** Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
 if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
+@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record or page supremum record which should
+				be read or passed over by a read cursor
+@param[in]	index		secondary index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		mode of the lock which the read cursor should
+				set on records: LOCK_S or LOCK_X; the latter is
+				possible in SELECT FOR UPDATE
+@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t
 lock_clust_rec_read_check_and_lock(
-/*===============================*/
-	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
-					bit is set, does nothing */
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
-	const rec_t*		rec,	/*!< in: user record or page
-					supremum record which should
-					be read or passed over by a
-					read cursor */
-	dict_index_t*		index,	/*!< in: clustered index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	lock_mode		mode,	/*!< in: mode of the lock which
-					the read cursor should set on
-					records: LOCK_S or LOCK_X; the
-					latter is possible in
-					SELECT FOR UPDATE */
-	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr);	/*!< in: query thread */
+	ulint			flags,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	lock_mode		mode,
+	ulint			gap_mode,
+	que_thr_t*		thr);
+
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
@@ -651,7 +660,7 @@ lock_number_of_tables_locked(
 Gets the type of a lock. Non-inline version for using outside of the
 lock module.
 @return LOCK_TABLE or LOCK_REC */
-ulint
+uint32_t
 lock_get_type(
 /*==========*/
 	const lock_t*	lock);	/*!< in: lock */

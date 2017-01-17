@@ -1405,7 +1405,7 @@ SET @@sql_notes = ON;
 SELECT @@sql_notes;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_notes = OF;
 SELECT @@sql_notes;
 
@@ -1425,7 +1425,7 @@ SET GLOBAL delay_key_write = ON;
 SELECT @@delay_key_write;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET GLOBAL delay_key_write = OF;
 SELECT @@delay_key_write;
 
@@ -1454,7 +1454,7 @@ SET @@sql_safe_updates = ON;
 SELECT @@sql_safe_updates;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_safe_updates = OF;
 SELECT @@sql_safe_updates;
 
@@ -1474,7 +1474,7 @@ SET @@foreign_key_checks = ON;
 SELECT @@foreign_key_checks;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@foreign_key_checks = OF;
 SELECT @@foreign_key_checks;
 
@@ -1494,7 +1494,7 @@ SET @@unique_checks = ON;
 SELECT @@unique_checks;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@unique_checks = OF;
 SELECT @@unique_checks;
 
@@ -1514,7 +1514,7 @@ SET @@sql_buffer_result = ON;
 SELECT @@sql_buffer_result;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_buffer_result = OF;
 SELECT @@sql_buffer_result;
 
@@ -1534,7 +1534,7 @@ SET @@sql_quote_show_create = ON;
 SELECT @@sql_quote_show_create;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_quote_show_create = OF;
 SELECT @@sql_quote_show_create;
 

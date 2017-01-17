@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,11 +135,9 @@
 #include "trigger_def.h"
 #include "tztime.h"                         // Time_zone
 
-#ifndef EMBEDDED_LIBRARY
 #include "event_data_objects.h"             // Event_timed
 #include "event_parse_data.h"               // Event_parse_data
 #include "events.h"                         // Events
-#endif
 
 #include "partition_info.h"                 // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
@@ -147,9 +145,7 @@
 namespace dd {
 class Abstract_table;
 }  // namespace dd
-#ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
-#endif
 
 #include <algorithm>
 #include <functional>
@@ -294,7 +290,6 @@ enum enum_i_s_events_fields
 };
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
@@ -302,7 +297,6 @@ static const char *grant_names[]={
 TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names, NULL};
-#endif
 
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
@@ -480,9 +474,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
   {"Drop role", "Server Admin", "To drop roles"},
-#ifndef EMBEDDED_LIBRARY
   {"Event","Server Admin","To create, alter, drop and execute events"},
-#endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
@@ -563,9 +555,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
   uint i;
   MY_DIR *dirp;
   MEM_ROOT **root_ptr= NULL, *old_root= NULL;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
-#endif
   size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
@@ -649,7 +639,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
     }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))
     {
@@ -661,7 +650,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
         continue;
     }
-#endif
+
     if (!(file_name= tmp_mem_root ?
                      make_lex_string_root(tmp_mem_root, file_name, uname,
                                           file_name_len, TRUE) :
@@ -943,10 +932,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 {
   char buff[2048], orig_dbname[NAME_LEN];
   String buffer(buff, sizeof(buff), system_charset_info);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_context();
   uint db_access;
-#endif
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol=thd->get_protocol();
@@ -956,7 +943,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (lower_case_table_names && dbname != any_db)
     my_casedn_str(files_charset_info, dbname);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (sctx->check_access(DB_ACLS))
     db_access=DB_ACLS;
   else
@@ -982,7 +968,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                                    sctx->host_or_ip().str, dbname);
     DBUG_RETURN(TRUE);
   }
-#endif
+
   if (is_infoschema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
@@ -1698,6 +1684,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append_parenthesized((long) key_part->length /
                                       key_part->field->charset()->mbmaxlen);
       }
+      if (key_part->key_part_flag & HA_REVERSE_SORT)
+        packet->append(STRING_WITH_LEN(" DESC"));
     }
     packet->append(')');
     store_key_options(thd, packet, table, key_info);
@@ -2095,6 +2083,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     buff->append('.');
   }
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
+  print_derived_column_names(thd, buff, table->derived_column_names());
+
   buff->append(STRING_WITH_LEN(" AS "));
 
   /*
@@ -2149,7 +2139,6 @@ public:
 
 static const char *thread_state_info(THD *tmp)
 {
-#ifndef EMBEDDED_LIBRARY
   if (tmp->get_protocol()->get_rw_status())
   {
     if (tmp->get_protocol()->get_rw_status() == 2)
@@ -2160,7 +2149,6 @@ static const char *thread_state_info(THD *tmp)
       return "Receiving from client";
   }
   else
-#endif
   {
     Mutex_lock lock(&tmp->LOCK_current_cond);
     if (tmp->proc_info)
@@ -2176,7 +2164,7 @@ static const char *thread_state_info(THD *tmp)
   This class implements callback function used by mysqld_list_processes() to
   list all the client process information.
 */
-typedef Mem_root_array<thread_info*, true> Thread_info_array;
+typedef Mem_root_array<thread_info*> Thread_info_array;
 class List_process_list : public Do_THD_Impl
 {
 private:
@@ -2266,7 +2254,6 @@ public:
     {
       const char *query_str= inspect_thd->query().str;
       size_t query_length= inspect_thd->query().length;
-#ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2279,7 +2266,6 @@ public:
         query_length= buf.length();
       }
       /* No else. We need fall-through */
-#endif
       if (query_str)
       {
         const size_t width= min<size_t>(m_max_query_length, query_length);
@@ -2471,7 +2457,6 @@ public:
     {
       const char *query_str= inspect_thd->query().str;
       size_t query_length= inspect_thd->query().length;
-#ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2484,7 +2469,6 @@ public:
         query_length= buf.length();
       }
       /* No else. We need fall-through */
-#endif
       if (query_str)
       {
         const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
@@ -2836,7 +2820,10 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   {
     case SHOW_DOUBLE_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      /* 6 is the default precision for '%f' in sprintf() */
+      end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
@@ -2846,7 +2833,9 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONG_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_LONG:
      /* the difference lies in refresh_status() */
@@ -2862,7 +2851,9 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG_STATUS:
       value= ((char *) status_var + (ulong) value);
-      /* fall through */
+      end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
+      break;
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);
@@ -2955,101 +2946,6 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     *charset= value_charset;
   }
   return pos;
-}
-
-static bool show_status_array(THD *thd, const char *wild,
-                              SHOW_VAR *variables,
-                              enum enum_var_type value_type,
-                              struct System_status_var *status_var,
-                              const char *prefix, TABLE_LIST *tl,
-                              bool ucase_names,
-                              Item *cond)
-{
-  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(longlong)> buffer;
-  char * const buff= buffer.data;
-  char *prefix_end;
-  /* the variable name should not be longer than 64 characters */
-  char name_buffer[SHOW_VAR_MAX_NAME_LEN];
-  size_t len;
-  SHOW_VAR tmp, *var;
-  Item *partial_cond= 0;
-  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  bool res= FALSE;
-  const CHARSET_INFO *charset= system_charset_info;
-  DBUG_ENTER("show_status_array");
-
-  TABLE *const table= tl->table;
-
-  thd->count_cuted_fields= CHECK_FIELD_WARN;  
-
-  prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
-  if (*prefix)
-    *prefix_end++= '_';
-  len= (int)(name_buffer + sizeof(name_buffer) - prefix_end);
-  partial_cond= make_cond_for_info_schema(cond, tl);
-
-  for (; variables->name; variables++)
-  {
-    my_stpnmov(prefix_end, variables->name, len);
-    name_buffer[sizeof(name_buffer)-1]=0;       /* Safety */
-    if (ucase_names)
-      make_upper(name_buffer);
-
-    restore_record(table, s->default_values);
-    table->field[0]->store(name_buffer, strlen(name_buffer),
-                           system_charset_info);
-    /*
-      if var->type is SHOW_FUNC, call the function.
-      Repeat as necessary, if new var is again SHOW_FUNC
-    */
-    for (var=variables; var->type == SHOW_FUNC; var= &tmp)
-      ((mysql_show_var_func)(var->value))(thd, &tmp, buff);
-
-    SHOW_TYPE show_type=var->type;
-    if (show_type == SHOW_ARRAY)
-    {
-      show_status_array(thd, wild, (SHOW_VAR *) var->value, value_type,
-                        status_var, name_buffer, tl, ucase_names, partial_cond);
-    }
-    else
-    {
-      if (!(wild && wild[0] && wild_case_compare(system_charset_info,
-                                                 name_buffer, wild)) &&
-          (!partial_cond || partial_cond->val_int()))
-      {
-        const char *pos;
-        size_t length;
-
-        mysql_mutex_lock(&LOCK_global_system_variables);
-        pos= get_one_variable(thd, var, value_type, show_type, status_var,
-                              &charset, buff, &length);
-        table->field[1]->store(pos, (uint32) length, charset);
-        thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-        table->field[1]->set_notnull();
-        mysql_mutex_unlock(&LOCK_global_system_variables);
-
-        if (schema_table_store_record(thd, table))
-        {
-          res= TRUE;
-          goto end;
-        }
-
-#ifndef EMBEDDED_LIBRARY
-        if (variables->type != SHOW_FUNC && value_type == OPT_GLOBAL &&
-            mysql_audit_notify(thd,
-                               AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                               var->name, pos, length))
-        {
-          res= TRUE;
-          goto end;
-        }
-#endif
-      }
-    }
-  }
-end:
-  thd->count_cuted_fields= save_count_cuted_fields;
-  DBUG_RETURN(res);
 }
 
 
@@ -3823,7 +3719,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                               lookup_field_vals->table_value.str, 0))
           continue;
       }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
       /* Don't show tables where we don't have any privileges */
       if (!(thd->col_access & TABLE_ACLS))
       {
@@ -3837,7 +3733,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
         if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
           continue;
       }
-#endif
+
       LEX_STRING *table_name= NULL;
       table_name= thd->make_lex_string(table_name, name->c_str(),
                                        name->length(), true);
@@ -4476,9 +4372,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   Item *partial_cond= 0;
   int error= 1;
   Open_tables_backup open_tables_state_backup;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_context();
-#endif
   uint table_open_method;
   bool can_deadlock;
 
@@ -4585,7 +4479,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   while ((db_name= it++))
   {
     DBUG_ASSERT(db_name->length <= NAME_LEN);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
     bool have_db_privileges= false;
     if (sctx->get_active_roles()->size() > 0)
     {
@@ -4598,7 +4492,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
         sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
         have_db_privileges || acl_get(thd, sctx->host().str, sctx->ip().str,
                 sctx->priv_user().str, db_name->str, 0))
-#endif
+
     {
       // We must make sure the schema is released and unlocked in the right
       // order. Fail if we are unable to get a meta data lock on the schema
@@ -4948,7 +4842,6 @@ for (; (field= *ptr) ; ptr++)
   }
 
   // PRIVILEGES
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access;
   check_access(thd,SELECT_ACL, db_name->str,
                &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
@@ -4968,8 +4861,6 @@ for (; (field= *ptr) ; ptr++)
   }
   table->field[TMP_TABLE_COLUMNS_PRIVILEGES]->store(
     tmp+1, end == tmp ? 0 : (uint) (end-tmp-1), cs);
-
-#endif
 
   // COLUMN_COMMENT
   table->field[TMP_TABLE_COLUMNS_COLUMN_COMMENT]->store(
@@ -5137,7 +5028,7 @@ if (sp)
   char path[FN_REFLEN];
   memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-  init_tmp_table_share(thd, &share, "", 0, "", path);
+  init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
 
   if (sp->m_type == enum_sp_type::FUNCTION)
   {
@@ -5387,7 +5278,7 @@ if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
 
         memset(&tbl, 0, sizeof(TABLE));
         (void) build_table_filename(path, sizeof(path), "", "", "", 0);
-        init_tmp_table_share(thd, &share, "", 0, "", path);
+        init_tmp_table_share(thd, &share, "", 0, "", path, nullptr);
         field= make_field(&share, (uchar*) 0, field_def->length,
                           (uchar*) "", 0,
                           field_def->sql_type, field_def->charset,
@@ -6292,7 +6183,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Loads an event from the Data Dictionary and copies it's data to a row of
   I_S.EVENTS
@@ -6468,7 +6358,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table,
 
   DBUG_RETURN(0);
 }
-#endif
+
 
 static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
@@ -6492,214 +6382,6 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
-}
-
-#ifndef EMBEDDED_LIBRARY
-/**
-  Issue a deprecation warning for SELECT commands for status and system variables.
-*/
-static void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
-{
-  const char *old_name;
-  const char *new_name;
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
-    new_name= (status ? "performance_schema.global_status" : "performance_schema.global_variables");
-  }
-  else
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
-    new_name= (status ? "performance_schema.session_status" : "performance_schema.session_variables");
-  }
-
-  push_warning_printf(thd, Sql_condition::SL_WARNING,
-                      ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
-                      old_name, new_name);
-}
-
-/**
-  Issue an error for SELECT commands for status and system variables.
-*/
-static void push_select_error(THD *thd, enum enum_var_type option_type,
-                              bool status)
-{
-  const char *old_name;
-  const char *doc= "show_compatibility_56";
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
-  }
-  else
-  {
-    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
-  }
-
-  thd->raise_error_printf(ER_FEATURE_DISABLED_SEE_DOC, old_name, doc);
-}
-#endif // EMBEDDED_LIBRARY
-
-static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
-{
-  DBUG_ENTER("fill_variables");
-  Show_var_array sys_var_array(PSI_INSTRUMENT_ME);
-  int res= 0;
-
-  LEX *lex= thd->lex;
-  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  enum enum_schema_tables schema_table_idx=
-    get_schema_table_idx(tables->schema_table);
-  enum enum_var_type option_type;
-  bool upper_case_names= (schema_table_idx != SCH_VARIABLES);
-  bool sorted_vars= (schema_table_idx == SCH_VARIABLES);
-
-  if (schema_table_idx == SCH_VARIABLES)
-  {
-    option_type= lex->option_type;
-  }
-  else if (schema_table_idx == SCH_GLOBAL_VARIABLES)
-  {
-    option_type= OPT_GLOBAL;
-  }
-  else
-  {
-    DBUG_ASSERT(schema_table_idx == SCH_SESSION_VARIABLES);
-    option_type= OPT_SESSION;
-  }
-
-#ifndef EMBEDDED_LIBRARY
-  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
-  if (! show_compatibility_56)
-  {
-    push_select_error(thd, option_type, false);
-    DBUG_RETURN(1);
-  }
-  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
-  if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
-  {
-    push_select_warning(thd, option_type, false);
-  }
-#endif /* EMBEDDED_LIBRARY */
-
-
-  /*
-    Some system variables, for example sql_log_bin,
-    have special behavior because of deprecation.
-    - SELECT @@global.sql_log_bin
-      MUST print a deprecation warning,
-      because such usage needs to be abandoned.
-    - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
-      MUST NOT print a deprecation warning,
-      since the application may not be looking for
-      the 'sql_log_bin' row anyway,
-      and we do not want to create spurious warning noise.
-  */
-  Silence_deprecation_warnings silencer;
-  thd->push_internal_handler(&silencer);
-
-  /*
-    Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
-    SHOW_VAR array and hold it until all variables are stored in the table.
-  */
-  if (thd->fill_variables_recursion_level++ == 0)
-  {
-    mysql_mutex_lock(&LOCK_plugin_delete);
-  }
-
-  // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
-  enumerate_sys_vars(thd, &sys_var_array, sorted_vars, option_type, false);
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
-
-  res= show_status_array(thd, wild, sys_var_array.begin(), option_type, NULL, "",
-                         tables, upper_case_names, cond);
-
-  if (thd->fill_variables_recursion_level-- == 1)
-  {
-    mysql_mutex_unlock(&LOCK_plugin_delete);
-  }
-
-  thd->pop_internal_handler();
-
-  DBUG_RETURN(res);
-}
-
-
-static int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
-{
-  DBUG_ENTER("fill_status");
-  LEX *lex= thd->lex;
-  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  int res= 0;
-
-  System_status_var *status_var_ptr;
-  System_status_var current_global_status_var;
-  enum enum_schema_tables schema_table_idx=
-    get_schema_table_idx(tables->schema_table);
-  enum enum_var_type option_type;
-  bool upper_case_names= (schema_table_idx != SCH_STATUS);
-
-  if (schema_table_idx == SCH_STATUS)
-  {
-    option_type= lex->option_type;
-    if (option_type == OPT_GLOBAL)
-      status_var_ptr= &current_global_status_var;
-    else
-      status_var_ptr= thd->initial_status_var;
-  }
-  else if (schema_table_idx == SCH_GLOBAL_STATUS)
-  {
-    option_type= OPT_GLOBAL;
-    status_var_ptr= &current_global_status_var;
-  }
-  else
-  { 
-    DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
-    option_type= OPT_SESSION;
-    status_var_ptr= &thd->status_var;
-  }
-
-#ifndef EMBEDDED_LIBRARY
-  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
-  if (! show_compatibility_56)
-  {
-    push_select_error(thd, option_type, true);
-    DBUG_RETURN(1);
-  }
-  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
-  if (lex->sql_command != SQLCOM_SHOW_STATUS)
-  {
-    push_select_warning(thd, option_type, true);
-  }
-  if (!show_compatibility_56)
-    DBUG_RETURN(res);
-#endif /* EMBEDDED_LIBRARY */
-
-  /*
-    Avoid recursive acquisition of LOCK_status in cases when WHERE clause
-    represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
-  */
-  DEBUG_SYNC(thd, "before_preparing_global_status_array");
-
-  if (thd->fill_status_recursion_level++ == 0) 
-    mysql_mutex_lock(&LOCK_status);
-  if (option_type == OPT_GLOBAL)
-    calc_sum_of_all_status(status_var_ptr);
-  // Push an empty tail element
-  all_status_vars.push_back(st_mysql_show_var());
-  res= show_status_array(thd, wild,
-                         &all_status_vars[0],
-                         option_type, status_var_ptr, "", tables,
-                         upper_case_names, cond);
-  all_status_vars.pop_back(); // Pop the empty element.
-
-  if (thd->fill_status_recursion_level-- == 1) 
-    mysql_mutex_unlock(&LOCK_status);
-
-  DEBUG_SYNC(thd, "after_preparing_global_status_array");
-  DBUG_RETURN(res);
 }
 
 
@@ -7144,8 +6826,6 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   table_list->table_name_length= table->s->table_name.length;
   table_list->table= table;
   table->pos_in_table_list= table_list;
-  table->next= thd->derived_tables;
-  thd->derived_tables= table;
   if (table_list->select_lex->first_execution)
     table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
   lex->safe_to_cache_query= 0;
@@ -8201,19 +7881,10 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-#ifndef EMBEDDED_LIBRARY
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
-#else // for alignment with enum_schema_tables
-  {"EVENTS", events_fields_info, create_schema_table,
-   0, make_old_format, 0, -1, -1, 0, 0},
-#endif
   {"FILES", files_fields_info, create_schema_table,
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
-  {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
-   fill_status, make_old_format, 0, 0, -1, 0, 0},
-  {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
-   fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
 #ifdef OPTIMIZER_TRACE
@@ -8242,12 +7913,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
-  {"SESSION_STATUS", variables_fields_info, create_schema_table,
-   fill_status, make_old_format, 0, 0, -1, 0, 0},
-  {"SESSION_VARIABLES", variables_fields_info, create_schema_table,
-   fill_variables, make_old_format, 0, 0, -1, 0, 0},
-  {"STATUS", variables_fields_info, create_schema_table, fill_status, 
-   make_old_format, 0, 0, -1, 1, 0},
   {"TABLESPACES", tablespaces_fields_info, create_schema_table,
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   /* TODO: Modify this view name from TABLES_PRIVILEGES back to TABLE_PRIVILEGES
@@ -8259,8 +7924,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
   {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
    fill_schema_user_privileges, 0, 0, -1, -1, 0, 0},
-  {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
-   make_old_format, 0, 0, -1, 1, 0},
   {"TMP_TABLE_COLUMNS", tmp_table_columns_fields_info, create_schema_table,
     get_all_tables, make_tmp_table_columns_format,
     get_schema_tmp_table_columns_record, -1, -1, 1, 0},

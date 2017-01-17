@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -431,6 +431,7 @@ SimpleCpcClient::cpc_send(const char *cmd,
     PropertiesType t;
     Uint32 val_i;
     BaseString val_s;
+    const size_t namelen = strlen(name);
 
     args.getTypeOf(name, &t);
     switch(t) {
@@ -439,18 +440,33 @@ SimpleCpcClient::cpc_send(const char *cmd,
       cpc_out.println("%s: %d", name, val_i);
       break;
     case PropertiesType_char:
+    {
+      /**
+       * Long string, chop up into multiple lines:
+       * argname:"val-prefix..."\n
+       * +argname:"val-part..."\n
+       * ...
+       * +argname:"val-part..."\n
+       */
       args.get(name, val_s);
-      if (strlen(val_s.c_str()) > Parser_t::Context::MaxParseBytes)
+      /**
+       * For first line there are five characters in addition to name and
+       * value part, for the following lines the maximum length of a value
+       * part is one character less since the extra plus sign is needed.
+       */
+      const char * value = val_s.c_str();
+      int valuelen = val_s.length();
+      int partlen = Parser_t::Context::MaxParseBytes - namelen - 5;
+      cpc_out.print("%s:\"%.*s\"\n", name, partlen, value);
+      int valueoff = partlen;
+      partlen--; // Maximum part length decreased to make room for plus sign
+      while (valueoff < valuelen)
       {
-        ndbout << "Argument " << name << " at " 
-               << strlen(val_s.c_str())
-               << " longer than max of "
-               << Parser_t::Context::MaxParseBytes
-               << endl;
-        abort();
+        cpc_out.print("+%s:\"%.*s\"\n", name, partlen, value + valueoff);
+        valueoff += partlen;
       }
-      cpc_out.println("%s: %s", name, val_s.c_str());
       break;
+    }
     default:
       /* Silently ignore */
       break;

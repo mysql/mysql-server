@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "binary_log_funcs.h"
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
@@ -296,9 +297,8 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
    acceptable according to the current settings.
 
    @param order  The computed order of the conversion needed.
-   @param rli    The relay log info data structure: for error reporting.
  */
-static bool is_conversion_ok(int order, Relay_log_info *rli)
+static bool is_conversion_ok(int order)
 {
   DBUG_ENTER("is_conversion_ok");
   bool allow_non_lossy, allow_lossy;
@@ -435,7 +435,7 @@ can_convert_field_to(Field *field,
 
     DBUG_PRINT("debug", ("Base types are identical, doing field size comparison"));
     if (field->compatible_field_size(metadata, rli, mflags, order_var))
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
     else
       DBUG_RETURN(false);
   }
@@ -493,7 +493,7 @@ can_convert_field_to(Field *field,
         DECIMAL, so we require lossy conversion.
       */
       *order_var= 1;
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
       
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_FLOAT:
@@ -505,7 +505,7 @@ can_convert_field_to(Field *field,
       else
         *order_var= compare_lengths(field, source_type, metadata);
       DBUG_ASSERT(*order_var != 0);
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
     }
 
     default:
@@ -531,7 +531,7 @@ can_convert_field_to(Field *field,
     case MYSQL_TYPE_LONGLONG:
       *order_var= compare_lengths(field, source_type, metadata);
       DBUG_ASSERT(*order_var != 0);
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
 
     default:
       DBUG_RETURN(false);
@@ -576,7 +576,7 @@ can_convert_field_to(Field *field,
        */
       if (*order_var == 0)
         *order_var= -1;
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
 
     default:
       DBUG_RETURN(false);
@@ -1361,7 +1361,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
-Deferred_log_events::Deferred_log_events(Relay_log_info *rli)
+Deferred_log_events::Deferred_log_events()
   : m_array(key_memory_table_def_memory)
 {
 }

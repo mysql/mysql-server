@@ -21,7 +21,7 @@ FLUSH TABLES t1 FOR EXPORT;
 SELECT * FROM t1 ORDER BY c1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 EOF
 
@@ -34,7 +34,7 @@ INSERT INTO t1 VALUES (31), (32), (33);
 ALTER TABLE t1 DISCARD PARTITION p0,p2 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p2");
 EOF
@@ -45,7 +45,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p1");
 ib_restore_tablespaces("test", "t1#P#p1");
 EOF
@@ -57,7 +57,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 EOF
@@ -80,7 +80,7 @@ ALTER TABLE t1 IMPORT PARTITION pNonExisting TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p1");
 ib_restore_tablespaces("test", "t1#P#p1");
 EOF
@@ -104,7 +104,7 @@ SELECT c1 FROM t1 ORDER BY c1;
 FLUSH TABLES t1 FOR EXPORT;
 SELECT * FROM t1 ORDER BY c1;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -123,7 +123,7 @@ INSERT INTO t1 VALUES (131), (132), (133);
 ALTER TABLE t1 DISCARD PARTITION p0sp1,p1sp0 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0#SP#p0sp1", "t1#P#p1#SP#p1sp0");
 ib_restore_tablespaces("test", "t1#P#p0#SP#p0sp1", "t1#P#p1#SP#p1sp0");
 EOF
@@ -134,7 +134,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1, p0sp2 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -150,7 +150,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -169,7 +169,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1sp2 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp2");
 ib_restore_tablespaces("test", "t1#P#p1#SP#p1sp2");
 EOF
@@ -178,7 +178,7 @@ EOF
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -192,7 +192,7 @@ EOF
 --error ER_INTERNAL_ERROR
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test", "t1#P#p0#SP#p0sp2");
 EOF
 --replace_regex  /#p#/#P#/  /#sp#/#SP#/
@@ -202,7 +202,7 @@ ALTER TABLE t1 IMPORT PARTITION p0sp2 TABLESPACE;
 --replace_regex  /#p#/#P#/  /#sp#/#SP#/
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -236,7 +236,7 @@ SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
  PARTITION p1 VALUES LESS THAN MAXVALUE);
 ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test","t1#P#p0#SP#p0sp0");
 ib_restore_tablespaces("test","t1#P#p0#SP#p0sp0");
 EOF
@@ -247,7 +247,7 @@ ALTER TABLE t1 REBUILD PARTITION p0;
 SELECT * FROM t1 PARTITION (p0sp0) ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
 ib_restore_tablespaces("test",
@@ -266,7 +266,7 @@ ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p0sp1 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p0sp2 TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");

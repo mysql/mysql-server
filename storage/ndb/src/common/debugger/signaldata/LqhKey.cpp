@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,8 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Interpreted ");
   if(LqhKeyReq::getScanTakeOverFlag(attrLen))
     fprintf(output, "ScanTakeOver ");
+  if(LqhKeyReq::getReorgFlag(attrLen))
+    fprintf(output, "reorg: %u ", LqhKeyReq::getReorgFlag(attrLen));
   if(LqhKeyReq::getMarkerFlag(reqInfo))
     fprintf(output, "CommitAckMarker ");
   if(LqhKeyReq::getNoDiskFlag(reqInfo))
@@ -78,6 +80,10 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Queue ");
   if(LqhKeyReq::getDeferredConstraints(reqInfo))
     fprintf(output, "Deferred-constraints ");
+  if(LqhKeyReq::getNoTriggersFlag(reqInfo))
+    fprintf(output, "NoTriggers ");
+  if(LqhKeyReq::getUtilFlag(reqInfo))
+    fprintf(output, "UtilFlag ");
 
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   

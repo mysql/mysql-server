@@ -91,7 +91,7 @@ int My_xp_socket_util_impl::disable_nagle_in_socket(int fd)
     int optval= 1;
     /* Casting optval to char * so Windows does not complain. */
     ret= setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &optval,
-                    sizeof(int));
+                    static_cast<socklen_t>(sizeof(int)));
   }
   if (ret < 0)
     MYSQL_GCS_LOG_ERROR("Error manipulating a connection's socket. Error: "

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,13 +46,13 @@ struct row_setup_consumers
 class PFS_index_setup_consumers : public PFS_engine_index
 {
 public:
-  PFS_index_setup_consumers()
-    : PFS_engine_index(&m_key),
-    m_key("NAME")
-  {}
+  PFS_index_setup_consumers() : PFS_engine_index(&m_key), m_key("NAME")
+  {
+  }
 
   ~PFS_index_setup_consumers()
-  {}
+  {
+  }
 
   virtual bool match(row_setup_consumers *row);
 
@@ -66,7 +66,7 @@ class table_setup_consumers : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -91,7 +91,8 @@ protected:
 
 public:
   ~table_setup_consumers()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */

@@ -51,7 +51,7 @@ ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the valu
 SET @@global.log_bin_trust_function_creators = "OFFF";
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'OFFF'
 SET @@global.log_bin_trust_function_creators = OF;
-ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@global.log_bin_trust_function_creators = TTRUE;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'TTRUE'
 SET @@global.log_bin_trust_function_creators = FELSE;

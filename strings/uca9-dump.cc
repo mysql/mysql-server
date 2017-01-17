@@ -415,84 +415,39 @@ print_one_page(const MY_UCA *uca, int page, int maxnum)
 {
   printf("uint16 %s[]= {\n", page_name(uca, page, true));
 
-  /* Calculate how many weights to print per line. */
-  int mchars1, mchars2;
-  mchars1= mchars2= 0;
-  switch (maxnum)
-  {
-  case 10: mchars1= 5; break;
-  case 13: mchars1= 7; break;
-  case 22: mchars1= 8; mchars2= 7; break;
-  case 25: mchars1= 7; mchars2= 6; break;
-  default:
-    mchars1= maxnum;
-  }
-  int chars_per_line= 1;
-
-
-  /* Print the page */
-  for (int offs=0; offs < MY_UCA_CHARS_PER_PAGE; offs++)
+  printf("  /* Number of CEs for each character. */\n");
+  for (int offs= 0; offs < MY_UCA_CHARS_PER_PAGE; ++offs)
   {
     const int code= page * MY_UCA_CHARS_PER_PAGE + offs;
     const MY_UCA_ITEM *item= &uca->item[code];
-    const uint16 *weight= item->weight;
-    bool comment_printed= false;
-    int nchars= 0;
+    if ((offs % 16) == 0)
+      printf("  ");
+    printf("%d, ", item->num_of_ce);
+    if ((offs % 16) == 15)
+      printf("\n");
+  }
 
-    /* Print weights */
-    for (int i= 0; i < maxnum; i++)
+  for (int i= 0; i < maxnum - 1; i++)
+  {
+    printf("\n");
+    if ((i % 3) == 0)
     {
-      int tmp;
-      if (i == (maxnum - 1))
-        tmp= item->num_of_ce;
-      else
-        tmp= weight[i];
-      if (nchars == 0)
-        printf("  ");
-
-      printf("0x%04X", tmp);
-
-      if (tmp > 0xFFFF || tmp < 0)
-      {
-        fprintf(stderr,
-                "Error: Too big weight for code point %04X : %08X\n",
-                code, tmp);
-        exit(1);
-      }
-
-      bool last_wt_of_last_char= (offs + 1 == MY_UCA_CHARS_PER_PAGE &&
-                                  i + 1 == maxnum);
-      if (!last_wt_of_last_char)
-        printf(",");
-      nchars++;
-
-      int mchars;
-      if (!comment_printed || !mchars2)
-        mchars= mchars1;
-      else
-        mchars= mchars2;
-      if (nchars >= mchars)
-      {
-        /* Print a comment telling the code only on the first line. */
-        if (!comment_printed)
-        {
-          if (!last_wt_of_last_char)
-            printf(" /*%04X*/", (code + 1) - chars_per_line);
-          else
-            printf("  /*%04X*/", (code + 1) - chars_per_line);
-          comment_printed= true;
-        }
-        printf("\n");
-        nchars= 0;
-      }
-      else if (i == maxnum - 1)
-      {
-        printf("\n");
-      }
-      else
-      {
-        printf(" ");
-      }
+      printf("  /* Primary weight %d for each character. */\n", i / 3 + 1);
+    }
+    else if ((i % 3) == 1)
+    {
+      printf("  /* Secondary weight %d for each character. */\n", i / 3 + 1);
+    }
+    else
+    {
+      printf("  /* Tertiary weight %d for each character. */\n", i / 3 + 1);
+    }
+    for (int offs= 0; offs < MY_UCA_CHARS_PER_PAGE; offs++)
+    {
+      const int code= page * MY_UCA_CHARS_PER_PAGE + offs;
+      const MY_UCA_ITEM *item= &uca->item[code];
+      const uint16 *weight= item->weight;
+      printf("  0x%04X,   /* U+%04X */\n", weight[i], code);
     }
   }
   printf("};\n\n");
@@ -555,23 +510,6 @@ main(int ac, char **av)
       printf("\n");
   }
   printf("};\n\n");
-
-  /* Print page lengths */
-  printf("uchar %s_length[%d]= {\n",
-         prefix_name(&uca), MY_UCA_NPAGES);
-  for (int page= 0; page < MY_UCA_NPAGES; page++)
-  {
-    if (!(page % 16))
-      printf("%4d", pagemaxlen[page]);
-    else
-      printf("%3d", pagemaxlen[page]);
-    if ((page + 1) != MY_UCA_NPAGES)
-      printf(",");
-    if (!((page + 1) % 16))
-      printf("\n");
-  }
-  printf("};\n\n");
-
 
   return 0;
 }

@@ -1,0 +1,150 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+-- source ndb_mgm.inc
+-- source ndb_waiter.inc
+
+# Generate some rows
+create table rows(a int primary key) engine=ndb;
+
+set @N=0; 
+insert into rows(a) 
+  select @N:=@N+1 
+   from mysql.user a, 
+        mysql.user b, 
+        mysql.user c, 
+        mysql.user d, 
+        mysql.user e, 
+        mysql.user f, 
+        mysql.user g 
+   limit 2000;
+
+create table p1 (name varchar(255),
+                 id int(11) auto_increment,
+                 parent_id int,
+                 primary key(id),
+                 unique(name),
+                 key k2(parent_id))
+engine = ndb;
+
+create table c1(c1 varchar(100),
+                id int(11),
+                primary key(c1),
+                unique key abc (id),
+                key (c1),
+                constraint fk1 foreign key (id) references p1 (id)
+) engine=ndb;
+
+# Populate parent table
+insert into p1(parent_id) select a from rows;
+
+select count(1) from test.p1;
+
+--echo -- Show Fks working
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from rows;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+
+
+
+
+--echo -- Normal NR
+--exec $_mgm_cmd -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to stop
+--exec $_waiter_cmd --not-started -w1 >> $NDB_TOOLS_OUTPUT
+
+--echo --- Show FKs working
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from rows;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+
+--echo --- Startup node again
+--exec $_mgm_cmd -e "ALL START" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to recover
+--exec $_waiter_cmd >> $NDB_TOOLS_OUTPUT
+
+--echo --- Show FKs working
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from rows;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+
+
+--echo -- Initial NR
+
+--exec $_mgm_cmd -e "2 RESTART -n -i" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to stop
+--exec $_waiter_cmd --not-started -w2 >> $NDB_TOOLS_OUTPUT
+
+--echo --- Show FKs working
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from rows;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+
+--echo --- Startup node again
+--exec $_mgm_cmd -e "ALL START" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to recover
+--exec $_waiter_cmd >> $NDB_TOOLS_OUTPUT
+
+--echo --- Show FKs working
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from rows;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+
+--echo -- System restart
+--exec $_mgm_cmd -e "ALL RESTART -n" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to stop
+--exec $_waiter_cmd --not-started  >> $NDB_TOOLS_OUTPUT
+
+--echo --- Startup nodes again
+--exec $_mgm_cmd -e "ALL START" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for nodes to recover
+--exec $_waiter_cmd >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait to establish connection
+--source include/ndb_not_readonly.inc
+
+--echo --- Show FKs working
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from rows;
+set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+
+delete from test.p1;
+
+drop table test.c1;
+drop table test.p1;
+drop table test.rows;

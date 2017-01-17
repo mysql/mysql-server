@@ -2,14 +2,9 @@
 # Run explain_json.inc with all of the so-called 6.0 features.
 --source include/have_64bit.inc
 
-# Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
 
 --source include/explain_json.inc
 
 set optimizer_switch=default;
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 

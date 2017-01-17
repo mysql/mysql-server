@@ -27,6 +27,14 @@
 #include <DbUtil.hpp>
 #include <NdbMgmd.hpp>
 
+#define CHK(b,e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    ctx->stopTest(); \
+    return NDBT_FAILED; \
+  }
+
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
   int records = ctx->getNumRecords();
@@ -1695,14 +1703,31 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Crashing cluster" << endl;
       ctx->setProperty("StopAbort", 1000 + rand() % (3000 - 1000));
     }
-    Uint64 end = NdbTick_CurrentMillisecond() + 4000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     Uint32 row = startFrom;
     do {
       ndbout << "Loading from " << row << " to " << row + 1000 << endl;
       if (hugoTrans.loadTableStartFrom(pNdb, row, 1000) != 0)
 	break;
       row += 1000;
-    } while (NdbTick_CurrentMillisecond() < end);
+
+      /**
+       * As table space is a (fixed) limited resource on our
+       * test rigs, we cant allow a fast test client to fill tables at
+       * an unlimited speed. Limit to 10.000 row inserts/sec.
+       */ 
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed_ms = NdbTick_Elapsed(start, now).milliSec();
+      if (elapsed_ms >= 4000)
+        break;
+
+      const Uint64 time_goal = (row-startFrom)/10;
+      if (elapsed_ms < time_goal)
+      {
+        //We are inserting too fast, take a break.
+        NdbSleep_MilliSleep(time_goal-elapsed_ms);
+      }
+    } while (true); //Will break out
 
     if (!all)
     {
@@ -1715,9 +1740,13 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "Waiting for cluster to restart" << endl;
     }
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHECK(pNdb->waitUntilReady() == 0);
 
     ndbout << "Starting backup..." << flush;
@@ -1797,14 +1826,34 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
       ctx->setProperty("StopAbort", 3000 + rand() % (10000 - 3000));
     }
 
-    Uint64 end = NdbTick_CurrentMillisecond() + 11000;
+    Uint32 total_rows = 0;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     do {
       if (hugoTrans.loadTable(pNdb, rows) != 0)
 	break;
       
       if (hugoTrans.clearTable(pNdb, NdbScanOperation::SF_TupScan, rows) != 0)
 	break;
-    } while (NdbTick_CurrentMillisecond() < end);
+
+      total_rows += rows;
+
+      /**
+       * As redo/undo log is a (fixed) limited resource on our
+       * test rigs, we cant allow a fast test client to create such logs at
+       * an unlimited speed. Limit to 10.000 row inserts+deletes/sec.
+       */ 
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed_ms = NdbTick_Elapsed(start, now).milliSec();
+      if (elapsed_ms >= 11000)
+        break;
+
+      const Uint64 time_goal = total_rows/10;
+      if (elapsed_ms < time_goal)
+      {
+        //We are inserting too fast, take a break.
+        NdbSleep_MilliSleep(time_goal-elapsed_ms);
+      }
+    } while (true); //Will break out
     
     if (!all)
     {
@@ -1818,9 +1867,13 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Waiting for cluster to restart" << endl;
     }
 
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHECK(pNdb->waitUntilReady() == 0);
 
     if (error)
@@ -1910,7 +1963,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     int deletedrows[100];
-    Uint64 end = NdbTick_CurrentMillisecond() + 13000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     do {
       Uint32 cnt = 0;
       for (; cnt<NDB_ARRAY_SIZE(deletedrows); cnt++)
@@ -1946,7 +1999,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0
           && !hugoTrans.getRetryMaxReached())
 	break;
-    } while (NdbTick_CurrentMillisecond() < end);
+    } while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec() < 13000);
 
     if (!all)
     {
@@ -1960,9 +2013,13 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Waiting for cluster to restart" << endl;
     }
 
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHK_NDB_READY(pNdb);
     if (error)
     {
@@ -2185,7 +2242,7 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.restartAll(false, true, true) == 0);
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
-    Uint64 now = NdbTick_CurrentMillisecond();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     /**
      * running transaction while cluster is down...
      * causes *lots* of printouts...redirect to /dev/null
@@ -2198,7 +2255,8 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     do
     {
       hugoTrans.scanUpdateRecords(pNdb, 0);
-    } while (NdbTick_CurrentMillisecond() < (now + 30000));
+    } while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec() < 30000);
+
     g_err.m_out = save[0];
     CHECK(res.waitClusterStarted() == 0);
     CHECK(pNdb->waitUntilReady() == 0);
@@ -2256,6 +2314,8 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     copy.setName("BUG_45154");
     copy.setFragmentType(NdbDictionary::Object::DistrKeyLin);
     copy.setFragmentCount(2 * restarter.getNumDbNodes());
+    copy.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     copy.setFragmentData(frag_data, 2*restarter.getNumDbNodes());
     pDict->dropTable("BUG_45154");
     int res = pDict->createTable(copy);
@@ -2283,6 +2343,8 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 
     pDict->dropTable("BUG_45154");
     copy.setFragmentCount(restarter.getNumDbNodes());
+    copy.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     copy.setFragmentData(frag_data, restarter.getNumDbNodes());
     res = pDict->createTable(copy);
     if (res != 0)
@@ -3162,6 +3224,129 @@ int runKillMasterNodes(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+/**************************************************************************
+ * - Cause node takeover during SR by having data changes and multiple LCPs
+ *   while a node is 'down'
+ * - Cause 'interesting' activity during SR/Takeover to find bugs in the
+ *   takeover scenario
+ */
+
+/*  runLoad(): When signalled
+ * - Create load
+ * - Drop the table
+ * - Create the table again during SR */
+
+int
+runLoad(NDBT_Context* ctx, NDBT_Step* step)
+{
+  CHK(!ctx->getPropertyWait("CreateLoad", (Uint32)1),
+      "Not signalled to create load");
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+  CHK(myDict != NULL, pNdb->getNdbError().message);
+
+  NdbDictionary::Table tab = * ctx->getTab();
+  // Take a copy of the table struct to use after dropping the table
+  const NdbDictionary::Table *copy = new NdbDictionary::Table(tab);
+
+  int records = ctx->getNumRecords();
+
+  while (!ctx->isTestStopped() && ctx->getProperty("CreateLoad", (Uint32)1))
+  {
+    HugoTransactions hugoTrans(tab);
+    CHK(hugoTrans.loadTable(pNdb, records) == 0,
+        hugoTrans.getNdbError());
+    CHK(hugoTrans.clearTable(GETNDB(step), records) == 0,
+        hugoTrans.getNdbError());
+  }
+
+  CHK(myDict->dropTable(tab.getName()) == 0, myDict->getNdbError());
+  ctx->setProperty("TableDropped", Uint32(1));
+
+  CHK(!ctx->getPropertyWait("CreateLoad", (Uint32)1),
+      "Not signalled to create table");
+
+  int retries = 0;
+  while (!ctx->isTestStopped() && myDict->createTable(*copy)!= 0)
+  {
+    // 4009 Cluster Failure is acceptable since SR is in progress
+    CHK(myDict->getNdbError().code == 4009, myDict->getNdbError().message);
+    retries++;
+    CHK(retries < 60, "Creating table not finished within timeout"); // 1 min
+    NdbSleep_MilliSleep(1000);
+  }
+
+  ctx->setProperty("FinishedCreateTable", Uint32(1));
+
+  return NDBT_OK;
+}
+
+int
+runCheckStaleNodeTakeoverDuringSR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  CHK(restarter.getNumDbNodes() > 1, "Need > 1 nodes to run the test");
+
+  // Flag to start load
+  ctx->setProperty("CreateLoad", Uint32(1));
+
+  // Restart a random node: Not initial, noStart, abort, no force
+  int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Restarting victim node " << victim << endl;
+
+  CHK(restarter.restartOneDbNode(victim, false, true, true) == 0,
+      "Restarting the victim  failed");
+
+  CHK(restarter.waitNodesNoStart(&victim, 1) == 0,
+      "Victim has not reached NoStart state");
+
+  // Perform multiple LCPs
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately }; // 7099
+  struct ndb_logevent event;
+  int master = restarter.getMasterNodeId();
+  for (int lcp=0; lcp < 3; lcp++)
+  {
+    CHK(restarter.dumpStateOneNode(master, dump, 1) == 0,
+        "Starting LCP failed");
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointStarted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointCompleted);
+  }
+
+  // Flag to stop the load and drop the table
+  ctx->setProperty("CreateLoad", Uint32(0));
+
+  CHK(!ctx->getPropertyWait("TableDropped", (Uint32)1),
+      "Not signalled that the table is dropped");
+
+  // Restart the nodes (SR): Not initial, noStart, abort, no force
+  CHK(restarter.restartAll(false, true, true) == 0,
+      "Starting all nodes failed");
+  CHK(restarter.waitClusterNoStart() == 0,
+      "Nodes have not reached NoStart state");
+
+  CHK(restarter.startAll() == 0,
+      "Starting all nodes failed");
+
+  // Flag to create a table while SR is in progress
+  ctx->setProperty("CreateLoad", Uint32(1));
+
+  // Evaluate the test outcome
+  CHK(restarter.waitClusterStarted() == 0, "Cluster has not started");
+  CHK(ctx->isTestStopped() ||
+      !ctx->getPropertyWait("FinishedCreateTable", (Uint32)1),
+      "Creating table after SR failed");
+
+  return NDBT_OK;
+}
+/**************************************************************************/
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -3513,6 +3698,7 @@ TESTCASE("Bug56961", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug56961);
 }
+
 TESTCASE("MTR_AddNodesAndRestart1",
          "1. Insert few rows to table"
          "2. Add nodes to the cluster"
@@ -3577,6 +3763,13 @@ TESTCASE("KillMasterNodes",
          "* 2. Start without --initial option\n"){
   INITIALIZER(runWaitStarted);
   STEP(runKillMasterNodes);
+}
+TESTCASE("StaleNodeTakeoverDuringSR",
+         "Check a stale node (away for too long) "
+         "performs takeover during system restart")
+{
+  STEP(runCheckStaleNodeTakeoverDuringSR);
+  STEP(runLoad);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 

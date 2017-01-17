@@ -378,7 +378,7 @@ tab	CREATE TABLE `tab` (
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
-  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #check the data after modify
@@ -796,7 +796,7 @@ tab3	CREATE TABLE `tab3` (
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
-  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 #check index with  WKB function

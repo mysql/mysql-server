@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/** \file The new version of xcom is a major rewrite to allow
+/**
+  @file rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.c
+    The new version of xcom is a major rewrite to allow
     transmission of multiple messages from several sources
     simultaneously without collision. The interface to xcom is largely
     intact, one notable change is that xcom will consider the message
@@ -360,7 +362,7 @@ static int use_buffered_read = 1;
 
 long	get_unique_long(void);
 unsigned long	msg_count(app_data_ptr a);
-void	get_host_name(char *a, char name[MAXHOSTNAMELEN+1]);
+void	get_host_name(char *a, char *name);
 
 static double	wakeup_delay(double old);
 
@@ -3774,7 +3776,7 @@ int	acceptor_learner_task(task_arg arg)
 	link_init(&ep->reply_queue,  type_hash("msg_link"));
 
 	while (!xcom_shutdown) {
-		int64_t	n;
+		int64_t	n= 0;
 		site_def const * site = 0;
 		unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
@@ -3908,7 +3910,7 @@ int	reply_handler_task(task_arg arg)
 			TASK_DELAY(1.000);
 		}
 		{
-			int64_t	n;
+			int64_t	n= 0;
 			unchecked_replace_pax_msg(&ep->reply, pax_msg_new_0( null_synode));
 
 			ADD_EVENTS(

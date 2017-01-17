@@ -16,6 +16,9 @@
 // 02110-1301  USA
 
 #include "ngs/protocol_decoder.h"
+
+#include <new>
+
 #include "ngs/log.h"
 #include "ngs/ngs_error.h"
 #include "ngs_common/protocol_protobuf.h"

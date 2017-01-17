@@ -173,32 +173,28 @@ SET SESSION debug="-d,out_of_tablespace_disk";
 
 
 --echo #
---echo # Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
+--echo # Additional coverage for WL#7743 "New data dictionary: changes
+--echo # to DDL-related parts of SE API".
 --echo #
-
+--echo # Check that limits on tablespace comment and datafile path lengths
+--echo # are enforced.
 --echo #
---echo # Create a tablespace.
-
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-
---enable_connect_log
---connect (con1, localhost, root)
-
---echo #
---echo # Without the patch, the next create statement will acquire the
---echo # tablespace object without using an auto releaser, because the
---echo # tablespace with the same name already exists in the global DD.
---echo # This will give an assert when the thd is deleted, when the
---echo #  connection is closed.
---echo # The fix is simply to add an auto releaser at the right place.
-
---error ER_TABLESPACE_EXISTS
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-
---disconnect con1
---source include/wait_until_disconnected.inc
-
---connection default
---echo # Clean-up.
+--let $TOO_LONG_COMMENT= `SELECT REPEAT('a', 2049)`
+--replace_result $TOO_LONG_COMMENT TOO_LONG_COMMENT
+--error ER_TOO_LONG_TABLESPACE_COMMENT
+--eval CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT="$TOO_LONG_COMMENT" ENGINE=InnoDB
+--let $TOO_LONG_PATH= `SELECT CONCAT(REPEAT('a', 512),'.ibd')`
+--replace_result $TOO_LONG_PATH TOO_LONG_PATH
+--error ER_PATH_LENGTH
+--eval CREATE TABLESPACE ts ADD DATAFILE '$TOO_LONG_PATH' ENGINE=InnoDB
+--echo # Also coverage for ALTER TABLESPACE case.
+--error ER_TABLESPACE_MISSING_WITH_NAME
+ALTER TABLESPACE no_such_ts ADD DATAFILE 'ts.ibd';
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+--let $TOO_LONG_PATH= `SELECT CONCAT(REPEAT('a', 512),'.ibd')`
+--replace_result $TOO_LONG_PATH TOO_LONG_PATH
+--error ER_PATH_LENGTH
+--eval ALTER TABLESPACE ts ADD DATAFILE '$TOO_LONG_PATH'
+--error ER_WRONG_FILE_NAME
+ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
 DROP TABLESPACE ts;
---disable_connect_log

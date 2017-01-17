@@ -106,11 +106,7 @@ remove_file $MYSQLD_LOG;
 remove_file $BOOTSTRAP_SQL;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 

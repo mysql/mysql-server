@@ -317,12 +317,6 @@ public:
   bool send_result_set_metadata(List<Item> &list, uint flags) override;
   bool send_data(List<Item> &items) override;
   bool send_eof() override;
-#ifdef EMBEDDED_LIBRARY
-  void begin_dataset() override
-  {
-    protocol.begin_dataset();
-  }
-#endif
 };
 
 
@@ -425,11 +419,7 @@ private:
   void swap_prepared_statement(Prepared_statement *copy);
   bool insert_params_from_vars(List<LEX_STRING>& varnames,
                                String *query);
-#ifndef EMBEDDED_LIBRARY
   bool insert_params(String *query, PS_PARAM *parameters);
-#else
-  bool emb_insert_params(String *query);
-#endif
 };
 
 #endif // SQL_PREPARE_H

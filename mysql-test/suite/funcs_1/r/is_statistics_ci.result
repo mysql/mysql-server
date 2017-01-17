@@ -95,6 +95,7 @@ def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	func	mysql	PRIMARY
 def	mysql	gtid_executed	mysql	PRIMARY
 def	mysql	gtid_executed	mysql	PRIMARY
+<<<<<<< HEAD
 def	mysql	help_category	mysql	name
 def	mysql	help_category	mysql	PRIMARY
 def	mysql	help_keyword	mysql	name
@@ -104,6 +105,16 @@ def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_topic	mysql	name
 def	mysql	help_topic	mysql	PRIMARY
 def	mysql	innodb_dynamic_metadata	mysql	PRIMARY
+=======
+def	mysql	help_category	mysql	PRIMARY
+def	mysql	help_category	mysql	name
+def	mysql	help_keyword	mysql	PRIMARY
+def	mysql	help_keyword	mysql	name
+def	mysql	help_relation	mysql	PRIMARY
+def	mysql	help_relation	mysql	PRIMARY
+def	mysql	help_topic	mysql	PRIMARY
+def	mysql	help_topic	mysql	name
+>>>>>>> mysql-trunk-wl7743-wip-3
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY

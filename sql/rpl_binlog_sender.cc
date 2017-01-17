@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -640,7 +641,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
   do
   {
     set_timespec_nsec(&ts, m_heartbeat_period);
-    ret= mysql_bin_log.wait_for_update_bin_log(m_thd, &ts);
+    ret= mysql_bin_log.wait_for_update_bin_log(&ts);
     if (!is_timeout(ret))
       break;
 
@@ -662,12 +663,12 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 
 inline int Binlog_sender::wait_without_heartbeat()
 {
-  return mysql_bin_log.wait_for_update_bin_log(m_thd, NULL);
+  return mysql_bin_log.wait_for_update_bin_log(NULL);
 }
 
 void Binlog_sender::init_heartbeat_period()
 {
-  my_bool null_value;
+  bool null_value;
   LEX_STRING name=  { C_STRING_WITH_LEN("master_heartbeat_period")};
 
   /* Protects m_thd->user_vars. */
@@ -921,8 +922,8 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
-  m_packet.length(0);  // size of the string
-  m_packet.qs_append('\0');
+  m_packet.length(0);  // size of the content
+  m_packet.qs_append('\0'); // Set this as an OK packet
 
   /* reserve and set default header */
   if (m_observe_transmission &&
@@ -1073,6 +1074,9 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   size_t event_offset;
   char header[LOG_EVENT_MINIMAL_HEADER_LEN];
   int error= 0;
+#ifndef DBUG_OFF
+  const char *packet_buffer= NULL;
+#endif
 
   if ((error= Log_event::peek_event_length(event_len, log_cache, header)))
     goto read_error;
@@ -1081,6 +1085,9 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     DBUG_RETURN(1);
 
   event_offset= m_packet.length();
+#ifndef DBUG_OFF
+  packet_buffer= m_packet.ptr();
+#endif
 
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
@@ -1100,9 +1107,12 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   set_last_pos(my_b_tell(log_cache));
 
   /*
-    Only set event_ptr after reading the event, as the packed might change
-    size (and also changing its pointer) inside read_log_event().
+    As we pre-allocate the buffer to store the event at reset_transmit_packet,
+    the buffer should not be changed while calling read_log_event, even knowing
+    that it might call functions to replace the buffer by one with the size to
+    fit the event.
   */
+  DBUG_ASSERT(packet_buffer == m_packet.ptr());
   *event_ptr= (uchar *)m_packet.ptr() + event_offset;
 
   DBUG_PRINT("info",
@@ -1263,11 +1273,12 @@ inline bool Binlog_sender::grow_packet(size_t extra_size)
     DBUG_RETURN(true);
 
   /* Grow the buffer if needed. */
-  if (needed_buffer_size >= cur_buffer_size)
+  if (needed_buffer_size > cur_buffer_size)
   {
     size_t new_buffer_size;
-    if (calc_buffer_size(cur_buffer_size, needed_buffer_size,
-                         PACKET_GROW_FACTOR, &new_buffer_size))
+    new_buffer_size= calc_grow_buffer_size(cur_buffer_size, needed_buffer_size);
+
+    if (!new_buffer_size)
       DBUG_RETURN(true);
 
     if (m_packet.mem_realloc(new_buffer_size))
@@ -1277,9 +1288,7 @@ inline bool Binlog_sender::grow_packet(size_t extra_size)
      Calculates the new, smaller buffer, size to use the next time
      one wants to shrink the buffer.
     */
-    if (calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
-                         PACKET_SHRINK_FACTOR, &m_new_shrink_size))
-      DBUG_RETURN(true);
+    calc_shrink_buffer_size(new_buffer_size);
   }
 
   DBUG_RETURN(false);
@@ -1319,8 +1328,7 @@ inline bool Binlog_sender::shrink_packet()
            Calculates the new, smaller buffer, size to use the next time
            one wants to shrink the buffer.
          */
-        res= calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
-                              PACKET_SHRINK_FACTOR, &m_new_shrink_size);
+        calc_shrink_buffer_size(m_new_shrink_size);
 
         /* Reset the counter. */
         m_half_buffer_size_req_counter= 0;
@@ -1339,14 +1347,13 @@ inline bool Binlog_sender::shrink_packet()
   DBUG_RETURN(res);
 }
 
-inline bool Binlog_sender::calc_buffer_size(size_t current_size,
-                                            size_t min_size,
-                                            float factor,
-                                            size_t *new_val)
+inline size_t Binlog_sender::calc_grow_buffer_size(size_t current_size,
+                                                   size_t min_size)
 {
   /* Check that a sane minimum buffer size was requested.  */
-  if (min_size < PACKET_MIN_SIZE || min_size > PACKET_MAX_SIZE)
-    return true;
+  DBUG_ASSERT(min_size > PACKET_MIN_SIZE);
+  if (min_size > PACKET_MAX_SIZE)
+    return 0;
 
   /*
      Even if this overflows (PACKET_MAX_SIZE == UINT_MAX32) and
@@ -1358,11 +1365,19 @@ inline bool Binlog_sender::calc_buffer_size(size_t current_size,
    */
   size_t new_size= static_cast<size_t>(
     std::min(static_cast<double>(PACKET_MAX_SIZE),
-             static_cast<double>(current_size * factor)));
+             static_cast<double>(current_size * PACKET_GROW_FACTOR)));
 
-  *new_val= ALIGN_SIZE(std::max(new_size, min_size));
+  new_size= ALIGN_SIZE(std::max(new_size, min_size));
 
-  return false;
+  return new_size;
 }
 
+void Binlog_sender::calc_shrink_buffer_size(size_t current_size)
+{
+  size_t new_size= static_cast<size_t>(
+      std::max(static_cast<double>(PACKET_MIN_SIZE),
+               static_cast<double>(current_size * PACKET_SHRINK_FACTOR)));
+
+  m_new_shrink_size= ALIGN_SIZE(new_size);
+}
 #endif // HAVE_REPLICATION

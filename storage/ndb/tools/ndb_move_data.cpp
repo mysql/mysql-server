@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,12 @@ static const NdbDictionary::Table* g_targettab = 0;
     ret = -1; \
     break; \
   }
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
 
 static NdbError
 getNdbError(Ndb_cluster_connection* ncc)
@@ -354,12 +360,15 @@ main(int argc, char** argv)
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
   if (ret != 0 || checkopts(argc, argv) != 0)
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-
+  {
+    ndb_end_and_exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
   setOutputLevel(opt_verbose ? 2 : 0);
 
   ret = doall();
   if (ret == -1)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+  {
+    ndb_end_and_exit(NDBT_ProgramExit(NDBT_FAILED));
+  }
+  ndb_end_and_exit(NDBT_ProgramExit(NDBT_OK));
 }

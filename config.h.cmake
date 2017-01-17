@@ -167,7 +167,6 @@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
 #cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
-#cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
 
@@ -279,11 +278,6 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 
 /*
- * DTrace
- */
-#cmakedefine HAVE_DTRACE 1
-
-/*
  * Character sets
  */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
@@ -371,7 +365,6 @@
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
-#cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
 #cmakedefine HAVE_LIBNUMA 1
 
 /* For default value of --early_plugin_load */

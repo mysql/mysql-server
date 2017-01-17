@@ -105,7 +105,8 @@ eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_slave/keyring_slave'
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 --source include/start_slave_sql.inc
---sleep 2
+--connection master
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t4;
 
 --connection master

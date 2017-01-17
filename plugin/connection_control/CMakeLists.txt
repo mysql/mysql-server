@@ -18,5 +18,5 @@ MYSQL_ADD_PLUGIN(connection_control
 		 connection_control.cc
 		 security_context_wrapper.cc
 		 connection_delay.cc
-                 MODULE_ONLY)
+		 MODULE_ONLY)
 

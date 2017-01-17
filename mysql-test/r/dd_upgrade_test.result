@@ -18,6 +18,8 @@ call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
@@ -95,9 +97,11 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
 'begin select   @@show_compatibility_56 into b; end');
 DROP TABLE test.proc;
 # Stop DB server which was created by MTR default
+# 1.1 Create db.opt file.
 #Files in 'test' dir
 auto.cnf
 aview
+db_charset_koi8r
 events
 foreign_keys
 ib_buffer_pool
@@ -114,6 +118,7 @@ test
 test_tablespace_2.ibd
 test_tablespace_3.ibd
 triggers
+view_with_column_names
 MYSQL_TMP_DIR/bootstrap.log
 # Start the DB server. Server will create and populate Dictionary tables.
 # Sanity Testing after Server start
@@ -222,9 +227,11 @@ test.t_sc~!@#$%^&*(                                OK
 test.vt2                                           OK
 triggers.t1                                        OK
 triggers.t2                                        OK
+view_with_column_names.t1                          OK
 SHOW DATABASES;
 Database
 aview
+db_charset_koi8r
 events
 foreign_keys
 information_schema
@@ -236,6 +243,7 @@ sys
 tablespace
 test
 triggers
+view_with_column_names
 SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
@@ -456,6 +464,9 @@ view_user2	CREATE ALGORITHM=UNDEFINED DEFINER=`abcd`@`localhost` SQL SECURITY IN
 SHOW CREATE VIEW aview.view_character_set;
 View	Create View	character_set_client	collation_connection
 view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_character_set` AS select 1 AS `1`	latin1	latin1_swedish_ci
+SHOW CREATE DATABASE db_charset_koi8r;
+Database	Create Database
+db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */
 SET names utf8;
 DESC `test`.`initial_vü`;
 Field	Type	Null	Key	Default	Extra
@@ -603,6 +614,35 @@ def	foreign_keys	t5_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	SET NULL	t5	t1
 def	foreign_keys	t6_ibfk_1	def	foreign_keys	PRIMARY	NONE	CASCADE	CASCADE	t6	t1
 def	foreign_keys	t7_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t7	t1
 def	foreign_keys	t8_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t8	t2
+SHOW CREATE VIEW view_with_column_names.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v1` AS select `view_with_column_names`.`t1`.`x` AS `a`,`view_with_column_names`.`t1`.`y` AS `b` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v1;
+a	b
+3	5
+SHOW CREATE VIEW view_with_column_names.v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v2` AS select `view_with_column_names`.`t1`.`x` AS `e`,`view_with_column_names`.`t1`.`y` AS `f` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v2;
+e	f
+3	5
+SHOW CREATE VIEW view_with_column_names.v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v3` AS select `view_with_column_names`.`t1`.`x` AS `x`,`view_with_column_names`.`t1`.`y` AS `y` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v3;
+x	y
+3	5
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
+TABLE_SCHEMA='view_with_column_names';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 # Stop the server
 # Restart the server with default options.
 # restart

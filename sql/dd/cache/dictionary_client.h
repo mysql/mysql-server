@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -211,6 +211,7 @@ private:
   std::vector<Dictionary_object*> m_uncached_objects; // Objects to be deleted.
   Object_registry m_registry_committed;   // Registry of committed objects.
   Object_registry m_registry_uncommitted; // Registry of uncommitted objects.
+  Object_registry m_registry_dropped;     // Registry of dropped objects.
   THD *m_thd;                             // Thread context, needed for cache misses.
   Auto_releaser m_default_releaser;       // Default auto releaser.
   Auto_releaser *m_current_releaser;      // Current auto releaser.
@@ -267,15 +268,19 @@ private:
     only looks in the local registry of uncommitted objects. That is, object
     created by acquire_for_modification() or registered with
     register_uncommitted_object(). It will not access the shared cache.
+    Objects that have been dropped are returned as nullptr, but
+    with the value of the parameter 'dropped' set to 'true'.
 
     @tparam      K       Key type.
     @tparam      T       Dictionary object type.
     @param       key     Key to use for looking up the object.
     @param [out] object  Object pointer, if an object exists, otherwise NULL.
+    @param [out] dropped Object exists, but has been dropped and has not yet
+                         committed. In this case, 'object' is set to nullptr.
   */
 
   template <typename K, typename T>
-  void acquire_uncommitted(const K &key, T **object);
+  void acquire_uncommitted(const K &key, T **object, bool *dropped);
 
 
   /**
@@ -369,7 +374,8 @@ private:
 
 
   /**
-    Transfer object ownership from caller to Dictionary_client.
+    Transfer object ownership from caller to Dictionary_client,
+    and register the object as uncommitted.
 
     This is intended for objects created by the caller that should
     be managed by Dictionary_client. Transferring an object in this
@@ -384,7 +390,56 @@ private:
 
   template <typename T>
   void register_uncommitted_object(T* object);
+
+
+  /**
+    Transfer object ownership from caller to Dictionary_client,
+    and register the object as dropped.
+
+    This method is used internally by the Dictionary_client for
+    keeping track of dropped objects. This is needed before
+    transaction commit if an attempt is made to acquire the
+    dropped object, to avoid consulting the shared cache, which
+    might contaminate the cache due to a cache miss (handled with
+    isolation level READ_COMMITTED). Instead of consulting the
+    shared cache, this Dictionary_client will recognize that the
+    object is dropped, and return a nullptr.
+
+    This method takes a non-const argument as it only makes
+    sense to register objects not acquired from the shared cache.
+
+    @tparam          T          Dictionary object type.
+    @param           object     Object to transfer ownership.
+  */
+
+  template <typename T>
+  void register_dropped_object(T* object);
+
+
 public:
+
+  /**
+    Remove the uncommitted objects from the client and (depending
+    on the parameter) put them into the shared cache,
+    thereby making them visible to other clients. Should be called
+    after commit to disk but before metadata locks are released.
+
+    Can also be called after rollback in order to explicitly throw
+    the modified objects away before making any actions to compensate
+    for a partially completed statement. Note that uncommitted objects
+    are automatically removed once the topmost stack-allocated auto
+    releaser goes out of scope, so calling this function in case of
+    abort is only needed to make acquire return the old object again
+    later in the same statement.
+
+    @param           commit_to_shared_cache
+                                If true, uncommitted objects will
+                                be put into the shared cache.
+    @tparam          T          Dictionary object type.
+  */
+
+  template <typename T>
+  void remove_uncommitted_objects(bool commit_to_shared_cache);
 
 
   // Initialize an instance with a default auto releaser.
@@ -830,6 +885,13 @@ public:
           makes sure there is an exclusive meta data lock on the object
           name.
 
+    @note The argument to this funcion may come from acquire(), and may
+          be an instance that is present in the uncommitted registry,
+          or in the committed registry. These use cases are handled by
+          the implementation of the function. The ownership of the
+          'object' is not changed, instead, a clone is created and
+          added to the dropped registry.
+
     @tparam T       Dictionary object type.
     @param  object  Object to be dropped.
 
@@ -900,29 +962,28 @@ public:
 
 
   /**
-    Remove the uncommitted objects from the client and (depending
-    on the parameter) put them into the shared cache,
-    thereby making them visible to other clients. Should be called
-    after commit to disk but before metadata locks are released.
+    Remove the uncommitted objects from the client.
 
-    Can also be called after abort in order to explicitly throw
-    the modified objects away before making any actions to compensate
+    Can also be used to explicitly throw the modified objects
+    away before making any actions to compensate
     for a partially completed statement. Note that uncommitted objects
     are automatically removed once the topmost stack-allocated auto
     releaser goes out of scope, so calling this function in case of
     abort is only needed to make acquire return the old object again
     later in the same statement.
-
-    @param           commit_to_shared_cache
-                                If true, uncommitted objects will
-                                be put into the shared cache.
-    @tparam          T          Dictionary object type.
   */
 
-  template <typename T>
-  void remove_uncommitted_objects(bool commit_to_shared_cache);
+  void rollback_modified_objects();
 
 
+  /**
+    Remove the uncommitted objects from the client and put them into
+    the shared cache, thereby making them visible to other clients.
+    Should be called after commit to disk but before metadata locks
+    are released.
+  */
+
+  void commit_modified_objects();
 
 
   /**

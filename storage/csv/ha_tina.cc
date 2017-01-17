@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,16 +43,17 @@ TODO:
 
 #include "ha_tina.h"
 
+#include <fcntl.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>
 #include <algorithm>
 
 #include "field.h"
 #include "hash.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
-#include "probes_mysql.h"
 #include "sql_class.h"
 #include "system_variables.h"
 #include "table.h"
@@ -1237,8 +1238,6 @@ int ha_tina::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_tina::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
 
   if (share->crashed)
   {
@@ -1263,7 +1262,6 @@ int ha_tina::rnd_next(uchar *buf)
   stats.records++;
   rc= 0;
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1293,12 +1291,9 @@ int ha_tina::rnd_pos(uchar * buf, uchar *pos)
 {
   int rc;
   DBUG_ENTER("ha_tina::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   current_position= my_get_ptr(pos,ref_length);
   rc= find_current_row(buf);
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 

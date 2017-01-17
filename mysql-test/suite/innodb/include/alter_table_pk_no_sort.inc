@@ -263,3 +263,26 @@ create table t1(o1 int, o2 int, o3 int, primary key(o1,o2,o3)) engine = innodb;
 insert into t1 values(1,1,2),(2,2,1);
 alter table t1 drop primary key, add primary key(o1), lock=none;
 drop table t1;
+
+# pk(o1) to pk(o1,o2)
+CREATE TABLE t1(o1 int, o2 int, o3 int, PRIMARY KEY(o1), KEY(o2)) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,1,2),(2,2,1);
+
+EXPLAIN SELECT * FROM t1 ORDER BY o2;
+SELECT * FROM t1 ORDER BY o2;
+
+ALTER TABLE t1 DROP INDEX o2, ADD INDEX (o2 DESC);
+
+CHECK TABLE t1;
+SELECT * FROM t1;
+EXPLAIN SELECT * FROM t1 ORDER BY o2;
+SELECT * FROM t1 ORDER BY o2;
+
+ALTER TABLE t1 DROP INDEX o2, ADD INDEX (o2 ASC);
+
+CHECK TABLE t1;
+SELECT * FROM t1;
+EXPLAIN SELECT * FROM t1 ORDER BY o2;
+SELECT * FROM t1 ORDER BY o2;
+
+DROP TABLE t1;

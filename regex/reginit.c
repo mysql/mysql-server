@@ -4,6 +4,7 @@
 #include <m_string.h>
 #include <my_global.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "cclass.h"
 #include "my_regex.h"

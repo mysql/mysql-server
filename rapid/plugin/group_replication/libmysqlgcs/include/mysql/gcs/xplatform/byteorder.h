@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file byteorder.h
+  @file rapid/plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h
   @author Neha Kumari
 
   @brief The file contains functions to convert the byte encoding of integer
@@ -53,7 +53,7 @@ uint16_t inline le16toh(uint16_t x)
 #ifndef WORDS_BIGENDIAN
   return x;
 #else
-  return ((x >> 8) | (x << 8));
+  return static_cast<uint16_t>((x >> 8) | (x << 8));
 #endif
 }
 #endif
@@ -116,7 +116,7 @@ uint16_t inline htole16(uint16_t x)
 #ifndef WORDS_BIGENDIAN
   return x;
 #else
-  return ((x >> 8) | (x << 8));
+  return static_cast<uint16_t>((x >> 8) | (x << 8));
 #endif
 }
 #endif

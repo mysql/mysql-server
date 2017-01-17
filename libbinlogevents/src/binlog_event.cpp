@@ -283,8 +283,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
   the constructor of Log_event_header) and
   will be pointing to the start of event data
 */
-Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
-                                   const char *server_version)
+Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version)
 : m_header(*buf, binlog_version)
 {
   m_footer= Log_event_footer();
@@ -317,8 +316,7 @@ Binary_log_event::~Binary_log_event()
 Unknown_event::Unknown_event(const char* buf,
                 const Format_description_event *description_event)
   : Binary_log_event(&buf,
-                     description_event->binlog_version,
-                     description_event->server_version)
+                     description_event->binlog_version)
   {
   }
 #ifndef HAVE_MYSYS

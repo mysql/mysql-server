@@ -60,9 +60,9 @@ bool
 Gcs_internal_message_header::encode(unsigned char *buffer)
 {
   unsigned char *slider= buffer;
-  unsigned short s_cargo_type= (unsigned short) m_cargo_type;
+  unsigned short s_cargo_type= static_cast<unsigned short>(m_cargo_type);
 
-  int le_version= htole32(m_version);
+  unsigned int le_version= htole32(m_version);
   memcpy(slider, &le_version, WIRE_VERSION_SIZE);
   slider += WIRE_VERSION_SIZE;
 

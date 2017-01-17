@@ -576,25 +576,25 @@ private:
   int m_num_case_exprs;
 
   /// SP parameters/variables.
-  Mem_root_array<sp_variable *, true> m_vars;
+  Mem_root_array<sp_variable *> m_vars;
 
   /// Stack of CASE expression ids.
-  Mem_root_array<int, true> m_case_expr_ids;
+  Mem_root_array<int> m_case_expr_ids;
 
   /// Stack of SQL-conditions.
-  Mem_root_array<sp_condition *, true> m_conditions;
+  Mem_root_array<sp_condition *> m_conditions;
 
   /// Stack of cursors.
-  Mem_root_array<LEX_STRING, true> m_cursors;
+  Mem_root_array<LEX_STRING> m_cursors;
 
   /// Stack of SQL-handlers.
-  Mem_root_array<sp_handler *, true> m_handlers;
+  Mem_root_array<sp_handler *> m_handlers;
 
   /// List of labels.
   List<sp_label> m_labels;
 
   /// Children contexts, used for destruction.
-  Mem_root_array<sp_pcontext *, true> m_children;
+  Mem_root_array<sp_pcontext *> m_children;
 
   /// Scope of this parsing context.
   enum_scope m_scope;

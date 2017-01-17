@@ -393,7 +393,7 @@ flush status;
 #
 select * from t1;
 a
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 SUCCESS
 
 commit;
@@ -583,7 +583,7 @@ SUCCESS
 select f1();
 f1()
 2
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 SUCCESS
 
 commit;
@@ -634,7 +634,7 @@ set sql_mode=no_engine_substitution;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create temporary table t2 (a int);
-call p_verify_status_increment(6, 0, 0, 0);
+call p_verify_status_increment(X, 0, 0, 0);
 SUCCESS
 
 set sql_mode=default;
@@ -845,7 +845,7 @@ call p_verify_status_increment(<commit_count>, 0, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
-call p_verify_status_increment(4, 0, 2, 0);
+call p_verify_status_increment(X, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
@@ -888,7 +888,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 drop view v1;
-call p_verify_status_increment(6, 0, 3, 0);
+call p_verify_status_increment(X, 0, 3, 0);
 SUCCESS
 
 #

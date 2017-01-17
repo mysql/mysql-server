@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,19 +19,20 @@
 
 
 #ifdef HAVE_YASSL
-#include <sha.hpp>
 #include <openssl/ssl.h>
+#include <sha.hpp>
 #else
-#include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #endif
 
-#include <stdexcept>
 #include <cstring>
+#include <stdexcept>
 
+#include "my_dbug.h"
 #include "my_global.h"
-#include "password_hasher.h"
 #include "mysql41_hash.h"
+#include "password_hasher.h"
 
 
 #define PVERSION41_CHAR '*'

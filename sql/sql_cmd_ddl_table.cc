@@ -20,6 +20,7 @@
 
 #include "auth/auth_common.h"   // create_table_precheck()
 #include "binlog.h"             // mysql_bin_log
+#include "dd/cache/dictionary_client.h"
 #include "derror.h"             // ER_THD
 #include "error_handler.h"      // Ignore_error_handler
 #include "handler.h"
@@ -40,6 +41,7 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"          // prepare_index_and_data_dir_path()
+#include "partition_info.h"     // has_external_data_or_index_dir
 #include "sql_select.h"         // handle_query()
 #include "sql_table.h"          // mysql_create_like_table()
 #include "sql_tablespace.h"     // check_tablespace_name()
@@ -78,6 +80,14 @@ bool Sql_cmd_create_table::execute(THD *thd)
   if (thd->is_error())
   {
     /* If out of memory when creating a copy of alter_info. */
+    return true;
+  }
+
+  if (((lex->create_info->used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+       (lex->create_info->used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+      check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
     return true;
   }
 
@@ -135,6 +145,11 @@ bool Sql_cmd_create_table::execute(THD *thd)
 
   {
     partition_info *part_info= thd->lex->part_info;
+    if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+    {
+      return true;
+    }
     if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       return true;
     thd->work_part_info= part_info;
@@ -244,7 +259,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     for (TABLE_LIST *table= lex->query_tables; table;
          table= table->next_global)
     {
-      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
       {
         lex->link_first_table_back(create_table, link_to_local);
 
@@ -266,6 +281,9 @@ bool Sql_cmd_create_table::execute(THD *thd)
                                                          lex->duplicates,
                                                          select_tables)))
     {
+      // For objects acquired during table creation.
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
       Ignore_error_handler ignore_handler;
       Strict_error_handler strict_handler;
       if (thd->lex->is_ignore())

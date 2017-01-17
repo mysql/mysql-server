@@ -694,7 +694,7 @@ insert into t2
 insert into t3 select * from t2 where a < 800;
 
 # The order of tables must be t2,t3:
-explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 
 drop table t1, t2, t3;
 
@@ -714,7 +714,7 @@ select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 
 explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
 show status like '%cost%';
-select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
+select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 
 
 

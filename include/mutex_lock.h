@@ -20,7 +20,6 @@
   @file include/mutex_lock.h
 */
 
-#include <my_global.h>
 #include <mysql/psi/mysql_mutex.h>
 
 /**

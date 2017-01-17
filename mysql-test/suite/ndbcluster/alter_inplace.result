@@ -15,7 +15,7 @@ a	b
 37	And of course number 37
 ALTER TABLE t1 ALGORITHM=INPLACE, ADD COLUMN c INT DEFAULT NULL;
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 SELECT * FROM t1 ORDER BY a;
 a	b	c
 1	MySQL Server with NDB	NULL

@@ -21,6 +21,12 @@
   @file include/my_getopt.h
 */
 
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"                             /* loglevel */
 
 C_MODE_START

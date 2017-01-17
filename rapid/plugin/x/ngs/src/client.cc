@@ -17,11 +17,6 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs/client.h"
 #include "ngs/scheduler.h"
 #include "ngs/interface/server_interface.h"
@@ -413,6 +408,8 @@ void Client::get_last_error(int &error_code, std::string &message)
 
 void Client::shutdown_connection()
 {
+  m_state = Client_closing;
+
   if (m_connection->shutdown(Connection_vio::Shutdown_recv) < 0)
   {
     int err;

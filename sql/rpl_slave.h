@@ -297,7 +297,7 @@ bool flush_relay_logs(Master_info *mi);
 int reset_slave(THD *thd, Master_info* mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();
-int init_recovery(Master_info* mi, const char** errmsg);
+int init_recovery(Master_info* mi);
 /**
   Call mi->init_info() and/or mi->rli->init_info(), which will read
   the replication configuration from repositories.

@@ -120,7 +120,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (too many columns)
@@ -143,7 +143,7 @@ Mysqlx.Error {
 }
 
 View	Create View	character_set_client	collation_connection
-co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Replace view

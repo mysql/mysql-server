@@ -20,6 +20,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIR})
@@ -169,11 +170,9 @@ SET(CLIENT_SOURCES
   libmysql.cc
   errmsg.cc
   ../sql-common/client.cc
-  ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
   ../sql/net_serv.cc
-  ../sql-common/pack.c 
   ../sql/auth/password.c
 )
 
@@ -202,7 +201,6 @@ IF (WITH_CLIENT_PROTOCOL_TRACING)
 ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
 
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
-DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS clientlib dbug strings vio mysys mysys_ssl ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})

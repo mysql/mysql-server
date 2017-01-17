@@ -192,6 +192,8 @@ ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators,engineering;
 SELECT * FROM mysql.default_roles;
 ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators;
 SELECT * FROM mysql.default_roles;
+--echo # CURRENT_USER shouldn't crash the server.
+ALTER USER CURRENT_USER() DEFAULT ROLE NONE;
 
 --echo ++ Flushing and reloading privileges shouldn't break the server
 FLUSH PRIVILEGES;

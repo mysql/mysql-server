@@ -1,0 +1,128 @@
+#
+# Bug#23495283 WL3634:ASSERTION `0' FAILED IN FIELD* ITEM::TMP_TABLE_FIELD_FROM_FIELD_TYPE
+#
+CREATE TABLE t1(c1 DATETIME, c2 INT, KEY(c1));
+WITH RECURSIVE cte AS ( SELECT a.c1 AS field1, 0 AS cycle FROM (t1 AS a)
+UNION ALL SELECT b.c2 FROM cte AS a JOIN t1 AS b) SELECT * FROM cte;
+ERROR 21000: The used SELECT statements have a different number of columns
+DROP TABLE t1;
+#
+# Bug#23645090 WL3634: INVALID WRITE AND READ VALGRIND ERRORS
+#
+CREATE TABLE A (
+col_date date DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_blob_key blob,
+col_varchar varchar(1) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_blob blob,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_datetime_key (col_datetime_key),
+KEY col_time_key (col_time_key),
+KEY col_varchar_key (col_varchar_key),
+KEY col_int_key (col_int_key),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_date_key (col_date_key)
+) DEFAULT CHARSET=latin1;
+CREATE TABLE AA (
+col_varchar varchar(1) DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_time time DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_blob blob,
+col_blob_key blob,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key),
+KEY col_date_key (col_date_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_time_key (col_time_key),
+KEY col_int_key (col_int_key),
+KEY col_blob_key (col_blob_key(255))
+) DEFAULT CHARSET=latin1;
+CREATE TABLE BB (
+col_date date DEFAULT NULL,
+col_blob_key blob,
+col_time time DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_blob blob,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_varchar_key (col_varchar_key),
+KEY col_int_key (col_int_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_date_key (col_date_key)
+) AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+CREATE TABLE D (
+col_varchar_key varchar(1) DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_blob blob,
+col_int_key int(11) DEFAULT NULL,
+col_blob_key blob,
+col_varchar varchar(1) DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key),
+KEY col_date_key (col_date_key),
+KEY col_int_key (col_int_key),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_datetime_key (col_datetime_key),
+KEY col_time_key (col_time_key)
+) DEFAULT CHARSET=latin1;
+WITH RECURSIVE cte AS (
+SELECT    alias1 . `col_blob_key` AS field1, 0 AS cycle
+FROM ( BB AS alias1 , ( D AS alias2 , AA AS alias3 ) )
+WHERE (
+alias1 . pk = 225
+OR ( alias1 . col_int_key = 69 AND alias1 . col_blob_key = 'p' )
+)
+UNION ALL
+SELECT t1.pk, t2.cycle
+FROM cte AS t2 JOIN A AS t1
+WHERE t2.field1 = t1.`col_int_key`
+AND t2.cycle =1 ) SELECT  * FROM cte;
+field1	cycle
+DROP TABLE IF EXISTS A, AA, BB, D;
+#
+# Bug#24962600 WL3634: SIG 11 IN HEAP_RRND AT STORAGE/HEAP/HP_RRND.C
+#
+create table t1(a int);
+with recursive cte as (select * from t1 union select * from cte)
+select * from cte;
+a
+insert into t1 values(1),(2);
+with recursive cte as (select * from t1 where 0 union select * from cte)
+select * from cte;
+a
+with recursive cte as (select * from t1 where a>3 union select * from cte)
+select * from cte;
+a
+drop table t1;

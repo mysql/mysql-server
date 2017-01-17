@@ -531,7 +531,7 @@ SELECT row( 1, 1, 1 ) = row( 1, 1 ) FROM t1 GROUP BY a;
 ERROR 21000: Operand should contain 3 column(s)
 EXPLAIN SELECT row( min(a), 1 ) = row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) = `test`.`t1`.`a`) and (1 = 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) = row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -539,7 +539,7 @@ al
 1
 EXPLAIN SELECT row( min(a), 1 ) <> row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) <> `test`.`t1`.`a`) or (1 <> 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) <> row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -547,7 +547,7 @@ al
 0
 EXPLAIN SELECT row( min(a), 1 ) <=> row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) <=> `test`.`t1`.`a`) and (1 <=> 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) <=> row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -555,7 +555,7 @@ al
 1
 EXPLAIN SELECT row( min(a), 1 ) > row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) > (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) > row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -563,7 +563,7 @@ al
 0
 EXPLAIN SELECT row( min(a), 1 ) >= row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) >= (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) >= row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -571,7 +571,7 @@ al
 1
 EXPLAIN SELECT row( min(a), 1 ) < row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) < (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) < row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -579,7 +579,7 @@ al
 0
 EXPLAIN SELECT row( min(a), 1 ) <= row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) <= (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) <= row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -588,7 +588,7 @@ al
 EXPLAIN SELECT row( row( min(a), 1 ), 1 ) = row( row( a, 1 ), 1 ) AS al
 FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) = `test`.`t1`.`a`) and (1 = 1) and (1 = 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( row( min(a), 1 ), 1 ) = row( row( a, 1 ), 1 ) AS al

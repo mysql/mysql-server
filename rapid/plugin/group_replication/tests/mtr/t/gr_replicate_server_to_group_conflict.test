@@ -161,8 +161,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.resume_after_set_snapshot_version_on_transact
 --let $sync_slave_connection= server1
 --source include/sync_slave_sql_with_master.inc
 
-# ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_MTS_INCONSISTENT_DATA
---let $slave_sql_errno= 3101, 1756
+--let $slave_sql_errno= convert_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT)
 --source include/wait_for_slave_sql_error.inc
 
 SET DEBUG_SYNC= 'RESET';
@@ -170,6 +169,7 @@ SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not be completed, 'Plugin instructed the server to rollback the current transaction.', Error_code:.*");
 call mtr.add_suppression("Slave: Plugin instructed the server to rollback the current transaction. Error_code:.*");
+call mtr.add_suppression("Slave SQL for channel '': Worker.* failed executing transaction");
 call mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*. Error_code: 1756");
 SET SESSION sql_log_bin= 1;
 

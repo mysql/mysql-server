@@ -21,6 +21,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
+#ifndef handler0alter_h
+#define handler0alter_h
+
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
 void
@@ -103,3 +106,5 @@ struct ib_sequence_t {
 	/** true if no more values left in the sequence */
 	bool		m_eof;
 };
+
+#endif /* handler0alter_h */

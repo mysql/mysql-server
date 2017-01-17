@@ -42,14 +42,12 @@
 
 class Security_context;
 class THD;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/pending/property.hpp>
-#endif
 
 /* Forward Declarations */
 class String;
@@ -229,8 +227,6 @@ public:
                                const char *grantor);
 };
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
 class acl_entry
 {
 public:
@@ -284,12 +280,8 @@ public:
 };
 
 
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-
 /* Data Structures */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern MEM_ROOT global_acl_memory;
 extern MEM_ROOT memex; 
 const size_t ACL_PREALLOC_SIZE = 10U;
@@ -489,7 +481,7 @@ private:
 };
 
 Acl_cache *get_global_acl_cache();
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
 
 /**
   Enum for specifying lock type over Acl cache

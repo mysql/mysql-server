@@ -1,6 +1,15 @@
 --source include/have_ndb.inc
+
+# Turn off ndb_read_backup since test does explain
+# and other stuff whose output will thus differ
+set @save_ndb_read_backup = @@global.ndb_read_backup;
+set @@global.ndb_read_backup = OFF;
+
 SET default_storage_engine=ndbcluster;
 SET ndb_use_exact_count=1;
 --source include/gis_generic.inc
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 --source include/gis_generic.inc
+
+# Restore ndb_read_backup value
+set @@global.ndb_read_backup = @save_ndb_read_backup;

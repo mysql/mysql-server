@@ -1,4 +1,5 @@
--- require r/not_asan.require
-disable_query_log;
-select (version() like '%asan%') as asan;
-enable_query_log;
+let $have_asan = `SELECT VERSION() LIKE '%asan%'`;
+if ($have_asan)
+{
+  --skip Test requires 'not_asan'
+}

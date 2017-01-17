@@ -138,7 +138,7 @@ private:
   /**
    This header instance protocol version.
    */
-  int m_version;
+  unsigned int m_version;
 
   /**
    This header instance length.
@@ -180,7 +180,7 @@ public:
   /**
    @return the value of the version field.
    */
-  int get_version() { return m_version; }
+  unsigned int get_version() { return m_version; }
 
   /**
    @return the value of the header length field value.
@@ -217,7 +217,7 @@ public:
   /**
    Sets the cargo type field value.
 
-   @param len the dynamic headers value.
+   @param type cargo type to set
   */
   void set_cargo_type(Gcs_internal_message_header::enum_cargo_type type) { m_cargo_type = type; }
 

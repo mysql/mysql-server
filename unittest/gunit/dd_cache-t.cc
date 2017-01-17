@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -142,6 +142,7 @@ protected:
     mysql->set_name("mysql");
     EXPECT_FALSE(thd()->dd_client()->store<dd::Schema>(mysql));
     EXPECT_LT(9999u, mysql->id());
+    thd()->dd_client()->commit_modified_objects();
 
     mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
     max_write_lock_count= ULONG_MAX;
@@ -161,6 +162,7 @@ protected:
       EXPECT_FALSE(thd()->dd_client()->acquire<dd::Schema>(mysql->id(), &acquired_mysql));
       EXPECT_NE(nullp<const dd::Schema>(), acquired_mysql);
       EXPECT_FALSE(thd()->dd_client()->drop(acquired_mysql));
+      thd()->dd_client()->commit_modified_objects();
     }
     delete mysql;
     m_mdl_context.release_transactional_locks();
@@ -427,6 +429,7 @@ void test_basic_store_and_get(CacheStorageTest *tst, THD *thd)
   EXPECT_EQ(acquired, name_acquired);
 
   EXPECT_FALSE(dc->drop(acquired));
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, BasicStoreAndGetCharset)
@@ -482,6 +485,7 @@ void test_basic_store_and_get_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_EQ(acquired, name_acquired);
 
   EXPECT_FALSE(dc->drop(acquired));
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, BasicStoreAndGetTable)
@@ -543,9 +547,10 @@ void test_acquire_for_modification(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_FALSE(dc->drop(acquired));
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, AquireForModificationCharset)
@@ -609,9 +614,10 @@ void test_acquire_for_modification_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_FALSE(dc->drop(acquired));
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, AcquireForModificationTable)
@@ -680,9 +686,10 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire<Intrfc_type>("old_name", &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, AquireAndRenameCharset)
@@ -756,9 +763,10 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire(tst->mysql->name(), "schema_old_name", &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, AcquireAndRenameTable)
@@ -838,7 +846,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire(tst->mysql->name(), created->name(), &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 
@@ -846,6 +854,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   const dd::Schema *s= nullptr;
   EXPECT_FALSE(dc->acquire(new_schema->id(), &s));
   EXPECT_FALSE(dc->drop(s));
+  dc->commit_modified_objects();
   delete new_schema;
 }
 
@@ -899,6 +908,7 @@ void test_acquire_and_drop(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire_for_modification<Intrfc_type>(icreated->name(),
                                                         &modified));
   EXPECT_EQ(nullp<Intrfc_type>(), modified);
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, AquireAndDropCharset)
@@ -954,6 +964,7 @@ void test_acquire_and_drop_with_schema(CacheStorageTest *tst, THD *thd)
                                            icreated->name(),
                                            &modified));
   EXPECT_EQ(nullp<Intrfc_type>(), modified);
+  dc->commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, AcquireAndDropTable)
@@ -990,7 +1001,7 @@ TEST_F(CacheStorageTest, CommitNewObject)
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
-  dc->remove_uncommitted_objects<dd::Table>(true);
+  dc->commit_modified_objects();
   delete created;
 }
 
@@ -1041,6 +1052,7 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
     EXPECT_EQ(*obj, *obj2);
 
     EXPECT_FALSE(dc->drop(obj2));
+    dc->commit_modified_objects();
   }
 }
 
@@ -1109,6 +1121,7 @@ TEST_F(CacheStorageTest, TestRename)
       EXPECT_FALSE(dc.acquire<dd::Table>(sch->name(), "temp_table", &t));
       EXPECT_EQ(nullp<const dd::Table>(), t);
     }
+    dc.commit_modified_objects();
   }
 }
 
@@ -1152,6 +1165,7 @@ TEST_F(CacheStorageTest, TestSchema)
       m_mdl_context.acquire_lock(&m_request,
                                  thd()->variables.lock_wait_timeout);
 
+
       // Get "schema1.table1" table from cache.
       const dd::Table *s1_t1= NULL;
       EXPECT_FALSE(dc.acquire<dd::Table>("schema1", "table1", &s1_t1));
@@ -1167,6 +1181,7 @@ TEST_F(CacheStorageTest, TestSchema)
       EXPECT_FALSE(dc.drop(s1));
     }
   }
+  dc.commit_modified_objects();
 }
 
 
@@ -1228,6 +1243,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   EXPECT_FALSE(dc.drop(tab1_new_c));
   EXPECT_FALSE(dc.drop(tab2_new_c));
   EXPECT_FALSE(dc.drop(tab3_new_c));
+  dc.commit_modified_objects();
 }
 
 
@@ -1410,6 +1426,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
     EXPECT_EQ(0u, sch_name.size());
     EXPECT_EQ(0u, tab_name.size());
   }
+  dc.commit_modified_objects();
 }
 
 TEST_F(CacheStorageTest, TestTriggers)
@@ -1496,6 +1513,7 @@ TEST_F(CacheStorageTest, TestTriggers)
 
     EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(obj)));
   }
+  dc.commit_modified_objects();
 
 }
 #endif /* !DBUG_OFF */

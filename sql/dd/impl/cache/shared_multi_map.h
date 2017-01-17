@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -325,6 +325,19 @@ public:
     rectify_free_list(&lock);
   }
 
+  /**
+    Check if an element with the given key is available.
+  */
+
+  template <typename K>
+  bool available(const K &key)
+  {
+    Autolocker lock(this);
+    Cache_element<T> *e= nullptr;
+    m_map<K>()->get(key, &e);
+    return (e != nullptr);
+  }
+
 
   /**
     Get a wrapper element from the map handling the given key type.
@@ -422,6 +435,7 @@ public:
   */
 
   void drop(Cache_element<T> *element);
+
 
   /**
     Delete an object corresponding to the key from the map if exists.

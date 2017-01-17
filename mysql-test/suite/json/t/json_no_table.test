@@ -2298,3 +2298,11 @@ SELECT JSON_SET(JSON_ARRAY(JSON_MERGE('{"a":1}', '{"a":2}')), '$[0].a', 123);
 SELECT NULLIF(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END, 1);
 SELECT JSON_TYPE(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END);
 SELECT MIN(CASE 0 WHEN 1 THEN JSON_ARRAY() ELSE NULL END);
+
+--echo #
+--echo # Bug #24930829 BITWISE OPERATORS: CRASH IN ITEM_FUNC_BIT_COUNT::VAL_INT
+--echo # Test case does not fail anymore after Bug#24930038 fix was pushed
+--echo # since a check for null return value was added.
+--echo #
+--error ER_INVALID_TYPE_FOR_JSON
+DO BIT_COUNT(COMPRESS(1) << JSON_DEPTH(1));

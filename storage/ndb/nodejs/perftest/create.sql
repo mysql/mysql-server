@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,11 +36,9 @@ CREATE TABLE IF NOT EXISTS b (
         a_id            INT,
         cvarbinary_def  VARBINARY(202),
         cvarchar_def    VARCHAR(202),
-#         cblob_def       BLOB(1000004),
-#         ctext_def       TEXT(1000004),
         CONSTRAINT PK_B_0 PRIMARY KEY (id),
         CONSTRAINT FK_B_1 FOREIGN KEY (a_id) REFERENCES a (id)
 );
 
-DELETE FROM a;
 DELETE FROM b;
+DELETE FROM a;

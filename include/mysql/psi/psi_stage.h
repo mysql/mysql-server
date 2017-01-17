@@ -81,7 +81,7 @@ struct PSI_stage_bootstrap
     @sa PSI_STAGE_VERSION_2
     @sa PSI_CURRENT_STAGE_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_stage_bootstrap PSI_stage_bootstrap;
 
@@ -120,8 +120,9 @@ typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
   @param info an array of stage info to register
   @param count the size of the info array
 */
-typedef void (*register_stage_v1_t)
-  (const char *category, struct PSI_stage_info_v1 **info, int count);
+typedef void (*register_stage_v1_t)(const char *category,
+                                    struct PSI_stage_info_v1 **info,
+                                    int count);
 
 /**
   Start a new stage, and implicitly end the previous stage.
@@ -130,17 +131,18 @@ typedef void (*register_stage_v1_t)
   @param src_line the source line number
   @return the new stage progress
 */
-typedef PSI_stage_progress_v1* (*start_stage_v1_t)
-  (PSI_stage_key key, const char *src_file, int src_line);
+typedef PSI_stage_progress_v1 *(*start_stage_v1_t)(PSI_stage_key key,
+                                                   const char *src_file,
+                                                   int src_line);
 
 /**
   Get the current stage progress.
   @return the stage progress
 */
-typedef PSI_stage_progress_v1* (*get_current_stage_progress_v1_t)(void);
+typedef PSI_stage_progress_v1 *(*get_current_stage_progress_v1_t)(void);
 
 /** End the current stage. */
-typedef void (*end_stage_v1_t) (void);
+typedef void (*end_stage_v1_t)(void);
 
 /**
   Performance Schema Stage Interface, version 1.
@@ -209,4 +211,3 @@ typedef struct PSI_placeholder PSI_stage_progress;
 C_MODE_END
 
 #endif /* MYSQL_PSI_FILE_H */
-

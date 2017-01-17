@@ -24,10 +24,8 @@ CREATE TEMPORARY TABLE TEMP1 (a int);
 --echo
 
 --connection slave
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 --let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
---let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+--let $var_value= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
 
 --let $assert_text= Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.
 --let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
@@ -40,7 +38,7 @@ set @@global.show_compatibility_56=ON;
 
 --source include/stop_slave.inc
 --let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
---let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+--let $var_value= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
 
 --let $assert_text= Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.
 --let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
@@ -55,7 +53,7 @@ set @@global.show_compatibility_56=ON;
 eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
 
 --let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
---let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+--let $var_value= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
 
 --let $assert_text= Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.
 --let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
@@ -73,12 +71,11 @@ eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
 # of temp table itself.
 
 --let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
---let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+--let $var_value= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
 
 --let $assert_text= count(*) from INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should match.
 --let $assert_cond= $innodb_tbl_value = $var_value
 --source include/assert.inc
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 # If the temp table still exists, mtr end state check will complain of
 # slave_open_temp_tables= 1.
 --connection master

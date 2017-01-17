@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "auth_acls.h"
 #include "item_cmpfunc.h"          // Item_func_eq
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysqld.h"                // using_udf_functions
 #include "parse_tree_nodes.h"
@@ -221,7 +222,7 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc, Item **res)
 
     This will be revised with WL#2128 (SQL PATH)
   */
-  Create_func *builder= find_native_function_builder(thd, ident);
+  Create_func *builder= find_native_function_builder(ident);
   if (builder)
     *res= builder->create_func(thd, ident, opt_udf_expr_list);
   else

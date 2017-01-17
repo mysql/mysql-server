@@ -8,12 +8,6 @@
 --echo # CREATE TABLESPACE related tests.
 --echo #
 
---echo #
---echo # WL7743/TODO: Check changes in this test with Marko, some
---echo #              new results look strange. E.g. why s#bad?
---echo #              Why is innodb_temporary missing?
---echo #
-
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
@@ -63,6 +57,9 @@ CREATE TABLESPACE 's_bad' ADD DATAFILE 's_bad.ibd';
 CREATE TABLESPACE "s_bad" ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `` ADD DATAFILE 's_bad.ibd';
+# The below statement is parsed as "CREATE TABLESPACE s" which
+# is incorrect syntax (because ADD DATAFILE part is mandatory)
+# and hence results in parse error.
 --error ER_PARSE_ERROR
 CREATE TABLESPACE s#bad ADD DATAFILE 's_bad.ibd';
 --error ER_PARSE_ERROR
@@ -99,6 +96,8 @@ DROP TABLESPACE "s_bad";
 DROP TABLESPACE ``;
 SHOW WARNINGS;
 # "DROP TABLESPACE s#bad" is the same as "DROP TABLESPACE s".
+# Unlike "CREATE TABLESPACE s", this is valid syntax, so we
+# don't get parse error here.
 --error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE s#bad;
 --error ER_PARSE_ERROR
@@ -284,8 +283,7 @@ SHOW WARNINGS;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE s4_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-# Mask error text as it varies with MYSQL_TMP_DIR length
---error ER_DUP_ENTRY, 1
+--error ER_TABLESPACE_DUP_FILENAME
 eval CREATE TABLESPACE s5_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_CREATE_FILEGROUP_FAILED
@@ -318,7 +316,7 @@ DROP TABLESPACE `s1_#_hash`;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 --error ER_TABLESPACE_EXISTS
 CREATE TABLESPACE s_def ADD DATAFILE 's_def_2.ibd';
---error ER_DUP_ENTRY
+--error ER_TABLESPACE_DUP_FILENAME
 CREATE TABLESPACE S_new ADD DATAFILE 's_def.ibd';
 CREATE TABLESPACE `s_DEF` ADD DATAFILE 's_def_2.ibd';
 DROP TABLESPACE `s_DEF`;

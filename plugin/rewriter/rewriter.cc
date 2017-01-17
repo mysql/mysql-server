@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -14,21 +14,22 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
-#include "my_config.h"
+#include <hash.h>
+#include <m_string.h> // Needed because debug_sync.h is not self-sufficient.
+#include <mysql/service_parser.h>
+#include <mysql/service_rules_table.h>
+#include <memory>
+#include <string>
+
+#include "debug_sync.h"
 #include "messages.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "nullable.h"
 #include "persisted_rule.h"
 #include "rewriter.h"
 #include "rule.h"
-#include "nullable.h"
-#include <mysql/service_parser.h>
-#include <mysql/service_rules_table.h>
-#include <hash.h>
-
 #include "template_utils.h"
-#include <m_string.h> // Needed because debug_sync.h is not self-sufficient.
-#include "debug_sync.h"
-#include <memory>
-#include <string>
 
 using std::string;
 using rules_table_service::Cursor;

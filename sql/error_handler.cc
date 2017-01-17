@@ -40,11 +40,11 @@
 
   @return true if the condition is handled.
 */
-bool Drop_table_error_handler::handle_condition(THD *thd,
+bool Drop_table_error_handler::handle_condition(THD*,
                                                 uint sql_errno,
-                                                const char* sqlstate,
-                                                Sql_condition::enum_severity_level *level,
-                                                const char* msg)
+                                                const char*,
+                                                Sql_condition::enum_severity_level*,
+                                                const char*)
 {
   return (sql_errno == EE_DELETE && my_errno() == ENOENT);
 }
@@ -60,9 +60,9 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 */
 bool Ignore_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
-                                            const char *sqlstate,
+                                            const char*,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg)
+                                            const char*)
 {
   /*
     If a statement is executed with IGNORE keyword then this handler
@@ -108,8 +108,8 @@ bool View_error_handler::handle_condition(
                                 THD *thd,
                                 uint sql_errno,
                                 const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message)
+                                Sql_condition::enum_severity_level*,
+                                const char*)
 {
   /*
     Error will be handled by Show_create_error_handler for
@@ -153,9 +153,9 @@ bool View_error_handler::handle_condition(
 */
 bool Strict_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
-                                            const char *sqlstate,
+                                            const char*,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg)
+                                            const char*)
 {
   /*
     STRICT error handler should not be effective if we have changed the
@@ -244,11 +244,11 @@ public:
     : m_handled_errors(false), m_unhandled_errors(false)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
     {

@@ -41,8 +41,8 @@ set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
 set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
 set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 
-add_subdirectory("host_info")
-add_subdirectory("frontend")
+ADD_SUBDIRECTORY(host_info)
+ADD_SUBDIRECTORY(frontend)
 
 if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
   file(TO_CMAKE_PATH "${MCC_PYTHON_TO_BUNDLE}" MCC_PYTHON_TO_BUNDLE_CMP)
@@ -120,23 +120,31 @@ install(FILES clusterhost.py remote_clusterhost.py request_handler.py
 install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"  
   COMPONENT ClusterTools)
 
-if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
-  set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
-endif()
 
-# Convenience target for mcc development which installs only the mcc files,
-# this is much faster than installing everything
-add_custom_target(install_mcc 
+# Additional utility targets for MCC development
+option(WITH_MCC_DEV "Include MySQL Cluster Configurator dev targets" OFF)
+MARK_AS_ADVANCED(WITH_MCC_DEV)
+IF (WITH_MCC_DEV)
+  MESSAGE(STATUS "Adding MCC dev targets")
+
+  if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
+    set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
+  endif()
+
+  # Convenience target for mcc development which installs only the mcc files,
+  # this is much faster than installing everything
+  add_custom_target(mcc_install
 	${CMAKE_COMMAND} "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}" 
 	-P "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake" 
 	VERBATIM)
+  ADD_DEPENDENCIES(mcc_install host_info)
 
-# Convenience target for mcc development which runs the mcc tests on installed files 
-add_custom_target(run_mcc	
+  # Convenience target for mcc development which runs the mcc tests on installed files
+  add_custom_target(mcc_run
 	COMMAND ${CMAKE_COMMAND} -E remove mcc_log.txt
         COMMAND python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -N "" -d DEBUG -o mcc_log.txt VERBATIM)
-add_dependencies(run_mcc install_mcc)
+  add_dependencies(mcc_run mcc_install)
 
-add_custom_target(run_mcc_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
-add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
-
+  add_custom_target(mcc_run_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
+  add_custom_target(mcc_punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
+ENDIF()

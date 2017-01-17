@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -185,7 +185,6 @@ else
 
 my $flags;
 $flags->{libs} = [@lib_opts, qw(@CONFIG_CLIENT_LIBS@)];
-$flags->{embedded_libs} = [@lib_e_opts, qw(@CONFIG_EMBEDD_LIBS@)];
 
 $flags->{include} = ["-I$pkgincludedir"];
 $flags->{cflags}  = [@{$flags->{include}},split(" ",'@CFLAGS@')];
@@ -195,7 +194,6 @@ my $include =       quote_options(@{$flags->{include}});
 my $cflags  =       quote_options(@{$flags->{cflags}});
 my $cxxflags=       quote_options(@{$flags->{cxxflags}});
 my $libs    =       quote_options(@{$flags->{libs}});
-my $embedded_libs = quote_options(@{$flags->{embedded_libs}});
 
 ##############################################################################
 #
@@ -215,7 +213,7 @@ Options:
         --libs_r         [$libs]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
+        --version        [$version]
 EOF
   exit 1;
 }
@@ -237,8 +235,6 @@ GetOptions(
            "socket"  => sub { print "$socket\n" },
            "port"    => sub { print "$port\n" },
            "version" => sub { print "$version\n" },
-           "embedded-libs|embedded|libmysqld-libs" =>
-             sub { @DISABLE_EMBEDDED_PL@ print "$embedded_libs\n" },
            ) or usage();
 
 exit 0

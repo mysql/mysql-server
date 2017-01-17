@@ -23,17 +23,8 @@
 #include "buffered_file_io_10.h"
 #include <fstream>
 #include "i_serialized_object.h"
+#include "buffered_file_io.h"
 
-#if !defined(MERGE_UNITTESTS)
-#ifdef HAVE_PSI_INTERFACE
-namespace keyring
-{
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-  PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}
-#endif
-mysql_rwlock_t LOCK_keyring;
-#endif
 
 namespace keyring__keys_container_unittest
 {
@@ -57,7 +48,12 @@ namespace keyring__keys_container_unittest
     if (file.tellg() < (3+32)) //tag + sha256
       return FALSE; // File do not contains tag
     file.seekg(-(3+32), file.end);
+    if (file.good() == FALSE)
+      return FALSE;
     file.read(tag, 3);
+    size_t chars_read= file.gcount();
+    if (file.good() == FALSE || chars_read < 3)
+      return FALSE;
     tag[3]= '\0';
     file.close();
     return strcmp(tag, "EOF") == 0;
@@ -397,12 +393,12 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
 
-    std::string fake_dgst("01237890990912938012938012283019"); //sha-256 dgst
-    std::fstream keyring_file("keyring");
-    keyring_file.seekp(-fake_dgst.length(), std::ios_base::end);
-    keyring_file.write(fake_dgst.c_str(), fake_dgst.length());
+    std::fstream keyring_file("./keyring");
+    ASSERT_TRUE(keyring_file.is_open());
+    keyring_file.seekp(-3, std::ios_base::end);
+    keyring_file.write("a", 1); //changed digest
     keyring_file.close();
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring"));
 
     std::string key_data1("Robi1");
     Key *key1= new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(), key_data1.length()+1);
@@ -1407,10 +1403,4 @@ namespace keyring__keys_container_unittest
     delete mock_serializer;
   }
 
-  int main(int argc, char **argv) {
-    if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
-      return TRUE;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-  }
 }

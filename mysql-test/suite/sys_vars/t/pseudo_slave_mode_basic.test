@@ -96,7 +96,7 @@ SET @@session.pseudo_slave_mode = "Y";
 SET @@session.pseudo_slave_mode = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.pseudo_slave_mode = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.pseudo_slave_mode = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.pseudo_slave_mode = ÓFF;

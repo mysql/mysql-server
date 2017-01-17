@@ -50,6 +50,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysqld.h"                             // mysql_real_data_home
+#include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -79,9 +80,6 @@
 #include "thr_malloc.h"
 #include "transaction_info.h"
 #include "trigger_def.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
 
 class READ_INFO;
 
@@ -189,7 +187,6 @@ static int read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &set_values, READ_INFO &read_info,
                           ulong skip_lines);
 
-#ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* db_arg, /* table's database */
                                                const char* table_name_arg,
@@ -197,7 +194,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                enum enum_duplicates duplicates,
                                                bool transactional_table,
                                                int errocode);
-#endif /* EMBEDDED_LIBRARY */
 
 /*
   Execute LOAD DATA query
@@ -233,12 +229,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   const String *enclosed=   ex->field.enclosed;
   bool is_fifo=0;
   SELECT_LEX *select= thd->lex->select_lex;
-#ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
   bool is_concurrent;
   bool transactional_table;
-#endif
   const char *db = table_list->db;			// This is never null
   /*
     If path for file is not defined, we will use the current database.
@@ -256,10 +250,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     avoiding the problem.
   */
   thd->set_current_stmt_binlog_format_row_if_mixed();
-
-#ifdef EMBEDDED_LIBRARY
-  read_file_from_client  = 0; //server is always in the same process 
-#endif
 
   if (escaped->length() > 1 || enclosed->length() > 1)
   {
@@ -337,10 +327,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   for (Field **cur_field= table->field; *cur_field; ++cur_field)
     (*cur_field)->reset_warnings();
 
-#ifndef EMBEDDED_LIBRARY
   transactional_table= table->file->has_transactions();
-  is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
-#endif
+  is_concurrent= (table_list->lock_descriptor().type ==
+                  TL_WRITE_CONCURRENT_INSERT);
 
   if (!fields_vars.elements)
   {
@@ -351,6 +340,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Item *item;
       if (!(item= field_iterator.create_item(thd)))
         DBUG_RETURN(TRUE);
+
+      if (item->field_for_view_update() == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
       fields_vars.push_back(item->real_item());
     }
     bitmap_set_all(table->write_set);
@@ -457,7 +452,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
   {
     (void)net_request_file(thd->get_protocol_classic()->get_net(),
@@ -465,7 +459,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     file = -1;
   }
   else
-#endif
   {
     if (!dirname_length(ex->file_name))
     {
@@ -548,7 +541,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);				// Can't allocate buffers
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
     lf_info.thd = thd;
@@ -557,7 +549,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.log_delayed= transactional_table;
     read_info.set_io_cache_arg((void*) &lf_info);
   }
-#endif /*!EMBEDDED_LIBRARY*/
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
@@ -623,9 +614,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     thd->killed= THD::KILL_QUERY;
                   };);
 
-#ifndef EMBEDDED_LIBRARY
   killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
-#endif
 
   /*
     We must invalidate the table in query cache before binlog writing and
@@ -637,7 +626,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (read_file_from_client)
       read_info.skip_data_till_eof();
 
-#ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
     {
       {
@@ -688,7 +676,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	}
       }
     }
-#endif /*!EMBEDDED_LIBRARY*/
     error= -1;				// Error on read
     goto err;
   }
@@ -699,7 +686,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
               (long) (info.stats.records - info.stats.copied),
               (long) thd->get_stmt_da()->current_statement_cond_count());
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
     /*
@@ -741,7 +727,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (error)
       goto err;
   }
-#endif /*!EMBEDDED_LIBRARY*/
 
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
@@ -756,7 +741,6 @@ err:
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /* Not a very useful function; just to avoid duplication of code */
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* db_arg,  /* table's database */
@@ -807,7 +791,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   return mysql_bin_log.write_event(&e);
 }
 
-#endif
 
 /****************************************************************************
 ** Read of rows of fixed size + optional garbage + optional newline
@@ -1491,14 +1474,12 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
       */
       need_end_io_cache = 1;
 
-#ifndef EMBEDDED_LIBRARY
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
       if (mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
-#endif
     }
   }
 }

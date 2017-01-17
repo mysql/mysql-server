@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +16,6 @@
 */
 
 #include <ndb_global.h>
-#include <NdbMain.h>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <NdbMutex.h>
@@ -489,7 +487,7 @@ wl1822_main(char scantx)
   return 0;
 }
 
-NDB_COMMAND(testOdbcDriver, "testDeadlock", "testDeadlock", "testDeadlock", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   if (ndbout_mutex == NULL)

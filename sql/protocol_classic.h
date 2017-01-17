@@ -65,16 +65,7 @@ protected:
   ulong input_packet_length;
   uchar *input_raw_packet;
   CHARSET_INFO *result_cs;
-#ifndef EMBEDDED_LIBRARY
   bool net_store_data(const uchar *from, size_t length);
-#else
-  char **next_field;
-  MYSQL_FIELD *next_mysql_field;
-  MEM_ROOT *alloc;
-  MYSQL_FIELD  *client_field;
-  MEM_ROOT     *field_alloc;
-  virtual bool net_store_data(const uchar *from, size_t length);
-#endif
   virtual bool net_store_data(const uchar *from, size_t length,
                               const CHARSET_INFO *fromcs,
                               const CHARSET_INFO *tocs);
@@ -134,10 +125,6 @@ public:
   virtual bool end_result_metadata();
   virtual bool send_field_metadata(Send_field *field,
                                    const CHARSET_INFO *item_charset);
-#ifdef EMBEDDED_LIBRARY
-  int begin_dataset();
-  virtual void send_string_metadata(String* item_str);
-#endif
   virtual void abort_row() {}
   virtual enum enum_protocol_type type()= 0;
 
@@ -246,9 +233,6 @@ public:
   virtual bool send_parameters(List<Item_param> *parameters,
                                bool is_sql_prepare);
 
-#ifdef EMBEDDED_LIBRARY
-  virtual void abort_row();
-#endif
   virtual enum enum_protocol_type type() { return PROTOCOL_TEXT; };
 protected:
   virtual bool store(const char *from, size_t length,
@@ -265,13 +249,6 @@ public:
   Protocol_binary() {}
   Protocol_binary(THD *thd_arg) :Protocol_text(thd_arg) {}
   virtual void start_row();
-#ifdef EMBEDDED_LIBRARY
-  virtual bool end_row();
-  bool net_store_data(const uchar *from, size_t length);
-  bool net_store_data(const uchar *from, size_t length,
-                      const CHARSET_INFO *fromcs,
-                      const CHARSET_INFO *tocs);
-#endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
   virtual bool store_short(longlong from);

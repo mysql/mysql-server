@@ -126,11 +126,9 @@ let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71
 
 --echo # 7. With ibdata files & Without undo002
 --remove_file $bugdir/data/undo002
---error 3
+--error 1
 --exec $MYSQLD $args
-let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=to find only 1 undo tablespaces;
+let SEARCH_PATTERN=Unable to open undo tablespace number 2;
 --source include/search_pattern_in_file.inc
 # clean up & Restore
 --source ../include/bootstrap_cleanup.inc
@@ -138,11 +136,9 @@ let SEARCH_PATTERN=to find only 1 undo tablespaces;
 --echo # 8. With ibdata files & Without undo001, undo002
 --remove_file $bugdir/data/undo001
 --remove_file $bugdir/data/undo002
---error 3
+--error 1
 --exec $MYSQLD $args
-let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=to find only 0 undo tablespaces;
+let SEARCH_PATTERN=Unable to open undo tablespace number 1;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
@@ -200,7 +196,6 @@ let SEARCH_PATTERN=\[Note\] InnoDB: File.*ibdata3. size is now 20 MB;
 --source include/search_pattern_in_file.inc
 
 --echo # Cleanup
---let CLEANUP_FOLDER=$bugdir
---source include/cleanup_folder.inc
+--force-rmdir $bugdir
 
 --source include/start_mysqld.inc

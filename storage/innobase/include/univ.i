@@ -131,20 +131,13 @@ HAVE_PSI_INTERFACE is defined. */
 # define UNIV_PFS_MUTEX
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
+#if defined HAVE_PSI_RWLOCK_INTERFACE && defined UNIV_PFS_MUTEX
+/* For the rwlocks to be tracked UNIV_PFS_MUTEX has to be defined. If not
+defined, the rwlocks are simply not tracked. */
 # define UNIV_PFS_RWLOCK
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-/* For I/O instrumentation, performance schema rely
-on a native descriptor to identify the file, this
-descriptor could conflict with our OS level descriptor.
-Disable IO instrumentation on Windows until this is
-resolved */
-#ifdef HAVE_PSI_FILE_INTERFACE
-# ifndef _WIN32
 #  define UNIV_PFS_IO
-# endif
-#endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 # define UNIV_PFS_THREAD
@@ -423,6 +416,7 @@ lu/llu, like in %03lu. */
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
 # define UINT32PF	"%lu"
+# define UINT32PFS	"lu"
 # define UINT64PF	"%llu"
 # define UINT64PFx	"%016llx"
 typedef unsigned __int64 ib_uint64_t;
@@ -430,6 +424,7 @@ typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
 # define UINT32PF	"%" PRIu32
+# define UINT32PFS	PRIu32
 # define UINT64PF	"%" PRIu64
 # define UINT64PFx	"%016" PRIx64
 typedef uint64_t ib_uint64_t;
@@ -485,6 +480,7 @@ typedef uint32			page_no_t;
 typedef uint32			space_id_t;
 
 #define SPACE_ID_PF UINT32PF
+#define SPACE_ID_PFS UINT32PFS
 #define PAGE_NO_PF UINT32PF
 #define PAGE_ID_PF "page " SPACE_ID_PF ":" PAGE_NO_PF
 

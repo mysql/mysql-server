@@ -64,7 +64,7 @@ TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 
-MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc ../sql-common/my_user.c)
+MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)

@@ -16,6 +16,7 @@
 ### DEFINITIONS ###
 
 INCLUDE(configure.cmake)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_gcs.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
@@ -181,16 +182,27 @@ IF(WITH_UNIT_TESTS)
                         COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX")
 ENDIF()
 
-### Setting some switches on ###
-
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  SET(WITH_DEBUG_OUTPUT ON)
-  IF(WITH_TRACE_OUTPUT)
-    ADD_DEFINITIONS(-DWITH_LOG_TRACE)
-  ENDIF()
+### Setting some switches on for Debugging ###
+IF(WITH_GCS_LOG_TRACE)
+  ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG -DWITH_LOG_TRACE")
+  ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG -DWITH_LOG_TRACE")
+ELSEIF(WITH_GCS_LOG_DEBUG)
+  ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG")
+  ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
+                                             "-DWITH_LOG_DEBUG")
 ENDIF()
 
 ### Configuration ###
+
+# Used to inhibit false posives on CLang 3.8/8.0
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    ADD_COMPILE_FLAGS(${XCOM_SOURCES}
+            COMPILE_FLAGS
+            "-Wno-conditional-uninitialized")
+ENDIF()
 
 # disabling warnings for generated code
 IF(MSVC)

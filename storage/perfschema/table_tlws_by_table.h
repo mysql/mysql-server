@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 #ifndef TABLE_LOCK_WAITS_SUMMARY_BY_TABLE_H
 #define TABLE_LOCK_WAITS_SUMMARY_BY_TABLE_H
@@ -49,11 +50,15 @@ class PFS_index_tlws_by_table : public PFS_engine_index
 public:
   PFS_index_tlws_by_table()
     : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
-  {}
+      m_key_1("OBJECT_TYPE"),
+      m_key_2("OBJECT_SCHEMA"),
+      m_key_3("OBJECT_NAME")
+  {
+  }
 
   ~PFS_index_tlws_by_table()
-  {}
+  {
+  }
 
   virtual bool match(const PFS_table_share *table);
 
@@ -69,7 +74,7 @@ class table_tlws_by_table : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -91,10 +96,11 @@ protected:
 
 public:
   ~table_tlws_by_table()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_table_share *table_share);
+  int make_row(PFS_table_share *table_share);
 
 private:
   /** Table share lock. */
@@ -104,8 +110,6 @@ private:
 
   /** Current row. */
   row_tlws_by_table m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

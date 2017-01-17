@@ -1176,29 +1176,29 @@ ER_TABLE_EXISTS_ERROR 42S01
         swe "Tabellen '%-.192s' finns redan"
         ukr "Таблиця '%-.192s' вже існує"
 ER_BAD_TABLE_ERROR 42S02 
-        cze "Neznámá tabulka '%-.100s'"
-        dan "Ukendt tabel '%-.100s'"
-        nla "Onbekende tabel '%-.100s'"
-        eng "Unknown table '%-.100s'"
-        est "Tundmatu tabel '%-.100s'"
-        fre "Table '%-.100s' inconnue"
-        ger "Unbekannte Tabelle '%-.100s'"
-        greek "Αγνωστος πίνακας '%-.100s'"
-        hun "Ervenytelen tabla: '%-.100s'"
-        ita "Tabella '%-.100s' sconosciuta"
-        jpn "'%-.100s' は不明な表です。"
-        kor "테이블 '%-.100s'는 알수 없음"
-        nor "Ukjent tabell '%-.100s'"
-        norwegian-ny "Ukjent tabell '%-.100s'"
-        pol "Nieznana tabela '%-.100s'"
-        por "Tabela '%-.100s' desconhecida"
-        rum "Tabela '%-.100s' este invalida"
-        rus "Неизвестная таблица '%-.100s'"
-        serbian "Nepoznata tabela '%-.100s'"
-        slo "Neznáma tabuľka '%-.100s'"
-        spa "Tabla '%-.100s' desconocida"
-        swe "Okänd tabell '%-.100s'"
-        ukr "Невідома таблиця '%-.100s'"
+        cze "Neznámá tabulka '%-.129s'"
+        dan "Ukendt tabel '%-.129s'"
+        nla "Onbekende tabel '%-.129s'"
+        eng "Unknown table '%-.129s'"
+        est "Tundmatu tabel '%-.129s'"
+        fre "Table '%-.129s' inconnue"
+        ger "Unbekannte Tabelle '%-.129s'"
+        greek "Αγνωστος πίνακας '%-.129s'"
+        hun "Ervenytelen tabla: '%-.129s'"
+        ita "Tabella '%-.129s' sconosciuta"
+        jpn "'%-.129s' は不明な表です。"
+        kor "테이블 '%-.129s'는 알수 없음"
+        nor "Ukjent tabell '%-.129s'"
+        norwegian-ny "Ukjent tabell '%-.129s'"
+        pol "Nieznana tabela '%-.129s'"
+        por "Tabela '%-.129s' desconhecida"
+        rum "Tabela '%-.129s' este invalida"
+        rus "Неизвестная таблица '%-.129s'"
+        serbian "Nepoznata tabela '%-.129s'"
+        slo "Neznáma tabuľka '%-.129s'"
+        spa "Tabla '%-.129s' desconocida"
+        swe "Okänd tabell '%-.129s'"
+        ukr "Невідома таблиця '%-.129s'"
 ER_NON_UNIQ_ERROR 23000 
         cze "Sloupec '%-.192s' v %-.192s není zcela jasný"
         dan "Felt: '%-.192s' i tabel %-.192s er ikke entydigt"
@@ -2791,7 +2791,8 @@ ER_STACK_OVERRUN
         spa "Sobrecarga de la pila de thread:  Usada: %ld de una %ld pila.  Use 'mysqld --thread_stack=#' para especificar una mayor pila si necesario"
         swe "Trådstacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld --thread_stack=#' ifall du behöver en större stack"
         ukr "Стек гілок переповнено:  Використано: %ld з %ld. Використовуйте 'mysqld --thread_stack=#' аби зазначити більший стек, якщо необхідно"
-ER_WRONG_OUTER_JOIN 42000 
+# Not used since 5.8 and probably earlier.
+ER_WRONG_OUTER_JOIN_UNUSED 42000
         cze "V OUTER JOIN byl nalezen křížový odkaz. Prověřte ON podmínky"
         dan "Krydsreferencer fundet i OUTER JOIN; check dine ON conditions"
         nla "Gekruiste afhankelijkheid gevonden in OUTER JOIN. Controleer uw ON-conditions"
@@ -7886,14 +7887,62 @@ ER_WARN_SRS_NOT_FOUND_AXIS_ORDER 01000
 ER_NO_ACCESS_TO_NATIVE_FCT
   eng "Access to native function '%.64s' is rejected."
 
+ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+  eng "The requested value '%lu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
+
+ER_UNRESOLVED_TABLE_LOCK
+  eng "Unresolved table name %s in locking clause."
+
+ER_DUPLICATE_TABLE_LOCK
+  eng "Table %s appears in multiple locking clauses."
+
+ER_BINLOG_UNSAFE_SKIP_LOCKED
+  eng "Statement is unsafe because it uses SKIP LOCKED. The set of inserted values is non-deterministic."
+
+ER_BINLOG_UNSAFE_NOWAIT
+  eng "Statement is unsafe because it uses NOWAIT. Whether the command will succeed or fail is not deterministic."
+
+ER_LOCK_NOWAIT
+  eng "Do not wait for lock."
+
+ER_CTE_RECURSIVE_REQUIRES_UNION
+  eng "Recursive Common Table Expression '%s' should contain a UNION"
+
+ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST
+  eng "Recursive Common Table Expression '%s' should have one or more non-recursive query blocks followed by one or more recursive ones"
+
+ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+  eng "Recursive Common Table Expression '%s' cannot contain aggregation in recursive query block"
+
+ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints"
+
+ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must be referenced only once, and not in any subquery"
+
+ER_SWITCH_TMP_ENGINE
+  eng "'%s' requires @@internal_tmp_disk_storage_engine=InnoDB"
+
+ER_INVALID_NO_OF_ARGS
+  eng "Too many arguments for function %s: %lu; maximum allowed is %s."
+
+ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+  eng "Argument #%u of GROUPING function is not in GROUP BY"
+
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
 
 ER_ENGINE_CANT_DROP_TABLE
-  eng "Storage engine can't drop table '%-.100s'"
+  eng "Storage engine can't drop table '%-.129s'"
 
 ER_ENGINE_CANT_DROP_MISSING_TABLE
-  eng "Storage engine can't drop table '%-.100s' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary."
+  eng "Storage engine can't drop table '%-.129s' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary."
+
+ER_TABLESPACE_DUP_FILENAME
+  eng "Duplicate file name for tablespace '%-.64s'"
+
+ER_DB_DROP_RMDIR2
+  eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
 
 #
 #  End of 8.0 error messages.

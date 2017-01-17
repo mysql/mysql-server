@@ -23,7 +23,6 @@
 #include "sql_show.h"
 #include "mysqld.h"
 
-my_bool show_compatibility_56= FALSE;
 struct System_status_var global_status_var;
 
 struct sql_digest_storage;

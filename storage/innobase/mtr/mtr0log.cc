@@ -621,7 +621,11 @@ mlog_parse_index(
 				len & 0x8000 ? DATA_NOT_NULL : 0,
 				len & 0x7fff);
 
-			dict_index_add_col(ind, table, table->get_col(i), 0);
+			/* The is_ascending flag does not matter during
+			redo log apply, because we do not compare for
+			"less than" or "greater than". */
+			dict_index_add_col(ind, table, table->get_col(i), 0,
+					   true);
 		}
 		dict_table_add_system_columns(table, table->heap);
 		if (n_uniq != n) {

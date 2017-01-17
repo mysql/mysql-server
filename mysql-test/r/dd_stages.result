@@ -7,11 +7,16 @@ connect  con1, localhost, root, , ;
 connection default;
 # Reduce noise from the default connection.
 update performance_schema.threads set instrumented = 'NO' where processlist_id = connection_id();
-truncate table performance_schema.events_stages_history_long;
+connection con1;
 # Create and drop a basic table to populate the DD cache with
-# the DD table objects.
+# the DD table objects. This also populates global Table
+# Definition Cache with TABLE_SHARE objects and con1-specific
+# Table Cache with TABLE objects for system tables.
 create table t1(a int);
 drop table t1;
+connection default;
+# Reset history table.
+truncate table performance_schema.events_stages_history_long;
 connection con1;
 # Run some statements and see that we have different stage names for
 # opening and locking system and user tables.
@@ -21,6 +26,7 @@ create table t1(a int);
 insert into t1 values (1), (2), (3), (4), (5);
 drop table t1;
 connection default;
+<<<<<<< HEAD
 select event_name from performance_schema.events_stages_history_long
 where thread_id = @con1_thread_id and
 (event_name like '%Opening %tables' or
@@ -57,6 +63,11 @@ stage/sql/Opening system tables
 stage/sql/Locking system tables
 stage/sql/Opening system tables
 stage/sql/Locking system tables
+=======
+# Checking the expected number of stages history entries:
+Open table	Lock table	Lock system
+OK	OK	OK
+>>>>>>> mysql-trunk-wl7743-wip-3
 connection con1;
 disconnect con1;
 connection default;

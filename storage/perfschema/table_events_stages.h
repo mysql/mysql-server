@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,11 +38,14 @@ class PFS_index_events_stages : public PFS_engine_index
 public:
   PFS_index_events_stages()
     : PFS_engine_index(&m_key_1, &m_key_2),
-    m_key_1("THREAD_ID"), m_key_2("EVENT_ID")
-  {}
+      m_key_1("THREAD_ID"),
+      m_key_2("EVENT_ID")
+  {
+  }
 
   ~PFS_index_events_stages()
-  {}
+  {
+  }
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events_stages *pfs);
@@ -89,20 +92,22 @@ struct row_events_stages
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STAGES_HISTORY. */
 struct pos_events_stages_history : public PFS_double_index
 {
-  pos_events_stages_history()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_events_stages_history() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline void next_thread(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
+
+  inline void
+  next_thread(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -121,14 +126,13 @@ protected:
   table_events_stages_common(const PFS_engine_table_share *share, void *pos);
 
   ~table_events_stages_common()
-  {}
+  {
+  }
 
-  void make_row(PFS_events_stages *stage);
+  int make_row(PFS_events_stages *stage);
 
   /** Current row. */
   row_events_stages m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STAGES_CURRENT. */
@@ -137,7 +141,7 @@ class table_events_stages_current : public table_events_stages_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -155,7 +159,8 @@ protected:
 
 public:
   ~table_events_stages_current()
-  {}
+  {
+  }
 
 private:
   friend class table_events_stages_history;
@@ -184,7 +189,7 @@ class table_events_stages_history : public table_events_stages_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -202,7 +207,8 @@ protected:
 
 public:
   ~table_events_stages_history()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */
@@ -222,7 +228,7 @@ class table_events_stages_history_long : public table_events_stages_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -236,7 +242,8 @@ protected:
 
 public:
   ~table_events_stages_history_long()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */

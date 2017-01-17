@@ -575,6 +575,9 @@ RUN GRANT ALL ON *.* TO user5_mysqlx@localhost
 RUN GRANT ALL ON *.* TO user6_mysqlx@localhost
 
 0 rows affected
+RUN GRANT ALL ON *.* TO user7_mysqlx@localhost
+
+0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -607,7 +610,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 not ok
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
@@ -699,7 +702,7 @@ Mysqlx.Ok {
 }
 ok
 Testing conenction for ACCOUNT LOCK user.
-in main, line 0:ERROR: Account is locked. (code 1045)
+Application terminated with expected error: Account is locked. (code 1045)
 not ok
 Unlocking user account.
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
@@ -815,15 +818,16 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-in main, line 0:ERROR: Current account requires TLS to be activate. (code 1045)
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
-in main, line 0:ERROR: Current account requires TLS to be activate. (code 1045)
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
-in main, line 0:ERROR: Current user cipher isn't allowed. (code 1045)
+Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
 not ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-While executing SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query':
-in main, line 10:ERROR: SELECT command denied to user 'user7_mysqlx'@'localhost' for table 'threads' (code 1142)
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
 RUN SELECT USER()
 USER()
 user7_mysqlx@localhost
@@ -849,7 +853,7 @@ Mysqlx.Ok {
 }
 ok
 Cert needed
-in main, line 0:ERROR: Current account requires TLS to be activate. (code 1045)
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
@@ -876,7 +880,7 @@ Mysqlx.Ok {
 ok
 call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
 SET GLOBAL require_secure_transport:=1;
-in main, line 0:ERROR: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
+Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
 not ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE

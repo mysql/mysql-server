@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,7 +57,7 @@ buffer pool; the latter method is used for very big heaps */
 					allocation functions can return
 					NULL. */
 
-/** Different type of heaps in terms of which datastructure is using them */
+/** Different type of heaps in terms of which data structure is using them */
 #define MEM_HEAP_FOR_BTR_SEARCH		(MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
 #define MEM_HEAP_FOR_PAGE_HASH		(MEM_HEAP_DYNAMIC)
 #define MEM_HEAP_FOR_RECV_SYS		(MEM_HEAP_BUFFER)
@@ -73,12 +73,36 @@ allocations of small buffers. */
 	(UNIV_PAGE_SIZE >= 16384 ? 8000 : MEM_MAX_ALLOC_IN_BUF)
 
 /** If a memory heap is allowed to grow into the buffer pool, the following
-is the maximum size for a single allocated buffer: */
-#define MEM_MAX_ALLOC_IN_BUF		(UNIV_PAGE_SIZE - 200)
+is the maximum size for a single allocated buffer
+(from UNIV_PAGE_SIZE we subtract MEM_BLOCK_HEADER_SIZE and 2*MEM_NO_MANS_LAND
+since it's something we always need to put. Since in MEM_SPACE_NEEDED we round
+n to the next multiple of UNIV_MEM_ALINGMENT, we need to cut from the rest the
+part that cannot be divided by UNIV_MEM_ALINGMENT): */
+#define MEM_MAX_ALLOC_IN_BUF		((UNIV_PAGE_SIZE - \
+	MEM_BLOCK_HEADER_SIZE - \
+	2 * MEM_NO_MANS_LAND) & ~(UNIV_MEM_ALIGNMENT - 1))
+
+/* Before and after any allocated object we will put MEM_NO_MANS_LAND bytes of
+some data (different before and after) which is supposed not to be modified by
+anyone. This way it would be much easier to determine whether anyone was
+writing on not his memory, especially that Valgrind can assure there was no
+reads or writes to this memory. */
+#ifdef UNIV_DEBUG
+const int MEM_NO_MANS_LAND = 16;
+#else
+const int MEM_NO_MANS_LAND = 0;
+#endif
+
+/* Byte that we would put before allocated object MEM_NO_MANS_LAND times.*/
+const byte MEM_NO_MANS_LAND_BEFORE_BYTE = 0xCE;
+/* Byte that we would put after allocated object MEM_NO_MANS_LAND times.*/
+const byte MEM_NO_MANS_LAND_AFTER_BYTE = 0xDF;
 
 /** Space needed when allocating for a user a field of length N.
-The space is allocated only in multiples of UNIV_MEM_ALIGNMENT.  */
-#define MEM_SPACE_NEEDED(N) ut_calc_align((N), UNIV_MEM_ALIGNMENT)
+The space is allocated only in multiples of UNIV_MEM_ALIGNMENT. In debug mode
+contains two areas of no mans lands before and after the buffer requested. */
+#define MEM_SPACE_NEEDED(N) \
+	ut_calc_align(N + 2 * MEM_NO_MANS_LAND, UNIV_MEM_ALIGNMENT)
 
 #ifdef UNIV_DEBUG
 /** Macro for memory heap creation.
@@ -230,7 +254,7 @@ mem_heap_replace(
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified data to it. If the memory chunk
 specified with (top, top_sz) is the topmost element, then it will be discarded,
-otherwise it will be left untouched and this function will be equivallent to
+otherwise it will be left untouched and this function will be equivalent to
 mem_heap_dup().
 @param[in,out]	heap	memory heap
 @param[in]	top	chunk to discard if possible
@@ -251,7 +275,7 @@ mem_heap_dup_replace(
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified string to it. If the memory chunk
 specified with (top, top_sz) is the topmost element, then it will be discarded,
-otherwise it will be left untouched and this function will be equivallent to
+otherwise it will be left untouched and this function will be equivalent to
 mem_heap_strdup().
 @param[in,out]	heap	memory heap
 @param[in]	top	chunk to discard if possible
@@ -379,9 +403,9 @@ mem_heap_validate(
 
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
-	ulint	magic_n;/* magic number for debugging */
+	uint64_t	magic_n;/* magic number for debugging */
 #ifdef UNIV_DEBUG
-	char	file_name[8];/* file name where the mem heap was created */
+	char	file_name[16];/* file name where the mem heap was created */
 	ulint	line;	/*!< line number where the mem heap was created */
 #endif /* UNIV_DEBUG */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
@@ -415,8 +439,8 @@ struct mem_block_info_t {
 #endif /* !UNIV_HOTBACKUP */
 };
 
-#define MEM_BLOCK_MAGIC_N	764741555
-#define MEM_FREED_BLOCK_MAGIC_N	547711122
+#define MEM_BLOCK_MAGIC_N	0x445566778899AABB
+#define MEM_FREED_BLOCK_MAGIC_N	0xBBAA998877665544
 
 /* Header size for a memory heap block */
 #define MEM_BLOCK_HEADER_SIZE	ut_calc_align(sizeof(mem_block_info_t),\

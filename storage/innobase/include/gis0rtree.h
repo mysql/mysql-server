@@ -125,24 +125,29 @@ rtr_page_cal_mbr(
 	rtr_mbr_t*		mbr,
 	mem_heap_t*		heap);
 
-/*************************************************************//**
-Find the next matching record. This function will first exhaust
+/** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to next page
+@param[in]	tuple		data tuple; NOTE: n_fields_cmp in tuple
+				must be set so that it cannot get compared
+				to the node ptr page number field!
+@param[in]	mode		cursor search mode
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	cursor		persistent cursor; NOTE that the function
+				may release the page latch
+@param[in]	cur_level	current level
+@param[in]	mtr		mini-transaction
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
 bool
 rtr_pcur_move_to_next(
-/*==================*/
-	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
-				tuple must be set so that it cannot get
-				compared to the node ptr page number field! */
-	page_cur_mode_t	mode,	/*!< in: cursor search mode */
-	btr_pcur_t*	cursor, /*!< in: persistent cursor; NOTE that the
-				function may release the page latch */
+	const dtuple_t*	tuple,
+	page_cur_mode_t	mode,
+	select_mode	sel_mode,
+	btr_pcur_t*	cursor,
 	ulint		cur_level,
-				/*!< in: current level */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr);
 
 /****************************************************************//**
 Searches the right position in rtree for a page cursor. */

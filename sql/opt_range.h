@@ -61,7 +61,7 @@ typedef struct st_key_part {
     Keypart flags (0 when this structure is used by partition pruning code
     for fake partitioning index description)
   */
-  uint8 flag;
+  uint16 flag;
   Field            *field;
   Field::imagetype image_type;
 } KEY_PART;
@@ -341,7 +341,7 @@ public:
       0     Ok
       other Error
   */
-  virtual int init_ror_merged_scan(bool reuse_handler)
+  virtual int init_ror_merged_scan(bool reuse_handler MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return 1; }
 
   /*
@@ -363,7 +363,7 @@ public:
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str) {};
+  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))) {};
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -398,8 +398,10 @@ public:
   /*
     Returns a QUICK_SELECT with reverse order of to the index.
   */
-  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
-  virtual void set_handler(handler *file_arg) {}
+  virtual QUICK_SELECT_I*
+    make_reverse(uint used_key_parts_arg MY_ATTRIBUTE((unused)))
+  { return NULL; }
+  virtual void set_handler(handler *file_arg MY_ATTRIBUTE((unused))) {}
 
   /**
     Get the fields used by the range access method.
@@ -457,7 +459,8 @@ protected:
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
                              SEL_ARG *key_tree,
                              uchar *min_key, uint min_key_flag,
-                             uchar *max_key, uint max_key_flag);
+                             uchar *max_key, uint max_key_flag,
+                             uint *desc_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
                                               SEL_ROOT *key_tree,
                                               uint mrr_flags,
@@ -935,6 +938,10 @@ private:
     through index read 
   */
   bool is_index_scan; 
+  /**
+    Whether used part of the index has desc key parts
+  */
+  bool has_desc_keyparts;
 public:
   /*
     The following two members are public to allow easy access from
@@ -948,8 +955,8 @@ private:
   int  next_max_in_range();
   int  next_min();
   int  next_max();
-  void update_min_result();
-  void update_max_result();
+  void update_min_result(bool reset);
+  void update_max_result(bool reset);
 public:
   QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join, bool have_min,
                              bool have_max, bool have_agg_distinct,
@@ -1005,7 +1012,7 @@ public:
   int get_type() const { return QS_TYPE_RANGE_DESC; }
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }
-  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
+  QUICK_SELECT_I *make_reverse(uint)
   {
     return this; // is already reverse sorted
   }
@@ -1022,7 +1029,7 @@ class QEP_shared_owner;
 
 int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
-                      const ORDER::enum_order interesting_order,
+                      const enum_order interesting_order,
                       const QEP_shared_owner *tab,
                       Item *cond,
                       Key_map *needed_reg,

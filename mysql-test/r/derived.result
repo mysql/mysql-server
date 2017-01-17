@@ -170,7 +170,7 @@ insert into t1 values (1),(2),(3);
 describe select * from (select * from t1 group by id) bar;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `bar`.`id` AS `id` from (/* select#2 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` group by `test`.`t1`.`id`) `bar`
 drop table t1;
@@ -202,7 +202,7 @@ explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT m
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	m2	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	7	test.m2.matintnum	2	100.00	NULL
-2	DERIVED	mp	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary; Using filesort
+2	DERIVED	mp	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary
 2	DERIVED	m1	NULL	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select straight_join `d`.`pla_id` AS `pla_id`,`test`.`m2`.`mat_id` AS `mat_id` from `test`.`t1` `m2` join (/* select#2 */ select `test`.`mp`.`pla_id` AS `pla_id`,min(`test`.`m1`.`matintnum`) AS `matintnum` from `test`.`t2` `mp` join `test`.`t1` `m1` where (`test`.`m1`.`mat_id` = `test`.`mp`.`mat_id`) group by `test`.`mp`.`pla_id`) `d` where (`d`.`matintnum` = `test`.`m2`.`matintnum`)
@@ -210,7 +210,7 @@ explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	m2	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	7	test.m2.matintnum	2	100.00	NULL
-2	DERIVED	mp	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary; Using filesort
+2	DERIVED	mp	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary
 2	DERIVED	m1	NULL	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select straight_join `d`.`pla_id` AS `pla_id`,`test`.`m2`.`test` AS `test` from `test`.`t1` `m2` join (/* select#2 */ select `test`.`mp`.`pla_id` AS `pla_id`,min(`test`.`m1`.`matintnum`) AS `matintnum` from `test`.`t2` `mp` join `test`.`t1` `m1` where (`test`.`m1`.`mat_id` = `test`.`mp`.`mat_id`) group by `test`.`mp`.`pla_id`) `d` where (`d`.`matintnum` = `test`.`m2`.`matintnum`)
@@ -233,8 +233,12 @@ create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
 ERROR HY000: The target table t1 of the UPDATE is not updatable
+update (select * from t1) as t1, t1 as t2 set t1.a = 5;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
 delete from (select * from t1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
+delete from (select * from t1) as t1, t1 as t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) as t1, t1 as t2' at line 1
 insert into  (select * from t1) values (5);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) values (5)' at line 1
 drop table t1;
@@ -331,8 +335,8 @@ a	7.0000
 b	3.5000
 explain SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	28	100.00	Using temporary; Using filesort
-2	DERIVED	x	NULL	ALL	NULL	NULL	NULL	NULL	17	100.00	Using temporary; Using filesort
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	28	100.00	Using temporary
+2	DERIVED	x	NULL	ALL	NULL	NULL	NULL	NULL	17	100.00	Using temporary
 2	DERIVED	y	NULL	ALL	NULL	NULL	NULL	NULL	17	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `s`.`name` AS `name`,avg(`s`.`val`) AS `median` from (/* select#2 */ select `test`.`x`.`name` AS `name`,`test`.`x`.`val` AS `val` from `test`.`t1` `x` join `test`.`t1` `y` where (`test`.`y`.`name` = `test`.`x`.`name`) group by `test`.`x`.`name`,`test`.`x`.`val` having ((sum((`test`.`y`.`val` <= `test`.`x`.`val`)) >= (count(0) / 2)) and (sum((`test`.`y`.`val` >= `test`.`x`.`val`)) >= (count(0) / 2)))) `s` group by `s`.`name`
@@ -785,7 +789,7 @@ explain for simple derived
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` group by `test`.`t1`.`f1`) `tt`
@@ -804,7 +808,7 @@ SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.f1	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` group by `test`.`t2`.`f2`) `tt` where (`tt`.`f2` = `test`.`t1`.`f1`)
@@ -830,7 +834,7 @@ Handler_read_key	6
 Handler_read_last	0
 Handler_read_next	3
 Handler_read_prev	0
-Handler_read_rnd	6
+Handler_read_rnd	0
 Handler_read_rnd_next	21
 for materialized views
 DROP VIEW v1,v2,v3;
@@ -841,7 +845,7 @@ explain for simple derived
 EXPLAIN EXTENDED SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1`
@@ -851,24 +855,24 @@ f1	f11
 2	2
 3	3
 5	5
-7	7
 9	9
+7	7
 explain showing created indexes and late materialization for views
 FLUSH STATUS;
 EXPLAIN EXTENDED SELECT * FROM t1 JOIN v2 ON f1=f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.f1	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v2`.`f2` AS `f2`,`v2`.`f22` AS `f22` from `test`.`t1` join `test`.`v2` where (`v2`.`f2` = `test`.`t1`.`f1`)
 SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	4
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -885,7 +889,7 @@ Handler_read_key	6
 Handler_read_last	0
 Handler_read_next	3
 Handler_read_prev	0
-Handler_read_rnd	6
+Handler_read_rnd	0
 Handler_read_rnd_next	21
 EXPLAIN EXTENDED
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
@@ -1133,7 +1137,7 @@ EXPLAIN EXTENDED SELECT * FROM v1 JOIN v4 ON f1=f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t2.f2	2	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`v1` join `test`.`t2` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)))
@@ -1159,7 +1163,7 @@ EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2)
@@ -1173,7 +1177,7 @@ EXPLAIN  extended SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary; Using filesort
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7)) group by `test`.`t1`.`f1`) `zz`
@@ -1187,8 +1191,8 @@ EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary; Using filesort
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `zz`
@@ -1206,8 +1210,8 @@ ON x.f1 = z.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	PRIMARY	<derived5>	NULL	ref	<auto_key0>	<auto_key0>	5	tt.f1	2	100.00	NULL
-5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` join (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7) group by `t1`.`f1`) `tt` where ((`tt`.`f1` = `tt`.`f1`) and (`tt`.`f1` > 2) and (`tt`.`f1` > 2))
@@ -1227,7 +1231,7 @@ Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
-Handler_read_rnd	8
+Handler_read_rnd	0
 Handler_read_rnd_next	29
 FLUSH STATUS;
 merged in merged derived join merged in merged derived
@@ -1266,10 +1270,10 @@ ON x.f1 = z.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	PRIMARY	<derived4>	NULL	ref	<auto_key0>	<auto_key0>	5	x.f1	2	100.00	NULL
-4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary; Using filesort
-5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
-2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary; Using filesort
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
+4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `x` join (/* select#4 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7) group by `t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `z` where (`z`.`f1` = `x`.`f1`)
@@ -1288,20 +1292,20 @@ EXPLAIN EXTENDED
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary; Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by `test`.`t2`.`f2`) `tt`
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 f2	f22
-2	2
 3	3
+2	2
 materialized view in merged derived
 EXPLAIN EXTENDED 
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` where (`v1`.`f1` < 7)
@@ -1328,8 +1332,8 @@ CREATE VIEW v7 AS SELECT * FROM v1;
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-2	DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-4	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+4	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` group by `v1`.`f1`) `tt`
@@ -1339,14 +1343,14 @@ f1	f11
 2	2
 3	3
 5	5
-7	7
 9	9
+7	7
 JOIN of above two
 EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	PRIMARY	<derived5>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t2.f2	2	100.00	NULL
-5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
@@ -1576,7 +1580,7 @@ count(*)
 1000
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	21
+Handler_write	1021
 set @@max_heap_table_size= @save_heap_size;
 SET @@optimizer_switch= @optimizer_switch_saved;
 drop table t1;
@@ -2314,7 +2318,7 @@ FROM t1 JOIN (SELECT a, SUM(b) AS b FROM t2 GROUP BY a) AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,sum(`test`.`t2`.`b`) AS `b` from `test`.`t2` group by `test`.`t2`.`a`) `dt` where (`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
@@ -2459,7 +2463,7 @@ explain SELECT dt.a, COUNT(*)
 FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt
 GROUP BY dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,count(0) AS `COUNT(*)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT dt.a, COUNT(*)
@@ -2472,7 +2476,7 @@ explain SELECT dt.a, COUNT(*)
 FROM (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt
 GROUP BY dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,count(0) AS `COUNT(*)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT COUNT(*)
@@ -3327,7 +3331,7 @@ WHERE b.id BETWEEN 1 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	b	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-2	DERIVED	t2	NULL	ref	c2	c2	5	const	1	100.00	Using index; Using temporary; Using filesort
+2	DERIVED	t2	NULL	ref	c2	c2	5	const	1	100.00	Using index; Using temporary
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `a`.`c1` AS `c1`,`test`.`b`.`id` AS `id`,`test`.`b`.`c1` AS `c1`,`test`.`b`.`c2` AS `c2` from (/* select#2 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t` `t1` join `test`.`t` `t2` where ((`test`.`t2`.`c2` = 3) and (`test`.`t1`.`c1` = 3)) group by `test`.`t1`.`c1`,`test`.`t1`.`id`) `a` join `test`.`t` `b` where (`test`.`b`.`id` between 1 and 10)
@@ -3435,7 +3439,7 @@ WHERE b.id BETWEEN 1 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	b	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using join buffer (Block Nested Loop)
-2	DERIVED	t1	NULL	index	PRIMARY,c2	c2	5	NULL	4	100.00	Using where; Using index; Using temporary; Using filesort
+2	DERIVED	t1	NULL	index	PRIMARY,c2	c2	5	NULL	4	100.00	Using where; Using index; Using temporary
 2	DERIVED	t2	NULL	index	NULL	c2	5	NULL	4	100.00	Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `a`.`id` AS `id`,`test`.`b`.`id` AS `id`,`test`.`b`.`c1` AS `c1`,`test`.`b`.`c2` AS `c2` from (/* select#2 */ select `test`.`t1`.`id` AS `id` from `test`.`t` `t1` join `test`.`t` `t2` where ((`test`.`t1`.`id` % 1000) = 1) group by `test`.`t1`.`id`) `a` join `test`.`t` `b` where (`test`.`b`.`id` between 1 and 10)
@@ -3473,7 +3477,7 @@ WHERE q.id BETWEEN 1 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	q	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using join buffer (Block Nested Loop)
-2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	t	NULL	ref	c2	c2	5	const	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` = 10) and (10 > 3))) where 1 group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
@@ -3786,7 +3790,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	invdate	6	NULL	3	100.00	Using index
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DERIVED	curr	NULL	index	end_date	end_date	3	NULL	3	100.00	Using where; Using index
-3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Using index
+3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (/* select#2 */ select `test`.`curr`.`t2_end_date` AS `end_date`,(/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) AS `prev_end_date` from `test`.`t2` `curr` where (`test`.`curr`.`t2_end_date` >= 's:1')) `periods` on(((`periods`.`prev_end_date` < `test`.`t1`.`t1_inv_date`) and (`periods`.`end_date` >= `test`.`t1`.`t1_inv_date`))) where 1
@@ -3821,7 +3825,7 @@ periods.end_date >= t1_inv_date;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	invdate	6	NULL	3	100.00	Using index
 1	PRIMARY	curr	NULL	index	end_date	end_date	3	NULL	3	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Using index
+3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select /*+ MERGE(`periods`@`select#1`) */ `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (`test`.`t2` `curr`) on((((/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) < `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= 's:1'))) where 1
@@ -3981,3 +3985,68 @@ Created_tmp_files	0
 Created_tmp_tables	2
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE K, H;
+#
+# Bug #25343335: DERIVED TABLE SELECT LIST'S REFERENCE TO ALIAS CAUSES
+#                INCORRECT BEHAVIOR
+#
+CREATE TABLE t1 (c11 int);
+INSERT INTO t1 VALUES (1);
+EXPLAIN SELECT *
+FROM (SELECT (1) alias1,
+(SELECT alias1) alias2
+FROM t1) X ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'alias1' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select 1 AS `alias1`,(/* select#3 */ select `alias1`) AS `alias2` from dual
+SELECT *
+FROM (SELECT (1) alias1,
+(SELECT alias1) alias2
+FROM t1) X ;
+alias1	alias2
+1	1
+PREPARE xx FROM 'SELECT *
+FROM (SELECT (1) alias1,
+(SELECT alias1) alias2
+FROM t1) X ';
+EXECUTE xx;
+alias1	alias2
+1	1
+EXECUTE xx;
+alias1	alias2
+1	1
+EXECUTE xx;
+alias1	alias2
+1	1
+EXPLAIN SELECT alias2
+FROM (SELECT (1) alias1,
+(SELECT alias1) alias2
+FROM t1) X ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'alias1' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select (/* select#3 */ select `alias1`) AS `alias2` from dual
+SELECT alias2
+FROM (SELECT (1) alias1,
+(SELECT alias1) alias2
+FROM t1) X ;
+alias2
+1
+PREPARE yy FROM 'SELECT alias2
+FROM (SELECT (1) alias1,
+(SELECT alias1) alias2
+FROM t1) X ';
+EXECUTE yy;
+alias2
+1
+EXECUTE yy;
+alias2
+1
+EXECUTE yy;
+alias2
+1
+DROP TABLE t1;

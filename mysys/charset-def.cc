@@ -24,11 +24,39 @@
 
 /*
   Include all compiled character sets into the client
-  If a client don't want to use all of them, he can define his own
-  init_compiled_charsets() that only adds those that he wants
+  If a client don't want to use all of them, they can define their own
+  init_compiled_charsets() that only adds those that they want
 */
 
+extern CHARSET_INFO my_charset_latin1_bin;
+extern CHARSET_INFO my_charset_latin1_german2_ci;
+extern CHARSET_INFO my_charset_big5_chinese_ci;
+extern CHARSET_INFO my_charset_big5_bin;
+extern CHARSET_INFO my_charset_cp1250_czech_ci;
+extern CHARSET_INFO my_charset_cp932_japanese_ci;
+extern CHARSET_INFO my_charset_cp932_bin;
+extern CHARSET_INFO my_charset_latin2_czech_ci;
+extern CHARSET_INFO my_charset_eucjpms_japanese_ci;
+extern CHARSET_INFO my_charset_eucjpms_bin;
+extern CHARSET_INFO my_charset_euckr_korean_ci;
+extern CHARSET_INFO my_charset_euckr_bin;
+extern CHARSET_INFO my_charset_gb2312_chinese_ci;
+extern CHARSET_INFO my_charset_gb2312_bin;
+extern CHARSET_INFO my_charset_gbk_chinese_ci;
+extern CHARSET_INFO my_charset_gbk_bin;
+extern CHARSET_INFO my_charset_gb18030_chinese_ci;
+extern CHARSET_INFO my_charset_gb18030_bin;
+extern CHARSET_INFO my_charset_sjis_japanese_ci;
+extern CHARSET_INFO my_charset_sjis_bin;
+extern CHARSET_INFO my_charset_tis620_thai_ci;
+extern CHARSET_INFO my_charset_tis620_bin;
+extern CHARSET_INFO my_charset_ujis_japanese_ci;
+extern CHARSET_INFO my_charset_ujis_bin;
 
+extern CHARSET_INFO my_charset_ucs2_general_ci;
+extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_ucs2_bin;
+extern CHARSET_INFO my_charset_ucs2_general_mysql500_ci;
 extern CHARSET_INFO my_charset_ucs2_german2_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_latvian_uca_ci;
@@ -54,6 +82,8 @@ extern CHARSET_INFO my_charset_ucs2_unicode_520_ci;
 extern CHARSET_INFO my_charset_ucs2_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf32_general_ci;
+extern CHARSET_INFO my_charset_utf32_bin;
 extern CHARSET_INFO my_charset_utf32_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf32_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf32_latvian_uca_ci;
@@ -79,6 +109,11 @@ extern CHARSET_INFO my_charset_utf32_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf32_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf16_general_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf16_bin;
+extern CHARSET_INFO my_charset_utf16le_general_ci;
+extern CHARSET_INFO my_charset_utf16le_bin;
 extern CHARSET_INFO my_charset_utf16_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf16_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf16_latvian_uca_ci;
@@ -104,6 +139,9 @@ extern CHARSET_INFO my_charset_utf16_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf16_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf8_tolower_ci;
+extern CHARSET_INFO my_charset_utf8_bin;
+extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8_latvian_uca_ci;
@@ -129,6 +167,9 @@ extern CHARSET_INFO my_charset_utf8_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf8mb4_general_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern CHARSET_INFO my_charset_utf8mb4_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci;

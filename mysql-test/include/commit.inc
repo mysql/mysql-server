@@ -418,7 +418,7 @@ flush status;
 --echo #
 select * from t1;
 --disable_warnings
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
 --enable_warnings
@@ -618,7 +618,7 @@ call p_verify_status_increment(4, 0, 2, 0);
 --echo #
 select f1();
 --disable_warnings
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 2, 0);
 --enable_warnings
@@ -660,9 +660,22 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(6, 0, 0, 0);
+
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+if (!$have_debug)
+{
+  --replace_regex /6/X/
+  call p_verify_status_increment(6, 0, 0, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /7/X/
+  call p_verify_status_increment(7, 0, 0, 0);
+}
 --enable_warnings
 set sql_mode=default;
+
 --echo # 19. A function changes temp-trans-table.
 --echo #
 select f1();
@@ -867,7 +880,19 @@ if (`SELECT $PS_PROTOCOL > 0`)
   call p_verify_status_increment(8, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(4, 0, 2, 0);
+
+if (!$have_debug)
+{
+  --replace_regex /3/X/
+  call p_verify_status_increment(3, 0, 2, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /4/X/
+  call p_verify_status_increment(4, 0, 2, 0);
+}
+
 alter table t3 rename t4;
 call p_verify_status_increment(5, 0, 3, 0);
 rename table t4 to t3;
@@ -886,7 +911,19 @@ call p_verify_status_increment(6, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
-call p_verify_status_increment(6, 0, 3, 0);
+
+if (!$have_debug)
+{
+  --replace_regex /5/X/
+  call p_verify_status_increment(5, 0, 3, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /6/X/
+  call p_verify_status_increment(6, 0, 3, 0);
+}
+
 --enable_warnings
 
 --echo #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -350,6 +350,7 @@ TODO list:
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "myisammrg.h"        // MYRG_INFO
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_stage.h"
@@ -357,7 +358,6 @@ TODO list:
 #include "mysql_com.h"
 #include "mysqld.h"           // key_structure_guard_mutex
 #include "opt_trace.h"        // Opt_trace_stmt
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"   // key_memory_queue_item
@@ -382,10 +382,6 @@ TODO list:
 
 class MY_LOCALE;
 class Time_zone;
-
-#ifdef EMBEDDED_LIBRARY
-#include "emb_qcache.h"
-#endif
 
 using std::min;
 using std::max;
@@ -1170,11 +1166,6 @@ void Query_cache::end_of_result(THD *thd)
   /* Ensure that only complete results are cached. */
   DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
-#ifdef EMBEDDED_LIBRARY
-  insert(thd, reinterpret_cast<const uchar*>(thd),
-         emb_count_querycache_size(thd), 0);
-#endif
-
   if (try_lock(thd, false))
     DBUG_VOID_RETURN;
 
@@ -1337,13 +1328,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
   /*
     The query cache is only supported for the classic protocols.
-    Although protocol_callback.cc is not compiled in embedded, there
-    are other protocols. A check outside the non-embedded block is
-    better.
   */
   if (!thd->is_classic_protocol())
     DBUG_VOID_RETURN;
-#ifndef EMBEDDED_LIBRARY
   /*
     Without active vio, net_write_packet() will not be called and
     therefore neither Query_cache::insert(). Since we will never get a
@@ -1352,7 +1339,6 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   */
   if (!thd->get_protocol()->connection_alive())
     DBUG_VOID_RETURN;
-#endif
 
   uint8 tables_type= 0;
 
@@ -1527,7 +1513,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Send a single memory block from the query cache.
 
@@ -1575,7 +1560,6 @@ static bool send_data_in_chunks(NET *net, const uchar *packet, ulong len)
 
   return false;
 }
-#endif
 
 
 /**
@@ -1600,9 +1584,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
 {
   ulonglong engine_data;
   Query_cache_query *query;
-#ifndef EMBEDDED_LIBRARY
   Query_cache_block *first_result_block;
-#endif
   Query_cache_block *result_block;
   Query_cache_block_table *block_table, *block_table_end;
   const uchar *cache_key= NULL;
@@ -1801,9 +1783,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   query = query_block->query();
   result_block= query->result;
-#ifndef EMBEDDED_LIBRARY
   first_result_block= result_block;
-#endif
 
   if (result_block == NULL || result_block->type != Query_cache_block::RESULT)
   {
@@ -1864,7 +1844,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     memset(&table_list, 0, sizeof(table_list));
     table_list.db = table->db();
     table_list.alias= table_list.table_name= table->table;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
     if (check_table_access(thd,SELECT_ACL,&table_list, false, 1,true))
     {
       DBUG_PRINT("qcache",
@@ -1885,7 +1865,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       thd->lex->safe_to_cache_query= false;	// Don't try to cache this
       goto err_unlock;				// Parse query
     }
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
+
     engine_data= table->engine_data;
     if (table->callback)
     {
@@ -1937,7 +1917,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   /*
     Send cached result to client
   */
-#ifndef EMBEDDED_LIBRARY
   THD_STAGE_INFO(thd, stage_sending_cached_result_to_client);
   do
   {
@@ -1957,13 +1936,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     // Keep packet number updated
     thd->get_protocol_classic()->set_output_pkt_nr(query->last_pkt_nr);
   } while (result_block != first_result_block);
-#else
-  {
-    Querycache_stream qs(result_block, result_block->headers_len() +
-			 ALIGN_SIZE(sizeof(Query_cache_result)));
-    emb_load_querycache_result(thd, &qs);
-  }
-#endif /*!EMBEDDED_LIBRARY*/
 
   thd->current_found_rows= query->current_found_rows;
   thd->update_previous_found_rows();
@@ -1990,14 +1962,11 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     thd->get_stmt_da()->disable_status();
 
   mysql_rwlock_unlock(&query_block->query()->lock);
-  MYSQL_QUERY_CACHE_HIT(const_cast<char*>(thd->query().str),
-                        (ulong) thd->current_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
   unlock(thd);
 err:
-  MYSQL_QUERY_CACHE_MISS(const_cast<char*>(thd->query().str));
   DBUG_RETURN(0);				// Query was not cached
 }
 
@@ -2085,7 +2054,7 @@ void Query_cache::invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used)
   for (; tables_used; tables_used= tables_used->next_local)
   {
     THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table);
-    if (tables_used->lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if (tables_used->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
         tables_used->table)
     {
       invalidate_table(thd, tables_used->table);
@@ -2847,7 +2816,6 @@ bool Query_cache::write_result_data(THD *thd,
     unlock(thd);
     uint headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			ALIGN_SIZE(sizeof(Query_cache_result)));
-#ifndef EMBEDDED_LIBRARY
     Query_cache_block *block= *result_block;
     const uchar *rest= data;
     // Now fill list of blocks that created by allocate_data_chain
@@ -2861,15 +2829,6 @@ bool Query_cache::write_result_data(THD *thd,
       block = block->next;
       type = Query_cache_block::RES_CONT;
     } while (block != *result_block);
-#else
-    /*
-      Set type of first block, emb_store_querycache_result() will handle
-      the others.
-    */
-    (*result_block)->type= type;
-    Querycache_stream qs(*result_block, headers_len);
-    emb_store_querycache_result(&qs, (THD*)data);
-#endif /*!EMBEDDED_LIBRARY*/
   }
   else
   {
@@ -3719,7 +3678,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
   for (; tables_used; tables_used= tables_used->next_global)
   {
     table_count++;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
     /*
       Disable any attempt to store this statement if there are
       column level grants on any referenced tables.
@@ -3748,7 +3707,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
         DBUG_RETURN(0);
       }
     }
-#endif
+
     if (tables_used->is_view())
     {
       DBUG_PRINT("qcache", ("view: %s  db: %s",

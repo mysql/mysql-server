@@ -1210,6 +1210,7 @@ DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1));
 # Undefined SRS (should pass with warning)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 6000000), 1));
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 6000000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 6000000. Calculations in function st_buffer will be done in SRID 0.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,

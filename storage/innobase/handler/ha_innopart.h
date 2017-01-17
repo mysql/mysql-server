@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ha_innopart_h
 
 #include "partitioning/partition_handler.h"
+#include "row0mysql.h"
 
 /* Forward declarations */
 class Altered_partitions;
@@ -371,7 +372,7 @@ public:
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -394,7 +395,7 @@ public:
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -421,7 +422,7 @@ public:
 	@param[in]	commit		true => Commit, false => Rollback.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -509,7 +510,8 @@ public:
 
 	int
 	discard_or_import_tablespace(
-		my_bool	discard);
+		my_bool		discard,
+		dd::Table*	table_def);
 
 	/** Compare key and rowid.
 	Helper function for sorting records in the priority queue.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ using ::testing::_;
 class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM
 {
   KEY_PART m_key_parts[64];
-  Mem_root_array<KEY_PART_INFO, true> m_kpis;
+  Mem_root_array<KEY_PART_INFO> m_kpis;
   Fake_TABLE fake_table;
 
 public:

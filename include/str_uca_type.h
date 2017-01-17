@@ -17,6 +17,9 @@
 
 #ifndef STR_UCA_TYPE_H
 #define STR_UCA_TYPE_H
+
+#include "my_inttypes.h"
+
 /*
   So far we have only Croatian collation needs to reorder Latin and
   Cyrillic group of characters. May add more in future.

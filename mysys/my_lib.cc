@@ -46,7 +46,7 @@
 /*
   Allocate space for 100 FILEINFO structs up-front.
 */
-typedef Prealloced_array<FILEINFO, 100, true> Entries_array;
+typedef Prealloced_array<FILEINFO, 100> Entries_array;
 
 #define NAMES_START_SIZE   32768
 

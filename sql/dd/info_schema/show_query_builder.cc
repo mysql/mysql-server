@@ -259,7 +259,7 @@ bool Select_lex_builder::add_order_by(const LEX_STRING field_name)
     return true;
 
   PT_order_expr *expression= new (m_thd->mem_root)
-    PT_order_expr(ident_field, true);
+    PT_order_expr(ident_field, ORDER_ASC);
   m_order_by_list->push_back(expression);
 
   return expression == nullptr;
@@ -313,9 +313,11 @@ PT_derived_table* Select_lex_builder::prepare_derived_table(
   if (derived_table_name == nullptr)
     return nullptr;
 
+  Create_col_name_list column_names;
+  column_names.init(m_thd->mem_root);
   PT_derived_table *derived_table;
   derived_table= new (m_thd->mem_root)
-    PT_derived_table(sub_query, derived_table_name);
+    PT_derived_table(sub_query, derived_table_name, &column_names);
 
   return derived_table;
 }
@@ -358,8 +360,7 @@ SELECT_LEX* Select_lex_builder::prepare_select_lex()
   PT_query_expression *query_expression2;
   query_expression2= new (m_thd->mem_root)
     PT_query_expression(query_expression_body_primary2,
-                        pt_order_by, nullptr, nullptr,
-                        Default_constructible_locking_clause());
+                        pt_order_by, nullptr, nullptr, nullptr);
   if (query_expression2 == nullptr)
     return nullptr;
 

@@ -84,7 +84,6 @@ INSERT INTO t_dyn_in_32k VALUES (1,'a'),(2,'b'),(3,'c');
 
 --error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_32k;
-SHOW WARNINGS;
 
 --echo #
 --echo # Add more data to the existing Tables

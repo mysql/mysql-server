@@ -268,8 +268,8 @@ enum latch_level_t {
 	SYNC_TRX_UNDO_PAGE,
 	SYNC_RSEG_HEADER,
 	SYNC_RSEG_HEADER_NEW,
-	SYNC_NOREDO_RSEG,
-	SYNC_REDO_RSEG,
+	SYNC_TEMP_SPACE_RSEG,
+	SYNC_TRX_SYS_RSEG,
 	SYNC_TRX_UNDO,
 	SYNC_PURGE_LATCH,
 	SYNC_TREE_NODE,
@@ -349,8 +349,8 @@ enum latch_id_t {
 	LATCH_ID_RECALC_POOL,
 	LATCH_ID_RECV_SYS,
 	LATCH_ID_RECV_WRITER,
-	LATCH_ID_REDO_RSEG,
-	LATCH_ID_NOREDO_RSEG,
+	LATCH_ID_TEMP_SPACE_RSEG,
+	LATCH_ID_TRX_SYS_RSEG,
 	LATCH_ID_RW_LOCK_DEBUG,
 	LATCH_ID_RTR_SSN_MUTEX,
 	LATCH_ID_RTR_ACTIVE_MUTEX,
@@ -533,13 +533,31 @@ private:
 #ifndef UNIV_LIBRARY
 #ifdef UNIV_PFS_MUTEX
 /** Latch element
+Used for mutexes which have PFS keys defined under UNIV_PFS_MUTEX.
 @param[in]	id		Latch id
 @param[in]	level		Latch level
 @param[in]	key		PFS key */
-# define LATCH_ADD(id, level, key)	latch_meta[LATCH_ID_ ## id] =	\
+# define LATCH_ADD_MUTEX(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level, key))
+
+#ifdef UNIV_PFS_RWLOCK
+/** Latch element.
+Used for rwlocks which have PFS keys defined under UNIV_PFS_RWLOCK.
+@param[in]	id		Latch id
+@param[in]	level		Latch level
+@param[in]	key		PFS key */
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
 	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level, key))
 #else
-# define LATCH_ADD(id, level, key)	latch_meta[LATCH_ID_ ## id] =	\
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level,	     \
+		     PSI_NOT_INSTRUMENTED))
+#endif /* UNIV_PFS_RWLOCK */
+
+#else
+# define LATCH_ADD_MUTEX(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level))
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
 	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level))
 #endif /* UNIV_PFS_MUTEX */
 

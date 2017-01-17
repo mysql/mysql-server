@@ -28,17 +28,19 @@
 #ifndef BINLOG_EVENT_INCLUDED
 #define BINLOG_EVENT_INCLUDED
 
-#include "debug_vars.h"
+#include <stdlib.h>
+#include <zlib.h> //for checksum calculations
+#include <climits>
+#include <cstdio>
+#include <iostream>
+
 /*
  The header contains functions macros for reading and storing in
  machine independent format (low byte first).
 */
 #include "byteorder.h"
+#include "debug_vars.h"
 #include "wrapper_functions.h"
-#include <zlib.h> //for checksum calculations
-#include <cstdio>
-#include <iostream>
-#include <climits>
 
 #if defined(_WIN32)
 #include <Winsock2.h>
@@ -793,10 +795,8 @@ protected:
 
     @param buf              Contains the serialized event
     @param binlog_version   The binary log format version
-    @param server_version   The MySQL server's version
   */
-  Binary_log_event(const char **buf, uint16_t binlog_version,
-                   const char *server_version);
+  Binary_log_event(const char **buf, uint16_t binlog_version);
 public:
 #ifndef HAVE_MYSYS
   /*

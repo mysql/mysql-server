@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,19 +17,20 @@
    versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
  */
 
-#include <my_config.h>
-#include <stdio.h>                              // Needed on SunOS 5.10
-#include <vector>
-#include <string>
-
-#include <my_global.h>
-#include <m_ctype.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql_version.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <m_ctype.h>
+#include <m_string.h>
+#include <my_config.h>
 #include <my_getopt.h>
+#include <my_global.h>
+#include <my_sys.h>
+#include <mysql_version.h>
+#include <stdio.h>                              // Needed on SunOS 5.10
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include <string>
+#include <vector>
 
 const int initial_symbol_table_size= 4096;
 

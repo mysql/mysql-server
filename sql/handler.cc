@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <list>
+#include <random>                     // std::uniform_real_distribution
 #include <string>
 
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
@@ -43,7 +44,6 @@
 #include "current_thd.h"
 #include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
 #include "dd/sdi_file.h"              // dd::sdi_file::store
 #include "dd/types/table.h"           // dd::Table
@@ -62,6 +62,7 @@
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -69,6 +70,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
@@ -80,9 +82,7 @@
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "opt_costmodel.h"
 #include "opt_hints.h"
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
-#include "probes_mysql.h"             // IWYU pragma: keep
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -226,7 +226,7 @@ using std::log2;
   Remove when legacy_db_type is finally gone
 */
 static
-Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA, true>
+Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA>
 se_plugin_array(PSI_NOT_INSTRUMENTED);
 
 /**
@@ -234,7 +234,7 @@ se_plugin_array(PSI_NOT_INSTRUMENTED);
   acquiring LOCK_plugin.
 */
 static
-Prealloced_array<bool, PREALLOC_NUM_HA, true>
+Prealloced_array<bool, PREALLOC_NUM_HA>
 builtin_htons(PSI_NOT_INSTRUMENTED);
 
 st_plugin_int *hton2plugin(uint slot)
@@ -1785,14 +1785,13 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
-    }
 
-    if (rw_trans && stmt_has_updated_trans_table(ha_info)
-        && check_readonly(thd, true))
-    {
-      ha_rollback_trans(thd, all);
-      error= 1;
-      goto end;
+      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
+      {
+        ha_rollback_trans(thd, all);
+        error= 1;
+        goto end;
+      }
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -2704,64 +2703,37 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   DBUG_ENTER("handler::clone");
-  handler *new_handler= ha_clone_prepare(mem_root);
+
+  handler *new_handler= get_new_handler(table->s,
+                                        (table->s->m_part_info != NULL),
+                                        mem_root, ht);
 
   if (!new_handler)
     DBUG_RETURN(NULL);
+  if (new_handler->set_ha_share_ref(ha_share))
+    goto err;
 
+  /*
+    Allocate handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
+    goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
   */
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, NULL))
-  {
-    delete new_handler;
-    new_handler = NULL;
-  }
+    goto err;
 
   DBUG_RETURN(new_handler);
-}
 
-
-handler* handler::ha_clone_prepare(MEM_ROOT *mem_root) const
-{
-  DBUG_ENTER("handler::ha_clone_prepare");
-
-  handler *new_handler= get_new_handler(table->s,
-                                        (table->s->m_part_info != NULL),
-                                        mem_root, ht);
-
-  if (new_handler == NULL)
-    DBUG_RETURN(NULL);
-
-  /*
-    Allocate handler->ref here because otherwise possible later call to
-    ha_open will allocate it on this->table->mem_root and we will not be
-    able to reclaim that memory when the clone handler object is destroyed.
-  */
-  if (new_handler->set_ha_share_ref(ha_share) ||
-      !(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                              ALIGN_SIZE(ref_length)*2)))
-  {
-    delete new_handler;
-    new_handler = NULL;
-  }
-
-  DBUG_RETURN(new_handler);
-}
-
-
-void handler::ha_open_psi()
-{
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  DBUG_ENTER("handler::ha_open_psi()");
-  DBUG_ASSERT(m_psi == NULL);
-  DBUG_ASSERT(table_share != NULL);
-  PSI_table_share *share_psi= ha_table_share_psi(table_share);
-  m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
-  DBUG_VOID_RETURN;
-#endif
+err:
+  delete new_handler;
+  DBUG_RETURN(NULL);
 }
 
 
@@ -2874,7 +2846,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_ASSERT(table->s == table_share);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
-  DBUG_ASSERT(alloc_root_inited(&table->mem_root));
+  MEM_ROOT *mem_root= (test_if_locked & HA_OPEN_TMP_TABLE) ?
+    &table->s->mem_root : &table->mem_root;
+  DBUG_ASSERT(alloc_root_inited(mem_root));
 
   if ((error= open(name, mode, test_if_locked, table_def)))
   {
@@ -2894,21 +2868,17 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   {
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
-
-    /*
-      Do not call this for partitions handlers, since it may take too much
-      resources.
-      So only use the m_psi on table level, not for individual partitions.
-    */
-    if (!(test_if_locked & HA_OPEN_NO_PSI_CALL))
-      ha_open_psi();
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_table_share *share_psi= ha_table_share_psi(table_share);
+    m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
+#endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
     /* ref is already allocated for us if we're called from handler::clone() */
-    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
+    if (!ref && !(ref= (uchar*) alloc_root(mem_root,
                                           ALIGN_SIZE(ref_length)*2)))
     {
       ha_close();
@@ -3116,6 +3086,81 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   DBUG_RETURN(result);
 }
 
+
+
+int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
+                            enum_sampling_method sampling_method)
+{
+  DBUG_ENTER("handler::ha_sample_init");
+  DBUG_ASSERT(sampling_percentage >= 0.0);
+  DBUG_ASSERT(sampling_percentage <= 100.0);
+  DBUG_ASSERT(inited == NONE);
+
+  // Initialise the random number generator.
+  m_random_number_engine.seed(sampling_seed);
+  m_sampling_percentage= sampling_percentage;
+
+  int result= sample_init();
+  inited= (result != 0) ? NONE : SAMPLING;
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_sample_end()
+{
+  DBUG_ENTER("handler::ha_sample_end");
+  DBUG_ASSERT(inited == SAMPLING);
+  inited= NONE;
+  DBUG_RETURN(sample_end());
+}
+
+
+int handler::ha_sample_next(uchar *buf)
+{
+  DBUG_ENTER("handler::ha_sample_next");
+  DBUG_ASSERT(inited == SAMPLING);
+
+  if (m_sampling_percentage == 0.0)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result;
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
+    { result= sample_next(buf); })
+
+  if (result == 0 && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
+
+  DBUG_RETURN(result);
+}
+
+int handler::sample_init()
+{
+  return rnd_init(false);
+}
+
+
+int handler::sample_end()
+{
+  return rnd_end();
+}
+
+
+int handler::sample_next(uchar *buf)
+{
+  // Temporary set inited to RND, since we are calling rnd_next().
+  int res= rnd_next(buf);
+
+  std::uniform_real_distribution<double> rnd(0.0, 1.0);
+  while (!res && rnd(m_random_number_engine) > (m_sampling_percentage / 100.0))
+    res= rnd_next(buf);
+
+  return res;
+}
 
 /**
   Read [part of] row via [part of] index.
@@ -4860,13 +4905,14 @@ handler::ha_enable_indexes(uint mode)
 */
 
 int
-handler::ha_discard_or_import_tablespace(my_bool discard)
+handler::ha_discard_or_import_tablespace(my_bool discard,
+                                         dd::Table *table_def)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   mark_trx_read_write();
 
-  return discard_or_import_tablespace(discard);
+  return discard_or_import_tablespace(discard, table_def);
 }
 
 
@@ -5164,7 +5210,7 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    dd::Table *tmp_table_def)
+                    dd::Table *table_def)
 {
   int error= 1;
   TABLE table;
@@ -5178,22 +5224,9 @@ int ha_create_table(THD *thd, const char *path,
 #endif
   DBUG_ENTER("ha_create_table");
 
-  init_tmp_table_share(thd, &share, db, 0, table_name, path);
+  init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  dd::Table *table_def= nullptr;
-
-  if (!tmp_table_def)
-  {
-
-    if (thd->dd_client()->acquire_for_modification(db, table_name,
-                                                   &table_def))
-    goto err;
-  }
-
-  if (open_table_def(thd, &share, false, tmp_table_def ?
-                                         tmp_table_def : table_def))
+  if (open_table_def(thd, &share, false, table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -5201,8 +5234,7 @@ int ha_create_table(THD *thd, const char *path,
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, tmp_table_def ? tmp_table_def :
-                                                  table_def))
+                            TRUE, table_def))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5216,9 +5248,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info,
-                               tmp_table_def ? tmp_table_def :
-                                               table_def);
+  error= table.file->ha_create(name, &table, create_info, table_def);
 
   if (error)
   {
@@ -5230,21 +5260,19 @@ int ha_create_table(THD *thd, const char *path,
   }
   else
   {
-    // QQ: Should we move this code to helper function similar to
-    //     dd::create_table() ?
-    //
-    // The dd::Table objects for temporary tables are not stored in DD
-    // so do not need DD update.
-    // The dd::Table objects representing the DD tables themselves cannot
-    // be stored until the DD tables have been created in the SE.
-    // We do post-create update only for engines supporting atomic
-    // DDL.
+    /*
+      We do post-create update only for engines supporting atomic DDL
+      as only such engines are allowed to update dd::Table objects in
+      handler::ha_create().
+      The dd::Table objects for temporary tables are not stored in DD
+      so do not need DD update.
+      The dd::Table objects representing the DD tables themselves cannot
+      be stored until the DD tables have been created in the SE.
+    */
     if (!((create_info->options & HA_LEX_CREATE_TMP_TABLE) || is_temp_table ||
           dd::get_dictionary()->is_dd_table_name(db, table_name)) &&
         (table.file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
-      Disable_gtid_state_update_guard disabler(thd);
-
       if(thd->dd_client()->update<dd::Table>(table_def))
         error= 1;
     }
@@ -5298,19 +5326,11 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(2);
 
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
-  init_tmp_table_share(thd, &share, db, 0, name, path);
+  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
   if (open_table_def(thd, &share, false, NULL))
   {
     DBUG_RETURN(3);
   }
-
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  /*
-    Table discovery is not instrumented.
-    Once discovered, the table will be opened normally,
-    and instrumented normally.
-  */
-#endif
 
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, NULL))
   {
@@ -6514,8 +6534,12 @@ int handler::multi_range_read_next(char **range_info)
 
   do
   {
-    /* Save a call if there can be only one row in range. */
-    if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
+    /*
+      Do not call read_range_next() if its equality on a unique
+      index.
+    */
+    if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
+          (mrr_cur_range.range_flag & EQ_RANGE)))
     {
       result= read_range_next();
       /* On success or non-EOF errors jump to the end. */
@@ -7541,10 +7565,15 @@ void handler::set_end_range(const key_range* range,
 
   /*
     Clear the out-of-range flag in the record buffer when a new range is
-    started.
+    started. Also set the in_range_check_pushed_down flag, since the
+    storage engine needs to do the evaluation of the end-range to avoid
+    filling the record buffer with out-of-range records.
   */
   if (m_record_buffer != nullptr)
+  {
     m_record_buffer->set_out_of_range(false);
+    in_range_check_pushed_down = true;
+  }
 
   range_scan_direction= direction;
 }
@@ -7630,12 +7659,8 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
 
 /**
   Check if the key in the given buffer (which is not necessarily
-  TABLE::record[0]) is within range. Called by the storage engine when
-  filling m_record_buffer to avoid reading too many rows.
-
-  Side-effect: This function sets the in_range_check_pushed_down flag
-  to prevent the handler from performing redundant range checks on the
-  rows returned by the storage engine.
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
 
   @param buf  the buffer that holds the key
   @retval -1 if the key is within the range
@@ -7643,23 +7668,17 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
              key_compare_result_on_equal is 0
   @retval  1 if the key is outside the range
 */
-int handler::compare_key_in_buffer(const uchar *buf)
+int handler::compare_key_in_buffer(const uchar *buf) const
 {
-  DBUG_ASSERT(m_record_buffer != nullptr &&
-              !m_record_buffer->is_out_of_range() &&
-              end_range != nullptr);
+  DBUG_ASSERT(end_range != nullptr &&
+	      (m_record_buffer == nullptr ||
+	       !m_record_buffer->is_out_of_range()));
 
   /*
     End range on descending scans is only checked with ICP for now, and then we
     check it with compare_key_icp() instead of this function.
   */
   DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
-
-  /*
-    Since we compare with the end range here, there is no need for the
-    handler to check the end range.
-  */
-  in_range_check_pushed_down= true;
 
   // Make the fields in the key point into the buffer instead of record[0].
   const my_ptrdiff_t diff= buf - table->record[0];
@@ -8049,22 +8068,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
 
-  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() && lock_type == F_RDLCK)
-  {
-    MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-  else if (MYSQL_HANDLER_WRLOCK_START_ENABLED() && lock_type == F_WRLCK)
-  {
-    MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-  else if (MYSQL_HANDLER_UNLOCK_START_ENABLED() && lock_type == F_UNLCK)
-  {
-    MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-
   ha_statistic_increment(&System_status_var::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
@@ -8085,18 +8088,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     cached_table_flags= table_flags();
   }
 
-  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() && lock_type == F_RDLCK)
-  {
-    MYSQL_HANDLER_RDLOCK_DONE(error);
-  }
-  else if (MYSQL_HANDLER_WRLOCK_DONE_ENABLED() && lock_type == F_WRLCK)
-  {
-    MYSQL_HANDLER_WRLOCK_DONE(error);
-  }
-  else if (MYSQL_HANDLER_UNLOCK_DONE_ENABLED() && lock_type == F_UNLCK)
-  {
-    MYSQL_HANDLER_UNLOCK_DONE(error);
-  }
   DBUG_RETURN(error);
 }
 
@@ -8148,7 +8139,6 @@ int handler::ha_write_row(uchar *buf)
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
                   DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY); );
-  MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
@@ -8159,7 +8149,6 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
 
-  MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
 
@@ -8185,7 +8174,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
   DBUG_ASSERT(old_data == table->record[1]);
 
-  MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
@@ -8196,7 +8184,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
 
-  MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
@@ -8223,13 +8210,11 @@ int handler::ha_delete_row(const uchar *buf)
                   set_my_errno(HA_ERR_CRASHED);
                   return(HA_ERR_CRASHED););
 
-  MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_DELETE_ROW, active_index, error,
     { error= delete_row(buf);})
 
-  MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
   if (unlikely((error= binlog_log_row(table, buf, 0, log_func))))

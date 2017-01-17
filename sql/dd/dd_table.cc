@@ -895,6 +895,9 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
       idx_obj->add_element(const_cast<dd::Column*>(key_col_obj));
 
     idx_elem->set_length(key_part->length);
+    idx_elem->set_order(
+      key_part->key_part_flag & HA_REVERSE_SORT ?
+      Index_element::ORDER_DESC : Index_element::ORDER_ASC);
 
     //
     // Set index order
@@ -2148,16 +2151,16 @@ static bool fill_dd_table_from_create_info(THD *thd,
 }
 
 
-static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
-                                    const dd::String_type &table_name,
-                                    HA_CREATE_INFO *create_info,
-                                    const List<Create_field> &create_fields,
-                                    const KEY *keyinfo,
-                                    uint keys,
-                                    const FOREIGN_KEY *fk_keyinfo,
-                                    uint fk_keys,
-                                    handler *file,
-                                    const dd::Object_table &dd_table)
+static bool create_dd_system_table(THD *thd,
+                                   const dd::String_type &table_name,
+                                   HA_CREATE_INFO *create_info,
+                                   const List<Create_field> &create_fields,
+                                   const KEY *keyinfo,
+                                   uint keys,
+                                   const FOREIGN_KEY *fk_keyinfo,
+                                   uint fk_keys,
+                                   handler *file,
+                                   const dd::Object_table &dd_table)
 {
   // Retrieve the system schema.
   const Schema *system_schema= NULL;
@@ -2166,13 +2169,13 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                 &system_schema))
   {
     // Error is reported by the dictionary subsystem.
-    return nullptr;
+    return true;
   }
 
   if (!system_schema)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), MYSQL_SCHEMA_NAME.str);
-    return nullptr;
+    return true;
   }
 
   // Create dd::Table object.
@@ -2186,30 +2189,46 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                      create_info, create_fields,
                                      keyinfo, keys, Alter_info::ENABLE,
                                      fk_keyinfo, fk_keys, file))
-    return nullptr;
+    return true;
 
-  if (file->ha_get_se_private_data(tab_obj.get(),
-                                   dd_table.default_dd_version(thd)))
-    return nullptr;
+  /*
+    Get the se private data for the DD table
 
+    In upgrade scenario, to check the existence of version table,
+    version table is tried to open. This requires dd::Table object
+    for version table. Creation of version table inside Storage Engine
+    should be avoided during the existance check. We skip fetching
+    se_private_id from SE during this process. This is done as
+    a work around to reset variables in InnoDB as it is done for
+    dictionary cache and dictionary object ids.
+
+    TODO: This should be fixed as preparation for InnoDB dictionary upgrade.
+  */
+   /* TODO: temp disable for merge with mysql-trunk-meta-sync */
+//  if (!dd_upgrade_skip_se)
+  {
+    if (file->ha_get_se_private_data(tab_obj.get(),
+                                     dd_table.default_dd_version(thd)))
+      return true;
+  }
   thd->dd_client()->store(tab_obj.get());
 
-  return std::unique_ptr<dd::Table>(tab_obj->clone());
+  return false;
 }
 
 
-std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                             const dd::String_type &schema_name,
-                             const dd::String_type &table_name,
-                             HA_CREATE_INFO *create_info,
-                             const List<Create_field> &create_fields,
-                             const KEY *keyinfo,
-                             uint keys,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             const FOREIGN_KEY *fk_keyinfo,
-                             uint fk_keys,
-                             handler *file,
-                             bool commit_dd_changes)
+bool create_dd_user_table(THD *thd,
+                          const dd::String_type &schema_name,
+                          const dd::String_type &table_name,
+                          HA_CREATE_INFO *create_info,
+                          const List<Create_field> &create_fields,
+                          const KEY *keyinfo,
+                          uint keys,
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          const FOREIGN_KEY *fk_keyinfo,
+                          uint fk_keys,
+                          handler *file,
+                          bool commit_dd_changes)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -2225,13 +2244,13 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
       thd->dd_client()->acquire(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
-    return nullptr;
+    return true;
   }
 
   if (!sch_obj)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
-    return nullptr;
+    return true;
   }
 
   // Create dd::Table object.
@@ -2244,7 +2263,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                                      create_info, create_fields,
                                      keyinfo, keys, keys_onoff,
                                      fk_keyinfo, fk_keys, file))
-    return nullptr;
+    return true;
 
   // WL7743:/TODO: Consider pulling out commit/rollback code below
   //               once partitioning DDL code is removed.
@@ -2261,37 +2280,32 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
-    return nullptr;
+    return true;
   }
 
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
-      return nullptr;
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+      return true;
   }
 
-  return tab_obj;
+  return false;
 }
 
 
-std::unique_ptr<dd::Table> create_table(THD *thd,
-                             const dd::String_type &schema_name,
-                             const dd::String_type &table_name,
-                             HA_CREATE_INFO *create_info,
-                             const List<Create_field> &create_fields,
-                             const KEY *keyinfo,
-                             uint keys,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             const FOREIGN_KEY *fk_keyinfo,
-                             uint fk_keys,
-                             handler *file,
-                             bool commit_dd_changes)
+bool create_table(THD *thd,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
+                  HA_CREATE_INFO *create_info,
+                  const List<Create_field> &create_fields,
+                  const KEY *keyinfo,
+                  uint keys,
+                  Alter_info::enum_enable_or_disable keys_onoff,
+                  const FOREIGN_KEY *fk_keyinfo,
+                  uint fk_keys,
+                  handler *file,
+                  bool commit_dd_changes)
 {
   dd::Dictionary *dict= dd::get_dictionary();
   const dd::Object_table *dd_table= dict->get_dd_table(schema_name, table_name);
@@ -2382,7 +2396,6 @@ bool add_foreign_keys_and_triggers(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     DBUG_RETURN(true);
   }
@@ -2391,11 +2404,7 @@ bool add_foreign_keys_and_triggers(THD *thd,
 
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       DBUG_RETURN(true);
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
 
   DBUG_RETURN(false);
@@ -2541,12 +2550,8 @@ bool rename_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
-  const T *from_tab= NULL;
   const T *to_tab= NULL;
   T *new_tab = nullptr;
-
-  DBUG_EXECUTE_IF("alter_table_after_rename_1",
-                  DEBUG_SYNC(thd, "before_rename_in_dd"););
 
   /*
     Acquire all objects. Uncommitted read for 'from' object allows us
@@ -2558,8 +2563,6 @@ bool rename_table(THD *thd,
       thd->dd_client()->acquire(from_schema_name, &from_sch) ||
       thd->dd_client()->acquire(to_schema_name, &to_sch) ||
       thd->dd_client()->acquire(to_schema_name, to_table_name, &to_tab) ||
-      thd->dd_client()->acquire(from_schema_name, from_table_name,
-                                &from_tab) ||
       thd->dd_client()->acquire_for_modification(from_schema_name, from_table_name,
                                                  &new_tab))
   {
@@ -2610,7 +2613,6 @@ bool rename_table(THD *thd,
   {
     if (commit_dd_changes)
     {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
@@ -2621,11 +2623,7 @@ bool rename_table(THD *thd,
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<T>(false);
       return true;
-    }
-    thd->dd_client()->remove_uncommitted_objects<T>(true);
   }
   return false;
 }
@@ -2639,6 +2637,9 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
   // Mark the hidden flag.
   to_table_def->set_hidden(mark_as_hidden);
 
+  DBUG_EXECUTE_IF("alter_table_after_rename_1",
+                  DEBUG_SYNC(thd, "before_rename_in_dd"););
+
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update(to_table_def))
   {
@@ -2647,7 +2648,6 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return true;
   }
@@ -2659,11 +2659,7 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       return true;
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
   return false;
 }
@@ -2846,9 +2842,19 @@ bool recreate_table(THD *thd, const char *schema_name,
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, schema_name, table_name, "", 0);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+
+  if (thd->dd_client()->acquire_for_modification(schema_name, table_name,
+                                                 &table_def))
+    return true;
+
+  // Table must exist.
+  DBUG_ASSERT(table_def);
+
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, nullptr);
+                         true, false, table_def);
 }
 
 
@@ -2899,7 +2905,6 @@ bool update_keys_disabled(THD *thd,
     {
       trans_rollback_stmt(thd);
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return true;
   }
@@ -2907,11 +2912,7 @@ bool update_keys_disabled(THD *thd,
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       return true;
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
   return false;
 }
@@ -3016,10 +3017,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
     return true;
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
-  return error;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 bool move_triggers(THD *thd,
@@ -3081,7 +3079,6 @@ bool move_triggers(THD *thd,
       trans_rollback_stmt(thd);
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
     }
     return true;
   }
@@ -3089,11 +3086,7 @@ bool move_triggers(THD *thd,
   if (commit_dd_changes)
   {
     if (trans_commit_stmt(thd) || trans_commit(thd))
-    {
-      thd->dd_client()->remove_uncommitted_objects<dd::Table>(false);
       return true;
-    }
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
   }
   return false;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,11 +39,12 @@
 #include <vector>
 
 #include "malloc_allocator.h"
+#include "merge_many_buff.h"
+#include "my_dbug.h"
 #include "my_tree.h"                            // element_count
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "merge_many_buff.h"
 #include "mysqld.h"                             // mysql_tmpdir
 #include "opt_costmodel.h"
 #include "priority_queue.h"

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 #include "ha_ndbcluster_glue.h"
+#include "my_dbug.h"
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
 

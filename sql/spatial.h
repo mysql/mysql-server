@@ -566,16 +566,23 @@ public:
   virtual uint32 get_data_size() const { return -1; }
 
   /* read from trs the wkt string and write into wkb as wkb encoded data. */
-  virtual bool init_from_wkt(Gis_read_stream *trs, String *wkb) { return true;}
+  virtual bool init_from_wkt(Gis_read_stream *trs MY_ATTRIBUTE((unused)),
+                             String *wkb MY_ATTRIBUTE((unused)))
+  { return true;}
 
   /* read from wkb the wkb data and write into res as wkb encoded data. */
   /* returns the length of the wkb that was read */
-  virtual uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
-                             String *res) { return 0; }
+  virtual uint init_from_wkb(const char *wkb MY_ATTRIBUTE((unused)),
+                             uint len MY_ATTRIBUTE((unused)),
+                             wkbByteOrder bo MY_ATTRIBUTE((unused)),
+                             String *res MY_ATTRIBUTE((unused)))
+  { return 0; }
 
-  virtual bool get_data_as_wkt(String *txt, wkb_parser *wkb) const
+  virtual bool get_data_as_wkt(String *txt MY_ATTRIBUTE((unused)),
+                               wkb_parser *wkb MY_ATTRIBUTE((unused))) const
   { return true;}
-  virtual bool get_mbr(MBR *mbr, wkb_parser *wkb) const
+  virtual bool get_mbr(MBR *mbr MY_ATTRIBUTE((unused)),
+                       wkb_parser *wkb MY_ATTRIBUTE((unused))) const
   { return true;}
   bool get_mbr(MBR *mbr)
   {
@@ -610,21 +617,38 @@ public:
     return 0;
   }
 
-  virtual int get_x(double *x) const { return -1; }
-  virtual int get_y(double *y) const { return -1; }
-  virtual int geom_length(double *len) const  { return -1; }
-  virtual int is_closed(int *closed) const { return -1; }
-  virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
-  virtual int num_points(uint32 *n_points) const { return -1; }
-  virtual int num_geometries(uint32 *num) const { return -1; }
-  virtual int copy_points(String *result) const { return -1; }
+  virtual int get_x(double *x MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int get_y(double *y MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int geom_length(double *len MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int is_closed(int *closed MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int num_interior_ring(uint32 *n_int_rings MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int num_points(uint32 *n_points MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int num_geometries(uint32 *num MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int copy_points(String *result MY_ATTRIBUTE((unused))) const
+  { return -1; }
   /* The following 7 functions return geometries in wkb format. */
-  virtual int start_point(String *point) const { return -1; }
-  virtual int end_point(String *point) const { return -1; }
-  virtual int exterior_ring(String *ring) const { return -1; }
-  virtual int point_n(uint32 num, String *result) const { return -1; }
-  virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
-  virtual int geometry_n(uint32 num, String *result) const { return -1; }
+  virtual int start_point(String *point MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int end_point(String *point MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int exterior_ring(String *ring MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int point_n(uint32 num MY_ATTRIBUTE((unused)),
+                      String *result MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int interior_ring_n(uint32 num MY_ATTRIBUTE((unused)),
+                              String *result MY_ATTRIBUTE((unused))) const
+  { return -1; }
+  virtual int geometry_n(uint32 num MY_ATTRIBUTE((unused)),
+                         String *result MY_ATTRIBUTE((unused))) const
+  { return -1; }
 
   /**
     Reverses the coordinates of a geometry.
@@ -2704,7 +2728,7 @@ public:
   {}
 
   Gis_multi_line_string(const void *ptr, size_t nbytes,
-                        const Flags_t &flags, srid_t srid)
+                        const Flags_t&, srid_t srid)
     :base(ptr, nbytes, Flags_t(wkb_multilinestring, nbytes), srid, true)
   {
     set_geotype(wkb_multilinestring);

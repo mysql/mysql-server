@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,21 +81,21 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
         If case when commit_dd_changes is true this function will handle
         transaction rollback itself.
 
-  @returns Uncached dd::Table object for table created (nullptr in
-           case of failure).
+  @retval False - Success.
+  @retval True  - Error.
 */
-std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                             const dd::String_type &schema_name,
-                             const dd::String_type &table_name,
-                             HA_CREATE_INFO *create_info,
-                             const List<Create_field> &create_fields,
-                             const KEY *keyinfo,
-                             uint keys,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             const FOREIGN_KEY *fk_keyinfo,
-                             uint fk_keys,
-                             handler *file,
-                             bool commit_dd_changes);
+bool create_dd_user_table(THD *thd,
+                          const dd::String_type &schema_name,
+                          const dd::String_type &table_name,
+                          HA_CREATE_INFO *create_info,
+                          const List<Create_field> &create_fields,
+                          const KEY *keyinfo,
+                          uint keys,
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          const FOREIGN_KEY *fk_keyinfo,
+                          uint fk_keys,
+                          handler *file,
+                          bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -123,20 +123,20 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
         If case when commit_dd_changes is true this function will handle
         transaction rollback itself.
 
-  @returns Uncached dd::Table object for table created (nullptr in
-           case of failure).
+  @retval False - Success.
+  @retval True  - Error.
 */
-std::unique_ptr<Table> create_table(THD *thd,
-                         const dd::String_type &schema_name,
-                         const dd::String_type &table_name,
-                         HA_CREATE_INFO *create_info,
-                         const List<Create_field> &create_fields,
-                         const KEY *keyinfo, uint keys,
-                         Alter_info::enum_enable_or_disable keys_onoff,
-                         const FOREIGN_KEY *fk_keyinfo,
-                         uint fk_keys,
-                         handler *file,
-                         bool commit_dd_changes);
+bool create_table(THD *thd,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
+                  HA_CREATE_INFO *create_info,
+                  const List<Create_field> &create_fields,
+                  const KEY *keyinfo, uint keys,
+                  Alter_info::enum_enable_or_disable keys_onoff,
+                  const FOREIGN_KEY *fk_keyinfo,
+                  uint fk_keys,
+                  handler *file,
+                  bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object for a temporary table from
@@ -472,6 +472,8 @@ bool recreate_table(THD *thd, const char *schema_name,
   @param[in]    keys_onoff  Wheather keys are enabled or disabled.
   @param[in]    commit_dd_changes   Indicates whether change to the data
                                     dictionary needs to be committed.
+
+  @note Assumes that table exists.
 
   @note In case when commit_dd_changes is false, the caller must rollback
         both statement and transaction on failure, before any further

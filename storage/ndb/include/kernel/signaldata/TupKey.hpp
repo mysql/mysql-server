@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,13 @@ class TupKeyReq {
 public:
   STATIC_CONST( SignalLength = 21 );
 
+  enum
+  {
+    OP_PRIMARY_REPLICA = 0,
+    OP_BACKUP_REPLICA = 1,
+    OP_NO_TRIGGERS = 2,
+  };
+
 private:
 
   /**
@@ -58,7 +65,7 @@ private:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 fragPtr;
-  Uint32 primaryReplica;
+  Uint32 triggers;
   Uint32 coordinatorTC;
   Uint32 tcOpIndex;
   Uint32 savePointId;

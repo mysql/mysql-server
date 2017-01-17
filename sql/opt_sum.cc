@@ -284,6 +284,7 @@ int opt_sum_query(THD *thd,
   if (where_tables & OUTER_REF_TABLE_BIT)
     DBUG_RETURN(0);
 
+  bool force_index= false;
   /*
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
@@ -334,6 +335,7 @@ int opt_sum_query(THD *thd,
                                    HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
+      force_index|= tl->table->force_index;
     }
   }
 
@@ -358,9 +360,11 @@ int opt_sum_query(THD *thd,
           If the expr in COUNT(expr) can never be null we can change this
           to the number of rows in the tables if this number is exact and
           there are no outer joins.
+          Don't apply this optimization when there is a FORCE INDEX on any of
+          the tables.
         */
         if (!conds && !((Item_sum_count*) item)->get_arg(0)->maybe_null &&
-            !outer_tables && maybe_exact_count)
+            !outer_tables && maybe_exact_count && !force_index)
         {
           if (!is_exact_count)
           {
@@ -1008,6 +1012,9 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     {
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
         DBUG_RETURN(false);
+      // Due to lack of time, currently only ASC keyparts are supported.
+      if (part->key_part_flag & HA_REVERSE_SORT)
+        break;
 
       /* Check whether the index component is partial */
       Field *part_field= table->field[part->fieldnr-1];

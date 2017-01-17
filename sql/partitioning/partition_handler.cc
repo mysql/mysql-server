@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -34,6 +34,7 @@
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                          // MI_MAX_MSG_BUF
@@ -1177,29 +1178,6 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
   DBUG_RETURN(true);
 }
 
-/**
-  Implement the partition changes defined by ALTER TABLE of partitions.
-
-  Add and copy if needed a number of partitions, during this operation
-  only read operation is ongoing in the server. This is used by
-  ADD PARTITION all types as well as by REORGANIZE PARTITION. For
-  one-phased implementations it is used also by DROP and COALESCE
-  PARTITIONs.
-  One-phased implementation needs the new frm file, other handlers will
-  get zero length and a NULL reference here.
-
-  @param[in]  create_info       HA_CREATE_INFO object describing all
-                                fields and indexes in table
-  @param[in]  path              Complete path of db and table name
-  @param[out] copied            Output parameter where number of copied
-                                records are added
-  @param[out] deleted           Output parameter where number of deleted
-                                records are added
-
-  @return Operation status
-    @retval    0 Success
-    @retval != 0 Failure
-*/
 
 void Partition_helper::prepare_change_partitions()
 {
@@ -1252,6 +1230,31 @@ void Partition_helper::prepare_change_partitions()
     ++i;
   }
 }
+
+
+/**
+  Implement the partition changes defined by ALTER TABLE of partitions.
+
+  Add and copy if needed a number of partitions, during this operation
+  only read operation is ongoing in the server. This is used by
+  ADD PARTITION all types as well as by REORGANIZE PARTITION. For
+  one-phased implementations it is used also by DROP and COALESCE
+  PARTITIONs.
+  One-phased implementation needs the new frm file, other handlers will
+  get zero length and a NULL reference here.
+
+  @param[in]  create_info       HA_CREATE_INFO object describing all
+                                fields and indexes in table
+  @param[in]  path              Complete path of db and table name
+  @param[out] copied            Output parameter where number of copied
+                                records are added
+  @param[out] deleted           Output parameter where number of deleted
+                                records are added
+
+  @return Operation status
+    @retval    0 Success
+    @retval != 0 Failure
+*/
 
 int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
                                         const char *path,
@@ -1943,6 +1946,12 @@ void Partition_helper::set_partition_read_set()
         calculate the partition id to place updated and deleted records.
       */
       bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
+      /* Fill the base columns of virtual generated columns if necessary */
+      for (Field **ptr= m_part_info->full_part_field_array; *ptr; ptr++)
+      {
+        if ((*ptr)->is_virtual_gcol())
+          m_table->mark_gcol_in_maps(*ptr);
+      }
     }
     // Mark virtual generated columns writable
     for (Field **vf= m_table->vfield; vf && *vf; vf++)

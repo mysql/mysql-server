@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,10 @@
 
 /* Remove a row from a MyISAM table */
 
+#include <fcntl.h>
+
 #include "fulltext.h"
+#include "my_dbug.h"
 #include "rt_index.h"
 
 static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
