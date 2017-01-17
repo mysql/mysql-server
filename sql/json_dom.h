@@ -1534,8 +1534,8 @@ public:
 
     @details Key storage format is following:
     @verbatim
-      |<key len><json type><   sort key    >|
-      / 4 bytes/   1 byte /key len bytes - 5/
+      |<json type><   sort key    >|
+       1 byte    / variable length /
     @endverbatim
 
     JSON is assumed to be non-sql-null and valid (checked by caller).
@@ -1549,7 +1549,7 @@ public:
     For JSON objects and arrays only their length (number of elements) is
     stored, this is a limitation of current implementation.
   */
-  void make_sort_key(uchar *to, size_t length) const;
+  size_t make_sort_key(uchar *to, size_t length) const;
 
   /**
     Make a hash key that can be used by sql_executor.cc/unique_hash

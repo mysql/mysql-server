@@ -3363,15 +3363,19 @@ private:
 
 public:
   Wrapper_sort_key(uchar *buf, size_t len)
-    : m_buffer(buf), m_length(len),
-      // Reserve space for length
-      m_pos(VARLEN_PREFIX)
+    : m_buffer(buf), m_length(len), m_pos(0)
   {}
 
   /// Get the remaining space in the buffer.
   size_t remaining() const
   {
     return m_length - m_pos;
+  }
+
+  /// Get how much space we've used so far.
+  size_t pos() const
+  {
+    return m_pos;
   }
 
   /// Append a character to the buffer.
@@ -3393,12 +3397,6 @@ public:
     num_chars= std::min(remaining(), static_cast<size_t>(num_chars));
     memset(m_buffer + m_pos, pad_character, num_chars);
     m_pos += num_chars;
-  }
-
-  /// Write key length
-  void store_length()
-  {
-    int4store(m_buffer, m_pos);
   }
 
   /**
@@ -3698,10 +3696,9 @@ static void make_json_numeric_sort_key(const char *from, size_t len,
 }
 
 
-void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
+size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
 {
   Wrapper_sort_key key(to, to_length);
-  DBUG_ASSERT(to_length >= VARLEN_PREFIX);
 
   const enum_json_type jtype= type();
   switch (jtype)
@@ -3812,7 +3809,7 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
     break;
   }
 
-  key.store_length();
+  return key.pos();
 }
 
 

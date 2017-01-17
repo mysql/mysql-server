@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -618,7 +618,7 @@ TEST_F(FieldTest, MakeSortKey)
     Field_double fd(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
     double from= 0.0;
     uchar expected []= { 128, 0, 0, 0, 0, 0, 0, 0 };
-    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 1);
+    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 8);
   }
   {
     SCOPED_TRACE("Field_null");
