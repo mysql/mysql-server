@@ -5,6 +5,7 @@
 --source include/not_log_bin.inc
 
 --source include/have_innodb.inc
+--source include/not_valgrind.inc
 # Embedded server does not support restarting
 --source include/not_embedded.inc
 
