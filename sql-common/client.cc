@@ -3599,6 +3599,21 @@ cli_establish_ssl(MYSQL *mysql)
   }
 
   /*
+    If the ssl_mode is VERIFY_CA or VERIFY_IDENTITY, make sure that the
+    connection doesn't succeed without providing the CA certificate.
+  */
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode > SSL_MODE_REQUIRED &&
+      !(mysql->options.ssl_ca || mysql->options.ssl_capath))
+  {
+    set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                             ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                             "CA certificate is required if ssl-mode "
+                             "is VERIFY_CA or VERIFY_IDENTITY");
+    goto error;
+  }
+
+  /*
     Attempt SSL connection if ssl_mode != SSL_MODE_DISABLED and the
     server supports SSL. Fallback on unencrypted connection otherwise.
   */
