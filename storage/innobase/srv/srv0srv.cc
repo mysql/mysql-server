@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -74,7 +74,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0mem.h"
 
 #ifndef UNIV_PFS_THREAD
-#define create_thd(x,y,z,PFS_KEY)	create_thd(x,y,z,PFS_NOT_INSTRUMENTED)
+#define create_thd(x,y,z,PFS_KEY)	create_thd(x,y,z,PFS_NOT_INSTRUMENTED.m_value)
 #endif /* UNIV_PFS_THREAD */
 
 /* The following is the maximum allowed duration of a lock wait. */
@@ -2483,7 +2483,7 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 	my_thread_init();
-	THD *thd= create_thd(false, true, true, srv_worker_thread_key);
+	THD *thd= create_thd(false, true, true, srv_worker_thread_key.m_value);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Worker thread starting, id "
@@ -2746,7 +2746,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 						required by os_thread_create */
 {
 	my_thread_init();
-	THD *thd= create_thd(false, true, true, srv_purge_thread_key);
+	THD *thd= create_thd(false, true, true, srv_purge_thread_key.m_value);
 	srv_slot_t*	slot;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
