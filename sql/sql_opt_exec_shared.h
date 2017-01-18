@@ -59,6 +59,7 @@ typedef struct st_table_ref : public Sql_alloc
   int           key;                      ///< key no
   uchar         *key_buff;                ///< value to look for with key
   uchar         *key_buff2;               ///< key_buff+key_length
+  uchar         *saved_null_flags;        ///< saved null flags
   /**
      Used to store the value from each keypart field. These values are
      used for ref access. If key_copy[key_part] == NULL it means that
@@ -105,7 +106,6 @@ typedef struct st_table_ref : public Sql_alloc
 
   st_table_ref()
     : key_err(TRUE),
-      has_record(FALSE),
       key_parts(0),
       key_length(0),
       key(-1),
@@ -159,6 +159,19 @@ typedef struct st_table_ref : public Sql_alloc
     }
     return false;
   }
+
+  void save_null_flags(TABLE *table)
+  {
+    if (table->s->null_bytes > 0)
+      memcpy(saved_null_flags, table->null_flags, table->s->null_bytes);
+  }
+
+  void restore_null_flags(TABLE *table)
+  {
+    if (table->s->null_bytes > 0)
+      memcpy(table->null_flags, saved_null_flags, table->s->null_bytes);
+  }
+
 } TABLE_REF;
 
 

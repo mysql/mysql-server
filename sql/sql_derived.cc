@@ -205,6 +205,8 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
   tl->table= t;
   t->pos_in_table_list= tl;
 
+  t->set_not_started();
+
   if (tmp_tables.push_back(tl))
     return nullptr;                             /* purecov: inspected */
 
@@ -546,7 +548,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   // Make table's name same as the underlying materialized table
   set_name_temporary();
 
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
   if (referencing_view)
     table->grant= grant;

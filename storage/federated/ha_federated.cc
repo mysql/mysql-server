@@ -2406,9 +2406,7 @@ int ha_federated::index_read_idx(uchar *buf, uint index, const uchar *key,
 
   RESULT
     0	ok     In this case *result will contain the result set
-	       table->status == 0 
     #   error  In this case *result will contain 0
-               table->status == STATUS_NOT_FOUND
 */
 
 int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
@@ -2463,13 +2461,11 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
     mysql_free_result(*result);
     results.pop_back();
     *result= 0;
-    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(retval);
   }
   DBUG_RETURN(0);
 
 error:
-  table->status= STATUS_NOT_FOUND;
   my_error(retval, MYF(0), error_buffer);
   DBUG_RETURN(retval);
 }
@@ -2543,7 +2539,6 @@ int ha_federated::read_range_first(const key_range *start_key,
   DBUG_RETURN(retval);
 
 error:
-  table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(retval);
 }
 
@@ -2705,8 +2700,6 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
   int retval;
   MYSQL_ROW row;
   DBUG_ENTER("ha_federated::read_next");
-
-  table->status= STATUS_NOT_FOUND;              // For easier return
   
   /* Save current data cursor position. */
   current_position= result->data_cursor;
@@ -2715,8 +2708,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
   if (!(row= mysql_fetch_row(result)))
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  if (!(retval= convert_row_to_internal_format(buf, row, result)))
-    table->status= 0;
+  retval= convert_row_to_internal_format(buf, row, result);
 
   DBUG_RETURN(retval);
 }

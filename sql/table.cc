@@ -4219,13 +4219,12 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     memcpy((char*) alias, tl->alias, length);
   }
 
-  const_table= 0;
-  null_row= 0;
-  nullable= 0;
+  const_table= FALSE;
+  nullable= FALSE;
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
-  status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  set_not_started();
   insert_values= 0;
   fulltext_searched= 0;
   file->ft_handler= 0;
@@ -4467,9 +4466,8 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 void TABLE_LIST::reset()
 {
   // @todo If TABLE::init() was always called, this would not be necessary:
-  table->const_table= 0;
-  table->null_row= 0;
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  table->const_table= FALSE;
+  table->set_not_started();
 
   table->force_index= force_index;
   table->force_index_order= table->force_index_group= 0;

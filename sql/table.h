@@ -1090,16 +1090,18 @@ public:
 
 
 /**
-  Flags for TABLE::status (maximum 8 bits). Do NOT add new ones.
-  @todo: GARBAGE and NOT_FOUND could be unified. UPDATED and DELETED could be
-  changed to "bool current_row_has_already_been_modified" in the
-  multi_update/delete objects (one such bool per to-be-modified table).
-  @todo aim at removing the status. There should be more local ways.
+  Flags for TABLE::m_status (maximum 8 bits).
+  The flags define the state of the row buffer in TABLE::record[0].
 */
-#define STATUS_GARBAGE          1
+/**
+  STATUS_NOT_STARTED is set when table is not accessed yet.
+  Neither STATUS_NOT_FOUND nor STATUS_NULL_ROW can be set when this flag is set.
+*/
+#define STATUS_NOT_STARTED      1
 /**
    Means we were searching for a row and didn't find it. This is used by
-   storage engines (@see handler::index_read_map()) and the Server layer.
+   storage engines (@see handler::index_read_map()) and the executor, both
+   when doing an exact row lookup and advancing a scan (no more rows in range).
 */
 #define STATUS_NOT_FOUND        2
 /// Reserved for use by multi-table update. Means the row has been updated.
@@ -1309,6 +1311,7 @@ private:
   */
   my_bool nullable;
 
+  uint8   m_status;                     /* What's in record[0] */
 public:
   /*
     If true, the current table row is considered to have all columns set to 
@@ -1317,7 +1320,6 @@ public:
   */
   my_bool null_row;
 
-  uint8   status;                       /* What's in record[0] */
   my_bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
@@ -1548,11 +1550,79 @@ public:
   /// @return true if table contains one or more generated columns
   bool has_gcol() const { return vfield; }
 
-  /// Set current row as "null row", for use in null-complemented outer join
+  /**
+   Life cycle of the row buffer is as follows:
+   - The initial state is "not started".
+   - When reading a row through the storage engine handler, the status is set
+     as "has row" or "no row", depending on whether a row was found or not.
+     The "not started" state is cleared, as well as the "null row" state,
+     the updated state and the deleted state.
+   - When making a row available in record[0], make sure to update row status
+     similarly to how the storage engine handler does it.
+   - If a NULL-extended row is needed in join execution, the "null row" state
+     is set. Note that this can be combined with "has row" if a row was read
+     but condition on it was evaluated to false (happens for single-row
+     lookup), or "no row" if no more rows could be read.
+     Note also that for the "null row" state, the NULL bits inside the
+     row are set to one, so the row inside the row buffer is no longer usable,
+     unless the NULL bits are saved in a separate buffer.
+   - The "is updated" and "is deleted" states are set when row is updated or
+     deleted, respectively.
+  */
+  /// Set status for row buffer as "not started"
+  void set_not_started()
+  {
+    m_status= STATUS_NOT_STARTED | STATUS_NOT_FOUND;
+    null_row= FALSE;
+  }
+
+  /// @return true if a row operation has been done
+  bool is_started() const { return !(m_status & STATUS_NOT_STARTED); }
+
+  /// Set status for row buffer: contains row
+  void set_found_row()
+  {
+    m_status= 0;
+    null_row= FALSE;
+  }
+
+  /**
+    Set status for row buffer: contains no row. This is set when
+     - A lookup operation finds no row
+     - A scan operation scans past the last row of the range.
+     - An error in generating key values before calling storage engine.
+  */
+  void set_no_row()
+  {
+    m_status= STATUS_NOT_FOUND;
+    null_row= FALSE;
+  }
+
+  /**
+    Set "row found" status from handler result
+
+    @param status 0 if row was found, <> 0 if row was not found
+  */
+  void set_row_status_from_handler(int status)
+  {
+    m_status= status ? STATUS_NOT_FOUND : 0;
+    null_row= FALSE;
+  }
+
+  /**
+    Set current row as "null row", for use in null-complemented outer join.
+    The row buffer may or may not contain a valid row.
+    set_null_row() and reset_null_row() are used by the join executor to
+    signal the presence or absence of a NULL-extended row for an outer joined
+    table. Null rows may also be used to specify rows that are all NULL in
+    grouing operations.
+    @note this is a destructive operation since the NULL value bit vector
+          is overwritten. Caching operations must be aware of this.
+  */
   void set_null_row()
   {
     null_row= TRUE;
-    status|= STATUS_NULL_ROW;
+    m_status|= STATUS_NULL_ROW;
     if (s->null_bytes > 0)
       memset(null_flags, 255, s->null_bytes);
   }
@@ -1561,11 +1631,34 @@ public:
   void reset_null_row()
   {
     null_row= FALSE;
-    status&= ~STATUS_NULL_ROW;
+    m_status&= ~STATUS_NULL_ROW;
   }
+
+  /// Set "updated" property for the current row
+  void set_updated_row()
+  {
+    DBUG_ASSERT(is_started() && has_row());
+    m_status|= STATUS_UPDATED;
+  }
+
+  /// Set "deleted" property for the current row
+  void set_deleted_row()
+  {
+    DBUG_ASSERT(is_started() && has_row());
+    m_status|= STATUS_DELETED;
+  }
+
+  /// @return true if there is a row in row buffer
+  bool has_row() const { return !(m_status & STATUS_NOT_FOUND); }
 
   /// @return true if current row is null-extended
   bool has_null_row() const { return null_row; }
+
+  /// @return true if current row has been updated (multi-table update)
+  bool has_updated_row() const { return m_status & STATUS_UPDATED; }
+
+  /// @return true if current row has been deleted (multi-table delete)
+  bool has_deleted_row() const { return m_status & STATUS_DELETED; }
 
   /**
     Initialize the optimizer cost model.

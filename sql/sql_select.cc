@@ -1417,8 +1417,6 @@ static int clear_sj_tmp_tables(JOIN *join)
         */
         DBUG_ASSERT(join->zero_result_cause || tab->materialize_table);
         tab->table()->materialized= false;
-        // The materialized table must be re-read on next evaluation:
-        tab->table()->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
       }
     }
   }
@@ -1892,7 +1890,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref().key_parts=keyparts;
   j->ref().key_length=length;
   j->ref().key=(int) key;
-  if (!(j->ref().key_buff= (uchar*) thd->mem_calloc(ALIGN_SIZE(length)*2)) ||
+  if (!(j->ref().key_buff= (uchar*) thd->mem_calloc(ALIGN_SIZE(length)*2 +
+                                                    table->s->null_bytes)) ||
       !(j->ref().key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
                                                    (keyparts)))) ||
       !(j->ref().items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
@@ -1901,8 +1900,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     DBUG_RETURN(TRUE);
   }
   j->ref().key_buff2=j->ref().key_buff+ALIGN_SIZE(length);
+  j->ref().saved_null_flags= j->ref().key_buff2+ALIGN_SIZE(length);
   j->ref().key_err=1;
-  j->ref().has_record= FALSE;
   j->ref().null_rejecting= 0;
   j->ref().use_count= 0;
   j->ref().disable_cache= FALSE;
@@ -2797,7 +2796,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->read_record.table= table;
     qep_tab->next_select=sub_select;		/* normal select */
     qep_tab->cache_idx_cond= NULL;
-    table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+
     DBUG_ASSERT(!qep_tab->read_first_record);
     qep_tab->read_record.read_record= NULL;
     qep_tab->read_record.unlock_row= rr_unlock_row;

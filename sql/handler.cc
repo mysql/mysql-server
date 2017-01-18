@@ -3009,6 +3009,7 @@ int handler::ha_rnd_next(uchar *buf)
     result= update_generated_read_fields(buf, table);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3043,9 +3044,28 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
     result= update_generated_read_fields(buf, table);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
+
+int handler::ha_ft_read(uchar *buf)
+{
+  int result;
+  DBUG_ENTER("handler::ha_ft_read");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= ft_read(buf);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
 
 
 int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
@@ -3071,7 +3091,8 @@ int handler::ha_sample_end()
   DBUG_ENTER("handler::ha_sample_end");
   DBUG_ASSERT(inited == SAMPLING);
   inited= NONE;
-  DBUG_RETURN(sample_end());
+  int result= sample_end();
+  DBUG_RETURN(result);
 }
 
 
@@ -3094,6 +3115,7 @@ int handler::ha_sample_next(uchar *buf)
     result= update_generated_read_fields(buf, table);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
 
   DBUG_RETURN(result);
 }
@@ -3131,11 +3153,11 @@ int handler::sample_next(uchar *buf)
 
   @returns Operation status
     @retval  0                   Success (found a record, and function has
-                                 set table->status to 0)
-    @retval  HA_ERR_END_OF_FILE  Row not found (function has set table->status
-                                 to STATUS_NOT_FOUND). End of index passed.
-    @retval  HA_ERR_KEY_NOT_FOUND Row not found (function has set table->status
-                                 to STATUS_NOT_FOUND). Index cursor positioned.
+                                 set table status to "has row")
+    @retval  HA_ERR_END_OF_FILE  Row not found (function has set table status
+                                 to "no row"). End of index passed.
+    @retval  HA_ERR_KEY_NOT_FOUND Row not found (function has set table status
+                                 to "no row"). Index cursor positioned.
     @retval  != 0                Error
 
   @note Positions an index cursor to the index specified in the handle.
@@ -3168,6 +3190,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3191,6 +3214,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3221,6 +3245,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
     result= update_generated_read_fields(buf, table, index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3255,6 +3280,7 @@ int handler::ha_index_next(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3289,6 +3315,7 @@ int handler::ha_index_prev(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3323,6 +3350,7 @@ int handler::ha_index_first(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3357,6 +3385,7 @@ int handler::ha_index_last(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3393,6 +3422,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3402,8 +3432,15 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
+
+  @note Since there is only one implementation for this function, it is
+        non-virtual and does not call a protected inner function, like
+        most other handler functions.
+
+  @note Implementation only calls other handler functions, so there is no need
+        to update generated columns nor set table status.
 */
-int handler::read_first_row(uchar * buf, uint primary_key)
+int handler::ha_read_first_row(uchar *buf, uint primary_key)
 {
   int error;
   DBUG_ENTER("handler::read_first_row");
@@ -3440,6 +3477,43 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   }
   DBUG_RETURN(error);
 }
+
+int handler::ha_index_read_pushed(uchar *buf, const uchar *key,
+                                  key_part_map keypart_map)
+{
+  DBUG_ENTER("handler::ha_index_read_pushed");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result= index_read_pushed(buf, key, keypart_map);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_index_next_pushed(uchar *buf)
+{
+  DBUG_ENTER("handler::ha_index_next_pushed");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result= index_next_pushed(buf);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
 
 /**
   Generate the next auto-increment number based on increment and offset.
@@ -4506,6 +4580,13 @@ uint handler::get_dup_key(int error)
 }
 
 
+bool handler::get_foreign_dup_key(char *, uint, char *, uint )
+{
+  DBUG_ASSERT(false);
+  return(false);
+}
+
+
 /**
   Delete all files with extension from handlerton::file_extensions.
 
@@ -5110,10 +5191,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
     }
 
     if (key_cmp_if_same(table, key, active_index, keylen))
-    {
-      table->status=STATUS_NOT_FOUND;
-      error=HA_ERR_END_OF_FILE;
-    }
+      error= HA_ERR_END_OF_FILE;
 
     /* Move back if necessary. */
     if (ptrdiff)
@@ -6431,6 +6509,25 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 }
 
 
+int handler::ha_multi_range_read_next(char **range_info)
+{
+  int result;
+  DBUG_ENTER("handler::ha_multi_range_read_next");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= multi_range_read_next(range_info);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
 /**
   Get next record in MRR scan
 
@@ -6449,9 +6546,6 @@ int handler::multi_range_read_next(char **range_info)
   int result= HA_ERR_END_OF_FILE;
   int range_res= 0;
   DBUG_ENTER("handler::multi_range_read_next");
-
-  // Set status for the need to update generated fields
-  m_update_generated_read_fields= table->has_gcol();
 
   if (!mrr_have_range)
   {
@@ -6497,13 +6591,6 @@ scan_it_again:
   while ((result == HA_ERR_END_OF_FILE) && !range_res);
 
   *range_info= mrr_cur_range.ptr;
-
-  /* Update virtual generated fields */
-  if (!result && m_update_generated_read_fields)
-  {
-    result= update_generated_read_fields(table->record[0], table, active_index);
-    m_update_generated_read_fields= false;
-  }
 
   DBUG_PRINT("exit",("handler::multi_range_read_next result %d", result));
   DBUG_RETURN(result);
@@ -6817,6 +6904,10 @@ int DsMrr_impl::dsmrr_fill_buffer()
   table->key_read= TRUE;
 
   rowids_buf_cur= rowids_buf;
+  /*
+    Do not use ha_multi_range_read_next() as it would call the engine's
+    overridden multi_range_read_next() but the default implementation is wanted.
+  */
   while ((rowids_buf_cur < rowids_buf_end) && 
          !(res= h2->handler::multi_range_read_next(&range_info)))
   {
@@ -7417,19 +7508,56 @@ int handler::read_range_first(const key_range *start_key,
 		? HA_ERR_END_OF_FILE
 		: result);
 
-  if (compare_key(end_range) <= 0)
-  {
-    DBUG_RETURN(0);
-  }
-  else
+  if (compare_key(end_range) > 0)
   {
     /*
       The last read row does not fall in the range. So request
       storage engine to release row lock if possible.
     */
     unlock_row();
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    result= HA_ERR_END_OF_FILE;
   }
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_read_range_first(const key_range *start_key,
+                                 const key_range *end_key,
+                                 bool eq_range, bool sorted)
+{
+  int result;
+  DBUG_ENTER("handler::ha_read_range_first");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= read_range_first(start_key, end_key, eq_range, sorted);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_read_range_next()
+{
+  int result;
+  DBUG_ENTER("handler::ha_read_range_next");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= read_range_next();
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
 }
 
 
@@ -7446,33 +7574,32 @@ int handler::read_range_first(const key_range *start_key,
 */
 int handler::read_range_next()
 {
-  int result;
   DBUG_ENTER("handler::read_range_next");
 
+  int result;
   if (eq_range)
   {
     /* We trust that index_next_same always gives a row in range */
-    DBUG_RETURN(ha_index_next_same(table->record[0],
-                                   end_range->key,
-                                   end_range->length));
-  }
-  result= ha_index_next(table->record[0]);
-  if (result)
-    DBUG_RETURN(result);
-
-  if (compare_key(end_range) <= 0)
-  {
-    DBUG_RETURN(0);
+    result= ha_index_next_same(table->record[0], end_range->key,
+                               end_range->length);
   }
   else
   {
-    /*
-      The last read row does not fall in the range. So request
-      storage engine to release row lock if possible.
-    */
-    unlock_row();
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    result= ha_index_next(table->record[0]);
+    if (result)
+      DBUG_RETURN(result);
+
+    if (compare_key(end_range) > 0)
+    {
+      /*
+        The last read row does not fall in the range. So request
+        storage engine to release row lock if possible.
+      */
+      unlock_row();
+      result= HA_ERR_END_OF_FILE;
+    }
   }
+  DBUG_RETURN(result);
 }
 
 

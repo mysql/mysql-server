@@ -2095,12 +2095,12 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       The join algorithm guarantees that we will not find the a row in
       t1 several times.
     */
-    if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
+    if (table->has_null_row() || table->has_updated_row())
       continue;
 
     if (table == table_to_update)
     {
-      table->status|= STATUS_UPDATED;
+      table->set_updated_row();
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd,
                                                *fields_for_table[offset],
@@ -2451,7 +2451,7 @@ bool Query_result_update::do_updates()
         field_num++;
       } while((tbl= check_opt_it++));
 
-      table->status|= STATUS_UPDATED;
+      table->set_updated_row();
       store_record(table,record[1]);
 
       /* Copy data from temporary table to current table */

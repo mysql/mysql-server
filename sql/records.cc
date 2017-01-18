@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,6 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   info->print_error= print_error;
   info->unlock_row= rr_unlock_row;
 
-  table->status=0;			/* And it's always found */
   if (!table->file->inited &&
       (error= table->file->ha_index_init(idx, 1)))
   {
@@ -234,8 +233,8 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   info->print_error=print_error;
   info->unlock_row= rr_unlock_row;
   info->ignore_not_found_rows= 0;
-  table->status=0;			/* And it's always found */
 
+  // Initialize for a scan over a set of rows
   if (info->quick && info->quick->clustered_pk_range())
   {
     /*

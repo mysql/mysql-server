@@ -7100,7 +7100,7 @@ bool get_schema_tables_result(JOIN *join,
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table,1);
-        table_list->table->reset_null_row();
+        table_list->table->set_not_started();
       }
       else
         table_list->table->file->stats.records= 0;

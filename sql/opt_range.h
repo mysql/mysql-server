@@ -1049,7 +1049,7 @@ public:
     return file->ft_init();
   }
   int reset() { return 0; }
-  int get_next() { return file->ft_read(record); }
+  int get_next() { return file->ha_ft_read(record); }
   int get_type() const { return QS_TYPE_FULLTEXT; }
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }

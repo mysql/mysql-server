@@ -1606,10 +1606,7 @@ ha_perfschema::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_perfschema::rnd_next");
   if (!PFS_ENABLED())
-  {
-    table->status = STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
@@ -1623,7 +1620,6 @@ ha_perfschema::rnd_next(uchar *buf)
       stats.records++;
     }
   }
-  table->status = (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -1642,10 +1638,7 @@ ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("ha_perfschema::rnd_pos");
   if (!PFS_ENABLED())
-  {
-    table->status = STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
@@ -1654,7 +1647,6 @@ ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
   {
     result = m_table->read_row(table, buf, table->field);
   }
-  table->status = (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -1884,10 +1876,8 @@ ha_perfschema::index_read(uchar *buf,
 {
   DBUG_ENTER("ha_perfschema::index_read");
   if (!PFS_ENABLED())
-  {
-    table->status = STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
+
   DBUG_ASSERT(m_table_share);
   DBUG_ASSERT(m_table_share->m_open_table != NULL);
 
@@ -1914,7 +1904,6 @@ ha_perfschema::index_read(uchar *buf,
   {
     result = m_table->read_row(table, buf, table->field);
   }
-  table->status = (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -1928,10 +1917,7 @@ ha_perfschema::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_perfschema::index_next");
   if (!PFS_ENABLED())
-  {
-    table->status = STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
@@ -1942,7 +1928,6 @@ ha_perfschema::index_next(uchar *buf)
   {
     result = m_table->read_row(table, buf, table->field);
   }
-  table->status = (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -1955,10 +1940,7 @@ ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   DBUG_ENTER("ha_perfschema::index_next_same");
   if (!PFS_ENABLED())
-  {
-    table->status = STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
@@ -1969,8 +1951,6 @@ ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen)
   {
     result = m_table->read_row(table, buf, table->field);
   }
-
-  table->status = (result ? STATUS_NOT_FOUND : 0);
 
   DBUG_RETURN(result);
 }

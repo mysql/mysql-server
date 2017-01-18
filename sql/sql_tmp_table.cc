@@ -870,6 +870,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->keys_in_use_for_query.init();
   table->keys_in_use_for_group_by.init();
   table->keys_in_use_for_order_by.init();
+  table->set_not_started();
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
@@ -1722,6 +1723,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->possible_quick_keys.init();
   table->covering_keys.init();
   table->keys_in_use_for_query.init();
+  table->set_not_started();
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
@@ -2034,6 +2036,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   memset(table, 0, sizeof(*table));
   memset(share, 0, sizeof(*share));
   table->field= field;
+  table->set_not_started();
   table->s= share;
   share->blob_field= blob_field;
   share->fields= field_count;

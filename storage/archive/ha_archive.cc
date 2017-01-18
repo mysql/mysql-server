@@ -990,7 +990,6 @@ int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
   if (found)
   {
     /* notify handler that a record has been found */
-    table->status= 0;
     DBUG_RETURN(0);
   }
 
@@ -1266,8 +1265,6 @@ int ha_archive::rnd_next(uchar *buf)
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   current_position= aztell(&archive);
   rc= get_row(&archive, buf);
-
-  table->status=rc ? STATUS_NOT_FOUND: 0;
 
 end:
   DBUG_RETURN(rc);

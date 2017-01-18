@@ -123,7 +123,6 @@ int ha_blackhole::rnd_next(uchar*)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  table->status= rc ? STATUS_NOT_FOUND : 0;
   DBUG_RETURN(rc);
 }
 
@@ -207,7 +206,6 @@ int ha_blackhole::index_read_map(uchar*, const uchar*, key_part_map,
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  table->status= rc ? STATUS_NOT_FOUND : 0;
   DBUG_RETURN(rc);
 }
 
@@ -222,7 +220,6 @@ int ha_blackhole::index_read_idx_map(uchar*, uint, const uchar*, key_part_map,
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  table->status= rc ? STATUS_NOT_FOUND : 0;
   DBUG_RETURN(rc);
 }
 
@@ -236,7 +233,6 @@ int ha_blackhole::index_read_last_map(uchar*, const uchar*, key_part_map)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  table->status= rc ? STATUS_NOT_FOUND : 0;
   DBUG_RETURN(rc);
 }
 
@@ -246,7 +242,6 @@ int ha_blackhole::index_next(uchar*)
   int rc;
   DBUG_ENTER("ha_blackhole::index_next");
   rc= HA_ERR_END_OF_FILE;
-  table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(rc);
 }
 
@@ -256,7 +251,6 @@ int ha_blackhole::index_prev(uchar*)
   int rc;
   DBUG_ENTER("ha_blackhole::index_prev");
   rc= HA_ERR_END_OF_FILE;
-  table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(rc);
 }
 
@@ -266,7 +260,6 @@ int ha_blackhole::index_first(uchar*)
   int rc;
   DBUG_ENTER("ha_blackhole::index_first");
   rc= HA_ERR_END_OF_FILE;
-  table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(rc);
 }
 
@@ -276,7 +269,6 @@ int ha_blackhole::index_last(uchar*)
   int rc;
   DBUG_ENTER("ha_blackhole::index_last");
   rc= HA_ERR_END_OF_FILE;
-  table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(rc);
 }
 

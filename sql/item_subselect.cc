@@ -3271,7 +3271,6 @@ bool subselect_indexsubquery_engine::scan_table()
 
   table->file->extra_opt(HA_EXTRA_CACHE,
                          item->unit->thd->variables.read_buff_size);
-  table->reset_null_row();
   for (;;)
   {
     error=table->file->ha_rnd_next(table->record[0]);
@@ -3281,7 +3280,7 @@ bool subselect_indexsubquery_engine::scan_table()
       break;
     }
     /* No more rows */
-    if (table->status)
+    if (!table->has_row())
       break;
 
     if (!cond || cond->val_int())
@@ -3402,7 +3401,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
        Error converting the left IN operand to the column type of the right
        IN operand. 
       */
-      tab->table()->status= STATUS_NOT_FOUND;
+      tab->table()->set_no_row();
       *convert_error= true;
       DBUG_VOID_RETURN;
     }
@@ -3482,7 +3481,6 @@ bool subselect_indexsubquery_engine::exec()
   TABLE_LIST *const tl= tab->table_ref;
   Item_in_subselect *const item_in= static_cast<Item_in_subselect*>(item);
   item_in->value= false;
-  table->status= 0;
 
   if (tl && tl->uses_materialization() && !table->materialized)
   {
@@ -3551,8 +3549,7 @@ bool subselect_indexsubquery_engine::exec()
     for (;;)
     {
       error= 0;
-      table->reset_null_row();
-      if (!table->status)
+      if (table->has_row())
       {
         if ((!cond || cond->val_int()) && (!having || having->val_int()))
         {
@@ -4199,7 +4196,7 @@ err:
         DBUG_RETURN(true);
       *tab->ref().null_ref_key= 0; // prepare for next searches of non-NULL
       mat_table_has_nulls=
-        (table->status == 0) ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+        table->has_row() ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
     }
     if (mat_table_has_nulls == NEX_TRUE)
     {

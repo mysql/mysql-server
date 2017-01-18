@@ -9223,19 +9223,16 @@ ha_innobase::index_read(
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
-		table->status = 0;
 		srv_stats.n_rows_read.add(
 			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
 		break;
 
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
-		table->status = STATUS_NOT_FOUND;
 		break;
 
 	case DB_END_OF_INDEX:
 		error = HA_ERR_KEY_NOT_FOUND;
-		table->status = STATUS_NOT_FOUND;
 		break;
 
 	case DB_TABLESPACE_DELETED:
@@ -9244,7 +9241,6 @@ ha_innobase::index_read(
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 
@@ -9255,7 +9251,6 @@ ha_innobase::index_read(
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
@@ -9263,7 +9258,6 @@ ha_innobase::index_read(
 		error = convert_error_code_to_mysql(
 			ret, m_prebuilt->table->flags, m_user_thd);
 
-		table->status = STATUS_NOT_FOUND;
 		break;
 	}
 
@@ -9517,16 +9511,13 @@ ha_innobase::general_fetch(
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
-		table->status = 0;
 		srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
-		table->status = STATUS_NOT_FOUND;
 		break;
 	case DB_END_OF_INDEX:
 		error = HA_ERR_END_OF_FILE;
-		table->status = STATUS_NOT_FOUND;
 		break;
 	case DB_TABLESPACE_DELETED:
 		ib_senderrf(
@@ -9534,7 +9525,6 @@ ha_innobase::general_fetch(
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
@@ -9544,14 +9534,12 @@ ha_innobase::general_fetch(
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 	default:
 		error = convert_error_code_to_mysql(
 			ret, m_prebuilt->table->flags, m_user_thd);
 
-		table->status = STATUS_NOT_FOUND;
 		break;
 	}
 
@@ -10049,7 +10037,6 @@ next_record:
 				innobase_fts_store_docid(
 					table, ranking->doc_id);
 			}
-			table->status= 0;
 			return(0);
 		}
 
@@ -10085,7 +10072,6 @@ next_record:
 		switch (ret) {
 		case DB_SUCCESS:
 			error = 0;
-			table->status = 0;
 			break;
 		case DB_RECORD_NOT_FOUND:
 			result->current = const_cast<ib_rbt_node_t*>(
@@ -10098,14 +10084,12 @@ next_record:
 				ha_innobase::general_fetch() and/or
 				ha_innobase::index_first() etc. */
 				error = HA_ERR_END_OF_FILE;
-				table->status = STATUS_NOT_FOUND;
 			} else {
 				goto next_record;
 			}
 			break;
 		case DB_END_OF_INDEX:
 			error = HA_ERR_END_OF_FILE;
-			table->status = STATUS_NOT_FOUND;
 			break;
 		case DB_TABLESPACE_DELETED:
 
@@ -10114,7 +10098,6 @@ next_record:
 				ER_TABLESPACE_DISCARDED,
 				table->s->table_name.str);
 
-			table->status = STATUS_NOT_FOUND;
 			error = HA_ERR_NO_SUCH_TABLE;
 			break;
 		case DB_TABLESPACE_NOT_FOUND:
@@ -10124,14 +10107,12 @@ next_record:
 				ER_TABLESPACE_MISSING,
 				table->s->table_name.str);
 
-			table->status = STATUS_NOT_FOUND;
 			error = HA_ERR_TABLESPACE_MISSING;
 			break;
 		default:
 			error = convert_error_code_to_mysql(
 				ret, 0, m_user_thd);
 
-			table->status = STATUS_NOT_FOUND;
 			break;
 		}
 

@@ -11917,7 +11917,7 @@ int QUICK_RANGE_SELECT::get_next()
     head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
   }
 
-  int result= file->multi_range_read_next(&dummy);
+  int result= file->ha_multi_range_read_next(&dummy);
 
   if (in_ror_merged_scan)
   {
@@ -11993,10 +11993,12 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     last_range->make_max_endpoint(&end_key, prefix_length, keypart_map);
 
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
-    result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
-				   last_range->max_keypart_map ? &end_key : 0,
-                                   MY_TEST(last_range->flag & EQ_RANGE),
-				   sorted);
+    result= file->ha_read_range_first(last_range->min_keypart_map ?
+                                        &start_key : NULL,
+				      last_range->max_keypart_map ?
+                                        &end_key : NULL,
+                                      last_range->flag & EQ_RANGE,
+				      sorted);
     if ((last_range->flag & (UNIQUE_RANGE | EQ_RANGE)) ==
         (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
