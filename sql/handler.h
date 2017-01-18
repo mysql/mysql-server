@@ -3678,10 +3678,9 @@ public:
 
   virtual bool is_fatal_error(int error);
 
-private:
+protected:
   virtual int multi_range_read_next(char **range_info);
 
-protected:
   /**
     Number of rows in table. It will only be called if
     (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
