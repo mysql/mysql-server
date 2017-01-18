@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <util/ndbzio.h>
 
 #define JAM_FILE_ID 476
-
+static const Uint32 MaxReadWords = 32768;
 
 bool readHeader(ndbzio_stream*, BackupFormat::FileHeader *);
 bool readFragHeader(ndbzio_stream*, BackupFormat::DataFile::FragmentHeader *);
@@ -344,7 +344,7 @@ readFragFooter(ndbzio_stream* f, BackupFormat::DataFile::FragmentFooter * dst){
 
 
 static union {
-  Uint32 buf[8192];
+  Uint32 buf[MaxReadWords];
   BackupFormat::CtlFile::TableList TableList;
   BackupFormat::CtlFile::GCPEntry GcpEntry;
   BackupFormat::CtlFile::TableDescription TableDescription;
