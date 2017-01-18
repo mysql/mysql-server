@@ -844,7 +844,6 @@ my_bool opt_noacl= 0;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
-const char *binlog_checksum_default= "NONE";
 ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
@@ -860,7 +859,7 @@ volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
 const char *timestamp_type_names[]= {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
-uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
+uint mysqld_port, test_flags, select_errors, ha_open_options;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
 uint protocol_version;
@@ -1005,7 +1004,6 @@ char mysql_real_data_home[FN_REFLEN],
 char *lc_messages_dir_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
-static size_t mysql_real_data_home_len;
 size_t mysql_data_home_len= 1;
 uint reg_ext_length;
 char logname_path[FN_REFLEN];
@@ -1125,23 +1123,17 @@ char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
 
-static volatile sig_atomic_t kill_in_progress;
-
-
 static my_bool opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
-static char *opt_update_logname;
 char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 char *default_auth_plugin;
-/** Initial command line arguments (count), after load_defaults().*/
-static int defaults_argc;
 /**
   Initial command line arguments (arguments), after load_defaults().
   This memory is allocated by @c load_defaults() and should be freed
   using @c free_defaults().
-  Do not modify defaults_argc / defaults_argv,
+  Do not modify defaults_argv,
   use remaining_argc / remaining_argv instead to parse the command
   line arguments in multiple steps.
 */
@@ -4951,7 +4943,6 @@ int mysqld_main(int argc, char **argv)
   persisted_variables_cache.init();
 
   my_getopt_use_args_separator= FALSE;
-  defaults_argc= argc;
   defaults_argv= argv;
   remaining_argc= argc;
   remaining_argv= argv;
@@ -7651,15 +7642,14 @@ static int mysql_init_variables(void)
   opt_disable_networking= opt_skip_show_db=0;
   opt_skip_name_resolve= 0;
   opt_ignore_builtin_innodb= 0;
-  opt_general_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= NULL;
+  opt_general_logname= opt_binlog_index_name= opt_slow_logname= NULL;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_myisam_log= 0;
   mqh_used= 0;
-  kill_in_progress= 0;
   cleanup_done= 0;
   server_id_supplied= false;
-  test_flags= select_errors= dropping_tables= ha_open_options=0;
+  test_flags= select_errors= ha_open_options=0;
   atomic_slave_open_temp_tables= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
@@ -7708,9 +7698,8 @@ static int mysql_init_variables(void)
   multi_keycache_init();
 
   /* Set directory paths */
-  mysql_real_data_home_len=
-    strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
-            sizeof(mysql_real_data_home)-1) - mysql_real_data_home;
+  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
+          sizeof(mysql_real_data_home)-1);
   /* Replication parameters */
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
@@ -9082,7 +9071,6 @@ PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_gtid_ensure_index_mutex;
-PSI_mutex_key key_LOCK_thread_created;
 PSI_mutex_key key_object_cache_mutex; // TODO need to initialize
 PSI_cond_key key_object_loading_cond; // TODO need to initialize
 PSI_mutex_key key_mts_temp_table_LOCK;

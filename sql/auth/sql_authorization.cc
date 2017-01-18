@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3490,10 +3490,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
         view_privs= get_column_grant(thd, grant, db_name, table_name, name);
       if (view_privs & VIEW_ANY_ACL)
       {
-        table_ref->belong_to_view->allowed_show= TRUE;
         DBUG_RETURN(false);
       }
-      table_ref->belong_to_view->allowed_show= FALSE;
       my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       DBUG_RETURN(true);
     }

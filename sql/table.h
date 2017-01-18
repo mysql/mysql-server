@@ -1885,7 +1885,6 @@ typedef struct	st_lex_user {
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
-  bool opt_if_not_exists;
   LEX_ALTER alter_status;
 
   static st_lex_user *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
@@ -2568,7 +2567,6 @@ private:
   */
   Item		*m_join_cond;
   Item          *m_sj_cond;               ///< Synthesized semijoin condition
-  bool          m_has_locking_clause;
 public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -2706,7 +2704,6 @@ public:
     tables. Unlike 'next_local', this in this list views are *not*
     leaves. Created in setup_tables() -> make_leaf_tables().
   */
-  bool allowed_show;
   TABLE_LIST    *next_leaf;
   Item          *derived_where_cond;    ///< WHERE condition from derived table
   Item          *check_option;          ///< WITH CHECK OPTION condition

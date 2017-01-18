@@ -995,9 +995,6 @@ bool parse_date_time_format(timestamp_type format_type,
   ulong part_map= 0, separator_map= 0;
   const char *parts[16];
 
-  date_time_format->time_separator= 0;
-  date_time_format->flag= 0;			// For future
-
   /*
     Fill position with 'dummy' arguments to found out if a format tag is
     used twice (This limit's the format to 255 characters, but this is ok)
@@ -1168,8 +1165,6 @@ bool parse_date_time_format(timestamp_type format_type,
       {
 	if (*(format+2) != *(format+5))
 	  break;				// Error
-	/* Store the character used for time formats */
-	date_time_format->time_separator= *(format+2);
       }
       return 0;
     }

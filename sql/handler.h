@@ -818,20 +818,6 @@ enum enum_schema_tables
   SCH_LAST=SCH_TMP_TABLE_KEYS
 };
 
-/*
-  New DD converts these I_S tables to system views.
-*/
-enum enum_schema_dd_views
-{
-  SCH_CHARSETS=0,
-  SCH_COLLATIONS,
-  SCH_SCHEMATA,
-  SCH_KEYS,
-  SCH_TABLES,
-  SCH_TABLE_STATUS,
-  SCH_COLUMNS
-};
-
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 

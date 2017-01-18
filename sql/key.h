@@ -183,9 +183,6 @@ public:
   */
   bool is_visible;
 
-  union {
-    int  bdb_return_if_eq;
-  } handler;
   TABLE *table;
   LEX_CSTRING comment;
 

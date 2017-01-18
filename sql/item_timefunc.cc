@@ -143,14 +143,11 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
 
 /*
   Date formats corresponding to compound %r and %T conversion specifiers
-
-  Note: We should init at least first element of "positions" array
-        (first member) or hpux11 compiler will die horribly.
 */
-static Date_time_format time_ampm_format= {{0}, '\0', 0,
-                                           {(char *)"%I:%i:%S %p", 11}};
-static Date_time_format time_24hrs_format= {{0}, '\0', 0,
-                                            {(char *)"%H:%i:%S", 8}};
+static const Date_time_format time_ampm_format= {{0},
+                                                 {(char *)"%I:%i:%S %p", 11}};
+static const Date_time_format time_24hrs_format= {{0},
+                                                  {(char *)"%H:%i:%S", 8}};
 
 /**
   Extract datetime value to MYSQL_TIME struct from string value
@@ -186,7 +183,7 @@ static Date_time_format time_24hrs_format= {{0}, '\0', 0,
     1	error
 */
 
-static bool extract_date_time(Date_time_format *format,
+static bool extract_date_time(const Date_time_format *format,
                               const char *val, size_t length, MYSQL_TIME *l_time,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
