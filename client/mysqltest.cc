@@ -24,6 +24,7 @@
   Please keep the test framework tools identical in all versions!
 */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <hash.h>
 #include <m_ctype.h>

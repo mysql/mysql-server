@@ -23,6 +23,7 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
+#include <errno.h>
 #include <my_aes.h>
 
 #include "fsp0sysspace.h"

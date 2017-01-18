@@ -20,6 +20,8 @@
   the file descriptior.
 */
 
+#include <errno.h>
+
 #include "my_dbug.h"
 #include "vio_priv.h"
 

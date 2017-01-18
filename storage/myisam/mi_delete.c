@@ -15,6 +15,7 @@
 
 /* Remove a row from a MyISAM table */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "fulltext.h"

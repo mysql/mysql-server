@@ -16,6 +16,7 @@
 
 /* Write a row to a MyISAM table */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "fulltext.h"

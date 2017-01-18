@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,22 +14,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "gcs_xcom_utils.h"
-#include "gcs_group_identifier.h"
-#include "gcs_logging.h"
 
-#include "xcom_cfg.h"
-#include "task_net.h"
-#include "gcs_message_stage_lz4.h"
-#include "task_os.h"
-#include "gcs_xcom_networking.h"
-#include "xcom_ssl_transport.h"
-
-#include <sstream>
-#include <iostream>
+#include <errno.h>
 #include <algorithm>
 #include <climits>
-#include <set>
+#include <iostream>
 #include <limits>
+#include <set>
+#include <sstream>
+
+#include "gcs_group_identifier.h"
+#include "gcs_logging.h"
+#include "gcs_message_stage_lz4.h"
+#include "gcs_xcom_networking.h"
+#include "task_net.h"
+#include "task_os.h"
+#include "xcom_cfg.h"
+#include "xcom_ssl_transport.h"
 
 /**
   6 is the recommended value. Too large numbers

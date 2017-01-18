@@ -15,6 +15,8 @@
 
 /* open a heap-database */
 
+#include <errno.h>
+
 #include "heapdef.h"
 #include "my_dbug.h"
 #include "my_sys.h"

@@ -17,6 +17,7 @@
 #define TASK_H
 
 #include <assert.h>
+#include <errno.h>
 
 #include "my_compiler.h"
 #include "simset.h"

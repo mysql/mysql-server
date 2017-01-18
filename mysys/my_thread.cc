@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #ifdef _WIN32
 #include "my_sys.h"        /* my_osmaperr */
+#include <errno.h>
 #include <process.h>
 #include <signal.h>
 

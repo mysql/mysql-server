@@ -51,6 +51,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "trx0purge.h"
 #include "trx0undo.h"
 #endif /* !UNIV_HOTBACKUP */
+#include <errno.h>
 #include <map>
 #include <new>
 #include <sstream>

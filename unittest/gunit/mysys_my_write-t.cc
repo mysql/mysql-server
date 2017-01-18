@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
+
+#include <errno.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <stddef.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

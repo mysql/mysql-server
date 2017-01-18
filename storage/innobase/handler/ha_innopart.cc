@@ -23,6 +23,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 
 /* Include necessary SQL headers */
 #include <debug_sync.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <log.h>
 #include <my_check_opt.h>

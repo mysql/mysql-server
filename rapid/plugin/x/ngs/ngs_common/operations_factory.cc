@@ -19,6 +19,7 @@
 
 #include "ngs_common/operations_factory.h"
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "ngs/memory.h"

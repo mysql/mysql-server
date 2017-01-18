@@ -17,6 +17,8 @@
   Preload indexes into key cache
 */
 
+#include <errno.h>
+
 #include "my_dbug.h"
 #include "myisamdef.h"
 

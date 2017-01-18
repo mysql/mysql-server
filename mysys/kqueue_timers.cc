@@ -17,6 +17,7 @@
   @file mysys/kqueue_timers.cc
 */
 
+#include <errno.h>
 #include <sys/types.h>  /* Must be before <sys/event.h> on FreeBSD. */
 #include <sys/event.h>
 #ifdef HAVE_SYS_TIME_H

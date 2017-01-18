@@ -23,6 +23,7 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "btr0btr.h"
@@ -52,8 +53,8 @@ Created 10/25/1995 Heikki Tuuri
 # include "os0event.h"
 # include "sync0sync.h"
 #else /* !UNIV_HOTBACKUP */
-# include "srv0srv.h"
 # include "log0log.h"
+# include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

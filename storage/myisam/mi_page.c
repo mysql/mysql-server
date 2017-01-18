@@ -15,6 +15,7 @@
 
 /* Read and write key blocks */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "my_dbug.h"

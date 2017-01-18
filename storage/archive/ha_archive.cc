@@ -18,6 +18,7 @@
 
 #include "ha_archive.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <my_dir.h>
 #include <myisam.h>

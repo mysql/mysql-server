@@ -15,6 +15,7 @@
 
 /* Write a record to heap-databas */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "heapdef.h"

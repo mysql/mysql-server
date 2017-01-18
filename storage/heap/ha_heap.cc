@@ -18,6 +18,8 @@
 #define MYSQL_SERVER 1
 #include "ha_heap.h"
 
+#include <errno.h>
+
 #include "current_thd.h"
 #include "heapdef.h"
 #include "my_dbug.h"

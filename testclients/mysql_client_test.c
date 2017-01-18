@@ -24,6 +24,7 @@
   contains only the actual tests, plus the list of test functions to call.
 */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 

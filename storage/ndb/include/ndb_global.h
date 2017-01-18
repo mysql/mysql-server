@@ -25,6 +25,7 @@
 #endif
 #endif
 
+#include <errno.h>
 #include <stdio.h>
 #include <my_global.h>
 #include "my_dbug.h"

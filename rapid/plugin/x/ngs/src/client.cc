@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,25 +18,26 @@
  */
 
 #include "ngs/client.h"
-#include "ngs/scheduler.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_monitor.h"
-#include "ngs/ngs_error.h"
-#include "ngs_common/operations_factory.h"
 
-#include <string.h>
-#include <algorithm>
-#include <functional>
 #ifndef WIN32
 #include <arpa/inet.h>
 #endif
+#include <errno.h>
+#include <string.h>
+#include <algorithm>
+#include <functional>
 
+#include "ngs/capabilities/handler_auth_mech.h"
+#include "ngs/capabilities/handler_readonly_value.h"
+#include "ngs/capabilities/handler_tls.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/interface/session_interface.h"
 #include "ngs/log.h"
+#include "ngs/ngs_error.h"
+#include "ngs/protocol/protocol_config.h"
+#include "ngs/protocol_monitor.h"
+#include "ngs/scheduler.h"
+#include "ngs_common/operations_factory.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 #include "ngs_common/protocol_protobuf.h"

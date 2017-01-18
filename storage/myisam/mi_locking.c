@@ -20,6 +20,7 @@
   isamdatabase.
 */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "ftdefs.h"

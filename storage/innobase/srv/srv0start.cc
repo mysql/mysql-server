@@ -38,6 +38,7 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 

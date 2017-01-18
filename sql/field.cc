@@ -23,6 +23,8 @@
 
 #include "field.h"
 
+#include <errno.h>
+
 #include <algorithm>
 #include <cmath>                         // isnan
 #include <memory>                        // unique_ptr

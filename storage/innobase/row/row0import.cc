@@ -23,6 +23,7 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
+#include <errno.h>
 #include <my_aes.h>
 #include <vector>
 

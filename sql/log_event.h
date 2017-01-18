@@ -28,6 +28,8 @@
 #ifndef _log_event_h
 #define _log_event_h
 
+#include <errno.h>
+
 #include <atomic>
 #include <list>
 #include <map>

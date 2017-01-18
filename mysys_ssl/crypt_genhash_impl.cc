@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
+
+#include <errno.h>
 
 #ifdef _WIN32
 #include <malloc.h>

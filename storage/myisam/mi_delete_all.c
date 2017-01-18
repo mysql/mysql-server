@@ -16,6 +16,7 @@
 /* Remove all rows from a MyISAM table */
 /* This clears the status information and truncates files */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "my_dbug.h"

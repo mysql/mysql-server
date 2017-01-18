@@ -25,6 +25,7 @@
   Published with a permission.
 */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <my_config.h>
 #include <my_global.h>

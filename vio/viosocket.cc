@@ -23,6 +23,7 @@
   the file descriptior.
 */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 

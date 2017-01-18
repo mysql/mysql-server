@@ -23,6 +23,7 @@
 
 #include "ha_ndbcluster.h"
 
+#include <errno.h>
 #include <mysql/psi/mysql_thread.h>
 
 #include "../storage/ndb/include/util/SparseBitmask.hpp"

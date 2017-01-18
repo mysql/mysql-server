@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,11 +18,12 @@
  * 02110-1301  USA
  */
 
-#include <gtest/gtest.h>
+#include <errno.h>
 #include <gmock/gmock.h>
-#include "mock/ngs_general.h"
+#include <gtest/gtest.h>
 
 #include "io/xpl_listener_unix_socket.h"
+#include "mock/ngs_general.h"
 
 
 namespace xpl {

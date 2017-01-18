@@ -40,6 +40,7 @@
 
 #define DUMP_VERSION "10.13"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <hash.h>
 #include <m_ctype.h>

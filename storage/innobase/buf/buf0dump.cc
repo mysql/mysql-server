@@ -23,6 +23,7 @@ Implements a buffer pool dump/load.
 Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
+#include <errno.h>
 #include <stdio.h>
 #include <algorithm>
 
