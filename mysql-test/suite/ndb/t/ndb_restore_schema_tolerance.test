@@ -778,6 +778,9 @@ t512 bigint default 65535
 --source include/ndb_backup.inc
 drop table grp_hssesmusersstoredbytenant;
 
+-- source suite/ndb/include/ndb_find_tools.inc
+--exec $NDB_PRINT_BACKUP_FILE $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id/BACKUP-$the_backup_id.1.ctl >> $NDB_TOOLS_OUTPUT
+
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -m  --print-log $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 drop table grp_hssesmusersstoredbytenant;
