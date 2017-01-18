@@ -3769,13 +3769,15 @@ predefine_undo_tablespaces(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd)
 {
-	/** Currently, during bootstrap, the undo tablespaces should
-	have continual tablespace ids. */
-	for (space_id_t space_id = 0; space_id < srv_undo_tablespaces;
-	     ++space_id) {
+	Space_Ids::iterator	it;
+	for (it = trx_sys_undo_spaces->begin();
+	     it != trx_sys_undo_spaces->end(); ++it) {
+		space_id_t	space_id = *it;
+		ut_ad(fsp_is_undo_tablespace(space_id));
+
                 FilSpace space(space_id);
 		ut_a(space() != NULL);
-		/* Every udno tablespace has only one file now */
+		/* Every undo tablespace has only one file now */
 		ut_ad(UT_LIST_GET_LEN(space()->chain) == 1);
     
                 static constexpr char fmt[] = "innodb_undo%03u";
