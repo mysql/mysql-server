@@ -60,11 +60,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM City
 WHERE Population > 100000 AND Name LIKE 'Aba%' OR
-Country IN ('CAN', 'ARG') AND ID < 3800 OR
-Country < 'U' AND Name LIKE 'Zhu%' OR
-ID BETWEEN 3800 AND 3810;
+Country IN ('CAN', 'ARG') AND  ID BETWEEN 120 AND 130 OR
+Country <= 'ALB' AND Name LIKE 'L%' OR
+ID BETWEEN 3807 AND 3810;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,Country,PRIMARY	35,3,4	NULL	132	Using sort_union(Name,Country,PRIMARY); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,PRIMARY,Country	35,4,3	NULL	31	Using sort_union(Name,PRIMARY,Country); Using where
 EXPLAIN 
 SELECT * FROM City
 WHERE (Population > 101000 AND Population < 115000);
@@ -1762,5 +1762,43 @@ WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
 a	b
 167	9999
 168	10000
+DROP TABLE t1;
+#
+# MDEV-8603: Wrong result OR/AND condition over index fields
+#
+CREATE TABLE t1 (
+id INT NOT NULL,
+state VARCHAR(64),
+capital VARCHAR(64),
+UNIQUE KEY (id),
+KEY state (state,id),
+KEY capital (capital, id)
+);
+INSERT INTO t1 VALUES  
+(1,'Arizona','Phoenix'), 
+(2,'Hawaii','Honolulu'),
+(3,'Georgia','Atlanta'), 
+(4,'Florida','Tallahassee'), 
+(5,'Alaska','Juneau'),
+(6,'Michigan','Lansing'),
+(7,'Pennsylvania','Harrisburg'),
+(8,'Virginia','Richmond')
+;
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (state,capital) 
+WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	state,capital	state	71	NULL	12	Using index condition; Using where
+SELECT * FROM t1 FORCE KEY (state,capital) 
+WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
+id	state	capital
+4	Florida	Tallahassee
+3	Georgia	Atlanta
+2	Hawaii	Honolulu
+6	Michigan	Lansing
+7	Pennsylvania	Harrisburg
+8	Virginia	Richmond
 DROP TABLE t1;
 set session optimizer_switch='index_merge_sort_intersection=default';

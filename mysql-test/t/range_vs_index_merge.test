@@ -57,9 +57,9 @@ SELECT * FROM City
 EXPLAIN
 SELECT * FROM City
   WHERE Population > 100000 AND Name LIKE 'Aba%' OR
-        Country IN ('CAN', 'ARG') AND ID < 3800 OR
-        Country < 'U' AND Name LIKE 'Zhu%' OR
-        ID BETWEEN 3800 AND 3810;
+        Country IN ('CAN', 'ARG') AND  ID BETWEEN 120 AND 130 OR
+        Country <= 'ALB' AND Name LIKE 'L%' OR
+        ID BETWEEN 3807 AND 3810;
 
 # The output of the next 3 commands tells us about selectivities
 # of the conditions utilized in 2 queries following after them  
@@ -1200,6 +1200,41 @@ SELECT * FROM t1
   WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
 SELECT * FROM t1
   WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # MDEV-8603: Wrong result OR/AND condition over index fields
+--echo #
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  state VARCHAR(64),
+  capital VARCHAR(64),
+  UNIQUE KEY (id),
+  KEY state (state,id),
+  KEY capital (capital, id)
+);
+ 
+INSERT INTO t1 VALUES  
+  (1,'Arizona','Phoenix'), 
+  (2,'Hawaii','Honolulu'),
+  (3,'Georgia','Atlanta'), 
+  (4,'Florida','Tallahassee'), 
+  (5,'Alaska','Juneau'),
+  (6,'Michigan','Lansing'),
+  (7,'Pennsylvania','Harrisburg'),
+  (8,'Virginia','Richmond')
+;
+ 
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (state,capital) 
+WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+   OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
+SELECT * FROM t1 FORCE KEY (state,capital) 
+WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+   OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
 
 DROP TABLE t1;
 

@@ -9335,6 +9335,13 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 
       if (!tmp->next_key_part)
       {
+        if (key2->use_count)
+	{
+	  SEL_ARG *key2_cpy= new SEL_ARG(*key2);
+          if (key2_cpy)
+            return 0;
+          key2= key2_cpy;
+	}
         /*
           tmp->next_key_part is empty: cut the range that is covered
           by tmp from key2. 
@@ -9366,13 +9373,6 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
             key2:               [---]
             tmp:     [---------]
           */
-          if (key2->use_count)
-	  {
-	    SEL_ARG *key2_cpy= new SEL_ARG(*key2);
-            if (key2_cpy)
-              return 0;
-            key2= key2_cpy;
-	  }
           key2->copy_max_to_min(tmp);
           continue;
         }

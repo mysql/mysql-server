@@ -1,5 +1,5 @@
---- ./r/range_vs_index_merge_innodb.result	2012-11-21 19:35:14.000000000 +0100
-+++ ./r/range_vs_index_merge_innodb,innodb_plugin.reject	2012-11-21 20:56:00.000000000 +0100
+--- range_vs_index_merge_innodb.result	2017-01-17 15:00:18.039148421 -0800
++++ range_vs_index_merge_innodb,innodb_plugin.result	2017-01-17 14:58:45.129148312 -0800
 @@ -50,14 +50,14 @@
  WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
  (Population < 100000 OR Name Like 'T%') AND Country='ARG';
@@ -278,3 +278,12 @@
  FLUSH STATUS;
  SELECT * FROM City
  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+@@ -1790,7 +1790,7 @@
+ WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+ OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	state,capital	state	71	NULL	10	Using index condition; Using where
++1	SIMPLE	t1	range	state,capital	state	71	NULL	10	Using where
+ SELECT * FROM t1 FORCE KEY (state,capital) 
+ WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+ OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
