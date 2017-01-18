@@ -1,5 +1,5 @@
 select reserved, used from ndbinfo.resources
-where resource_name = 'DISK_OPERATIONS'
+where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
 reserved	used
 640	640

@@ -495,7 +495,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 	signal->theData[0] = 1;
 	return;
       case -1:
-        g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
+        g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
                               " increase config parameter GlobalSharedMemory");
 	ndbrequire("NOT YET IMPLEMENTED" == 0);
 	break;
@@ -2058,7 +2058,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       jam();
       return;
     case -1:
-      g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
+      g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
                              " increase config parameter GlobalSharedMemory");
       warningEvent("Failed to get log buffer for drop table: %u",
 		   tabPtr.i);
@@ -2214,7 +2214,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
 	  jam();
 	  return;
 	case -1:
-          g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
+          g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
                              " increase config parameter GlobalSharedMemory");
 	  ndbrequire("NOT YET IMPLEMENTED" == 0);
 	  break;

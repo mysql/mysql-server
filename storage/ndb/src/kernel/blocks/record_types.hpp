@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,12 +26,9 @@
  */
 
 /**
- * Operations for dd
- *    PGMAN_PAGE_REQUEST
- *    LGMAN_LOG_WAITER
- *    DBTUP_PAGE_REQUEST
+ * Transaction memory == "operation records" needed to access/modify data in DB
  */
-#define RG_DISK_OPERATIONS      1
+#define RG_TRANSACTION_MEMORY   1
 
 /**
  * Records for dd
@@ -75,7 +72,7 @@
 #define RG_SCHEMA_TRANS_MEMORY  9
 
 /**
- * 
+ *
  */
 #define RG_RESERVED             0
 #define RG_COUNT                10
@@ -83,9 +80,9 @@
 /**
  * Record types
  */
-#define RT_PGMAN_PAGE_REQUEST      MAKE_TID( 1, RG_DISK_OPERATIONS)
-#define RT_LGMAN_LOG_WAITER        MAKE_TID( 2, RG_DISK_OPERATIONS)
-#define RT_DBTUP_PAGE_REQUEST      MAKE_TID( 3, RG_DISK_OPERATIONS)
+#define RT_PGMAN_PAGE_REQUEST      MAKE_TID( 1, RG_TRANSACTION_MEMORY)
+#define RT_LGMAN_LOG_WAITER        MAKE_TID( 2, RG_TRANSACTION_MEMORY)
+#define RT_DBTUP_PAGE_REQUEST      MAKE_TID( 3, RG_TRANSACTION_MEMORY)
 
 #define RT_DBTUP_EXTENT_INFO       MAKE_TID( 1, RG_DISK_RECORDS)
 #define RT_DBDICT_FILE             MAKE_TID( 2, RG_DISK_RECORDS)
