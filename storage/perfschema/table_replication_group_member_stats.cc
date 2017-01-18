@@ -22,9 +22,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
-
-#define HAVE_REPLICATION
-
 #include "field.h"
 #include "log.h"
 #include "pfs_instr.h"
@@ -33,8 +30,6 @@
 #include "table.h"
 #include "table_replication_group_member_stats.h"
 #include "thr_lock.h"
-
-#ifdef HAVE_REPLICATION
 
 /*
   Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
@@ -141,8 +136,6 @@ set_transactions_rows_in_validation(void* const context,
   row->trx_rows_validating = value;
 }
 
-#endif /* HAVE_REPLICATION */
-
 THR_LOCK table_replication_group_member_stats::m_table_lock;
 
 /* clang-format off */
@@ -222,20 +215,16 @@ table_replication_group_member_stats::create(void)
 table_replication_group_member_stats::table_replication_group_member_stats()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-#ifdef HAVE_REPLICATION
   m_row.trx_committed = NULL;
-#endif /* HAVE_REPLICATION */
 }
 
 table_replication_group_member_stats::~table_replication_group_member_stats()
 {
-#ifdef HAVE_REPLICATION
   if (m_row.trx_committed != NULL)
   {
     my_free(m_row.trx_committed);
     m_row.trx_committed = NULL;
   }
-#endif /* HAVE_REPLICATION */
 }
 
 void
@@ -250,12 +239,10 @@ table_replication_group_member_stats::get_row_count()
 {
   uint row_count = 0;
 
-#ifdef HAVE_REPLICATION
   if (is_group_replication_plugin_loaded())
   {
     row_count = 1;
   }
-#endif /* HAVE_REPLICATION */
 
   return row_count;
 }
@@ -263,7 +250,6 @@ table_replication_group_member_stats::get_row_count()
 int
 table_replication_group_member_stats::rnd_next(void)
 {
-#ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
   {
     return HA_ERR_END_OF_FILE;
@@ -275,7 +261,6 @@ table_replication_group_member_stats::rnd_next(void)
     m_next_pos.set_after(&m_pos);
     return make_row();
   }
-#endif /* HAVE_REPLICATION */
 
   return HA_ERR_END_OF_FILE;
 }
@@ -284,7 +269,6 @@ int
 table_replication_group_member_stats::rnd_pos(
   const void* pos MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   if (get_row_count() == 0)
   {
     return HA_ERR_END_OF_FILE;
@@ -293,12 +277,8 @@ table_replication_group_member_stats::rnd_pos(
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < 1);
   return make_row();
-#else
-  return HA_ERR_END_OF_FILE;
-#endif /* HAVE_REPLICATION */
 }
 
-#ifdef HAVE_REPLICATION
 int
 table_replication_group_member_stats::make_row()
 {
@@ -339,7 +319,6 @@ table_replication_group_member_stats::make_row()
 
   DBUG_RETURN(0);
 }
-#endif /* HAVE_REPLICATION */
 
 int
 table_replication_group_member_stats::read_row_values(
@@ -348,7 +327,6 @@ table_replication_group_member_stats::read_row_values(
   Field** fields MY_ATTRIBUTE((unused)),
   bool read_all MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   Field* f;
 
   DBUG_ASSERT(table->s->null_bytes == 0);
@@ -396,7 +374,4 @@ table_replication_group_member_stats::read_row_values(
     }
   }
   return 0;
-#else
-  return HA_ERR_RECORD_DELETED;
-#endif /* HAVE_REPLICATION */
 }

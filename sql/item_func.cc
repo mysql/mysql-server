@@ -5089,7 +5089,6 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     return 0;
   }
-#ifdef HAVE_REPLICATION
   Master_info *mi;
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
@@ -5133,7 +5132,6 @@ longlong Item_master_pos_wait::val_int()
 
   if (mi != NULL)
     mi->dec_reference();
-#endif
   return event_count;
 }
 
@@ -5243,7 +5241,6 @@ longlong Item_master_gtid_set_wait::val_int()
 
   null_value=0;
 
-#if defined(HAVE_REPLICATION)
   String *gtid= args[0]->val_str(&value);
   THD* thd = current_thd;
   Master_info *mi= NULL;
@@ -5312,7 +5309,6 @@ longlong Item_master_gtid_set_wait::val_int()
 
   if (mi != NULL)
     mi->dec_reference();
-#endif
 
   gtid_state->end_gtid_wait();
 

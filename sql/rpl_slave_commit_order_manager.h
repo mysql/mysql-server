@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include "mysql/psi/mysql_mutex.h"
 
 class THD;
-#ifdef HAVE_REPLICATION
 
 #include "my_global.h"
 #include "rpl_rli_pdb.h"    // get_thd_worker
@@ -211,5 +210,4 @@ inline void commit_order_manager_check_deadlock(THD* thd_self,
   DBUG_VOID_RETURN;
 }
 
-#endif //HAVE_REPLICATION
 #endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/

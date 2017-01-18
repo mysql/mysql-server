@@ -516,18 +516,16 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
 
   insert_table->next_number_field= insert_table->found_next_number_field;
 
-#ifdef HAVE_REPLICATION
-    if (thd->slave_thread)
-    {
-      /* Get SQL thread's rli, even for a slave worker thread */
-      Relay_log_info* c_rli= thd->rli_slave->get_c_rli();
-      DBUG_ASSERT(c_rli != NULL);
-      if(info.get_duplicate_handling() == DUP_UPDATE &&
-         insert_table->next_number_field != NULL &&
-         rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
-        DBUG_RETURN(true);
-    }
-#endif
+  if (thd->slave_thread)
+  {
+    /* Get SQL thread's rli, even for a slave worker thread */
+    Relay_log_info* c_rli= thd->rli_slave->get_c_rli();
+    DBUG_ASSERT(c_rli != NULL);
+    if(info.get_duplicate_handling() == DUP_UPDATE &&
+       insert_table->next_number_field != NULL &&
+       rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
+      DBUG_RETURN(true);
+  }
 
   THD_STAGE_INFO(thd, stage_update);
   if (duplicates == DUP_REPLACE &&
@@ -2065,7 +2063,6 @@ bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
 
-#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /* Get SQL thread's rli, even for a slave worker thread */
@@ -2076,7 +2073,6 @@ bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
       DBUG_RETURN(true);
   }
-#endif
 
   thd->num_truncated_fields= 0;
   if (thd->lex->is_ignore() || duplicate_handling != DUP_ERROR)

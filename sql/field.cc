@@ -7241,7 +7241,6 @@ struct Check_field_param {
   Field *field;
 };
 
-#ifdef HAVE_REPLICATION
 static bool
 check_field_for_37426(const void *param_arg)
 {
@@ -7253,7 +7252,6 @@ check_field_for_37426(const void *param_arg)
                        param->field->row_pack_length()));
   return param->field->row_pack_length() > 255;
 }
-#endif
 
 bool
 Field_string::compatible_field_size(uint field_metadata,
@@ -7261,12 +7259,10 @@ Field_string::compatible_field_size(uint field_metadata,
                                     uint16 mflags,
                                     int *order_var)
 {
-#ifdef HAVE_REPLICATION
   const Check_field_param check_param = { this };
   if (!is_mts_worker(rli_arg->info_thd) && rpl_master_has_bug(rli_arg, 37426, TRUE,
                          check_field_for_37426, &check_param))
     return FALSE;                        // Not compatible field sizes
-#endif
   return Field::compatible_field_size(field_metadata, rli_arg, mflags, order_var);
 }
 

@@ -5360,10 +5360,8 @@ err:
 bool
 is_privileged_user_for_credential_change(THD *thd)
 {
-#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
     return true;
-#endif /* HAVE_REPLICATION */
   return (!check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) ||
           thd->security_context()->check_access(CREATE_USER_ACL, false));
 }

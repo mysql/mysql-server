@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -61,9 +61,7 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
     global_sid_lock->assert_some_lock();
     break;
   case GTID_MODE_LOCK_CHANNEL_MAP:
-#ifdef HAVE_REPLICATION
     channel_map.assert_some_lock();
-#endif
     break;
   case GTID_MODE_LOCK_GTID_MODE:
     gtid_mode_lock->assert_some_lock();

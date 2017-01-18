@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifdef HAVE_REPLICATION
 #include "rpl_binlog_sender.h"
 
 #include <stdio.h>
@@ -1380,4 +1379,3 @@ void Binlog_sender::calc_shrink_buffer_size(size_t current_size)
 
   m_new_shrink_size= ALIGN_SIZE(new_size);
 }
-#endif // HAVE_REPLICATION

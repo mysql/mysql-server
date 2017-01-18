@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -119,9 +119,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
 ENDIF()
-
-# NDB needs replication
-ADD_DEFINITIONS(-DHAVE_REPLICATION)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")

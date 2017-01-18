@@ -161,13 +161,11 @@ static int binlog_xa_commit(handlerton *hton,  XID *xid);
 static int binlog_xa_rollback(handlerton *hton,  XID *xid);
 static void exec_binlog_error_action_abort(const char* err_string);
 
-#ifdef HAVE_REPLICATION
 static inline bool has_commit_order_manager(THD *thd)
 {
   return is_mts_worker(thd) &&
     thd->rli_slave->get_commit_order_manager() != NULL;
 }
-#endif
 
 
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
@@ -2016,7 +2014,6 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
                        (ulonglong) thd, stage));
   bool leader= m_queue[stage].append(thd);
 
-#ifdef HAVE_REPLICATION
   if (stage == FLUSH_STAGE && has_commit_order_manager(thd))
   {
     Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
@@ -2024,7 +2021,6 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
 
     mngr->unregister_trx(worker);
   }
-#endif
 
   /*
     The stage mutex can be NULL if we are enrolling for the first
@@ -2595,7 +2591,6 @@ static bool binlog_savepoint_rollback_can_release_mdl(handlerton*,
   DBUG_RETURN(!trans_cannot_safely_rollback(thd));
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Adjust log offset in the binary log file for all running slaves
   This class implements call back function for do_for_all_thd().
@@ -2712,7 +2707,6 @@ static bool purge_error_message(THD* thd, int res)
   return FALSE;
 }
 
-#endif /* HAVE_REPLICATION */
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {
@@ -2987,7 +2981,6 @@ err:
 }
 
 
-#ifdef HAVE_REPLICATION
 /**
    Load data's io cache specific hook to be executed
    before a chunk of data is being read into the cache's buffer
@@ -3244,8 +3237,6 @@ bool mysql_show_binlog_events(THD* thd)
   
   DBUG_RETURN(show_binlog_events(thd, &mysql_bin_log));
 }
-
-#endif /* HAVE_REPLICATION */
 
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
@@ -3701,7 +3692,6 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
     return TRUE;
   }
 
-#ifdef HAVE_REPLICATION
   /*
     Sync the index by purging any binary log file that is not registered.
     In other words, either purge binary log files that were removed from
@@ -3720,7 +3710,6 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
                     "file.");
     return TRUE;
   }
-#endif
 
   return FALSE;
 }
@@ -4788,7 +4777,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
 
-#ifdef HAVE_REPLICATION
   if (open_purge_index_file(TRUE) ||
       register_create_index_entry(log_file_name) ||
       sync_purge_index_file() ||
@@ -4815,7 +4803,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_RETURN(1);
   }
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
-#endif
 
   write_error= 0;
 
@@ -4826,9 +4813,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #endif
                       log_name, new_name, new_index_number))
   {
-#ifdef HAVE_REPLICATION
     close_purge_index_file();
-#endif
     DBUG_RETURN(1);                            /* all warnings issued */
   }
 
@@ -5027,10 +5012,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   
   if (write_file_name_to_index_file)
   {
-#ifdef HAVE_REPLICATION
     DBUG_EXECUTE_IF("crash_create_critical_before_update_index", DBUG_SUICIDE(););
-#endif
-
     DBUG_ASSERT(my_b_inited(&index_file) != 0);
 
     /*
@@ -5053,9 +5035,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       goto err;
     }
 
-#ifdef HAVE_REPLICATION
     DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
-#endif
   }
 
   atomic_log_state = LOG_OPENED;
@@ -5065,19 +5045,15 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   */
   max_committed_transaction.update_offset(transaction_counter.get_timestamp());
   transaction_counter.update_offset(transaction_counter.get_timestamp());
-#ifdef HAVE_REPLICATION
   close_purge_index_file();
-#endif
 
   update_binlog_end_pos();
   DBUG_RETURN(0);
 
 err:
-#ifdef HAVE_REPLICATION
   if (is_inited_purge_index_file())
     purge_index_entry(NULL, NULL, need_lock_index);
   close_purge_index_file();
-#endif
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   my_free(name);
@@ -5659,7 +5635,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
     }
   }
 
-#ifdef HAVE_REPLICATION
   /*
     For relay logs we clear the gtid state associated per channel(i.e rli)
     in the purge_relay_logs()
@@ -5675,7 +5650,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
     if (gtid_state->init() != 0)
       goto err;
   }
-#endif
 
   if (!delete_only)
   {
@@ -5826,8 +5800,6 @@ int MYSQL_BIN_LOG::close_crash_safe_index_file()
   @retval
     LOG_INFO_IO		Got IO error while reading file
 */
-
-#ifdef HAVE_REPLICATION
 
 int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
 {
@@ -6577,7 +6549,6 @@ err:
   mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
-#endif /* HAVE_REPLICATION */
 
 
 /**
@@ -6881,7 +6852,6 @@ end:
 }
 
 
-#ifdef HAVE_REPLICATION
 /**
   Called after an event has been written to the relay log by the IO
   thread.  This flushes and possibly syncs the file (according to the
@@ -7010,7 +6980,6 @@ bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
 
   DBUG_RETURN(error);
 }
-#endif // ifdef HAVE_REPLICATION
 
 bool MYSQL_BIN_LOG::flush_and_sync(const bool force)
 {
@@ -7158,7 +7127,6 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
   */
   if (likely(is_open()))
   {
-#ifdef HAVE_REPLICATION
     /*
       In the future we need to add to the following if tests like
       "do the involved tables match (to be implemented)
@@ -7171,7 +7139,6 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
          (!event_info->is_no_filter_event() && 
           !binlog_filter->db_ok(local_db))))
       DBUG_RETURN(0);
-#endif /* HAVE_REPLICATION */
 
     DBUG_ASSERT(event_info->is_using_trans_cache() || event_info->is_using_stmt_cache());
     
@@ -7327,7 +7294,6 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 */
 void MYSQL_BIN_LOG::purge()
 {
-#ifdef HAVE_REPLICATION
   if (expire_logs_days)
   {
     DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
@@ -7344,7 +7310,6 @@ void MYSQL_BIN_LOG::purge()
       purge_logs_before_date(purge_time, true);
     }
   }
-#endif
 }
 
 /**
@@ -7853,7 +7818,6 @@ void MYSQL_BIN_LOG::close(uint exiting)
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
   if (atomic_log_state == LOG_OPENED)
   {
-#ifdef HAVE_REPLICATION
     if ((exiting & LOG_CLOSE_STOP_EVENT) != 0)
     {
       /**
@@ -7872,7 +7836,6 @@ void MYSQL_BIN_LOG::close(uint exiting)
       flush_io_cache(&log_file);
       update_binlog_end_pos();
     }
-#endif /* HAVE_REPLICATION */
 
     /* don't pwrite in a file opened with O_APPEND - it doesn't work */
     if (log_file.type == WRITE_CACHE)
@@ -9101,7 +9064,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     appointed itself leader for the flush phase.
   */
 
-#ifdef HAVE_REPLICATION
   if (has_commit_order_manager(thd))
   {
     Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
@@ -9116,9 +9078,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
       DBUG_RETURN(finish_commit(thd));
   }
-  else
-#endif
-  if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
+  else if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
   {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
                           thd->thread_id(), thd->commit_error));

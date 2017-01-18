@@ -132,9 +132,7 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
-#ifdef HAVE_REPLICATION
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
-#endif /*HAVE_REPLICATION*/
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 
 bool execute_show(THD *thd, TABLE_LIST *all_tables);

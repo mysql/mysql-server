@@ -884,11 +884,7 @@ ulonglong slave_type_conversions_options;
 ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
-
-#ifdef HAVE_REPLICATION
 my_bool opt_slave_preserve_commit_order;
-#endif
-
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
@@ -1802,10 +1798,8 @@ static void clean_up(bool print_message)
   injector::free_instance();
   mysql_bin_log.cleanup();
 
-#ifdef HAVE_REPLICATION
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
-#endif
   my_tz_free();
   servers_free(1);
   acl_free(1);
@@ -1842,9 +1836,7 @@ static void clean_up(bool print_message)
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
-#ifdef HAVE_REPLICATION
   end_slave_list();
-#endif
   delete binlog_filter;
   delete rpl_filter;
   end_ssl();
@@ -4236,9 +4228,7 @@ static int init_server_components()
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
-#ifdef HAVE_REPLICATION
   init_slave_list();
-#endif
 
   /* Setup logs */
 
@@ -4338,7 +4328,6 @@ static int init_server_components()
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
               array_elements(binlog_format_names)-1);
 
-#ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
   {
     if (opt_bin_log)
@@ -4353,10 +4342,8 @@ server.");
 --log-slave-updates would lead to infinite loops in this server. However this \
 will be ignored as the --log-bin option is not defined.");
   }
-#endif
 
   opt_server_id_mask = ~ulong(0);
-#ifdef HAVE_REPLICATION
   opt_server_id_mask = (opt_server_id_bits == 32)?
     ~ ulong(0) : (1 << opt_server_id_bits) -1;
   if (server_id != (server_id & opt_server_id_mask))
@@ -4365,7 +4352,6 @@ will be ignored as the --log-bin option is not defined.");
                     "server-id-bits configured.");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
-#endif
 
   if (opt_bin_log)
   {
@@ -4776,14 +4762,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     mysql_mutex_unlock(log_lock);
   }
 
-#ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
   {
     time_t purge_time= server_start_time - expire_logs_days*24*60*60;
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
-#endif
 
   if (opt_myisam_log)
     (void) mi_log(1);
@@ -6259,12 +6243,10 @@ struct my_option my_long_early_options[]=
 
 struct my_option my_long_options[]=
 {
-#ifdef HAVE_REPLICATION
   {"abort-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &abort_slave_event_count,  &abort_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* HAVE_REPLICATION */
   {"allow-suspicious-udfs", 0,
    "Allows use of UDFs consisting of only one symbol xxx() "
    "without corresponding xxx_init() or xxx_deinit(). That also means "
@@ -6342,12 +6324,10 @@ struct my_option my_long_options[]=
    &des_key_file, &des_key_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */
-#ifdef HAVE_REPLICATION
   {"disconnect-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &disconnect_slave_event_count, &disconnect_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* HAVE_REPLICATION */
   {"exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
 
@@ -6426,12 +6406,10 @@ struct my_option my_long_options[]=
    "Deprecated option, use 'CHANGE MASTER TO master_retry_count = <num>' instead.",
    &master_retry_count, &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
-#ifdef HAVE_REPLICATION
   {"max-binlog-dump-events", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &max_binlog_dump_events, &max_binlog_dump_events, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* HAVE_REPLICATION */
   {"memlock", 0, "Lock mysqld in memory.", &locked_in_memory,
    &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"old-style-user-limits", 0,
@@ -6473,14 +6451,12 @@ struct my_option my_long_options[]=
    "Updates to a database with a different name than the original. Example: "
    "replicate-rewrite-db=master_db_name->slave_db_name.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_REPLICATION
   {"replicate-same-server-id", 0,
    "In replication, if set to 1, do not skip events having our server id. "
    "Default value is 0 (to break infinite loops in circular replication). "
    "Can't be set to 1 if --log-slave-updates is used.",
    &replicate_same_server_id, &replicate_same_server_id,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
    "Tells the slave thread to restrict replication to the tables that match "
    "the specified wildcard pattern. To specify more than one table, use the "
@@ -6522,13 +6498,11 @@ struct my_option my_long_options[]=
    "(Default: 15000).", &slow_start_timeout, &slow_start_timeout, 0,
    GET_ULONG, REQUIRED_ARG, 15000, 0, 0, 0, 0, 0},
 #endif
-#ifdef HAVE_REPLICATION
   {"sporadic-binlog-dump-fail", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &opt_sporadic_binlog_dump_fail,
    &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-#endif /* HAVE_REPLICATION */
 #ifdef HAVE_OPENSSL
   {"ssl", 0,
    "Enable SSL for connection (automatically enabled with other flags).",
@@ -6748,7 +6722,6 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 }
 #endif
 
-#ifdef HAVE_REPLICATION
 /**
   After Multisource replication, this function only shows the value
   of default channel.
@@ -6923,7 +6896,6 @@ static int show_ongoing_anonymous_transaction_count(
   return 0;
 }
 
-#endif /* HAVE_REPLICATION */
 
 static int show_open_tables(THD*, SHOW_VAR *var, char *buff)
 {
@@ -7348,7 +7320,6 @@ SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,                              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
   {"Aborted_connects",         (char*) &show_aborted_connects,                        SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
   {"Acl_cache_items_count",    (char*) &show_acl_cache_items_count,                   SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
-#ifdef HAVE_REPLICATION
 #ifndef DBUG_OFF
   {"Ongoing_anonymous_gtid_violating_transaction_count",(char*) &show_ongoing_anonymous_gtid_violating_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
 #endif//!DBUG_OFF
@@ -7356,7 +7327,6 @@ SHOW_VAR status_vars[]= {
 #ifndef DBUG_OFF
   {"Ongoing_automatic_gtid_violating_transaction_count",(char*) &show_ongoing_automatic_gtid_violating_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
 #endif//!DBUG_OFF
-#endif//HAVE_REPLICATION
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,                        SHOW_LONG,               SHOW_SCOPE_GLOBAL},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,                             SHOW_LONG,               SHOW_SCOPE_GLOBAL},
   {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,                  SHOW_LONG,               SHOW_SCOPE_GLOBAL},
@@ -7438,7 +7408,6 @@ SHOW_VAR status_vars[]= {
   {"Select_range_check",       (char*) offsetof(System_status_var, select_range_check_count), SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
   {"Select_scan",	       (char*) offsetof(System_status_var, select_scan_count),              SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
   {"Slave_open_temp_tables",   (char*) &show_slave_open_temp_tables,                   SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
-#ifdef HAVE_REPLICATION
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
   {"Slave_heartbeat_period",   (char*) &show_heartbeat_period,                         SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
   {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats,                SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
@@ -7447,7 +7416,6 @@ SHOW_VAR status_vars[]= {
   {"Slave_rows_last_search_algorithm_used",(char*) &show_slave_rows_last_search_algorithm_used, SHOW_FUNC,     SHOW_SCOPE_GLOBAL},
 #endif
   {"Slave_running",            (char*) &show_slave_running,                            SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
-#endif
   {"Slow_launch_threads",      (char*) &Per_thread_connection_handler::slow_launch_threads, SHOW_LONG,         SHOW_SCOPE_ALL},
   {"Slow_queries",             (char*) offsetof(System_status_var, long_query_count),         SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
   {"Sort_merge_passes",        (char*) offsetof(System_status_var, filesort_merge_passes),    SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
@@ -7879,7 +7847,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_BIN_LOG:
     opt_bin_log= MY_TEST(argument != disabled_my_option);
     break;
-#ifdef HAVE_REPLICATION
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
     rpl_filter->add_ignore_db(argument);
@@ -7966,7 +7933,6 @@ mysqld_get_one_option(int optid,
     }
     break;
   }
-#endif /* HAVE_REPLICATION */
   case (int) OPT_MASTER_RETRY_COUNT:
     push_deprecated_warn(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
     break;
@@ -8373,10 +8339,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if (myisam_flush)
     flush_time= 0;
 
-#ifdef HAVE_REPLICATION
   if (opt_slave_skip_errors)
     add_slave_skip_errors(opt_slave_skip_errors);
-#endif
 
   if (global_system_variables.max_join_size == HA_POS_ERROR)
     global_system_variables.option_bits|= OPTION_BIG_SELECTS;
@@ -8801,10 +8765,8 @@ static int fix_paths(void)
     return 1;
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir= mysql_tmpdir;
-#ifdef HAVE_REPLICATION
   if (!slave_load_tmpdir)
     slave_load_tmpdir= mysql_tmpdir;
-#endif /* HAVE_REPLICATION */
   /*
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
@@ -9077,12 +9039,8 @@ PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_LOCK_group_replication_handler;
-
-#ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
-#endif
-
 PSI_mutex_key
 Gtid_set::key_gtid_executed_free_intervals_mutex;
 
@@ -9165,10 +9123,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL, 0},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0, 0},
   { &key_thd_timer_mutex, "thd_timer_mutex", 0, 0},
-#ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0, 0},
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
-#endif
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0}
@@ -9182,17 +9138,13 @@ PSI_rwlock_key key_rwlock_channel_lock;
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
-#ifdef HAVE_REPLICATION
 PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
-#endif
 
 static PSI_rwlock_info all_server_rwlocks[]=
 {
-#ifdef HAVE_REPLICATION
   { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
-#endif
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
@@ -9229,10 +9181,8 @@ PSI_cond_key key_RELAYLOG_COND_done;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_thr_lock;
-#ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_cond_slave_worker_hash;
-#endif
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -9270,12 +9220,9 @@ static PSI_cond_info all_server_conds[]=
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
   { &key_cond_mts_gaq, "Relay_log_info::mts_gaq_cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
-  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
-#ifdef HAVE_REPLICATION
-  ,
+  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0},
   { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0}
-#endif
 };
 
 PSI_thread_key key_thread_bootstrap;

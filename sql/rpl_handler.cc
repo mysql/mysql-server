@@ -49,10 +49,8 @@ Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
 Server_state_delegate *server_state_delegate;
 
-#ifdef HAVE_REPLICATION
 Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
-#endif /* HAVE_REPLICATION */
 
 Observer_info::Observer_info(void *ob, st_plugin_int *p)
   : observer(ob), plugin_int(p)
@@ -170,12 +168,10 @@ int delegates_init()
                             MY_ALIGNOF(longlong)> storage_mem;
   static my_aligned_storage<sizeof(Server_state_delegate),
                             MY_ALIGNOF(longlong)> server_state_mem;
-#ifdef HAVE_REPLICATION
   static my_aligned_storage<sizeof(Binlog_transmit_delegate),
                             MY_ALIGNOF(longlong)> transmit_mem;
   static my_aligned_storage<sizeof(Binlog_relay_IO_delegate),
                             MY_ALIGNOF(longlong)> relay_io_mem;
-#endif
 
   void *place_trans_mem= trans_mem.data;
   void *place_storage_mem= storage_mem.data;
@@ -201,7 +197,6 @@ int delegates_init()
 
   server_state_delegate= new (place_state_mem) Server_state_delegate;
 
-#ifdef HAVE_REPLICATION
   void *place_transmit_mem= transmit_mem.data;
   void *place_relay_io_mem= relay_io_mem.data;
 
@@ -222,7 +217,6 @@ int delegates_init()
                     "Please report a bug.");
     return 1;
   }
-#endif
 
   return 0;
 }
@@ -235,12 +229,10 @@ void delegates_destroy()
     binlog_storage_delegate->~Binlog_storage_delegate();
   if (server_state_delegate)
     server_state_delegate->~Server_state_delegate();
-#ifdef HAVE_REPLICATION
   if (binlog_transmit_delegate)
     binlog_transmit_delegate->~Binlog_transmit_delegate();
   if (binlog_relay_io_delegate)
     binlog_relay_io_delegate->~Binlog_relay_IO_delegate();
-#endif /* HAVE_REPLICATION */
 }
 
 /*
@@ -722,7 +714,6 @@ int Binlog_storage_delegate::after_sync(THD *thd,
   DBUG_RETURN(ret);
 }
 
-#ifdef HAVE_REPLICATION
 int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
                                              const char *log_file,
                                              my_off_t log_pos,
@@ -969,7 +960,6 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
   FOREACH_OBSERVER(ret, after_reset_slave, (&param));
   return ret;
 }
-#endif /* HAVE_REPLICATION */
 
 int register_trans_observer(Trans_observer *observer, void *p)
 {
@@ -1007,7 +997,6 @@ int unregister_server_state_observer(Server_state_observer *observer, void*)
   DBUG_RETURN(result);
 }
 
-#ifdef HAVE_REPLICATION
 int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p)
 {
   return binlog_transmit_delegate->add_observer(observer, (st_plugin_int *)p);
@@ -1027,4 +1016,3 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void
 {
   return binlog_relay_io_delegate->remove_observer(observer);
 }
-#endif /* HAVE_REPLICATION */

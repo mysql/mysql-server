@@ -2577,7 +2577,7 @@ public:
   }
 };
 
-#ifdef HAVE_REPLICATION
+
 class Sys_var_gtid_mode : public Sys_var_enum
 {
 public:
@@ -2599,8 +2599,6 @@ public:
 
   bool global_update(THD *thd, set_var *var);
 };
-
-#endif /* HAVE_REPLICATION */
 
 
 class Sys_var_enforce_gtid_consistency : public Sys_var_multi_enum

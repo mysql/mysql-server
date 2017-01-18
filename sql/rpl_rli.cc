@@ -1440,7 +1440,7 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos)
   return error;
 }
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+#if !defined(MYSQL_CLIENT)
 void Relay_log_info::cleanup_context(THD *thd, bool error)
 {
   DBUG_ENTER("Relay_log_info::cleanup_context");

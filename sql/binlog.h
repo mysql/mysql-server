@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -890,12 +890,10 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-#ifdef HAVE_REPLICATION
   bool append_buffer(const char* buf, uint len, Master_info *mi);
   bool append_event(Log_event* ev, Master_info *mi);
 private:
   bool after_append_to_relay_log(Master_info *mi);
-#endif // ifdef HAVE_REPLICATION
 public:
 
   void make_log_name(char* buf, const char* log_ident);

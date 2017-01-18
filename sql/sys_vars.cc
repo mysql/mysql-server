@@ -885,7 +885,6 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd, set_v
   return false;
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Check-function to @@GTID_NEXT system variable.
 
@@ -913,7 +912,6 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   }
   return check_has_super(self, thd, var);
 }
-#endif
 
 static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
@@ -1129,7 +1127,6 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   bool ret= FALSE;
   if (check_super_outside_trx_outside_sf(self, thd, var))
     return TRUE;
-#ifdef HAVE_REPLICATION
   Master_info *mi;
   int running= 0;
   const char *msg= NULL;
@@ -1206,7 +1203,6 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     unlock_slave_threads(mi);
   }
   channel_map.unlock();
-#endif
   return ret;
 }
 
@@ -1897,7 +1893,6 @@ static Sys_var_mybool Sys_log_bin(
 
 static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
 {
-#ifdef HAVE_REPLICATION
   // Can't change the algorithm when group replication is enabled.
   if (is_group_replication_running())
   {
@@ -1906,7 +1901,6 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
                " is running.", MYF(0));
     return true;
   }
-#endif
 
   if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
@@ -2340,7 +2334,6 @@ static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
-#ifdef HAVE_REPLICATION
   /*
     For multisource replication, this max size is set to all relay logs
     per channel. So, run through them
@@ -2358,7 +2351,6 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
     }
     channel_map.unlock();
   }
-#endif
   return false;
 }
 static Sys_var_ulong Sys_max_binlog_size(
@@ -2520,7 +2512,6 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
-#ifdef HAVE_REPLICATION
   Master_info *mi= NULL;
 
   channel_map.wrlock();
@@ -2533,7 +2524,6 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
                                       max_relay_log_size: max_binlog_size);
   }
   channel_map.unlock();
-#endif
   return false;
 }
 static Sys_var_ulong Sys_max_relay_log_size(
@@ -3474,7 +3464,6 @@ static Sys_var_mybool Sys_slave_compressed_protocol(
        GLOBAL_VAR(opt_slave_compressed_protocol), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
-#ifdef HAVE_REPLICATION
 static const char *slave_exec_mode_names[]=
        {"STRICT", "IDEMPOTENT", 0};
 static Sys_var_enum Slave_exec_mode(
@@ -3590,7 +3579,6 @@ static Sys_var_mybool Sys_slave_preserve_commit_order(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
-#endif
 
 bool Sys_var_charptr::global_update(THD *thd, set_var *var)
 {
@@ -3722,8 +3710,6 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
 #endif // HAVE_GTID_NEXT_LIST
 
 
-
-#ifdef HAVE_REPLICATION
 bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_mode::global_update");
@@ -3924,7 +3910,6 @@ err:
   gtid_mode_lock->unlock();
   DBUG_RETURN(ret);
 }
-#endif /* HAVE_REPLICATION */
 
 
 bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
@@ -5353,7 +5338,6 @@ static Sys_var_set Sys_log_output(
        log_output_names, DEFAULT(LOG_FILE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_not_empty_set), ON_UPDATE(fix_log_output));
 
-#ifdef HAVE_REPLICATION
 static Sys_var_mybool Sys_log_slave_updates(
        "log_slave_updates", "Tells the slave to log the updates from "
        "the slave thread to the binary log. You will need to turn it on if "
@@ -5551,7 +5535,6 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #else
        VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
 #endif /* DBUG_OFF */
-#endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(
        "sync_binlog", "Synchronously flush binary log to disk after"
@@ -5566,7 +5549,6 @@ static Sys_var_uint Sys_sync_masterinfo_period(
        GLOBAL_VAR(sync_masterinfo_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
-#ifdef HAVE_REPLICATION
 static Sys_var_ulong Sys_slave_trans_retries(
        "slave_transaction_retries", "Number of times the slave SQL "
        "thread will retry a transaction in case it failed with a deadlock "
@@ -5588,7 +5570,6 @@ static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
        GLOBAL_VAR(opt_mts_pending_jobs_size_max), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16 * 1024*1024),
        BLOCK_SIZE(1024), ON_CHECK(0));
-#endif
 
 static bool check_locale(sys_var *self, THD *thd, set_var *var)
 {
@@ -5795,7 +5776,6 @@ static Sys_var_mybool Sys_pseudo_slave_mode(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_pseudo_slave_mode));
 
 
-#ifdef HAVE_REPLICATION
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
@@ -5870,7 +5850,6 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_purged::global_update");
-#ifdef HAVE_REPLICATION
   bool error= false;
 
   global_sid_lock->wrlock();
@@ -5932,9 +5911,6 @@ end:
   my_free(current_gtid_executed);
   my_free(current_gtid_purged);
   DBUG_RETURN(error);
-#else
-  DBUG_RETURN(true);
-#endif /* HAVE_REPLICATION */
 }
 
 Gtid_set *gtid_purged;
@@ -5971,8 +5947,6 @@ static Sys_var_gtid_mode Sys_gtid_mode(
        GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG), gtid_mode_names,
        DEFAULT(GTID_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
-
-#endif // HAVE_REPLICATION
 
 static Sys_var_uint Sys_gtid_executed_compression_period(
        "gtid_executed_compression_period", "When binlog is disabled, "

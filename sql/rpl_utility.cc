@@ -77,7 +77,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   return length;
 }
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
 /**
    Function to compare two size_t integers for their relative
    order. Used below.
@@ -1359,7 +1359,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
 
 Deferred_log_events::Deferred_log_events()
   : m_array(key_memory_table_def_memory)

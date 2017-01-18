@@ -196,7 +196,6 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
-#ifdef HAVE_REPLICATION
 /**
   Returns true if all tables should be ignored.
 */
@@ -241,7 +240,6 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
 
   DBUG_RETURN(db_ok);
 }
-#endif
 
 
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
@@ -1380,7 +1378,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     break;
   }
-#ifdef HAVE_REPLICATION
   case COM_REGISTER_SLAVE:
   {
     // TODO: access of protocol_classic should be removed
@@ -1390,7 +1387,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       my_ok(thd);
     break;
   }
-#endif
   case COM_RESET_CONNECTION:
   {
     thd->status_var.com_other++;
@@ -2467,7 +2463,6 @@ mysql_execute_command(THD *thd, bool first_level)
     thd->get_stmt_da()->reset_condition_info(thd);
   }
 
-#ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
     // Database filters.
@@ -2580,7 +2575,6 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   else
   {
-#endif /* HAVE_REPLICATION */
     /*
       When option readonly is set deny operations which change non-temporary
       tables. Except for the replication thread and the 'super' users.
@@ -2590,9 +2584,7 @@ mysql_execute_command(THD *thd, bool first_level)
       err_readonly(thd);
       DBUG_RETURN(-1);
     }
-#ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
-#endif
 
   thd->status_var.com_stat[lex->sql_command]++;
 
@@ -2873,8 +2865,6 @@ mysql_execute_command(THD *thd, bool first_level)
 #endif
     break;
   }
-
-#ifdef HAVE_REPLICATION
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -2896,8 +2886,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = mysql_show_binlog_events(thd);
     break;
   }
-#endif
-
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -2920,7 +2908,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = mysql_preload_keys(thd, first_table);
     break;
   }
-#ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
 
@@ -2945,8 +2932,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = show_master_status(thd);
     break;
   }
-
-#endif /* HAVE_REPLICATION */
   case SQLCOM_SHOW_ENGINE_STATUS:
     {
       if (check_global_access(thd, PROCESS_ACL))
@@ -3006,7 +2991,6 @@ mysql_execute_command(THD *thd, bool first_level)
       thd->pop_internal_handler();
     break;
   }
-#ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -3122,8 +3106,6 @@ mysql_execute_command(THD *thd, bool first_level)
   res= stop_slave_cmd(thd);
   break;
   }
-#endif /* HAVE_REPLICATION */
-
   case SQLCOM_RENAME_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3510,13 +3492,11 @@ mysql_execute_command(THD *thd, bool first_level)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
-#ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
-#endif
     if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     /*
@@ -3540,13 +3520,11 @@ mysql_execute_command(THD *thd, bool first_level)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
-#ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
-#endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
@@ -3563,13 +3541,11 @@ mysql_execute_command(THD *thd, bool first_level)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
-#ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
-#endif
     if (check_access(thd, ALTER_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     /*
@@ -5279,7 +5255,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 }
 
 
-#ifdef HAVE_REPLICATION
 /**
   Usable by the replication SQL thread only: just parse a query to know if it
   can be ignored because of replicate-*-table rules.
@@ -5327,8 +5302,6 @@ bool mysql_test_parse_for_slave(THD *thd)
   thd->cleanup_after_query();
   DBUG_RETURN(ignorable);
 }
-#endif
-
 
 
 /**

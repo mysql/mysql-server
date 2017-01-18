@@ -142,7 +142,6 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   if (pctx && var_with_base->var == Sys_autocommit_ptr)
     sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
-#ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
       ((var_with_base->var == Sys_gtid_next_ptr
 #ifdef HAVE_GTID_NEXT_LIST
@@ -155,7 +154,6 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
              var_with_base->var->name.str);
     return TRUE;
   }
-#endif
 
   if (val && val->type() == Item::FIELD_ITEM &&
       ((Item_field*)val)->table_name)

@@ -24,9 +24,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
-
-#define HAVE_REPLICATION
-
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_info.h"
@@ -82,7 +79,6 @@ PFS_engine_table_share table_replication_applier_status::m_share = {
   false  /* perpetual */
 };
 
-#ifdef HAVE_REPLICATION
 bool
 PFS_index_rpl_applier_status::match(Master_info *mi)
 {
@@ -103,7 +99,6 @@ PFS_index_rpl_applier_status::match(Master_info *mi)
 
   return true;
 }
-#endif
 
 PFS_engine_table *
 table_replication_applier_status::create(void)
@@ -130,11 +125,7 @@ table_replication_applier_status::reset_position(void)
 ha_rows
 table_replication_applier_status::get_row_count()
 {
-#ifdef HAVE_REPLICATION
   return channel_map.get_max_channels();
-#else
-  return 0;
-#endif /* HAVE_REPLICATION */
 }
 
 int
@@ -142,7 +133,6 @@ table_replication_applier_status::rnd_next(void)
 {
   int res = HA_ERR_END_OF_FILE;
 
-#ifdef HAVE_REPLICATION
   Master_info *mi;
 
   channel_map.rdlock();
@@ -161,7 +151,6 @@ table_replication_applier_status::rnd_next(void)
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
 
   return res;
 }
@@ -172,7 +161,6 @@ table_replication_applier_status::rnd_pos(
 {
   int res = HA_ERR_RECORD_DELETED;
 
-#ifdef HAVE_REPLICATION
   Master_info *mi = NULL;
 
   set_position(pos);
@@ -185,7 +173,6 @@ table_replication_applier_status::rnd_pos(
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
 
   return res;
 }
@@ -194,13 +181,11 @@ int
 table_replication_applier_status::index_init(uint idx MY_ATTRIBUTE((unused)),
                                              bool)
 {
-#ifdef HAVE_REPLICATION
   PFS_index_rpl_applier_status *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_status);
   m_opened_index = result;
   m_index = result;
-#endif
   return 0;
 }
 
@@ -209,7 +194,6 @@ table_replication_applier_status::index_next(void)
 {
   int res = HA_ERR_END_OF_FILE;
 
-#ifdef HAVE_REPLICATION
   Master_info *mi;
 
   channel_map.rdlock();
@@ -231,12 +215,10 @@ table_replication_applier_status::index_next(void)
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
 
   return res;
 }
 
-#ifdef HAVE_REPLICATION
 int
 table_replication_applier_status::make_row(Master_info *mi)
 {
@@ -286,7 +268,6 @@ table_replication_applier_status::make_row(Master_info *mi)
 
   return 0;
 }
-#endif /* HAVE_REPLICATION */
 
 int
 table_replication_applier_status::read_row_values(
@@ -295,7 +276,6 @@ table_replication_applier_status::read_row_values(
   Field **fields MY_ATTRIBUTE((unused)),
   bool read_all MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   Field *f;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -332,7 +312,4 @@ table_replication_applier_status::read_row_values(
     }
   }
   return 0;
-#else
-  return HA_ERR_RECORD_DELETED;
-#endif /* HAVE_REPLICATION */
 }

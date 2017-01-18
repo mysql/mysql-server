@@ -25,22 +25,16 @@
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 
-#ifdef HAVE_REPLICATION
-
 #include "mysql_com.h"
 #include "rpl_info.h"
 #include "rpl_gtid.h"
 #include "sql_const.h"  // UUID_LENGTH
 #include <mysql/plugin_group_replication.h>
 
-#endif /* HAVE_REPLICATION */
-
 /**
   @addtogroup performance_schema_tables
   @{
 */
-
-#ifdef HAVE_REPLICATION
 
 /**
   A row in node status table. The fields with string values have an additional
@@ -64,24 +58,19 @@ struct st_row_group_member_stats
   char last_cert_trx[Gtid::MAX_TEXT_LENGTH + 1];
   int last_cert_trx_length;
 };
-#endif /* HAVE_REPLICATION */
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_GROUP_MEMBER_STATS. */
 class table_replication_group_member_stats : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
   int make_row();
-#endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_group_member_stats m_row;
-#endif /* HAVE_REPLICATION */
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

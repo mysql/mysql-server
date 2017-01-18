@@ -161,9 +161,7 @@ enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
 extern ulonglong slave_rows_search_algorithms_options;
 extern my_bool opt_require_secure_transport;
 
-#ifdef HAVE_REPLICATION
 extern my_bool opt_slave_preserve_commit_order;
-#endif
 
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
@@ -390,10 +388,8 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 extern PSI_mutex_key key_LOCK_group_replication_handler;
 
-#ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
-#endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
@@ -422,10 +418,8 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
-#ifdef HAVE_REPLICATION
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
-#endif
 extern PSI_thread_key key_thread_bootstrap;
 extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;

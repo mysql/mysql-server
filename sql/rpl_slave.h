@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,8 +65,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
    The maximum is defined as (ULONG_MAX/1000) with 4 bytes ulong
 */
 #define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
-
-#ifdef HAVE_REPLICATION
 
 #define SLAVE_NET_TIMEOUT  60
 
@@ -417,7 +415,6 @@ bool mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock);
 bool sql_slave_killed(THD* thd, Relay_log_info* rli);
-#endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */
 #define SLAVE_IO  1

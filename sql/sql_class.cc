@@ -69,11 +69,7 @@
 #include "thr_mutex.h"
 #include "transaction.h"                     // trans_rollback
 #include "xa.h"
-
-#ifdef HAVE_REPLICATION
 #include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
-#endif
-
 #include "dd/cache/dictionary_client.h"      // Dictionary_client
 #include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
 #include "mysql/psi/mysql_error.h"
@@ -2487,7 +2483,7 @@ void THD::leave_locked_tables_mode()
 void THD::get_definer(LEX_USER *definer)
 {
   binlog_invoker();
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+#if !defined(MYSQL_CLIENT)
   if (slave_thread && has_invoker())
   {
     definer->user= m_invoker_user;
@@ -2551,7 +2547,6 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.pos= 0;
 }
 
-#ifdef HAVE_REPLICATION
 void THD::set_currently_executing_gtid_for_slave_thread()
 {
   /*
@@ -2578,7 +2573,6 @@ void THD::set_currently_executing_gtid_for_slave_thread()
       system_thread == SYSTEM_THREAD_SLAVE_WORKER)
     rli_slave->currently_executing_gtid= variables.gtid_next;
 }
-#endif
 
 void THD::set_user_connect(USER_CONN *uc)
 {
@@ -2859,7 +2853,6 @@ void THD::claim_memory_ownership()
 
 void THD::rpl_detach_engine_ha_data()
 {
-#ifdef HAVE_REPLICATION
   Relay_log_info *rli=
     is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
 
@@ -2868,19 +2861,14 @@ void THD::rpl_detach_engine_ha_data()
 
   if (rli)
     rli->detach_engine_ha_data(this);
-#endif
 };
 
 
 bool THD::rpl_unflag_detached_engine_ha_data()
 {
-#ifdef HAVE_REPLICATION
   Relay_log_info *rli=
     is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
   return rli ? rli->unflag_detached_engine_ha_data() : false;
-#else
-  return false;
-#endif
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,7 +286,7 @@ void mysql_client_binlog_statement(THD* thd)
         not used at all: the rli_fake instance is used only for error
         reporting.
       */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+#if !defined(MYSQL_CLIENT)
       err= ev->apply_event(rli);
 #endif
       /*
