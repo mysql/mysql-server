@@ -38,6 +38,10 @@ my $NDB_DROP_INDEX =  my_find_bin($bindir,
 my $NDB_SELECT_COUNT =  my_find_bin($bindir,
                            ["storage/ndb/tools", "bin"],
                            "ndb_select_count");
+my $NDB_PRINT_BACKUP_FILE = my_find_bin($bindir,
+                           ["storage/ndb/src/kernel/blocks/backup", "bin"],
+                           "ndb_print_backup_file");
+
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR" ;
 open ( OUTPUT, ">$vardir/tmp/ndb_find_tools_result.inc") ;
@@ -46,6 +50,7 @@ print OUTPUT "let \$NDB_DELETE_ALL=$NDB_DELETE_ALL;\n";
 print OUTPUT "let \$NDB_BLOB_TOOL=$NDB_BLOB_TOOL;\n";
 print OUTPUT "let \$NDB_DROP_INDEX=$NDB_DROP_INDEX;\n";
 print OUTPUT "let \$NDB_SELECT_COUNT=$NDB_SELECT_COUNT;\n";
+print OUTPUT "let \$NDB_PRINT_BACKUP_FILE=$NDB_PRINT_BACKUP_FILE;\n";
 close (OUTPUT);
 EOF
 
