@@ -14873,6 +14873,16 @@ ha_innobase::discard_or_import_tablespace(
 		}
 	}
 
+	/* Set the TABLESPACE DISCARD flag in the table definition
+	on disk. */
+	if (err == DB_SUCCESS) {
+		dd_table_discard_tablespace(
+			m_prebuilt->trx->mysql_thd,
+			dict_table,
+			table_def,
+			discard);
+	}
+
 	/* Commit the transaction in order to release the table lock. */
 	trx_commit_for_mysql(m_prebuilt->trx);
 

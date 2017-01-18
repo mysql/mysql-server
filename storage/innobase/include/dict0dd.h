@@ -350,6 +350,7 @@ bool
 dd_table_discard_tablespace(
 	THD*			thd,
 	dict_table_t*		table,
+	dd::Table*		table_def,
 	bool			discard);
 
 /** Open an internal handle to a persistent InnoDB table by name.

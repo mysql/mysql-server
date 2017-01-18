@@ -2266,8 +2266,6 @@ row_import_cleanup(
 	trx_t*		trx,		/*!< in/out: transaction for import */
 	dberr_t		err)		/*!< in: error code */
 {
-	THD*	thd = trx->mysql_thd;
-
 	ut_a(prebuilt->trx != trx);
 
 	if (err != DB_SUCCESS) {
@@ -2292,10 +2290,6 @@ row_import_cleanup(
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
-
-	/* Set the TABLESPACE DISCARD flag in the table definition
-	on disk. */
-	dd_table_discard_tablespace(thd, prebuilt->table, false);
 
 	return(err);
 }

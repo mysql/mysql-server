@@ -502,11 +502,12 @@ public:
 		HA_CHECK_OPT*	check_opt);
 
 	/** Update DD for discard InnoDB tablespace.
-	@param[in]	old table id
+	@param[in]	table_def	dd table
 	@return	0 or error number. */
 	int
 	update_dd_for_discard(
-		table_id_t	old_table_id);
+		dd::Table*	table_def,
+		my_bool		discard);
 
 	int
 	discard_or_import_tablespace(

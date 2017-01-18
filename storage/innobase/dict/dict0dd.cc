@@ -621,16 +621,13 @@ bool
 dd_table_discard_tablespace(
 	THD*			thd,
 	dict_table_t*		table,
+	dd::Table*		table_def,
 	bool			discard)
 {
-	char			db_buf[NAME_LEN + 1];
-	char			tbl_buf[NAME_LEN + 1];
-	MDL_ticket*		mdl;
-	const dd::Table*	dd_table = nullptr;
-	dd::Table*		new_dd_table = nullptr;
 	bool			ret = false;
 
 	DBUG_ENTER("dd_table_set_discard_flag");
+
 	ut_ad(thd == current_thd);
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
@@ -638,63 +635,36 @@ dd_table_discard_tablespace(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	innobase_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, NULL);
+	if (table_def->se_private_id() != dd::INVALID_OBJECT_ID) {
+		ut_ad(table_def->table().partitions()->empty());
 
-	if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
-		DBUG_RETURN(false);
-	}
-
-	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
-
-	if (!client->acquire(db_buf, tbl_buf, &dd_table)
-	    && dd_table != nullptr) {
-		if (dd_table->se_private_id() != dd::INVALID_OBJECT_ID) {
-			ut_ad(dd_table->partitions().empty());
-			/* Clone the dd table object. The clone is owned here,
-			and must be deleted eventually. */
-			/* Acquire the new dd tablespace for modification */
-			if (client->acquire_for_modification(
-					db_buf, tbl_buf, &new_dd_table)) {
-				ut_a(false);
-			}
-
-			/* For discarding, we need to set new private
-			id to dd_table */
-			if (discard) {
-				/* Set the new private id to dd_table object. */
-				new_dd_table->set_se_private_id(table->id);
-			} else {
-				ut_ad(new_dd_table->se_private_id() == table->id);
-			}
-
-			/* Set index root page. */
-			const dict_index_t* index = table->first_index();
-			for (auto dd_index : *new_dd_table->indexes()) {
-				ut_ad(index != NULL);
-
-				dd::Properties& p = dd_index->se_private_data();
-				p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT],
-index->page);
-			}
-
-			/* Set discard flag. */
-			new_dd_table->table().options().set_bool("discard",
-								 discard);
-			client->update(new_dd_table);
-
-			/* Remove uncommitted_ojects for cleaning dd cacahe. */
-			client->remove_uncommitted_objects<dd::Table>(true);
-
-			ret = true;
+		/* For discarding, we need to set new private
+		id to dd_table */
+		if (discard) {
+			/* Set the new private id to dd_table object. */
+			table_def->set_se_private_id(table->id);
 		} else {
-			ret = false;
+			ut_ad(table_def->se_private_id() == table->id);
 		}
+
+		/* Set index root page. */
+		const dict_index_t* index = table->first_index();
+		for (auto dd_index : *table_def->indexes()) {
+			ut_ad(index != NULL);
+
+			dd::Properties& p = dd_index->se_private_data();
+			p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT],
+				index->page);
+		}
+
+		/* Set discard flag. */
+		table_def->table().options().set_bool("discard",
+							 discard);
+
+		ret = true;
 	} else {
 		ret = false;
 	}
-
-	dd_mdl_release(thd, &mdl);
 
 	DBUG_RETURN(ret);
 }

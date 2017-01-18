@@ -3859,10 +3859,6 @@ row_discard_tablespace_end(
 
 	trx->op_info = "";
 
-	/* Set the TABLESPACE DISCARD flag in the table definition
-	on disk. */
-	dd_table_discard_tablespace(trx->mysql_thd, table, true);
-
 	return(err);
 }
 

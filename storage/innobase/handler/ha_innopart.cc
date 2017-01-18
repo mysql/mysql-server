@@ -2963,52 +2963,22 @@ ha_innopart::rename_table(
 }
 
 /** Update DD for discard InnoDB tablespace.
-@param[in]	old table id
+@param[in]	table_def	dd table
 @return	0 or error number. */
 int
 ha_innopart::update_dd_for_discard(
-	table_id_t	old_table_id)
+		dd::Table*	table_def,
+		my_bool		discard)
 {
 	dict_table_t*	table;
 	uint		i;
 	int		error = 0;
-	MDL_ticket*	mdl;
-	dd::Table*	dd_table = nullptr;
-	dd::String_type	schema;
-	dd::String_type	tablename;
-	dd::Partition*	new_part;
+	dd::Partition* new_part;
 
 	DBUG_ENTER("ha_innopart::update_dd_for_discard");
 
-	dd::cache::Dictionary_client*	dc = dd::get_dd_client(ha_thd());
-	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
 	table = m_part_share->get_table_part(
 		m_part_info->get_first_used_partition());
-
-	/* Get dd table name. */
-	if (dc->get_table_name_by_partition_se_private_id(
-		handler_name, old_table_id, &schema, &tablename)
-		|| schema.empty()) {
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table->name.m_name);
-		DBUG_RETURN(DB_ERROR);
-	}
-
-	/* Acquire mdl lock on table. */
-	if (dd_mdl_acquire(ha_thd(), &mdl, schema.c_str(),
-		const_cast<char*>(tablename.c_str()))) {
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table->name.m_name);
-		DBUG_RETURN(DB_ERROR);
-	}
-
-	/* Get dd table for modification. */
-	if (dc->acquire_for_modification(schema, tablename, &dd_table)
-	    || dd_table == nullptr) {
-		if (mdl != nullptr) {
-			dd_mdl_release(ha_thd(), &mdl);
-		}
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table->name.m_name);
-		DBUG_RETURN(DB_ERROR);
-	}
 
 	/* Update se_private_id. */
 	for (i = m_part_info->get_first_used_partition();
@@ -3018,9 +2988,9 @@ ha_innopart::update_dd_for_discard(
 		table = m_part_share->get_table_part(i);
 
 		/* Find the dd partition. */
-		auto end = dd_table->partitions()->end();
+		auto end = table_def->partitions()->end();
 		auto p = std::search_n(
-			dd_table->partitions()->begin(), end, 1,
+			table_def->partitions()->begin(), end, 1,
 			i,
 			[](const dd::Partition* part, uint number)
 			{
@@ -3028,9 +2998,6 @@ ha_innopart::update_dd_for_discard(
 			});
 
 		if (p == end) {
-			if (mdl != nullptr) {
-				dd_mdl_release(ha_thd(), &mdl);
-			}
 			my_error(ER_TABLE_EXISTS_ERROR,
 				 MYF(0), table->name.m_name);
 			DBUG_RETURN(DB_ERROR);
@@ -3042,22 +3009,22 @@ ha_innopart::update_dd_for_discard(
 		if (table->id != new_part->se_private_id()) {
 			new_part->set_se_private_id(table->id);
 		}
+
+		/* Set index root page. */
+		const dict_index_t* index = table->first_index();
+		for (auto dd_index : *table_def->indexes()) {
+			ut_ad(index != NULL);
+
+			dd::Properties& p = dd_index->se_private_data();
+			p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT],
+				index->page);
+		}
+
 		++p;
 	}
 
 	/* Set discard flag. */
-	dd_table->table().options().set_bool("discard", true);
-
-	/* Update the dd table. */
-	dc->update(dd_table);
-
-	/* Release mdl lock. */
-	if (mdl != nullptr) {
-		dd_mdl_release(ha_thd(), &mdl);
-	}
-
-	/* Remove uncommitted_ojects for cleaning dd cacahe. */
-	dc->remove_uncommitted_objects<dd::Table>(true);
+	table_def->table().options().set_bool("discard", discard);
 
 	DBUG_RETURN(error);
 }
@@ -3076,7 +3043,6 @@ ha_innopart::discard_or_import_tablespace(
 {
 	int		error = 0;
 	uint		i;
-	table_id_t	old_table_id = 0;
 
 	DBUG_ENTER("ha_innopart::discard_or_import_tablespace");
 
@@ -3085,7 +3051,6 @@ ha_innopart::discard_or_import_tablespace(
 	     i= m_part_info->get_next_used_partition(i)) {
 
 		m_prebuilt->table = m_part_share->get_table_part(i);
-		old_table_id = m_prebuilt->table->id;
 		error= ha_innobase::discard_or_import_tablespace(discard,
 				table_def);
 		if (error != 0) {
@@ -3106,8 +3071,8 @@ ha_innopart::discard_or_import_tablespace(
 
 	/* Update dd partition for discard, since the table ids changed,
 	we need to change se_private_id accordingly. */
-	if (error == 0 && discard) {
-		error = update_dd_for_discard(old_table_id);
+	if (error == 0) {
+		error = update_dd_for_discard(table_def, discard);
 	}
 
 	DBUG_RETURN(error);
