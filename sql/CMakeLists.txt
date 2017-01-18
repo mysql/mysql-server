@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -477,6 +477,15 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   IF(CMAKEBT MATCHES "^REL")
     ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
   ENDIF()
+ENDIF()
+
+# Assertion in Developer Studio 12.5 (fixed in 12.6 beta).
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  ADD_COMPILE_FLAGS(
+    gis/srs/srs.cc
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-DBOOST_NO_CXX11_VARIADIC_TEMPLATES"
+  )
 ENDIF()
 
 ADD_COMPILE_FLAGS(

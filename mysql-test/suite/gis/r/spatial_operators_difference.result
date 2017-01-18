@@ -647,7 +647,7 @@ MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)))
-POLYGON((15 25,10 15,20 15,15 25))
+GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)))
@@ -655,7 +655,7 @@ POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems)))
-POLYGON((15 25,10 15,20 15,15 25))
+GEOMETRYCOLLECTION EMPTY
 #====================================================================================
 # polygon,geometrycollection
 #====================================================================================
@@ -893,7 +893,7 @@ POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)))
-POLYGON((15 25,10 15,20 15,15 25))
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 GEOMETRYCOLLECTION EMPTY
