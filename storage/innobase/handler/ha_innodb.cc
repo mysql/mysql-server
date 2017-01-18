@@ -3661,7 +3661,8 @@ boot_tablespaces(THD* thd)
 			Need to check why this workaround, which results in
 			following comparison with '|' */
 			fail = (space->flags != flags
-				&& space->flags != (flags | FSP_FLAGS_MASK_SDI))
+				&& space->flags != (flags | FSP_FLAGS_MASK_SDI)
+				&& space->flags != (flags | FSP_FLAGS_MASK_ENCRYPTION))
 				|| space->purpose != purpose;
 			fil_space_release(space);
 			if (fail) {
