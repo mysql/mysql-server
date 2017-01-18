@@ -3229,6 +3229,7 @@ private:
   DynArr256Pool c_page_map_pool;
   Operationrec_pool c_operation_pool;
 
+  bool c_allow_alloc_spare_page;
   Page_pool c_page_pool;
 
   /* read ahead in pages during disk order scan */

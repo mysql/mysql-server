@@ -2,8 +2,8 @@ select reserved, used from ndbinfo.resources
 where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
 reserved	used
-640	640
-640	640
+640	692
+640	692
 select logfile_group_name, extra from information_schema.files
 where file_type = 'UNDO LOG' and file_name is null;
 logfile_group_name	extra

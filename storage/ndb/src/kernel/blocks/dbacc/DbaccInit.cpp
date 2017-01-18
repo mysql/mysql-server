@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ void Dbacc::initRecords()
   {
     AllocChunk chunks[16];
     const Uint32 pages = (cpagesize + 3) / 4;
-    const Uint32 chunkcnt = allocChunks(chunks, 16, RT_DBTUP_PAGE, pages,
+    const Uint32 chunkcnt = allocChunks(chunks, 16, RT_DBACC_PAGE, pages,
                                         CFG_DB_INDEX_MEM);
 
     /**

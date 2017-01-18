@@ -4822,7 +4822,7 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
     len -= msglen;
   }
 
-  m_ctx.m_mm.release_page(RT_DBTUP_PAGE, pageId);
+  m_ctx.m_mm.release_page(RT_SUMA_TRIGGER_BUFFER, pageId);
 }
 
 void
@@ -6705,7 +6705,7 @@ loop:
     return RNIL;
 
   Uint32 count = Page_chunk::PAGES_PER_CHUNK;
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &ref, &count, 1);
+  m_ctx.m_mm.alloc_pages(RT_SUMA_EVENT_BUFFER, &ref, &count, 1);
   if (count == 0)
     return RNIL;
 

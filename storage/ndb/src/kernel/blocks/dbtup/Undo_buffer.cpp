@@ -59,7 +59,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
 #endif
   if (m_first_free == RNIL)
   {
-    page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, 
+    page= (UndoPage*)m_mm->alloc_page(RT_DBTUP_COPY_PAGE,
                                       &m_first_free,
                                       Ndbd_mem_manager::NDB_ZONE_LE_32);
     if(page == 0)
@@ -118,7 +118,7 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     else 
     {
       //ndbout_c("returning page");
-      m_mm->release_page(RG_DATAMEM, key->m_page_no);
+      m_mm->release_page(RT_DBTUP_COPY_PAGE, key->m_page_no);
     }
   }
   key->setNull();

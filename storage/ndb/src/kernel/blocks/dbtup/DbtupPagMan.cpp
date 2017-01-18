@@ -133,9 +133,21 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
     return;
   }//if
 
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef,
-			 &noOfPagesToAllocate, 1);
   noOfPagesAllocated = noOfPagesToAllocate;
+  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE,
+                         &allocPageRef,
+                         &noOfPagesAllocated,
+                         1);
+  if(noOfPagesAllocated == 0 && c_allow_alloc_spare_page)
+  {
+    void* p = m_ctx.m_mm.alloc_spare_page(RT_DBTUP_PAGE,
+                                          &allocPageRef,
+                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
+    if (p != NULL)
+    {
+      noOfPagesAllocated = 1;
+    }
+  }
 
   // Count number of allocated pages
   m_pages_allocated += noOfPagesAllocated;

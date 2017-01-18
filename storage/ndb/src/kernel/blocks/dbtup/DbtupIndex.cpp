@@ -64,12 +64,15 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
 
   Local_key key;
   Uint32* ptr, frag_page_id, err;
+  c_allow_alloc_spare_page=true;
   if ((ptr= alloc_fix_rec(jamBuf, &err,fragPtr.p,tablePtr.p, &key, 
                           &frag_page_id)) == 0)
   {
+    c_allow_alloc_spare_page=false;
     thrjam(jamBuf);
     return err;
   }
+  c_allow_alloc_spare_page=false;
   pageId= key.m_page_no;
   pageOffset= key.m_page_idx;
   Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
