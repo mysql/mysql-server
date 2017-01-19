@@ -26,48 +26,9 @@ create table t1(a int);
 insert into t1 values (1), (2), (3), (4), (5);
 drop table t1;
 connection default;
-<<<<<<< HEAD
-select event_name from performance_schema.events_stages_history_long
-where thread_id = @con1_thread_id and
-(event_name like '%Opening %tables' or
-event_name like '%Locking system tables' or
-event_name like '%System lock' )
-order by event_id;
-event_name
-stage/sql/Opening tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening tables
-stage/sql/System lock
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-stage/sql/Opening system tables
-stage/sql/Locking system tables
-=======
 # Checking the expected number of stages history entries:
 Open table	Lock table	Lock system
-OK	OK	OK
->>>>>>> mysql-trunk-wl7743-wip-3
+WRONG	WRONG	OK
 connection con1;
 disconnect con1;
 connection default;
