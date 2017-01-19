@@ -231,7 +231,7 @@ Ha_innopart_share::open_one_table_part(
 
 	if (!cached) {
 		part_table = dd_open_table(
-			client, table, part_name, NULL, part_table,
+			client, table, part_name, part_table,
 			dd_part, false, thd);
 	}
 

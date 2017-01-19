@@ -1439,7 +1439,7 @@ child	CREATE TABLE `child` (
   KEY `tb` (`a2_new`),
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
@@ -1554,7 +1554,7 @@ child	CREATE TABLE `child` (
   KEY `tb` (`a2_new`),
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
@@ -1669,10 +1669,10 @@ child	CREATE TABLE `child` (
   KEY `fk_new_1` (`a1_new`),
   KEY `fk_new_3` (`a3`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_new_1` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_new_2` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_new_1` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk_new_2` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
@@ -1903,9 +1903,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a1`),
   KEY `tb` (`a2`),
   KEY `fk_new_3` (`a3`),
-  CONSTRAINT `fk_new_1` FOREIGN KEY (`a1`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_new_2` FOREIGN KEY (`a2`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_new_1` FOREIGN KEY (`a1`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk_new_2` FOREIGN KEY (`a2`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
@@ -2150,7 +2150,7 @@ t2	CREATE TABLE `t2` (
   `f2` int(11) DEFAULT NULL,
   `f3` int(11) DEFAULT NULL,
   KEY `t` (`f2`),
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;
@@ -2165,7 +2165,7 @@ t2	CREATE TABLE `t2` (
   `f2` int(11) DEFAULT NULL,
   `f3` int(11) DEFAULT NULL,
   KEY `t1` (`f2`,`f3`),
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;

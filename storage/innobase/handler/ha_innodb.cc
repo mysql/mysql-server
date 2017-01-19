@@ -7054,10 +7054,10 @@ ha_innobase::open(
 					DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 				}
 				if (autoinc) {
-				dict_table_autoinc_lock(ib_table);
-				dict_table_autoinc_update_if_greater(
-					ib_table, autoinc);
-				dict_table_autoinc_unlock(ib_table);
+					dict_table_autoinc_lock(ib_table);
+					dict_table_autoinc_update_if_greater(
+						ib_table, autoinc);
+					dict_table_autoinc_unlock(ib_table);
 				}
 			}
 		} else {
@@ -15193,7 +15193,7 @@ ha_innobase::delete_table_impl(
 			(dd_tab->table().partition_type() == dd::Table::PT_NONE
 			 ? NULL
 			 : reinterpret_cast<const dd::Partition*>(dd_tab)),
-			norm_name, NULL, tab, true, thd);
+			norm_name, tab, true, thd);
 
 		if (error == 0 && tab != NULL) {
 			file_per_table = dict_table_is_file_per_table(tab);
