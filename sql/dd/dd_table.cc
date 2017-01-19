@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2191,26 +2191,10 @@ static bool create_dd_system_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return true;
 
-  /*
-    Get the se private data for the DD table
+  if (file->ha_get_se_private_data(tab_obj.get(),
+                                   dd_table.default_dd_version(thd)))
+    return true;
 
-    In upgrade scenario, to check the existence of version table,
-    version table is tried to open. This requires dd::Table object
-    for version table. Creation of version table inside Storage Engine
-    should be avoided during the existance check. We skip fetching
-    se_private_id from SE during this process. This is done as
-    a work around to reset variables in InnoDB as it is done for
-    dictionary cache and dictionary object ids.
-
-    TODO: This should be fixed as preparation for InnoDB dictionary upgrade.
-  */
-   /* TODO: temp disable for merge with mysql-trunk-meta-sync */
-//  if (!dd_upgrade_skip_se)
-  {
-    if (file->ha_get_se_private_data(tab_obj.get(),
-                                     dd_table.default_dd_version(thd)))
-      return true;
-  }
   thd->dd_client()->store(tab_obj.get());
 
   return false;
