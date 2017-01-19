@@ -36,7 +36,6 @@
 #include "sql_parse.h"
 #include "table_replication_connection_status.h"
 
-
 /*
   Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.
 */

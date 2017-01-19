@@ -33,7 +33,6 @@
 #include "table_replication_group_members.h"
 #include "thr_lock.h"
 
-
 /*
   Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
 */

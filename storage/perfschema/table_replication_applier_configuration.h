@@ -60,6 +60,7 @@ public:
   }
 
   virtual bool match(Master_info *mi);
+
 private:
   PFS_key_name m_key;
 };
