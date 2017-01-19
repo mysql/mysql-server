@@ -112,7 +112,7 @@
 #include "sql_show.h"
 #include "sql_sort.h"
 #include "sql_string.h"
-#include "sql_tablespace.h"           // check_tablespace_name
+#include "sql_tablespace.h"           // validate_tablespace_name
 #include "sql_time.h"                 // make_truncated_value_warning
 #include "sql_trigger.h"              // change_trigger_table_name
 #include "strfunc.h"                  // find_type2
@@ -11514,11 +11514,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /*
     Assign target tablespace name to enable locking in lock_table_names().
-    Reject invalid names.
+    Reject invalid name lengths. Names will be validated after the table is
+    opened and the SE (needed for SE specific validation) is identified.
   */
   if (create_info->tablespace)
   {
-    if (check_tablespace_name(create_info->tablespace) != Ident_name_check::OK)
+    if (validate_tablespace_name_length(create_info->tablespace))
       DBUG_RETURN(true);
 
     if (!thd->make_lex_string(&table_list->target_tablespace_name,
@@ -11530,8 +11531,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
-  // Reject invalid tablespace names specified for partitions.
-  if (check_partition_tablespace_names(thd->lex->part_info))
+  /*
+    Reject invalid tablespace name lengths specified for partitions.
+    Names will be validated after the table has been opened.
+  */
+  if (validate_partition_tablespace_name_lengths(thd->lex->part_info))
     DBUG_RETURN(true);
 
   /*
@@ -11569,6 +11573,42 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   if (error)
     DBUG_RETURN(true);
+
+  // Check tablespace name validity for the relevant engine.
+  {
+    // If there is no target handlerton, use the current.
+    const handlerton* target_handlerton= create_info->db_type;
+    if (target_handlerton == nullptr)
+      target_handlerton= table_list->table->file->ht;
+
+    /*
+      Reject invalid tablespace names for the relevant engine, if the ALTER
+      statement changes either tablespace or engine. We do this after the table
+      has been opened because we need the handlerton and tablespace information.
+      No need to validate if neither engine nor tablespace is changed, then the
+      validation was done when the table was created.
+    */
+    if (create_info->tablespace || create_info->db_type)
+    {
+      // If there is no target table level tablespace, use the current.
+      const char* target_tablespace= create_info->tablespace;
+      if (target_tablespace == nullptr)
+        target_tablespace= table_list->table->s->tablespace;
+
+      // Check the tablespace/engine combination.
+      DBUG_ASSERT(target_handlerton);
+      if (target_tablespace != nullptr &&
+          validate_tablespace_name(false,
+                                   target_tablespace,
+                                   target_handlerton))
+        DBUG_RETURN(true);
+    }
+
+    // Reject invalid tablespace names specified for partitions.
+    if (validate_partition_tablespace_names(thd->lex->part_info,
+                                            target_handlerton))
+      DBUG_RETURN(true);
+  }
 
   if (lock_trigger_names(thd, table_list))
     DBUG_RETURN(true);

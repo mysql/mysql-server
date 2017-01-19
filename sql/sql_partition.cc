@@ -103,7 +103,7 @@
 #include "sql_show.h"
 #include "sql_string.h"
 #include "sql_table.h"                  // build_table_filename
-#include "sql_tablespace.h"             // check_tablespace_name
+#include "sql_tablespace.h"             // validate_tablespace_name
 #include "system_variables.h"
 #include "table.h"
 #include "thr_malloc.h"
@@ -8380,10 +8380,12 @@ bool set_up_table_before_create(THD *thd,
   }
   if (part_elem->tablespace_name != NULL)
   {
-    if (check_tablespace_name(part_elem->tablespace_name) !=
-        Ident_name_check::OK)
+    if (validate_tablespace_name_length(part_elem->tablespace_name) ||
+        validate_tablespace_name(false,
+                                 part_elem->tablespace_name,
+                                 part_elem->engine_type))
     {
-	    DBUG_RETURN(true);
+      DBUG_RETURN(true);
     }
     info->tablespace= part_elem->tablespace_name;
   }

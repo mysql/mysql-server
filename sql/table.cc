@@ -83,7 +83,7 @@
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_string.h"
 #include "sql_table.h"                   // build_table_filename
-#include "sql_tablespace.h"              // check_tablespace_name())
+#include "sql_tablespace.h"              // validate_tablespace_name())
 #include "sql_udf.h"
 #include "strfunc.h"                     // find_type
 #include "table_cache.h"                 // table_cache_manager
@@ -2002,11 +2002,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       {
         Tablespace_name_error_handler error_handler;
         thd->push_internal_handler(&error_handler);
-        Ident_name_check name_check= check_tablespace_name(tablespace);
+        bool name_check_error=
+          validate_tablespace_name_length(tablespace);
         thd->pop_internal_handler();
-        if (name_check == Ident_name_check::OK &&
-          !(share->tablespace= strmake_root(&share->mem_root,
-                                            tablespace, tablespace_length+1)))
+        if (!name_check_error &&
+            !(share->tablespace= strmake_root(&share->mem_root,
+                                              tablespace, tablespace_length+1)))
         {
           goto err;
         }

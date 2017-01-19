@@ -590,7 +590,38 @@ bool fill_partition_tablespace_names(
        partition_info *part_info,
        Tablespace_hash_set *tablespace_set);
 
-bool check_partition_tablespace_names(partition_info *part_info);
+
+/**
+  Check if all tablespace names specified for partitions have a valid length.
+
+  @param part_info    Partition info that could be using tablespaces.
+
+  @return true        One of the tablespace names specified has invalid length
+                      and an error is reported.
+  @return false       All the tablespace names specified for partitions have
+                      a valid length.
+*/
+
+bool validate_partition_tablespace_name_lengths(partition_info *part_info);
+
+
+/**
+  Check if all tablespace names specified for partitions are valid.
+
+  Do the validation by invoking the SE specific validation function.
+
+  @param part_info        Partition info that could be using tablespaces.
+  @param default_engine   Table level engine.
+
+  @return true            One of the tablespace names specified is invalid
+                          and an error is reported.
+  @return false           All the tablespace names specified for
+                          partitions are valid.
+*/
+
+bool validate_partition_tablespace_names(partition_info *part_info,
+                                         const handlerton *default_engine);
+
 
 /**
   Predicate which returns true if any partition or subpartition uses

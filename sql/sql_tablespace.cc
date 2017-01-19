@@ -42,17 +42,12 @@
 #include "transaction.h"                        // trans_commit_stmt
 
 
-Ident_name_check check_tablespace_name(const char *tablespace_name)
+bool validate_tablespace_name_length(const char *tablespace_name)
 {
-  size_t name_length= 0;                       ///< Length as number of bytes
-  size_t name_length_symbols= 0;               ///< Length as number of symbols
+  DBUG_ASSERT(tablespace_name != nullptr);
 
-  // Name must be != NULL and length must be > 0
-  if (!tablespace_name || (name_length= strlen(tablespace_name)) == 0)
-  {
-    my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), tablespace_name);
-    return Ident_name_check::WRONG;
-  }
+  size_t name_length_symbols= 0;               ///< Length as number of symbols.
+  size_t name_length= strlen(tablespace_name); ///< Length as number of bytes.
 
   // If we do not have too many bytes, we must check the number of symbols,
   // provided the system character set may use more than one byte per symbol.
@@ -77,10 +72,36 @@ Ident_name_check check_tablespace_name(const char *tablespace_name)
   if (name_length_symbols > NAME_CHAR_LEN || name_length > NAME_LEN)
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), tablespace_name);
-    return Ident_name_check::TOO_LONG;
+    return true;
   }
 
-  return Ident_name_check::OK;
+  return false;
+}
+
+
+bool validate_tablespace_name(bool tablespace_ddl,
+                              const char *tablespace_name,
+                              const handlerton *engine)
+{
+  DBUG_ASSERT(tablespace_name != nullptr);
+  DBUG_ASSERT(engine != nullptr);
+
+  // Length must be > 0.
+  if (tablespace_name[0] == '\0')
+  {
+    my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), tablespace_name);
+    return true;
+  }
+
+  // Invoke SE specific validation of the name.
+  if (engine->is_valid_tablespace_name &&
+      !engine->is_valid_tablespace_name(tablespace_ddl, tablespace_name))
+  {
+    my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), tablespace_name);
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -207,10 +228,10 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   }
 
   // If this is a tablespace related command, check the tablespace name
-  // and acquire and MDL X lock on it. Also validate the data file path.
+  // and acquire an MDL X lock on it.
   if (is_tablespace_command(ts_info->ts_cmd_type) &&
-      (check_tablespace_name(ts_info->tablespace_name) !=
-       Ident_name_check::OK ||
+      (validate_tablespace_name_length(ts_info->tablespace_name) ||
+       validate_tablespace_name(true, ts_info->tablespace_name, hton) ||
        lock_tablespace_name(thd, ts_info->tablespace_name)))
     DBUG_RETURN(true);
 

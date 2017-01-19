@@ -1323,6 +1323,15 @@ innobase_rollback_by_xid(
 	XID*		xid);		/*!< in: X/Open XA transaction
 					identification */
 
+/** Check tablespace name validity.
+@param[in]	tablespace_ddl	whether this is tablespace DDL or not
+@param[in]	name		name to check
+@retval false	invalid name
+@retval true	valid name */
+static
+bool
+innobase_is_valid_tablespace_name(bool tablespace_ddl, const char* name);
+
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
@@ -4159,6 +4168,8 @@ innodb_init(
 	innobase_hton->commit_by_xid = innobase_commit_by_xid;
 	innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
 	innobase_hton->create = innobase_create_handler;
+	innobase_hton->is_valid_tablespace_name =
+		innobase_is_valid_tablespace_name;
 	innobase_hton->alter_tablespace = innobase_alter_tablespace;
 	innobase_hton->drop_database = innobase_drop_database;
 	innobase_hton->pre_dd_shutdown = innodb_pre_dd_shutdown;
@@ -11209,9 +11220,9 @@ validate_tablespace_name(
 	/* This prefix is reserved by InnoDB for use in internal tablespace names. */
 	const char reserved_space_name_prefix[] = "innodb_";
 
-	if (check_tablespace_name(name) != Ident_name_check::OK) {
-		err = HA_WRONG_CREATE_OPTION;
-	}
+	/* Validation at the SQL layer should already be completed at this stage.
+	Re-assert that the length is valid. */
+	ut_ad(!validate_tablespace_name_length(name));
 
 	/* The tablespace name cannot start with `innodb_`. */
 	if (strlen(name) >= sizeof(reserved_space_name_prefix) - 1
@@ -11240,6 +11251,17 @@ validate_tablespace_name(
 			err = HA_WRONG_CREATE_OPTION;
 		}
 	}
+	/* TODO: Replace the string literal below by a proper string constant
+	representing the DD tablespace name. */
+	else if (0 == strcmp(name, "mysql")) {
+		if (!for_table) {
+			my_printf_error(ER_WRONG_TABLESPACE_NAME,
+					"InnoDB: `mysql` is a reserved"
+					" tablespace name.",
+					MYF(0));
+			err = HA_WRONG_CREATE_OPTION;
+		}
+	}
 
 	/* The tablespace name cannot contain a '/'. */
 	if (memchr(name, '/', strlen(name)) != NULL) {
@@ -11252,6 +11274,17 @@ validate_tablespace_name(
 	return(err);
 }
 
+/** Check tablespace name validity.
+@param[in]	tablespace_ddl	whether this is tablespace DDL or not
+@param[in]	name		name to check
+@retval false	invalid name
+@retval true	valid name */
+bool
+innobase_is_valid_tablespace_name(bool tablespace_ddl, const char* name)
+{
+	return (validate_tablespace_name(name, !tablespace_ddl) == 0);
+}
+
 /** Validate TABLESPACE option.
 @return true if valid, false if not. */
 bool
@@ -11261,9 +11294,8 @@ create_table_info_t::create_option_tablespace_is_valid()
 		return(true);
 	}
 
-	if (0 != validate_tablespace_name(m_create_info->tablespace, true)) {
-		return(false);
-	}
+	/* Name validation should be ensured from the SQL layer. */
+	ut_ad(validate_tablespace_name(m_create_info->tablespace, true) == 0);
 
 	/* Look up the tablespace name in the fil_system. */
 	space_id_t	space_id = fil_space_get_id_by_name(
@@ -13545,10 +13577,13 @@ validate_create_tablespace_info(
 		return(HA_ERR_INNODB_READ_ONLY);
 	}
 
+	/* Name validation should be ensured from the SQL layer. */
+	ut_ad(validate_tablespace_name(
+			alter_info->tablespace_name, false) == 0);
+
 	/* From this point forward, push a warning for each problem found
 	instead of returning immediately*/
-	int	error = validate_tablespace_name(
-			alter_info->tablespace_name, false);
+	int	error = 0;
 
 	/* Make sure the tablespace is not already open. */
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
@@ -13787,10 +13822,9 @@ innobase_drop_tablespace(
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
-	error = validate_tablespace_name(alter_info->tablespace_name, false);
-	if (error != 0) {
-		DBUG_RETURN(error);
-	}
+	/* Name validation should be ensured from the SQL layer. */
+	ut_ad(validate_tablespace_name(
+			alter_info->tablespace_name, false) == 0);
 
 	/* Be sure that this tablespace is known and valid. */
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);

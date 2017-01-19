@@ -25,7 +25,9 @@
 #include "dd/impl/system_registry.h"          // dd::System_tablespaces
 #include "dd/object_id.h"
 #include "dd/properties.h"                    // dd::Properties
+#include "dd/types/index.h"                   // dd::Index
 #include "dd/types/partition.h"               // dd::Partition
+#include "dd/types/partition_index.h"         // dd::Partition_index
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
@@ -41,6 +43,29 @@
 #include "sql_table.h"                        // validate_comment_length
 #include "table.h"
 
+namespace {
+template <typename T>
+bool get_and_store_tablespace_name(THD *thd, const T *obj,
+                                   Tablespace_hash_set *tablespace_set)
+{
+  const char *tablespace_name= nullptr;
+  if(get_tablespace_name(thd, obj, &tablespace_name, thd->mem_root))
+  {
+    return true;
+  }
+
+  if (tablespace_name &&
+      tablespace_set->insert(const_cast<char*>(tablespace_name)))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+} // anonymous namespace
+
+
 namespace dd {
 
 bool
@@ -55,7 +80,7 @@ fill_table_and_parts_tablespace_names(THD *thd,
   if (thd->dd_client()->acquire(db_name, table_name, &table_obj))
   {
     // Error is reported by the dictionary subsystem.
-    return(true);
+    return true;
   }
 
   if (table_obj == NULL)
@@ -69,37 +94,36 @@ fill_table_and_parts_tablespace_names(THD *thd,
   }
 
   // Add the tablespace name used by dd::Table.
-  const char *tablespace= NULL;
-  if(!get_tablespace_name<dd::Table>(
-       thd, table_obj, &tablespace, thd->mem_root))
+  if (get_and_store_tablespace_name(thd, table_obj, tablespace_set))
   {
-    if (tablespace &&
-        tablespace_set->insert(const_cast<char*>(tablespace)))
-      return true;
+    return true;
   }
 
   /*
-    Add tablespaces used by partition/subpartition definitions
+    Add tablespaces used by partition/subpartition definitions.
     Note that dd::Table::partitions() gives use both partitions
     and sub-partitions.
    */
   if (table_obj->partition_type() != dd::Table::PT_NONE)
   {
-    // Iterate through tablespace names used by partition.
-    String_type ts_name;
+    // Iterate through tablespace names used by partitions/indexes.
     for (const dd::Partition *part_obj : table_obj->partitions())
     {
-      const char *tablespace= NULL;
-      if(!get_tablespace_name<dd::Partition>(
-           thd, part_obj, &tablespace, thd->mem_root))
-      {
-        if (tablespace &&
-            tablespace_set->insert(const_cast<char*>(tablespace)))
-          return true;
-      }
+      if (get_and_store_tablespace_name(thd, part_obj, tablespace_set))
+        return true;
 
+      for (const dd::Partition_index *part_idx_obj : part_obj->indexes())
+        if (get_and_store_tablespace_name(thd, part_idx_obj, tablespace_set))
+          return true;
     }
   }
+
+  // Add tablespaces used by indexes.
+  for (const dd::Index *idx_obj : table_obj->indexes())
+    if (get_and_store_tablespace_name(thd, idx_obj, tablespace_set))
+      return true;
+
+  // TODO WL#7156: Add tablespaces used by individual columnns.
 
   return false;
 }

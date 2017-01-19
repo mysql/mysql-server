@@ -1029,6 +1029,22 @@ typedef bool (*show_status_t)(handlerton *hton, THD *thd, stat_print_fn *print, 
 typedef uint (*partition_flags_t)();
 
 /**
+  SE specific validation of the tablespace name.
+
+  This function will ask the relevant SE whether the submitted tablespace
+  name is valid.
+
+  @param tablespace_ddl     Purpose of usage - is this tablespace DDL?
+  @param tablespace_name    Name of the tablespace.
+
+  @return Tablespace name validity.
+    @retval == false: The tablespace name is invalid.
+    @retval == true:  The tablespace name is valid.
+*/
+typedef bool (*is_valid_tablespace_name_t)(bool tablespace_ddl,
+                                           const char *tablespace_name);
+
+/**
   Get the tablespace name from the SE for the given schema and table.
 
   @param       thd              Thread context.
@@ -1593,6 +1609,7 @@ struct handlerton
   flush_logs_t flush_logs;
   show_status_t show_status;
   partition_flags_t partition_flags;
+  is_valid_tablespace_name_t is_valid_tablespace_name;
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   fill_is_table_t fill_is_table;
