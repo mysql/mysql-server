@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "template_utils.h"
 
 /* Forward declarations */
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 struct TABLE;
 #else
 class Table_map_log_event;

@@ -2483,7 +2483,6 @@ void THD::leave_locked_tables_mode()
 void THD::get_definer(LEX_USER *definer)
 {
   binlog_invoker();
-#if !defined(MYSQL_CLIENT)
   if (slave_thread && has_invoker())
   {
     definer->user= m_invoker_user;
@@ -2494,7 +2493,6 @@ void THD::get_definer(LEX_USER *definer)
     definer->auth.length= 0;
   }
   else
-#endif
     get_default_definer(this, definer);
 }
 

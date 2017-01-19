@@ -10848,7 +10848,6 @@ THD::is_dml_gtid_compatible(bool some_transactional_table,
   inserted/updated/deleted.
 */
 
-#ifndef MYSQL_CLIENT
 
 /*
   Template member function for ensuring that there is an rows log
@@ -11718,7 +11717,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
   DBUG_RETURN(0);
 }
 
-#endif /* !defined(MYSQL_CLIENT) */
 
 struct st_mysql_storage_engine binlog_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

@@ -25,7 +25,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "thr_malloc.h"
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 #include <algorithm>
 
@@ -60,7 +60,7 @@ using std::min;
 using std::max;
 using binary_log::checksum_crc32;
 
-#endif //MYSQL_CLIENT
+#endif //MYSQL_SERVER
 
 /*********************************************************************
  *                   table_def member definitions                    *
@@ -898,7 +898,7 @@ err:
   DBUG_RETURN(conv_table);
 }
 
-#endif /* MYSQL_CLIENT */
+#endif /* MYSQL_SERVER */
 
 extern "C" {
 PSI_memory_key key_memory_table_def_memory;
@@ -1012,7 +1012,7 @@ table_def::~table_def()
 #endif
 }
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 #define HASH_ROWS_POS_SEARCH_INVALID -1
 

@@ -194,8 +194,6 @@ typedef struct rpl_event_coordinates
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 
-#ifdef MYSQL_SERVER
-
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
 #define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
@@ -1352,7 +1350,6 @@ public:
   static bool binlog_row_event_extra_data_eq(const uchar* a,
                                              const uchar* b);
 
-#ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
   /*
@@ -1531,8 +1528,6 @@ public:
 
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
-
-#endif /* MYSQL_CLIENT */
 
 private:
   std::unique_ptr<Transaction_ctx> m_transaction;
@@ -2475,7 +2470,6 @@ public:
   /** Disconnect the associated communication endpoint. */
   void disconnect(bool server_shutdown= false);
 
-#ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
     /* The query can be logged in row format or in statement format. */
     ROW_QUERY_TYPE,
@@ -2490,7 +2484,6 @@ public:
                    const char *query, size_t query_len, bool is_trans,
                    bool direct, bool suppress_use,
                    int errcode);
-#endif
 
   // Begin implementation of MDL_context_owner interface.
 
@@ -4309,7 +4302,5 @@ inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *ht
 }
 
 /*************************************************************************/
-
-#endif /* MYSQL_SERVER */
 
 #endif /* SQL_CLASS_INCLUDED */

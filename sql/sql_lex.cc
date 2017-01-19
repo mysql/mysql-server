@@ -4858,7 +4858,6 @@ void st_lex_master_info::set_unspecified()
   sql_delay= -1;
 }
 
-#ifdef MYSQL_SERVER
 uint binlog_unsafe_map[256];
 
 #define UNSAFE(a, b, c) \
@@ -5002,4 +5001,3 @@ void binlog_unsafe_map_init()
   UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
      BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
 }
-#endif

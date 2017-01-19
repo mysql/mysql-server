@@ -35,12 +35,9 @@ void Mysql_connection_options::Ssl_options::create_options()
 #if defined(HAVE_OPENSSL)
   this->create_new_option(&this->m_ssl_mode_string, "ssl-mode",
       "SSL connection mode.")
-#ifdef MYSQL_CLIENT
     ->add_callback(new std::function<void(char*)>(
       std::bind(
-        &Mysql_connection_options::Ssl_options::mode_option_callback, this, _1)))
-#endif
-    ;
+        &Mysql_connection_options::Ssl_options::mode_option_callback, this, _1)));
   this->create_new_option(&::opt_ssl_ca, "ssl-ca", "CA file in PEM format.")
     ->add_callback(new std::function<void(char*)>(
       std::bind(

@@ -746,13 +746,13 @@ public:
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
-#if !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
 
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
 
-#endif /* !defined(MYSQL_CLIENT) */
+#endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc)
   {
     bytes_written += inc;

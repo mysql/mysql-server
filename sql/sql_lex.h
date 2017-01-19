@@ -98,10 +98,8 @@ class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 
-#ifdef MYSQL_SERVER
 #include "item_create.h"              // Cast_target
 #include "sql_udf.h"                  // Item_udftype
-#endif
 
 /* YACC and LEX Definitions */
 
@@ -124,7 +122,6 @@ const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 enum class partition_type; // from partition_element.h
 enum class enum_key_algorithm; // from partition_info.h
 
-#ifdef MYSQL_SERVER
 /*
   There are 8 different type of table access so there is no more than
   combinations 2^8 = 256:
@@ -169,7 +166,6 @@ extern uint binlog_unsafe_map[256];
   conditions.
 */
 void binlog_unsafe_map_init();
-#endif
 
 enum enum_yes_no_unknown
 {
@@ -199,8 +195,6 @@ typedef YYSTYPE *LEX_YYSTYPE;
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
-
-#ifdef MYSQL_SERVER
 
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
@@ -1658,8 +1652,6 @@ inline bool SELECT_LEX_UNIT::is_union() const
          first_select()->next_select()->linkage == UNION_TYPE;
 }
 
-#ifdef MYSQL_SERVER
-
 struct Cast_type
 {
   Cast_target target;
@@ -2078,8 +2070,6 @@ union YYSTYPE {
     Item *where;
   } wild_or_where;
 };
-
-#endif
 
 
 /**
@@ -4113,5 +4103,4 @@ void print_derived_column_names(THD *thd, String *str,
   @} (End of group GROUP_PARSER)
 */
 
-#endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

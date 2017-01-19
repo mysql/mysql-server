@@ -48,8 +48,6 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 
-#ifndef MYSQL_CLIENT
-
 #include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
@@ -3608,7 +3606,5 @@ bool create_table_share_for_upgrade(THD *thd,
                                     const char *table,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
-
-#endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

@@ -1883,7 +1883,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  }
 	  break;
 	case OPT_debug:
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 	  mysql_debug(opt_arg ? opt_arg : "d:t:o,/tmp/client.trace");
 	  break;
 #endif
@@ -5411,7 +5411,7 @@ static void mysql_prune_stmt_list(MYSQL *mysql)
 void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
                             const char *func_name MY_ATTRIBUTE((unused)))
 {
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   /* Reset connection handle in all prepared statements. */
   LIST *element= *stmt_list;
   char buff[MYSQL_ERRMSG_SIZE];
@@ -5427,7 +5427,7 @@ void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
   }
   *stmt_list= 0;
   DBUG_VOID_RETURN;
-#endif /* MYSQL_CLIENT */
+#endif /* !MYSQL_SERVER */
 }
 
 
@@ -5471,7 +5471,7 @@ static my_bool cli_read_query_result(MYSQL *mysql)
   if ((length = cli_safe_read(mysql, NULL)) == packet_error)
     DBUG_RETURN(1);
   free_old_query(mysql);		/* Free old result */
-#ifdef MYSQL_CLIENT			/* Avoid warn of unused labels*/
+#ifndef MYSQL_SERVER			/* Avoid warn of unused labels*/
 get_info:
 #endif
   pos=(uchar*) mysql->net.read_pos;
@@ -5486,7 +5486,7 @@ get_info:
 #endif
     DBUG_RETURN(0);
   }
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
   {
     int error;

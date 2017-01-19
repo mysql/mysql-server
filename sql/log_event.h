@@ -79,7 +79,7 @@ class Table_id;
 #include "xa.h"
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #include "rpl_tblmap.h"              // table_mapping
 #endif
 
@@ -94,7 +94,7 @@ class Table_id;
 #include "mysql/psi/mysql_stage.h"
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 class Format_description_log_event;
 
 typedef bool (*read_log_event_filter_function)(char** buf,
@@ -120,7 +120,7 @@ using binary_log::Format_description_event;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
-#if !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);
 #endif
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
@@ -370,7 +370,7 @@ template <class T> class List;
 
 class Relay_log_info;
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 enum enum_base64_output_mode {
   BASE64_OUTPUT_NEVER= 0,
   BASE64_OUTPUT_AUTO= 1,
@@ -1809,7 +1809,7 @@ private:
                Xid_log_event
   @endinternal
 */
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
 
@@ -1830,7 +1830,7 @@ protected:
   : Log_event(header_arg, footer_arg) {}
   ~Xid_apply_log_event() {}
   virtual bool ends_group() const { return true; }
-#if !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_apply_event_worker(Slave_worker *rli);
@@ -2359,7 +2359,7 @@ private:
   bool has_ignore;
 };
 #endif
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 /**
   @class Unknown_log_event
 
@@ -2460,7 +2460,7 @@ public:
 
   virtual ~Table_map_log_event();
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   table_def *create_table_def()
   {
     DBUG_ASSERT(m_colcnt > 0);
@@ -2517,7 +2517,7 @@ public:
   virtual int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -2724,7 +2724,7 @@ public:
   virtual int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   /* not for direct call, each derived has its own ::print() */
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info)= 0;
   void print_verbose(IO_CACHE *file,
@@ -2822,7 +2822,7 @@ protected:
   Rows_log_event(const char *row_data, uint event_len,
 		 const Format_description_event *description_event);
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
 #endif
 
@@ -2834,7 +2834,7 @@ protected:
   TABLE *m_table;		/* The table the rows belong to */
 #endif
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
      Hash table that will hold the entries for while using HASH_SCAN
      algorithm to search and update/delete rows.
@@ -3204,7 +3204,7 @@ private:
     return (Log_event_type)TYPE_CODE;
   }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -3302,7 +3302,7 @@ protected:
     return (Log_event_type)TYPE_CODE;
   }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -3394,7 +3394,7 @@ protected:
     return (Log_event_type)TYPE_CODE;
   }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -3492,7 +3492,7 @@ public:
 
   virtual ~Incident_log_event();
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -3542,7 +3542,7 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
                             public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F,
                   Log_event::EVENT_STMT_CACHE,
@@ -3558,11 +3558,11 @@ public:
                       const Format_description_event *descr_event);
   virtual ~Ignorable_log_event();
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -3605,7 +3605,7 @@ public:
 class Rows_query_log_event : public Ignorable_log_event,
                              public binary_log::Rows_query_event{
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Rows_query_log_event(THD *thd_arg, const char * query, size_t query_len)
     : Ignorable_log_event(thd_arg)
   {
@@ -3620,7 +3620,7 @@ public:
   }
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
 
@@ -3633,7 +3633,7 @@ public:
       my_free(m_rows_query);
     m_rows_query= NULL;
   }
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
   virtual bool write_data_body(IO_CACHE *file);
@@ -3718,7 +3718,7 @@ extern TYPELIB binlog_checksum_typelib;
 class Gtid_log_event : public binary_log::Gtid_event, public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Create a new event using the GTID owned by the given thread.
   */
@@ -3734,7 +3734,7 @@ public:
                  const Gtid_specification spec_arg);
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
   Gtid_log_event(const char *buffer, uint event_len,
@@ -3775,7 +3775,7 @@ private:
 #endif
 
 public:
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
@@ -3906,11 +3906,11 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
                                  public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Previous_gtids_log_event(const Gtid_set *set);
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
 
@@ -3921,7 +3921,7 @@ public:
 
   size_t get_data_size() { return buf_size; }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
@@ -4025,7 +4025,7 @@ private:
   /// conflict detection.
   Gtid_set *snapshot_version;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
 
   bool write_data_body(IO_CACHE* file);
@@ -4043,7 +4043,7 @@ private:
 
 public:
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Transaction_context_log_event(const char *server_uuid_arg,
                                 bool using_trans,
                                 my_thread_id thread_id_arg,
@@ -4057,11 +4057,11 @@ public:
 
   size_t get_data_size();
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -4155,7 +4155,7 @@ class View_change_log_event: public binary_log::View_change_event,
 private:
   size_t to_string(char *buf, ulong len) const;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
 
   bool write_data_body(IO_CACHE* file);
@@ -4176,11 +4176,11 @@ public:
 
   size_t get_data_size();
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 

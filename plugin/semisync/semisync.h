@@ -18,8 +18,6 @@
 #ifndef SEMISYNC_H
 #define SEMISYNC_H
 
-#define MYSQL_SERVER
-
 #include <my_global.h>
 #include <my_thread.h>
 #include <mysql/plugin.h>

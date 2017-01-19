@@ -374,10 +374,6 @@ typedef struct st_mysql_rpl {
   const unsigned char *buffer;           /** Pointer to returned data           */
 } MYSQL_RPL;
 
-#if !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT)
-#define MYSQL_CLIENT
-#endif
-
 /*
   Set up and bring down the server; to ensure that applications will
   work when linked against either the standard client library or the

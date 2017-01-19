@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 using std::min;
 using std::max;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 #include "psi_memory_key.h"
 #else
 #define key_memory_NET_buff 0

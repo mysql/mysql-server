@@ -928,7 +928,7 @@ RECURSIVE              = YES
 
 ## Please keep this list sorted alphabetically.
 ## To resolve:
-## client/mysqlbinlog.cc : MYSQL_CLIENT / MYSQL_SERVER build options
+## client/mysqlbinlog.cc : MYSQL_SERVER build options
 
 EXCLUDE                = cmd-line-utils \
                          client/mysqlbinlog.cc \

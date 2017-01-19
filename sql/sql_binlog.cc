@@ -286,9 +286,7 @@ void mysql_client_binlog_statement(THD* thd)
         not used at all: the rli_fake instance is used only for error
         reporting.
       */
-#if !defined(MYSQL_CLIENT)
       err= ev->apply_event(rli);
-#endif
       /*
         Format_description_log_event should not be deleted because it
         will be used to read info about the relay log's format; it

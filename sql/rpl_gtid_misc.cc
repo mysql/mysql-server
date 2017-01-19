@@ -24,7 +24,7 @@
 #include "rpl_gtid.h"
 #include "typelib.h"
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 #include "binlog.h"
 #include "current_thd.h"
 #include "mysql/thread_type.h"
@@ -32,9 +32,9 @@
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD
 #include "sql_error.h"
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #include "mysqlbinlog.h"
 #endif
 
@@ -49,7 +49,7 @@ TYPELIB gtid_mode_typelib=
 { array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
 {
   switch (have_lock)
@@ -92,7 +92,7 @@ TYPELIB gtid_consistency_mode_typelib=
 { array_elements(gtid_consistency_mode_names) - 1, "", gtid_consistency_mode_names, NULL };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 enum_gtid_consistency_mode get_gtid_consistency_mode()
 {
   global_sid_lock->assert_some_lock();
@@ -255,7 +255,7 @@ void check_return_status(enum_return_status status, const char *action,
     DBUG_ASSERT(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
     if (status == RETURN_STATUS_REPORTED_ERROR)
     {
-#if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
+#if defined(MYSQL_SERVER) && !defined(DBUG_OFF)
       THD *thd= current_thd;
       /*
         We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
@@ -276,7 +276,7 @@ void check_return_status(enum_return_status status, const char *action,
 #endif // ! DBUG_OFF
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
 {
   DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
@@ -298,4 +298,4 @@ rpl_gno get_last_executed_gno(rpl_sidno sidno)
 
   DBUG_RETURN(gno);
 }
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
