@@ -952,7 +952,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   signal.theTrace  = 0;
   signal.theLength = 1;
   signal.getDataPtrSend()[0] = nodeId;
-  safe_noflush_sendSignal(&signal, getOwnNodeId());
+  safe_sendSignal(&signal, getOwnNodeId());
   DBUG_VOID_RETURN;
 }
 
@@ -995,7 +995,7 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
   DisconnectRep * rep = CAST_PTR(DisconnectRep, signal.getDataPtrSend());
   rep->nodeId = nodeId;
   rep->err = 0;
-  safe_noflush_sendSignal(&signal, getOwnNodeId());
+  safe_sendSignal(&signal, getOwnNodeId());
 }
 
 void
