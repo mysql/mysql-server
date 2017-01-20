@@ -9,12 +9,10 @@
 #
 ##############################################################################
 
-ngram		: 	content mismatch, please verify
 ngram_2		:	if ngram parser is not loaded, the table cannot open
 transaction	:	recursive mutex acquisition
 tablespace_location :	truncate result in lose of remote ibd
 plugin_1	: 	same as ngram_2, the table cannot be opened with parser w restart
 plugin		: 	same as ngram_2, the table cannot be opened with parser
-sync		:	content mismatch, please verify
 compatibility	:	wl#9530 make fts aux table name lowercased
 compatibility_win :	wl#9530 make fts aux table name lowercased
