@@ -30,6 +30,7 @@
 #cmakedefine HAVE_LIBDL 1
 #cmakedefine HAVE_LIBRT 1
 #cmakedefine HAVE_LIBWRAP 1
+#cmakedefine HAVE_LIBWRAP_PROTOTYPES 1
 
 /* Header files */
 #cmakedefine HAVE_ALLOCA_H 1
