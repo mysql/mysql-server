@@ -160,6 +160,7 @@ MACRO(CREATE_INFO_BIN)
     FILE(APPEND ${INFO_BIN} "File 'CMakeCache.txt' is not yet found.\n\n")
   ENDIF()
 
+  FILE(APPEND ${INFO_BIN} "===== Compiler flags used: =====\n")
   IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
     FILE(APPEND ${INFO_BIN} "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n")
   ENDIF()
