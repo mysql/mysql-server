@@ -4537,6 +4537,13 @@ prepare_inplace_alter_table_global_dd(
 			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
 		}
 
+		/* For discarded table, need set this to dd. */
+		if (dict_table_is_discarded(old_table)) {
+			/* Set discard flag. */
+			new_dd_tab->table().options().set_bool("discard",
+							       true);
+		}
+
 		create_table_info_t::set_table_options(
 			new_dd_tab->table(), new_table);
 
