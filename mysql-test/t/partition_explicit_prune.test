@@ -6,6 +6,11 @@
 # Test uses performance_schema.status_by_thread, not available in embedded
 --source include/not_embedded.inc
 
+# Because more work would be done in debug mode for debugging,
+# so some results like Handler_* are diverse in debug and non-debug
+# mode for TRUNCATE(PARTITION) operations.
+--source include/have_debug.inc
+
 # Helper statement
 
 create table thread_to_monitor(thread_id int);
