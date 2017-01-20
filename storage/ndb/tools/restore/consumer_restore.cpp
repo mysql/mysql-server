@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1394,7 +1394,7 @@ static void set_default_nodegroups(NdbDictionary::Table *table)
   table->setFragmentData(node_group, no_parts);
 }
 
-Uint32 BackupRestore::map_ng(Uint32 ng)
+Uint32 BackupRestore::map_ng(Uint32 ng) const
 {
   NODE_GROUP_MAP *ng_map = m_nodegroup_map;
 
@@ -1424,7 +1424,7 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
 }
 
 
-bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts)
+bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const
 {
   Uint32 i;
   bool mapped = FALSE;
@@ -1454,7 +1454,7 @@ static void copy_byte(const char **data, char **new_data, uint *len)
 
 bool BackupRestore::search_replace(char *search_str, char **new_data,
                                    const char **data, const char *end_data,
-                                   uint *new_data_len)
+                                   uint *new_data_len) const
 {
   uint search_str_len = (uint)strlen(search_str);
   uint inx = 0;
@@ -1539,7 +1539,7 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
 }
 
 bool BackupRestore::map_in_frm(char *new_data, const char *data,
-                                       uint data_len, uint *new_data_len)
+                                       uint data_len, uint *new_data_len) const
 {
   const char *end_data= data + data_len;
   const char *end_part_data;
@@ -1582,7 +1582,7 @@ error:
 }
 
 
-bool BackupRestore::translate_frm(NdbDictionary::Table *table)
+bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
 {
   uchar *pack_data, *data, *new_pack_data;
   char *new_data;
