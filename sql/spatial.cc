@@ -3441,7 +3441,12 @@ Gis_geometry_collection::scan_header_and_create(wkb_parser *wkb,
     the exact length.
   */
   if (geom->get_type() == wkb_point)
+  {
+    if (geom->get_nbytes() < POINT_DATA_SIZE)
+      return nullptr;
     geom->set_nbytes(POINT_DATA_SIZE);
+  }
+
   return geom;
 }
 
@@ -3661,7 +3666,16 @@ uint32 Gis_geometry_collection::get_data_size() const
     */
     if ((object_size= geom->get_data_size()) == GET_SIZE_ERROR)
       return GET_SIZE_ERROR;
-    wkb.skip_unsafe(object_size);
+
+    /*
+      Use 'skip()' instead of 'skip_unsafe()' in case the object size is
+      incorrect
+    */
+    if (wkb.skip(object_size))
+    {
+      DBUG_ASSERT(false); // geom-get_data_size() did something wrong.
+      return GET_SIZE_ERROR;
+    }
   }
   len= static_cast<uint32>(wkb.data() - (const char *)get_data_ptr());
   if (len != get_nbytes())
