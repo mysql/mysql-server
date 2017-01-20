@@ -35,7 +35,6 @@ create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, may
 innodb-system-table-view_cs : WL#9532 disables it, this may not be needed after WL#9535
 innodb-system-table-view_ci : WL#9532 disables it, this may not be needed after WL#9535
 
-#innodb-import-partition   : WL#99559 disables it, waiting for IMPORT TABLESPACE fix, update the se_private_id
 create_tablespace_partition : WL#9559 disables it, according to Dmitry, waiting for fix of Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION BY TIMESTAMP
 
 log_file_name_debug       : Waiting for WL#9175
