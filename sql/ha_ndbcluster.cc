@@ -18128,8 +18128,8 @@ public:
   NdbDictionary::Dictionary *dictionary;
   const  NdbDictionary::Table *old_table;
   NdbDictionary::Table *new_table;
-  Uint32 table_id;
-  Uint32 old_table_version;
+  const Uint32 table_id;
+  const Uint32 old_table_version;
 };
 
 /*
@@ -19256,7 +19256,6 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
                                           ha_alter_info));
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::commit_inplace_alter_table"))
   {
     DBUG_RETURN(true); // Error
@@ -19264,22 +19263,23 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
 
   const char *db= table->s->db.str;
   const char *name= table->s->table_name.str;
-  uint32 table_id= 0, table_version= 0;
+  NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   DBUG_ASSERT(alter_data != 0);
-  if (alter_data)
-  {
-    table_id= alter_data->table_id;
-    table_version= alter_data->old_table_version;
-  }
+  const Uint32 table_id= alter_data->table_id;
+  const Uint32 table_version= alter_data->old_table_version;
+
   ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
                            NULL, NULL);
+
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
+
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
+
   DBUG_RETURN(false); // OK
 }
 
