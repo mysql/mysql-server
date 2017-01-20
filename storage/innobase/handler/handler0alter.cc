@@ -7715,6 +7715,11 @@ innobase_update_foreign_try(
 			}
 		}
 	}
+	DBUG_EXECUTE_IF("ib_drop_foreign_error",
+			my_error_innodb(DB_OUT_OF_FILE_SPACE,
+				table_name, 0);
+			trx->error_state = DB_SUCCESS;
+			DBUG_RETURN(true););
 #ifdef INNODB_NO_NEW_DD
 	for (i = 0; i < ctx->num_to_drop_fk; i++) {
 		dict_foreign_t* fk = ctx->drop_fk[i];
@@ -8157,6 +8162,11 @@ commit_try_norebuild(
 		trx->op_info = "";
 		DBUG_RETURN(true););
 
+	DBUG_EXECUTE_IF("ib_rename_index_fail1",
+		my_error_innodb(DB_DEADLOCK, table_name, 0);
+		trx->error_state = DB_SUCCESS;
+		trx->op_info = "";
+		DBUG_RETURN(true););
 #ifdef INNODB_NO_NEW_DD
 	dberr_t	error;
 
