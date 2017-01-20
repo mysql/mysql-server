@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
 #include <AttributeHeader.hpp>
-#include <my_sys.h>
+#include <zlib.h>                    //compress, uncompress
 #include <NdbEnv.h>
 #include <util/version.h>
 #include <NdbSleep.h>
@@ -1233,6 +1233,247 @@ int NdbTableImpl::setFrm(const void* data, Uint32 len)
 {
   return m_frm.assign(data, len);
 }
+
+
+class Extra_metadata
+{
+  /*
+    The extra metadata is packed into a blob consisting of a header followed
+    by the compressed extra metadata. The header indicates which version
+    of metadata it contains as well as original and compressed length of
+    the compressed data. The header is written in machine independent format.
+    The metadata is assumed to already be in machine independent format. The
+    metadata is compressed with zlib which is also machine independent.
+
+    version 4 bytes
+    orglen  4 bytes
+    complen 4 bytes
+    compressed data [complen] bytes
+
+  */
+
+  static const size_t BLOB_HEADER_SZ = 12;
+
+public:
+
+  static
+  bool
+  check_header(void* pack_data, Uint32 pack_length,
+               Uint32& version)
+  {
+    if (pack_length == 0)
+    {
+      // No extra metadata
+      return false; // not ok
+    }
+
+    if (pack_length < BLOB_HEADER_SZ)
+    {
+      // There are extra metadata but it's too short
+      // to even have a header
+      return false; // not ok
+    }
+
+    // Verify the header
+    const uchar* header = static_cast<const uchar*>(pack_data);
+
+    // First part is version
+    version = uint4korr(header);
+
+    // Second part is original length
+
+    // The third part is packed length and should be equal to the
+    // packed data length minus header length
+    DBUG_ASSERT(uint4korr(header + 8) == (Uint32)pack_length - BLOB_HEADER_SZ);
+
+    return true; // OK
+  }
+
+
+  /*
+    pack is a method used to pack the extra metadata
+    for a table which is stored inside the dictionary of NDB.
+
+    SYNOPSIS
+      pack()
+      version                 The version to be written into the header
+                              of the packed data
+      data                    Pointer to data which should be packed
+      len                     Length of data to pack
+      out:pack_data           Reference to the pointer of the packed data
+                              which is returned. The memory returned is to
+                              be released by the caller.
+      out:pack_len            Length of the packed data returned
+
+    RETURN VALUES
+      0                       Success
+      >0                      Failure
+  */
+  static
+  int pack(const Uint32 version,
+           const void* data, const Uint32 len,
+           void** pack_data, Uint32* pack_len)
+  {
+    DBUG_ENTER("Extra_metadata::pack");
+    DBUG_PRINT("enter", ("data: 0x%lx  len: %lu", (long) data, (ulong) len));
+
+    // Allocate memory large enough to hold header and
+    // packed data
+    const size_t blob_len= BLOB_HEADER_SZ + compressBound(len);
+    uchar *blob = (uchar*) malloc(blob_len);
+    if (blob == NULL)
+    {
+      DBUG_PRINT("error", ("Could not allocate memory to pack the data into"));
+      DBUG_RETURN(1);
+    }
+
+    // Compress the data into the newly allocated memory, leave room
+    // for the header to be written in front of the packed data
+    // NOTE! The compressed_len variables provides the size of
+    // the allocated buffer and will return the compressed length
+    // Use an aligned stack variable of expected type to avoid
+    // potential alignment issues.
+    uLongf compressed_len = (uLongf)blob_len;
+    const int compress_result =
+        compress((Bytef*) blob + BLOB_HEADER_SZ, &compressed_len,
+                 (Bytef*) data, (uLong)len);
+    if (compress_result != Z_OK)
+    {
+      DBUG_PRINT("error", ("Failed to compress, error: %d", compress_result));
+      free(blob);
+      DBUG_RETURN(2);
+    }
+
+    DBUG_PRINT("info", ("len: %lu, compressed_len: %lu",
+                        (ulong) len, (ulong) compressed_len));
+    DBUG_DUMP("compressed", blob + BLOB_HEADER_SZ, compressed_len);
+
+    /* Write header in machine independent format */
+    int4store(blob,   version);
+    int4store(blob+4, len);
+    int4store(blob+8, (uint32) compressed_len);    /* compressed length */
+
+    /* Assign return variables */
+    *pack_data= blob;
+    *pack_len=  BLOB_HEADER_SZ + compressed_len;
+
+    DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %lu",
+                        (long) *pack_data, (ulong) *pack_len));
+    DBUG_RETURN(0);
+  }
+
+
+  /*
+    unpack is a method used to unpack the extra metadata
+    for a table which is stored inside the dictionary of NDB.
+
+    SYNOPSIS
+      unpack()
+      pack_data               Pointer to data which should be unpacked
+      out:unpack_data         Reference to the pointer to the unpacked data
+      out:unpack_len          Length of unpacked data
+
+    RETURN VALUES
+      0                       Success
+      >0                      Failure
+  */
+  static
+  int unpack(const void* pack_data,
+             void** unpack_data, Uint32* unpack_len)
+  {
+     DBUG_ENTER("Extra_metadata::unpack");
+     DBUG_PRINT("enter", ("pack_data: 0x%lx", (long) pack_data));
+
+     const char* header = static_cast<const char*>(pack_data);
+     const Uint32 orglen =  uint4korr(header+4);
+     const Uint32 complen = uint4korr(header+8);
+
+     DBUG_PRINT("blob",("complen: %lu, orglen: %lu",
+                        (ulong) complen, (ulong) orglen));
+     DBUG_DUMP("blob->data", (uchar*)header + BLOB_HEADER_SZ, complen);
+
+     // Allocate memory large enough to hold unpacked data
+     uchar *data = (uchar*)malloc(orglen);
+     if (data == NULL)
+     {
+       DBUG_PRINT("error", ("Could not allocate memory to unpack into"));
+       DBUG_RETURN(1);
+     }
+
+     // Uncompress the packed data into the newly allocated buffer
+     // NOTE! The uncompressed_len variables provides the size of
+     // the allocated buffer and will return the uncompressed length
+     // Use an aligned stack variable of expected type to avoid
+     // potential alignment issues.
+     uLongf uncompressed_len= (uLongf) orglen;
+     const int uncompress_result =
+         uncompress((Bytef*) data, &uncompressed_len,
+                    (Bytef*) pack_data + BLOB_HEADER_SZ, (uLong) complen);
+    if (uncompress_result != Z_OK)
+     {
+       DBUG_PRINT("error", ("Failed to uncompress, error: %d",
+                            uncompress_result));
+       free(data);
+       DBUG_RETURN(2);
+     }
+     // Check that the uncompressed length returned by uncompress()
+     // matches the value in the header
+     DBUG_ASSERT(uncompressed_len == orglen);
+ 
+     *unpack_data= data;
+     *unpack_len=  orglen;
+
+     DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %lu", (long) *unpack_data,
+                         (ulong) *unpack_len));
+     DBUG_RETURN(0);
+  }
+};
+
+
+int
+NdbTableImpl::setExtraMetadata(Uint32 version,
+                               const void* data, Uint32 data_length)
+{
+  // Pack the extra metadata
+  void* pack_data;
+  Uint32 pack_length;
+  const int pack_result =
+      Extra_metadata::pack(version,
+                           data, data_length,
+                           &pack_data, &pack_length);
+  if (pack_result)
+  {
+    return pack_result;
+  }
+
+  const int assign_result = m_frm.assign(pack_data, pack_length);
+  free(pack_data);
+
+  return assign_result;
+}
+
+
+int
+NdbTableImpl::getExtraMetadata(Uint32& version,
+                               void** data, Uint32* data_length) const
+{
+  if (!Extra_metadata::check_header(m_frm.get_data(),
+                                    m_frm.length(),
+                                    version))
+  {
+    // No extra metadata header
+    return 1;
+  }
+
+  if (Extra_metadata::unpack(m_frm.get_data(),
+                             data, data_length))
+  {
+    return 2;
+  }
+
+  return 0;
+}
+
 
 const void * 
 NdbTableImpl::getFrmData() const
