@@ -33,6 +33,7 @@ wl6443_deprecation               : WL#9532 disables it, because it creates tempo
 
 dd_upgrade_error                 : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
 dd_upgrade_test                  : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
+dd_upgrade_partition             : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
 
 dd_table_access                  : disables it because we are now disabling access to mysql.* tables, see is_dd_table_access_allowed
 commit_1innodb                   : disables it temporarily until WL#7743 fixes it

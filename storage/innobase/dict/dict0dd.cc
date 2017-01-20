@@ -2711,6 +2711,10 @@ dd_open_table_one(
                 index = index->next();
 	}
 
+	if (!implicit) {
+		dict_get_and_save_space_name(m_table, false);
+	}
+
 	if (fail) {
 		for (dict_index_t* index = UT_LIST_GET_LAST(m_table->indexes);
 		     index != NULL;
