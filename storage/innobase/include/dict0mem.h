@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1959,6 +1959,11 @@ public:
 
 	/** multiple cursors can be active on this temporary table */
 	temp_prebuilt_vec*			temp_prebuilt;
+
+	/** TRUE only for dictionary tables like mysql/tables,
+	mysql/columns, mysql/tablespaces, etc. This flag is used
+	to do non-locking reads on DD tables. */
+	bool					is_dd_table;
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const

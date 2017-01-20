@@ -4931,13 +4931,17 @@ row_search_mvcc(
 
 	trx_start_if_not_started(trx, false);
 
-	if (trx->skip_gap_locks()
-	    && prebuilt->select_lock_type != LOCK_NONE
-	    && trx->mysql_thd != NULL
-	    && thd_is_select(trx->mysql_thd)) {
+	if (prebuilt->table->is_dd_table
+	    || (trx->skip_gap_locks()
+	        && prebuilt->select_lock_type != LOCK_NONE
+	        && trx->mysql_thd != NULL
+	        && thd_is_select(trx->mysql_thd))) {
 		/* It is a plain locking SELECT and the isolation
 		level is low: do not lock gaps */
 
+		/* Reads on DD tables dont require gap-locks as serializability
+		between different DDL statements is achieved using
+		metadata locks */
 		set_also_gap_locks = false;
 	}
 

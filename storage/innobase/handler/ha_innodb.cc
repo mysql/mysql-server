@@ -60,6 +60,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include <stdlib.h>
 #include <strfunc.h>
+#include "dd/dictionary.h"
+#include "dd/dd.h"
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -6410,6 +6412,40 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
+/** Parse a table name
+@param[in]	tbl_name	table name including database and table name
+@param[in,out]	dd_db_name	database name buffer to be filled
+@param[in,out]	dd_tbl_name	table name buffer to be filled
+@return true if table name is parsed properly, false if the table name
+is invalid */
+static
+bool
+innobase_parse_tbl_name(
+	const char*	tbl_name,
+	char*		dd_db_name,
+	char*		dd_tbl_name)
+{
+	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
+	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
+	ulint	db_len = dict_get_db_name_len(tbl_name);
+
+	if (db_len == 0) {
+		return(false);
+	}
+
+	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
+	memcpy(db_buf, tbl_name, db_len);
+	db_buf[db_len] = 0;
+	memcpy(tbl_buf, tbl_name + db_len + 1,
+	       strlen(tbl_name) - db_len - 1);
+	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
+
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
+	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
+
+	return(true);
+}
+
 /** Open an InnoDB table.
 @param[in]	name	table name
 @param[in]	open_flags	flags for opening table from SQL-layer.
@@ -6470,6 +6506,14 @@ ha_innobase::open(
 
 		ib_table = open_dict_table(name, norm_name, is_part,
 					   ignore_err);
+
+		if (ib_table != NULL) {
+			char	db_buf[NAME_LEN + 1];
+			char    tbl_buf[NAME_LEN + 1];
+			innobase_parse_tbl_name(ib_table->name.m_name, db_buf, tbl_buf);
+			ib_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(db_buf, tbl_buf);
+		}
+
 	} else {
 		ib_table->acquire();
 		ut_ad(ib_table->is_intrinsic());
@@ -16679,6 +16723,13 @@ ha_innobase::external_lock(
 		*trx->detailed_error = 0;
 
 		innobase_register_trx(ht, thd, trx);
+
+		/* For read on DD table, we will always use consistent reads
+		independent of trx isolation level. */
+		if (lock_type != F_WRLCK && m_prebuilt->table->is_dd_table) {
+			m_prebuilt->select_lock_type = LOCK_NONE;
+			m_stored_select_lock_type = LOCK_NONE;
+		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && m_prebuilt->select_lock_type == LOCK_NONE

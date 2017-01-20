@@ -226,6 +226,7 @@ dict_mem_table_create(
 	new(&table->referenced_set) dict_foreign_set();
 
 #endif /* !UNIV_LIBRARY */
+	table->is_dd_table = false;
 
 	return(table);
 }

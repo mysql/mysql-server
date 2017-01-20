@@ -1583,7 +1583,10 @@ row_ins_check_foreign_constraint(
 
 	bool		skip_gap_lock;
 
-	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED);
+	/* GAP locks are not needed on DD tables because serializability between different
+	DDL statements is achieved using metadata locks. So no concurrent changes to DD tables
+	when MDL is taken. */
+	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED) || table->is_dd_table;
 
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
@@ -2091,7 +2094,14 @@ row_ins_scan_sec_index_for_duplicate(
 	do {
 		const rec_t*		rec	= btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block	= btr_pcur_get_block(&pcur);
-		const ulint		lock_type = LOCK_ORDINARY;
+
+		/* For DD tables, We don't use next-key locking for duplicates
+		found. This means it is possible for another transaction to
+		insert a duplicate key value but MDL protection on DD tables
+		will prevent insertion of duplicates into unique secondary indexes*/
+		const ulint		lock_type = index->table->is_dd_table
+			? LOCK_REC_NOT_GAP
+			: LOCK_ORDINARY;
 
 		if (page_rec_is_infimum(rec)) {
 
@@ -2105,6 +2115,9 @@ row_ins_scan_sec_index_for_duplicate(
 			/* Set no locks when applying log
 			in online table rebuild. */
 		} else if (allow_duplicates) {
+			/* This assert means DD tables should not use REPLACE
+			or INSERT INTO table.. ON DUPLCIATE KEY */
+			ut_ad(!index->table->is_dd_table);
 
 			/* If the SQL-query will update or replace
 			duplicate key we will take X-lock for
@@ -2114,6 +2127,13 @@ row_ins_scan_sec_index_for_duplicate(
 			err = row_ins_set_exclusive_rec_lock(
 				lock_type, block, rec, index, offsets, thr);
 		} else {
+
+			if (index->table->is_dd_table) {
+				/* Only GAP lock is possible on supremum. */
+				if (page_rec_is_supremum(rec)) {
+					continue;
+				}
+			}
 
 			err = row_ins_set_shared_rec_lock(
 				lock_type, block, rec, index, offsets, thr);
