@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -494,7 +494,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-  int alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
+  int inplace_alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
