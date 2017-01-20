@@ -1584,26 +1584,42 @@ error:
 
 bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
 {
-  uchar *pack_data, *data, *new_pack_data;
+  uchar *data;
   char *new_data;
   uint new_data_len;
-  size_t data_len, new_pack_len;
-  uint no_parts, extra_growth;
+  size_t data_len;
   DBUG_ENTER("translate_frm");
 
-  pack_data = (uchar*) table->getFrmData();
-  no_parts = table->getFragmentCount();
+  {
+    // Extract extra metadata for this table, check for version 1
+    Uint32 version;
+    void* unpacked_data;
+    Uint32 unpacked_len;
+    const int get_result =
+        table->getExtraMetadata(version,
+                                &unpacked_data, &unpacked_len);
+    if (get_result != 0)
+    {
+      DBUG_RETURN(true);
+    }
+
+    if (version != 1)
+    {
+      free(unpacked_data);
+      DBUG_RETURN(true);
+    }
+
+    data = (uchar*)unpacked_data;
+    data_len = unpacked_len;
+  }
+
   /*
     Add max 4 characters per partition to handle worst case
     of mapping from single digit to 5-digit number.
     Fairly future-proof, ok up to 99999 node groups.
   */
-  extra_growth = no_parts * 4;
-  if (uncompress_serialized_meta_data(pack_data, table->getFrmLength(),
-                                      &data, &data_len))
-  {
-    DBUG_RETURN(TRUE);
-  }
+  const uint no_parts = table->getFragmentCount();
+  const uint extra_growth = no_parts * 4;
   if ((new_data = (char*) malloc(data_len + extra_growth)))
   {
     DBUG_RETURN(TRUE);
@@ -1613,14 +1629,21 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
     free(new_data);
     DBUG_RETURN(TRUE);
   }
-  if (compress_serialized_meta_data(reinterpret_cast<uchar *>(new_data),
-                                    new_data_len, &new_pack_data,
-                                    &new_pack_len))
+  const int set_result =
+      table->setExtraMetadata(1, // version 1 for frm
+                              new_data, (Uint32)new_data_len);
+  if (set_result != 0)
   {
     free(new_data);
     DBUG_RETURN(TRUE);
   }
-  table->setFrm(new_pack_data, (Uint32)new_pack_len);
+
+  // NOTE! the memory allocated in 'new_data' is not released here
+  // NOTE! the memory returned in 'data' from getExtraMetadata() is not
+  // released here(and a few error places above)
+  // NOTE! the usage of this function and its functionality is described in
+  // BUG25449055 NDB_RESTORE TRANSLATE FRM FOR USERDEFINED PARTITIOING TABLES
+
   DBUG_RETURN(FALSE);
 }
 
