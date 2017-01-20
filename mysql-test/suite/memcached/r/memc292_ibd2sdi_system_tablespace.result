@@ -315,9 +315,9 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
  [Test35]
 ],
 # 10. Print version
-IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+IBD2SDI Ver #.#.#
 # 11. Print help
-IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+IBD2SDI Ver #.#.#
 Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
@@ -1075,9 +1075,9 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 # 8. Print all records matching type (short option)
 # 9. Print all records matching id (long option)
 # 10. Print version
-IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+IBD2SDI Ver #.#.#
 # 11. Print help
-IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+IBD2SDI Ver #.#.#
 Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
@@ -1256,9 +1256,9 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 # 8. Print all records matching type (short option)
 # 9. Print all records matching id (long option)
 # 10. Print version
-IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+IBD2SDI Ver #.#.#
 # 11. Print help
-IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+IBD2SDI Ver #.#.#
 Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
