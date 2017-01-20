@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3386,124 +3386,6 @@ row_merge_lock_table(
 
 	return(lock_table_for_trx(table, trx, mode));
 }
-#ifdef INNODB_NO_NEW_DD
-/*********************************************************************//**
-Drop an index that was created before an error occurred.
-The data dictionary must have been locked exclusively by the caller,
-because the transaction will not be committed. */
-static
-void
-row_merge_drop_index_dict(
-/*======================*/
-	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	space_index_t	index_id)/*!< in: index identifier */
-{
-	static const char sql[] =
-		"PROCEDURE DROP_INDEX_PROC () IS\n"
-		"BEGIN\n"
-		"DELETE FROM SYS_FIELDS WHERE INDEX_ID=:indexid;\n"
-		"DELETE FROM SYS_INDEXES WHERE ID=:indexid;\n"
-		"END;\n";
-	dberr_t		error;
-	pars_info_t*	info;
-
-	ut_ad(!srv_read_only_mode);
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-
-	info = pars_info_create();
-	pars_info_add_ull_literal(info, "indexid", index_id);
-	trx->op_info = "dropping index from dictionary";
-	error = que_eval_sql(info, sql, FALSE, trx);
-
-	if (error != DB_SUCCESS) {
-		/* Even though we ensure that DDL transactions are WAIT
-		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_CONCURRENT_TRXS. */
-		trx->error_state = DB_SUCCESS;
-
-		ib::error() << "row_merge_drop_index_dict failed with error "
-			<< error;
-	}
-
-	trx->op_info = "";
-}
-/*********************************************************************//**
-Drop indexes that were created before an error occurred.
-The data dictionary must have been locked exclusively by the caller,
-because the transaction will not be committed. */
-void
-row_merge_drop_indexes_dict(
-/*========================*/
-	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	table_id_t	table_id)/*!< in: table identifier */
-{
-	static const char sql[] =
-		"PROCEDURE DROP_INDEXES_PROC () IS\n"
-		"ixid CHAR;\n"
-		"found INT;\n"
-
-		"DECLARE CURSOR index_cur IS\n"
-		" SELECT ID FROM SYS_INDEXES\n"
-		" WHERE TABLE_ID=:tableid AND\n"
-		" SUBSTR(NAME,0,1)='" TEMP_INDEX_PREFIX_STR "'\n"
-		"FOR UPDATE;\n"
-
-		"BEGIN\n"
-		"found := 1;\n"
-		"OPEN index_cur;\n"
-		"WHILE found = 1 LOOP\n"
-		"  FETCH index_cur INTO ixid;\n"
-		"  IF (SQL % NOTFOUND) THEN\n"
-		"    found := 0;\n"
-		"  ELSE\n"
-		"    DELETE FROM SYS_FIELDS WHERE INDEX_ID=ixid;\n"
-		"    DELETE FROM SYS_INDEXES WHERE CURRENT OF index_cur;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE index_cur;\n"
-
-		"END;\n";
-	dberr_t		error;
-	pars_info_t*	info;
-
-	ut_ad(!srv_read_only_mode);
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-
-	/* It is possible that table->n_ref_count > 1 when
-	locked=TRUE. In this case, all code that should have an open
-	handle to the table be waiting for the next statement to execute,
-	or waiting for a meta-data lock.
-
-	A concurrent purge will be prevented by dict_operation_lock. */
-
-	info = pars_info_create();
-	pars_info_add_ull_literal(info, "tableid", table_id);
-	trx->op_info = "dropping indexes";
-	error = que_eval_sql(info, sql, FALSE, trx);
-
-	switch (error) {
-	case DB_SUCCESS:
-		break;
-	default:
-		/* Even though we ensure that DDL transactions are WAIT
-		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_CONCURRENT_TRXS. */
-		ib::error() << "row_merge_drop_indexes_dict failed with error "
-			<< error;
-		/* fall through */
-	case DB_TOO_MANY_CONCURRENT_TRXS:
-		trx->error_state = DB_SUCCESS;
-	}
-
-	trx->op_info = "";
-}
-#endif /* INNODB_NO_NEW_DD */
 
 /*********************************************************************//**
 Drop indexes that were created before an error occurred.
@@ -3619,14 +3501,6 @@ row_merge_drop_indexes(
 				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
 				/* fall through */
 			case ONLINE_INDEX_ABORTED:
-				/* Drop the index tree from the
-				data dictionary and free it from
-				the tablespace, but keep the object
-				in the data dictionary cache. */
-#ifdef INNODB_NO_NEW_DD
-				row_merge_drop_index_dict(trx, index->id);
-#endif
-
 				dict_drop_index(index, index->page);
 
 				rw_lock_x_lock(dict_index_get_lock(index));
@@ -3641,10 +3515,6 @@ row_merge_drop_indexes(
 
 		return;
 	}
-
-#ifdef INNODB_NO_NEW_DD
-	row_merge_drop_indexes_dict(trx, table->id);
-#endif /* INNODB_NO_NEW_DD */
 
 	/* Invalidate all row_prebuilt_t::ins_graph that are referring
 	to this table. That is, force row_get_prebuilt_insert_row() to
@@ -3698,71 +3568,6 @@ row_merge_drop_indexes(
 	table->drop_aborted = FALSE;
 	ut_d(dict_table_check_for_dup_indexes(table, CHECK_ALL_COMPLETE));
 }
-
-#ifdef INNODB_NO_NEW_DD
-/*********************************************************************//**
-Drop all partially created indexes during crash recovery. */
-void
-row_merge_drop_temp_indexes(void)
-/*=============================*/
-{
-	static const char sql[] =
-		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
-		"ixid CHAR;\n"
-		"found INT;\n"
-
-		"DECLARE CURSOR index_cur IS\n"
-		" SELECT ID FROM SYS_INDEXES\n"
-		" WHERE SUBSTR(NAME,0,1)='" TEMP_INDEX_PREFIX_STR "'\n"
-		"FOR UPDATE;\n"
-
-		"BEGIN\n"
-		"found := 1;\n"
-		"OPEN index_cur;\n"
-		"WHILE found = 1 LOOP\n"
-		"  FETCH index_cur INTO ixid;\n"
-		"  IF (SQL % NOTFOUND) THEN\n"
-		"    found := 0;\n"
-		"  ELSE\n"
-		"    DELETE FROM SYS_FIELDS WHERE INDEX_ID=ixid;\n"
-		"    DELETE FROM SYS_INDEXES WHERE CURRENT OF index_cur;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE index_cur;\n"
-		"END;\n";
-	trx_t*	trx;
-	dberr_t	error;
-
-	/* Load the table definitions that contain partially defined
-	indexes, so that the data dictionary information can be checked
-	when accessing the tablename.ibd files. */
-	trx = trx_allocate_for_background();
-	trx->op_info = "dropping partially created indexes";
-	row_mysql_lock_data_dictionary(trx);
-	/* Ensure that this transaction will be rolled back and locks
-	will be released, if the server gets killed before the commit
-	gets written to the redo log. */
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-
-	trx->op_info = "dropping indexes";
-	error = que_eval_sql(NULL, sql, FALSE, trx);
-
-	if (error != DB_SUCCESS) {
-		/* Even though we ensure that DDL transactions are WAIT
-		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_CONCURRENT_TRXS. */
-		trx->error_state = DB_SUCCESS;
-
-		ib::error() << "row_merge_drop_temp_indexes failed with error"
-			<< error;
-	}
-
-	trx_commit_for_mysql(trx);
-	row_mysql_unlock_data_dictionary(trx);
-	trx_free_for_background(trx);
-}
-#endif /* INNODB_NO_NEW_DD */
-
 
 /** Create temporary merge files in the given paramater path, and if
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
@@ -3856,113 +3661,6 @@ row_merge_file_destroy(
 	}
 }
 
-#ifdef INNODB_NO_NEW_DD
-/*********************************************************************//**
-Rename an index in the dictionary that was created. The data
-dictionary must have been locked exclusively by the caller, because
-the transaction will not be committed.
-@return DB_SUCCESS if all OK */
-dberr_t
-row_merge_rename_index_to_add(
-/*==========================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	table_id_t	table_id,	/*!< in: table identifier */
-	space_index_t	index_id)	/*!< in: index identifier */
-{
-	dberr_t		err = DB_SUCCESS;
-	pars_info_t*	info = pars_info_create();
-
-	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in renaming indexes. */
-
-	static const char rename_index[] =
-		"PROCEDURE RENAME_INDEX_PROC () IS\n"
-		"BEGIN\n"
-		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
-		"WHERE TABLE_ID = :tableid AND ID = :indexid;\n"
-		"END;\n";
-
-	ut_ad(trx);
-	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-
-	trx->op_info = "renaming index to add";
-
-	pars_info_add_ull_literal(info, "tableid", table_id);
-	pars_info_add_ull_literal(info, "indexid", index_id);
-
-	err = que_eval_sql(info, rename_index, FALSE, trx);
-
-	if (err != DB_SUCCESS) {
-		/* Even though we ensure that DDL transactions are WAIT
-		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_CONCURRENT_TRXS. */
-		trx->error_state = DB_SUCCESS;
-
-		ib::error() << "row_merge_rename_index_to_add failed with"
-			" error " << err;
-	}
-
-	trx->op_info = "";
-
-	return(err);
-}
-
-/*********************************************************************//**
-Rename an index in the dictionary that is to be dropped. The data
-dictionary must have been locked exclusively by the caller, because
-the transaction will not be committed.
-@return DB_SUCCESS if all OK */
-dberr_t
-row_merge_rename_index_to_drop(
-/*===========================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	table_id_t	table_id,	/*!< in: table identifier */
-	space_index_t	index_id)	/*!< in: index identifier */
-{
-	dberr_t		err;
-	pars_info_t*	info = pars_info_create();
-
-	ut_ad(!srv_read_only_mode);
-
-	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in renaming indexes. */
-
-	static const char rename_index[] =
-		"PROCEDURE RENAME_INDEX_PROC () IS\n"
-		"BEGIN\n"
-		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
-		TEMP_INDEX_PREFIX_STR "',NAME)\n"
-		"WHERE TABLE_ID = :tableid AND ID = :indexid;\n"
-		"END;\n";
-
-	ut_ad(trx);
-	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-
-	trx->op_info = "renaming index to drop";
-
-	pars_info_add_ull_literal(info, "tableid", table_id);
-	pars_info_add_ull_literal(info, "indexid", index_id);
-
-	err = que_eval_sql(info, rename_index, FALSE, trx);
-
-	if (err != DB_SUCCESS) {
-		/* Even though we ensure that DDL transactions are WAIT
-		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_CONCURRENT_TRXS. */
-		trx->error_state = DB_SUCCESS;
-
-		ib::error() << "row_merge_rename_index_to_drop failed with"
-			" error " << err;
-	}
-
-	trx->op_info = "";
-
-	return(err);
-}
-#endif /* INNODB_NO_NEW_DD */
-
 /*********************************************************************//**
 Provide a new pathname for a table that is being renamed if it belongs to
 a file-per-table tablespace.  The caller is responsible for freeing the
@@ -3988,167 +3686,6 @@ row_make_new_pathname(
 
 	return(new_path);
 }
-
-#ifdef INNODB_NO_NEW_DD
-/*********************************************************************//**
-Rename the tables in the data dictionary.  The data dictionary must
-have been locked exclusively by the caller, because the transaction
-will not be committed.
-@return error code or DB_SUCCESS */
-dberr_t
-row_merge_rename_tables_dict(
-/*=========================*/
-	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
-					tmp_name */
-	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
-					old_table->name */
-	const char*	tmp_name,	/*!< in: new name for old_table */
-	trx_t*		trx)		/*!< in/out: dictionary transaction */
-{
-	dberr_t		err	= DB_ERROR;
-	pars_info_t*	info;
-
-	ut_ad(!srv_read_only_mode);
-	ut_ad(old_table != new_table);
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE
-	      || trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-
-	trx->op_info = "renaming tables";
-
-	/* We use the private SQL parser of Innobase to generate the query
-	graphs needed in updating the dictionary data in system tables. */
-
-	info = pars_info_create();
-
-	pars_info_add_str_literal(info, "new_name", new_table->name.m_name);
-	pars_info_add_str_literal(info, "old_name", old_table->name.m_name);
-	pars_info_add_str_literal(info, "tmp_name", tmp_name);
-
-	err = que_eval_sql(info,
-			   "PROCEDURE RENAME_TABLES () IS\n"
-			   "BEGIN\n"
-			   "UPDATE SYS_TABLES SET NAME = :tmp_name\n"
-			   " WHERE NAME = :old_name;\n"
-			   "UPDATE SYS_TABLES SET NAME = :old_name\n"
-			   " WHERE NAME = :new_name;\n"
-			   "END;\n", FALSE, trx);
-
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old table being
-	renamed is a single-table tablespace, which must be implicitly
-	renamed along with the table. */
-	if (err == DB_SUCCESS
-	    && dict_table_is_file_per_table(old_table)
-	    && !old_table->ibd_file_missing) {
-		/* Make pathname to update SYS_DATAFILES. */
-		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
-
-		info = pars_info_create();
-
-		pars_info_add_str_literal(info, "tmp_name", tmp_name);
-		pars_info_add_str_literal(info, "tmp_path", tmp_path);
-		pars_info_add_int4_literal(info, "old_space",
-					   (lint) old_table->space);
-
-		err = que_eval_sql(info,
-				   "PROCEDURE RENAME_OLD_SPACE () IS\n"
-				   "BEGIN\n"
-				   "UPDATE SYS_TABLESPACES"
-				   " SET NAME = :tmp_name\n"
-				   " WHERE SPACE = :old_space;\n"
-				   "UPDATE SYS_DATAFILES"
-				   " SET PATH = :tmp_path\n"
-				   " WHERE SPACE = :old_space;\n"
-				   "END;\n", FALSE, trx);
-
-		ut_free(tmp_path);
-	}
-
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new table being
-	renamed is a single-table tablespace, which must be implicitly
-	renamed along with the table. */
-	if (err == DB_SUCCESS
-	    && dict_table_is_file_per_table(new_table)) {
-		/* Make pathname to update SYS_DATAFILES. */
-		char* old_path = row_make_new_pathname(
-			new_table, old_table->name.m_name);
-
-		info = pars_info_create();
-
-		pars_info_add_str_literal(info, "old_name",
-					  old_table->name.m_name);
-		pars_info_add_str_literal(info, "old_path", old_path);
-		pars_info_add_int4_literal(info, "new_space",
-					   (lint) new_table->space);
-
-		err = que_eval_sql(info,
-				   "PROCEDURE RENAME_NEW_SPACE () IS\n"
-				   "BEGIN\n"
-				   "UPDATE SYS_TABLESPACES"
-				   " SET NAME = :old_name\n"
-				   " WHERE SPACE = :new_space;\n"
-				   "UPDATE SYS_DATAFILES"
-				   " SET PATH = :old_path\n"
-				   " WHERE SPACE = :new_space;\n"
-				   "END;\n", FALSE, trx);
-
-		ut_free(old_path);
-	}
-
-	if (err == DB_SUCCESS && dict_table_is_discarded(new_table)) {
-		err = row_import_update_discarded_flag(
-			trx, new_table->id, true, true);
-	}
-
-	trx->op_info = "";
-
-	return(err);
-}
-
-/** Create and execute a query graph for creating an index.
-@param[in,out]	trx	trx
-@param[in,out]	table	table
-@param[in,out]	index	index
-@param[in]	add_v	new virtual columns added along with add index call
-@return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result))
-dberr_t
-row_merge_create_index_graph(
-	trx_t*			trx,
-	dict_table_t*		table,
-	dict_index_t*		index,
-	const dict_add_v_col_t* add_v)
-{
-	ind_node_t*	node;		/*!< Index creation node */
-	mem_heap_t*	heap;		/*!< Memory heap */
-	que_thr_t*	thr;		/*!< Query thread */
-	dberr_t		err;
-
-	DBUG_ENTER("row_merge_create_index_graph");
-
-	ut_ad(trx);
-	ut_ad(table);
-	ut_ad(index);
-
-	heap = mem_heap_create(512);
-
-	index->table = table;
-	node = ind_create_graph_create(index, heap, add_v);
-	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
-
-	ut_a(thr == que_fork_start_command(
-			static_cast<que_fork_t*>(que_node_get_parent(thr))));
-
-	que_run_threads(thr);
-
-	err = trx->error_state;
-
-	que_graph_free((que_t*) que_node_get_parent(thr));
-
-	DBUG_RETURN(err);
-}
-#endif /* INNODB_NO_NEW_DD */
 
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
@@ -4238,9 +3775,6 @@ row_merge_create_index(
 		DBUG_RETURN(NULL);
 	}
 
-#ifdef INNODB_NO_NEW_DD
-	index->skip_step = true;
-
 	/* Adjust field name for newly added virtual columns. */
 	for (i = 0; i < n_fields; i++) {
 		index_field_t*	ifield = &index_def->fields[i];
@@ -4253,16 +3787,6 @@ row_merge_create_index(
 				ifield->col_no - table->n_v_def];
 		}
 	}
-
-	/* Add the index to SYS_INDEXES, using the index prototype. */
-	err = row_merge_create_index_graph(trx, table, index, add_v);
-
-	index->skip_step = false;
-
-	if (err != DB_SUCCESS) {
-		DBUG_RETURN(NULL);
-	}
-#endif /* INNODB_NO_NEW_DD */
 
 	index->parser = index_def->parser;
 	index->is_ngram = index_def->is_ngram;

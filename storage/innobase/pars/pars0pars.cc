@@ -1793,97 +1793,7 @@ pars_create_table(
 	sym_node_t*	block_size,
 	void*		not_fit_in_memory MY_ATTRIBUTE((unused)))
 {
-#ifdef INNODB_NO_NEW_DD
-	dict_table_t*	table;
-	sym_node_t*	column;
-	tab_node_t*	node;
-	const dtype_t*	dtype;
-	ulint		n_cols;
-	ulint		flags = 0;
-	ulint		flags2 = 0;
-
-	if (compact != NULL) {
-
-		/* System tables currently only use the REDUNDANT row
-		format therefore the check for srv_file_per_table should be
-		safe for now. */
-
-		flags |= DICT_TF_COMPACT;
-
-		/* FIXME: Ideally this should be part of the SQL syntax
-		or use some other mechanism. We want to reduce dependency
-		on global variables. There is an inherent race here but
-		that has always existed around this variable. */
-		if (srv_file_per_table) {
-			flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
-		}
-	}
-
-	if (block_size != NULL) {
-		ulint		size;
-		dfield_t*	dfield;
-
-		dfield = que_node_get_val(block_size);
-
-		ut_a(dfield_get_len(dfield) == 4);
-		size = mach_read_from_4(static_cast<byte*>(
-			dfield_get_data(dfield)));
-
-
-		switch (size) {
-		case 0:
-			break;
-
-		case 1: case 2: case 4: case 8: case 16:
-			flags |= DICT_TF_COMPACT;
-			/* FTS-FIXME: needs the zip changes */
-			/* flags |= size << DICT_TF_COMPRESSED_SHIFT; */
-			break;
-
-		default:
-			ut_error;
-		}
-	}
-
-	/* Set the flags2 when create table or alter tables */
-	flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
-	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
-			flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
-
-
-	n_cols = que_node_list_get_len(column_defs);
-
-	table = dict_mem_table_create(
-		table_sym->name, 0, n_cols, 0, flags, flags2);
-
-#ifdef UNIV_DEBUG
-	if (not_fit_in_memory != NULL) {
-		table->does_not_fit_in_memory = TRUE;
-	}
-#endif /* UNIV_DEBUG */
-	column = column_defs;
-
-	while (column) {
-		dtype = dfield_get_type(que_node_get_val(column));
-
-		dict_mem_table_add_col(table, table->heap,
-				       column->name, dtype->mtype,
-				       dtype->prtype, dtype->len);
-		column->resolved = TRUE;
-		column->token_type = SYM_COLUMN;
-
-		column = static_cast<sym_node_t*>(que_node_get_next(column));
-	}
-
-	node = tab_create_graph_create(table, pars_sym_tab_global->heap);
-
-	table_sym->resolved = TRUE;
-	table_sym->token_type = SYM_TABLE;
-
-	return(node);
-#else
 	return(NULL);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /*********************************************************************//**
@@ -1900,50 +1810,7 @@ pars_create_index(
 					table */
 	sym_node_t*	column_list)	/*!< in: list of column names */
 {
-#ifdef INNODB_NO_NEW_DD
-	dict_index_t*	index;
-	sym_node_t*	column;
-	ind_node_t*	node;
-	ulint		n_fields;
-	ulint		ind_type;
-
-	n_fields = que_node_list_get_len(column_list);
-
-	ind_type = 0;
-
-	if (unique_def) {
-		ind_type = ind_type | DICT_UNIQUE;
-	}
-
-	if (clustered_def) {
-		ind_type = ind_type | DICT_CLUSTERED;
-	}
-
-	index = dict_mem_index_create(table_sym->name, index_sym->name, 0,
-				      ind_type, n_fields);
-	column = column_list;
-
-	while (column) {
-		index->add_field(column->name, 0);
-
-		column->resolved = TRUE;
-		column->token_type = SYM_COLUMN;
-
-		column = static_cast<sym_node_t*>(que_node_get_next(column));
-	}
-
-	node = ind_create_graph_create(index, pars_sym_tab_global->heap, NULL);
-
-	table_sym->resolved = TRUE;
-	table_sym->token_type = SYM_TABLE;
-
-	index_sym->resolved = TRUE;
-	index_sym->token_type = SYM_TABLE;
-
-	return(node);
-#else
 	return(NULL);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /*********************************************************************//**

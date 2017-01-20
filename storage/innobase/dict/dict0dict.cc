@@ -4575,28 +4575,13 @@ loop:
 			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
-		/**********************************************************/
-		/* The following call adds the foreign key constraints
-		to the data dictionary system tables on disk */
-#ifdef INNODB_NO_NEW_DD
-
-		error = dict_create_add_foreigns_to_dictionary(
-			local_fk_set, table, trx);
-
-		if (error == DB_SUCCESS) {
-#endif /* INNODB_NO_NEW_DD */
 #ifndef NO_NEW_DD_FK
-			std::for_each(local_fk_set.begin(),
-				      local_fk_set.end(),
-				      dict_foreign_free);
+		std::for_each(local_fk_set.begin(),
+				  local_fk_set.end(),
+				  dict_foreign_free);
 #endif /* NO_NEW_DD_FK */
-			local_fk_set.clear();
-#ifdef INNODB_NO_NEW_DD
-		}
-		return(error);
-#else
+		local_fk_set.clear();
 		return(DB_SUCCESS);
-#endif /* INNODB_NO_NEW_DD */
 	}
 
 	start_of_latest_foreign = ptr;
@@ -5888,11 +5873,6 @@ dict_set_corrupted(
 {
 	dict_table_t*	table = index->table;
 
-#ifdef INNODB_NO_NEW_DD
-	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
-	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
-#endif /* INNODB_NO_NEW_DD */
-
 	if (srv_missing_dd_table_buffer) {
 
 		index->type |= DICT_CORRUPT;
@@ -6076,82 +6056,6 @@ dict_persist_to_dd_table_buffer(void)
 
 	mutex_exit(&dict_persist->mutex);
 }
-
-#ifdef INNODB_NO_NEW_DD
-/** Sets merge_threshold in the SYS_INDEXES
-@param[in,out]	index		index
-@param[in]	merge_threshold	value to set */
-void
-dict_index_set_merge_threshold(
-	dict_index_t*	index,
-	ulint		merge_threshold)
-{
-	mem_heap_t*	heap;
-	mtr_t		mtr;
-	dict_index_t*	sys_index;
-	dtuple_t*	tuple;
-	dfield_t*	dfield;
-	byte*		buf;
-	btr_cur_t	cursor;
-
-	ut_ad(index != NULL);
-	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
-	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
-
-	rw_lock_x_lock(dict_operation_lock);
-	mutex_enter(&(dict_sys->mutex));
-
-	heap = mem_heap_create(sizeof(dtuple_t) + 2 * (sizeof(dfield_t)
-			       + sizeof(que_fork_t) + sizeof(upd_node_t)
-			       + sizeof(upd_t) + 12));
-
-	mtr_start(&mtr);
-	mtr.set_sys_modified();
-
-	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
-
-	/* Find the index row in SYS_INDEXES */
-	tuple = dtuple_create(heap, 2);
-
-	dfield = dtuple_get_nth_field(tuple, 0);
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(buf, index->table->id);
-	dfield_set_data(dfield, buf, 8);
-
-	dfield = dtuple_get_nth_field(tuple, 1);
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(buf, index->id);
-	dfield_set_data(dfield, buf, 8);
-
-	dict_index_copy_types(tuple, sys_index, 2);
-
-	btr_cur_search_to_nth_level(sys_index, 0, tuple, PAGE_CUR_GE,
-				    BTR_MODIFY_LEAF,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
-
-	if (cursor.up_match == dtuple_get_n_fields(tuple)
-	    && rec_get_n_fields_old(btr_cur_get_rec(&cursor))
-	       == DICT_NUM_FIELDS__SYS_INDEXES) {
-		ulint	len;
-		byte*	field	= rec_get_nth_field_old(
-			btr_cur_get_rec(&cursor),
-			DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
-
-		ut_ad(len == 4);
-
-		if (len == 4) {
-			mlog_write_ulint(field, merge_threshold,
-					 MLOG_4BYTES, &mtr);
-		}
-	}
-
-	mtr_commit(&mtr);
-	mem_heap_free(heap);
-
-	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(dict_operation_lock);
-}
-#endif /* INNODB_NO_NEW_DD */
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
@@ -6958,96 +6862,6 @@ dict_tf_to_row_format_string(
 	ut_error;
 	return(0);
 }
-
-#ifdef INNODB_NO_NEW_DD
-/** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space_id	Tablespace ID to search for.
-@return true if tablespace is empty. */
-bool
-dict_space_is_empty(space_id_t space_id)
-{
-	btr_pcur_t	pcur;
-	const rec_t*	rec;
-	mtr_t		mtr;
-	bool		found = false;
-
-	rw_lock_x_lock(dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-	mtr_start(&mtr);
-
-	for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
-	     rec != NULL;
-	     rec = dict_getnext_system(&pcur, &mtr)) {
-		const byte*	field;
-		ulint		len;
-		ulint		space_id_for_table;
-
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__SPACE, &len);
-		ut_ad(len == 4);
-		space_id_for_table = mach_read_from_4(field);
-
-		if (space_id_for_table == space_id) {
-			found = true;
-		}
-	}
-
-	mtr_commit(&mtr);
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(dict_operation_lock);
-
-	return(!found);
-}
-
-/** Find the space_id for the given name in sys_tablespaces.
-@param[in]	name	Tablespace name to search for.
-@return the tablespace ID. */
-space_id_t
-dict_space_get_id(
-	const char*	name)
-{
-	btr_pcur_t	pcur;
-	const rec_t*	rec;
-	mtr_t		mtr;
-	ulint		name_len = strlen(name);
-	space_id_t	id = SPACE_UNKNOWN;
-
-	rw_lock_x_lock(dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-	mtr_start(&mtr);
-
-	for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES);
-	     rec != NULL;
-	     rec = dict_getnext_system(&pcur, &mtr)) {
-		const byte*	field;
-		ulint		len;
-
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLESPACES__NAME, &len);
-		ut_ad(len > 0);
-		ut_ad(len < OS_FILE_MAX_PATH);
-
-		if (len == name_len && ut_memcmp(name, field, len) == 0) {
-
-			field = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_TABLESPACES__SPACE, &len);
-			ut_ad(len == 4);
-			id = mach_read_from_4(field);
-
-			/* This is normally called by dict_getnext_system()
-			at the end of the index. */
-			btr_pcur_close(&pcur);
-			break;
-		}
-	}
-
-	mtr_commit(&mtr);
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(dict_operation_lock);
-
-	return(id);
-}
-#endif /* INNODB_NO_NEW_DD */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table

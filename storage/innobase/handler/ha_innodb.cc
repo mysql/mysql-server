@@ -6895,9 +6895,6 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	char			norm_name[FN_REFLEN];
 	THD*			thd;
 	char*			is_part = NULL;
-#ifdef INNODB_NO_NEW_DD
-	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
-#endif /* INNODB_NO_NEW_DD */
 
 	DBUG_ENTER("ha_innobase::open");
 	DBUG_ASSERT(table_share == table->s);
@@ -6925,79 +6922,59 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	is_part = strstr(norm_name, "#P#");
 #endif /* _WIN32 */
 
-	/* Check whether FOREIGN_KEY_CHECKS is set to 0. If so, the table
-	can be opened even if some FK indexes are missing. If not, the table
-	can't be opened in the same situation */
-#ifdef INNODB_NO_NEW_DD
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		ignore_err = DICT_ERR_IGNORE_FK_NOKEY;
-	}
-#endif /* INNODB_NO_NEW_DD */
-
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
-#ifdef INNODB_NO_NEW_DD
-		/* TODO: NewDD: Ignore the InnoDB system table, as they are
-		not registered with newDD */
-		if (strstr(name, "sys") == nullptr) {
-#endif /* INNODB_NO_NEW_DD */
-			bool	cached = false;
-			ib_uint64_t	autoinc = 0;
+		bool	cached = false;
+		ib_uint64_t	autoinc = 0;
 
-			mutex_enter(&dict_sys->mutex);
-			ib_table = dict_table_check_if_in_cache_low(norm_name);
-			if (ib_table != NULL) {
-				if (ib_table->discard_after_ddl) {
-					btr_search_drop_table(ib_table);
-					dict_table_autoinc_lock(ib_table);
-					autoinc = dict_table_autoinc_read(
-						ib_table);
-					dict_table_autoinc_unlock(ib_table);
-					dict_table_remove_from_cache(
-						ib_table);
+		mutex_enter(&dict_sys->mutex);
+		ib_table = dict_table_check_if_in_cache_low(norm_name);
+		if (ib_table != NULL) {
+			if (ib_table->discard_after_ddl) {
+				btr_search_drop_table(ib_table);
+				dict_table_autoinc_lock(ib_table);
+				autoinc = dict_table_autoinc_read(
+					ib_table);
+				dict_table_autoinc_unlock(ib_table);
+				dict_table_remove_from_cache(
+					ib_table);
+				ib_table = NULL;
+			} else {
+				cached = true;
+				if (ib_table->is_corrupted()) {
+					dict_table_remove_from_cache(ib_table);
 					ib_table = NULL;
 				} else {
-					cached = true;
-					if (ib_table->is_corrupted()) {
-						dict_table_remove_from_cache(ib_table);
-						ib_table = NULL;
-					} else {
-						ib_table->acquire();
-					}
+					ib_table->acquire();
 				}
 			}
-
-			mutex_exit(&dict_sys->mutex);
-
-			if (!cached) {
-				dd::cache::Dictionary_client*	client
-					= dd::get_dd_client(thd);
-				dd::cache::Dictionary_client::Auto_releaser
-					releaser(client);
-
-				if (!(ib_table = dd_open_table(
-					client, table, norm_name,
-					nullptr, ib_table, dd_tab, false,
-					thd))) {
-					set_my_errno(ENOENT);
-					DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-				}
-				if (autoinc) {
-				dict_table_autoinc_lock(ib_table);
-				dict_table_autoinc_update_if_greater(
-					ib_table, autoinc);
-				dict_table_autoinc_unlock(ib_table);
-				}
-			}
-#ifdef INNODB_NO_NEW_DD
-		} else {
-			ib_table = open_dict_table(name, norm_name, is_part,
-                                           ignore_err);
 		}
-#endif /* INNODB_NO_NEW_DD */
+
+		mutex_exit(&dict_sys->mutex);
+
+		if (!cached) {
+			dd::cache::Dictionary_client*	client
+				= dd::get_dd_client(thd);
+			dd::cache::Dictionary_client::Auto_releaser
+				releaser(client);
+
+			if (!(ib_table = dd_open_table(
+				client, table, norm_name,
+				nullptr, ib_table, dd_tab, false,
+				thd))) {
+				set_my_errno(ENOENT);
+				DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+			}
+			if (autoinc) {
+			dict_table_autoinc_lock(ib_table);
+			dict_table_autoinc_update_if_greater(
+				ib_table, autoinc);
+			dict_table_autoinc_unlock(ib_table);
+			}
+		}
 	} else {
 		ib_table->acquire();
 		ut_ad(ib_table->is_intrinsic());
@@ -12698,47 +12675,6 @@ innobase_parse_hint_from_comment(
 		}
 	}
 
-#ifdef INNODB_NO_NEW_DD
-	/* update SYS_INDEX table */
-	if (!table->is_temporary()) {
-		for (uint i = 0; i < table_share->keys; i++) {
-			is_found[i] = false;
-		}
-
-		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-		     index != NULL;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-			if (dict_index_is_auto_gen_clust(index)) {
-
-				/* GEN_CLUST_INDEX should use
-				merge_threshold_table */
-				dict_index_set_merge_threshold(
-					index, merge_threshold_table);
-				continue;
-			}
-
-			for (uint i = 0; i < table_share->keys; i++) {
-				if (is_found[i]) {
-					continue;
-				}
-
-				KEY*	key_info = &table_share->key_info[i];
-
-				if (innobase_strcasecmp(
-					index->name, key_info->name) == 0) {
-
-					dict_index_set_merge_threshold(
-						index,
-						merge_threshold_index[i]);
-					is_found[i] = true;
-					break;
-				}
-			}
-		}
-	}
-#endif /* INNODB_NO_NEW_DD */
-
 	for (uint i = 0; i < table_share->keys; i++) {
 		is_found[i] = false;
 	}
@@ -15476,17 +15412,6 @@ innobase_drop_tablespace(
 	trx_start_if_not_started(trx, true);
 	row_mysql_lock_data_dictionary(trx);
 
-#ifdef INNODB_NO_NEW_DD
-	/* Update SYS_TABLESPACES and SYS_DATAFILES */
-	err = dict_delete_tablespace_and_datafiles(space_id, trx);
-	if (err != DB_SUCCESS) {
-		ib::error() << "Unable to delete the dictionary entries"
-			" for tablespace `" << alter_info->tablespace_name
-			<< "`, Space ID " << space_id;
-		goto have_error;
-	}
-#endif /* INNODB_NO_NEW_DD */
-
 	/* Delete the physical files, fil_space_t & fil_node_t entries. */
 	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 	switch (err) {
@@ -15500,9 +15425,6 @@ innobase_drop_tablespace(
 		ib::error() << "Unable to delete the tablespace `"
 			<< dd_space->name()
 			<< "`, Space ID " << space_id;
-#ifdef INNODB_NO_NEW_DD
-have_error:
-#endif /* INNODB_NO_NEW_DD */
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
 	}
@@ -15643,10 +15565,6 @@ innobase_drop_database(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
-
-	ulint	dummy;
-
-	row_drop_database_for_mysql(namebuf, trx, &dummy);
 
 	my_free(namebuf);
 

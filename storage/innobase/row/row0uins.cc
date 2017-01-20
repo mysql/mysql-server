@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -114,26 +114,6 @@ row_undo_ins_remove_clust_rec(
 		row_log_table_delete(rec, node->row, index, offsets, NULL);
 		mem_heap_free(heap);
 	}
-
-#ifdef INNODB_NO_NEW_DD
-	if (node->table->id == DICT_INDEXES_ID) {
-
-		ut_ad(!online);
-		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
-
-		dict_drop_index_tree(
-			btr_pcur_get_rec(&node->pcur), &(node->pcur), &mtr);
-
-		mtr_commit(&mtr);
-
-		mtr_start(&mtr);
-		mtr.set_sys_modified();
-
-		success = btr_pcur_restore_position(
-			BTR_MODIFY_LEAF, &node->pcur, &mtr);
-		ut_a(success);
-	}
-#endif
 
 	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;

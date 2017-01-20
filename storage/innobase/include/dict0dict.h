@@ -1440,14 +1440,6 @@ struct dict_sys_t{
 					by the data dictionary table and
 					index objects */
 
-#ifdef INNODB_NO_NEW_DD
-	dict_table_t*	sys_tables;	/*!< SYS_TABLES table */
-	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
-	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
-	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
-	dict_table_t*	sys_virtual;	/*!< SYS_VIRTUAL table */
-#endif /* INNODB_NO_NEW_DD */
-
 	/** Permanent handle to mysql.innodb_table_stats */
 	dict_table_t*	table_stats;
 	/** Permanent handle to mysql.innodb_index_stats */
@@ -1976,22 +1968,6 @@ dict_table_decode_n_col(
 	ulint	encoded,
 	ulint*	n_col,
 	ulint*	n_v_col);
-
-#ifdef INNODB_NO_NEW_DD
-/** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space_id	Tablespace ID to search for.
-@return true if tablespace is empty. */
-bool
-dict_space_is_empty(
-	space_id_t	space_id);
-
-/** Find the space_id for the given name in sys_tablespaces.
-@param[in]	name	Tablespace name to search for.
-@return the tablespace ID. */
-space_id_t
-dict_space_get_id(
-	const char*	name);
-#endif /* INNODB_NO_NEW_DD */
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */

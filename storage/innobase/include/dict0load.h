@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -162,18 +162,6 @@ dict_load_foreigns(
 						foreign key constraints. */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifdef INNODB_NO_NEW_DD
-/********************************************************************//**
-This function opens a system table, and return the first record.
-@return first record of the system table */
-const rec_t*
-dict_startscan_system(
-/*==================*/
-	btr_pcur_t*	pcur,		/*!< out: persistent cursor to
-					the record */
-	mtr_t*		mtr,		/*!< in: the mini-transaction */
-	dict_system_id_t system_id);	/*!< in: which system table to open */
-#endif /* INNODB_NO_NEW_DD */
 /********************************************************************//**
 This function get the next system table record as we scan the table.
 @return the record if found, NULL if end of scan. */

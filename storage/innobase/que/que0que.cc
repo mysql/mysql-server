@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1053,13 +1053,11 @@ que_thr_step(
 	} else if (type == QUE_NODE_ROLLBACK) {
 		thr = trx_rollback_step(thr);
 	} else if (type == QUE_NODE_CREATE_TABLE) {
-#ifdef INNODB_NO_NEW_DD
-		thr = dict_create_table_step(thr);
-#endif /* INNODB_NO_NEW_DD */
 	} else if (type == QUE_NODE_CREATE_INDEX) {
-#ifdef INNODB_NO_NEW_DD
-		thr = dict_create_index_step(thr);
-#endif /* INNODB_NO_NEW_DD */
+		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
+				ind_node_t*	node = static_cast<ind_node_t*>(thr->run_node);
+				node->page_no = FIL_NULL;
+				trx->error_state = DB_OUT_OF_FILE_SPACE;);
 	} else {
 		ut_error;
 	}
