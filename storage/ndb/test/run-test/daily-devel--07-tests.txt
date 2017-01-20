@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -97,4 +97,11 @@ cmd: testNdbApi
 args: -n CheckSlowCommit T1
 max-time : 180
 
+cmd: testDict
+args: -n StoreExtraMetadata T2
+max-time: 180
+
+cmd: testDict
+args: -n StoreExtraMetadataError T3
+max-time: 180
 
