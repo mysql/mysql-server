@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
     if (row_count > MAX_ROWS)
     {
       fprintf(stderr, "Found too many error messages. ");
-      fprintf(stderr, "Increase MAX_ROWS in extra/comp_err.c.\n");
+      fprintf(stderr, "Increase MAX_ROWS in utilities/comp_err.cc.\n");
       DBUG_RETURN(1);
     }
 #if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500

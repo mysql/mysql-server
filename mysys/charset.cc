@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -279,7 +279,7 @@ static int add_collation(CHARSET_INFO *cs)
         and get_charset_number() working even if a
         character set has not been really incompiled.
         The above functions are used for example
-        in error message compiler extra/comp_err.c.
+        in error message compiler utilities/comp_err.cc.
         If a character set was compiled, this information
         will get lost and overwritten in add_compiled_collation().
       */

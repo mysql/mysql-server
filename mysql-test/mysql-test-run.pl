@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -2750,18 +2750,18 @@ sub environment_setup {
   # my_print_defaults
   # ----------------------------------------------------
   my $exe_my_print_defaults=
-    mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
+    mtr_exe_exists(vs_config_dirs('utilities', 'my_print_defaults'),
 		   "$path_client_bindir/my_print_defaults",
-		   "$basedir/extra/my_print_defaults");
+		   "$basedir/utilities/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # Setup env so childs can execute innochecksum
   # ----------------------------------------------------
   my $exe_innochecksum=
-    mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
+    mtr_exe_exists(vs_config_dirs('utilities', 'innochecksum'),
                    "$path_client_bindir/innochecksum",
-                   "$basedir/extra/innochecksum");
+                   "$basedir/utilities/innochecksum");
   $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
   if ( $opt_valgrind_clients )
   {
@@ -2775,9 +2775,9 @@ sub environment_setup {
   # Setup env so childs can execute ibd2sdi
   # ----------------------------------------------------
   my $exe_ibd2sdi=
-    mtr_exe_exists(vs_config_dirs('extra', 'ibd2sdi'),
+    mtr_exe_exists(vs_config_dirs('utilities', 'ibd2sdi'),
                    "$path_client_bindir/ibd2sdi",
-                   "$basedir/extra/ibd2sdi");
+                   "$basedir/utilities/ibd2sdi");
   $ENV{'IBD2SDI'}= native_path($exe_ibd2sdi);
 
   if ( $opt_valgrind_clients )
@@ -2818,8 +2818,8 @@ sub environment_setup {
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
-  my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
-				 "$basedir/extra/perror",
+  my $exe_perror= mtr_exe_exists(vs_config_dirs('utilities', 'perror'),
+				 "$basedir/utilities/perror",
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
 
@@ -2838,16 +2838,16 @@ sub environment_setup {
   # ----------------------------------------------------
   # lz4_decompress
   # ----------------------------------------------------
-  my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'lz4_decompress'),
-                                 "$basedir/extra/lz4_decompress",
+  my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('utilities', 'lz4_decompress'),
+                                 "$basedir/utilities/lz4_decompress",
                                  "$path_client_bindir/lz4_decompress");
   $ENV{'LZ4_DECOMPRESS'}= native_path($exe_lz4_decompress);
 
   # ----------------------------------------------------
   # zlib_decompress
   # ----------------------------------------------------
-  my $exe_zlib_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'zlib_decompress'),
-                                 "$basedir/extra/zlib_decompress",
+  my $exe_zlib_decompress= mtr_exe_maybe_exists(vs_config_dirs('utilities', 'zlib_decompress'),
+                                 "$basedir/utilities/zlib_decompress",
                                  "$path_client_bindir/zlib_decompress");
   $ENV{'ZLIB_DECOMPRESS'}= native_path($exe_zlib_decompress);
 
