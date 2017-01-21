@@ -886,7 +886,7 @@ set x = 42|
 use test|
 drop database sp_db3|
 select routine_type, routine_schema, routine_name from information_schema.routines where routine_schema = 'sp_db3'|
-routine_type	routine_schema	routine_name
+ROUTINE_TYPE	ROUTINE_SCHEMA	ROUTINE_NAME
 drop procedure if exists rc|
 create procedure rc()
 begin
@@ -4778,7 +4778,7 @@ bug18344_012345678901
 bug18344_0123456789012
 select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
-routine_name	routine_schema
+ROUTINE_NAME	ROUTINE_SCHEMA
 bug18344	bug18344_012345678901
 bug18344_2	bug18344_012345678901
 bug18344	bug18344_0123456789012
@@ -4790,7 +4790,7 @@ schema_name like 'bug18344%'|
 SCHEMA_NAME
 select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
-routine_name	routine_schema
+ROUTINE_NAME	ROUTINE_SCHEMA
 drop function if exists bug12472|
 create function bug12472() returns int return (select count(*) from t1)|
 create table t3 as select bug12472() as i|
@@ -4988,22 +4988,22 @@ RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
@@ -5038,22 +5038,22 @@ RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
@@ -6282,7 +6282,7 @@ begin
 select p1, p2;
 end	latin1	latin1_swedish_ci	latin1_swedish_ci
 select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
-routine_name	routine_definition
+ROUTINE_NAME	ROUTINE_DEFINITION
 proc_25411_a	begin
 /* real comment */
 select 1;
@@ -6302,7 +6302,7 @@ select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
 end
 select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
-parameter_name
+PARAMETER_NAME
 call proc_25411_b(10, 20);
 p1	p2
 10	20
@@ -6894,7 +6894,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select routine_name from information_schema.routines where routine_name = 'p' and sql_mode = @full_mode;
-routine_name
+ROUTINE_NAME
 p
 drop procedure p;
 CREATE DEFINER = 'root'@'localhost' PROCEDURE p1()
@@ -7154,7 +7154,7 @@ COMMENT
 BEGIN
 END;
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
-routine_comment
+ROUTINE_COMMENT
 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 DROP PROCEDURE p1;
 #
@@ -7869,22 +7869,6 @@ f2()
 DROP DATABASE db1;
 DROP USER myuser@localhost;
 DROP FUNCTION f1;
-#
-# Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
-#               IN ::SET_ERROR_STATUS
-#
-CREATE DATABASE bug22222013;
-USE bug22222013;
-SET NAMES swe7;
-CREATE FUNCTION f1() RETURNS INT RETURN (1);
-CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
-SELECT sql_data_access FROM information_schema.routines WHERE
-specific_name like 'p%' and routine_schema=0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '??@?? FUNCTION ?bug22222013?.?f1?() RETURNS int(11)
-RETURN NULL' at line 1
-DROP DATABASE bug22222013;
-SET NAMES default;
-USE test;
 #
 # WL#7897 -- Use DD API for Stored Routines.
 # Basic test to verify:

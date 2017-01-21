@@ -1836,7 +1836,7 @@ Warnings:
 Note	1305	PROCEDURE db_storedproc.sp11 does not exist
 CREATE PROCEDURE sp11() insert into mysql.t1 values('a');
 SELECT security_type from information_schema.routines where specific_name='sp11';
-security_type
+SECURITY_TYPE
 DEFINER
 	
 user_1@localhost	db_storedproc
@@ -1846,7 +1846,7 @@ USE db_storedproc;
 root@localhost	db_storedproc
 alter procedure sp11 sql security invoker;
 SELECT security_type from information_schema.routines where specific_name='sp11';
-security_type
+SECURITY_TYPE
 INVOKER
 	
 user_1@localhost	db_storedproc
@@ -1858,7 +1858,7 @@ commit work;
 root@localhost	db_storedproc
 alter procedure sp11 sql security DEFINER;
 SELECT security_type from information_schema.routines where specific_name='sp11';
-security_type
+SECURITY_TYPE
 DEFINER
 CALL sp11();
 DROP USER 'user_1'@'localhost';
@@ -1872,21 +1872,21 @@ alter function
 CREATE FUNCTION fn12() returns int
 return 100;
 SELECT security_type from information_schema.routines where specific_name='fn12';
-security_type
+SECURITY_TYPE
 DEFINER
 SELECT fn12();
 fn12()
 100
 alter function fn12 sql security invoker;
 SELECT security_type from information_schema.routines where specific_name='fn12';
-security_type
+SECURITY_TYPE
 INVOKER
 SELECT fn12();
 fn12()
 100
 alter function fn12 sql security DEFINER;
 SELECT security_type from information_schema.routines where specific_name='fn12';
-security_type
+SECURITY_TYPE
 DEFINER
 SELECT fn12();
 fn12()
@@ -1919,11 +1919,11 @@ Note	1305	FUNCTION db_storedproc.fn12 does not exist
 CREATE FUNCTION fn12() returns int
 return 100;
 SELECT routine_comment from information_schema.routines where specific_name='fn12';
-routine_comment
+ROUTINE_COMMENT
 
 alter function fn12 comment 'this is simple';
 SELECT routine_comment from information_schema.routines where specific_name='fn12';
-routine_comment
+ROUTINE_COMMENT
 this is simple
 DROP FUNCTION fn12;
 
@@ -3500,13 +3500,13 @@ USE db1;
 alter procedure db_storedproc.sp1 sql security invoker;
 SELECT routine_name, routine_type, security_type from information_schema.routines
 where routine_schema like 'db_storedproc%' and routine_name='sp1';
-routine_name	routine_type	security_type
+ROUTINE_NAME	ROUTINE_TYPE	SECURITY_TYPE
 sp1	FUNCTION	DEFINER
 sp1	PROCEDURE	INVOKER
 alter function db_storedproc.sp1 sql security invoker;
 SELECT routine_name, routine_type, security_type from information_schema.routines
 where routine_schema like 'db_storedproc%' and routine_name='sp1';
-routine_name	routine_type	security_type
+ROUTINE_NAME	ROUTINE_TYPE	SECURITY_TYPE
 sp1	FUNCTION	INVOKER
 sp1	PROCEDURE	INVOKER
 CALL db_storedproc.sp1();
@@ -3526,7 +3526,7 @@ db_storedproc.sp1()
 alter function sp1 sql security DEFINER;
 SELECT routine_name, routine_type, security_type from information_schema.routines
 where routine_schema like 'db_storedproc%' and routine_name='sp1';
-routine_name	routine_type	security_type
+ROUTINE_NAME	ROUTINE_TYPE	SECURITY_TYPE
 sp1	FUNCTION	DEFINER
 sp1	PROCEDURE	DEFINER
 CALL db_storedproc.sp1();
@@ -3592,7 +3592,7 @@ ALTER PROCEDURE db_storedproc_3122.sp1 SQL SECURITY INVOKER;
 ALTER FUNCTION sp1 SQL SECURITY INVOKER;
 SELECT routine_name, routine_type, security_type from information_schema.routines
 where routine_schema like 'db_storedproc%' and routine_name='sp1';
-routine_name	routine_type	security_type
+ROUTINE_NAME	ROUTINE_TYPE	SECURITY_TYPE
 sp1	FUNCTION	DEFINER
 sp1	FUNCTION	INVOKER
 sp1	PROCEDURE	DEFINER
@@ -16215,7 +16215,7 @@ DROP PROCEDURE IF EXISTS sp5;
 CREATE PROCEDURE sp5()
 SELECT * from db_storedproc.t4 limit 0, 10;
 SELECT routine_schema from information_schema.routines where specific_name = 'sp5';
-routine_schema
+ROUTINE_SCHEMA
 db_storedproc
 DROP PROCEDURE sp5;
 
@@ -16229,7 +16229,7 @@ insert into t46 values ('abcd', 'wxyz');
 CREATE PROCEDURE db_storedproc.sp6()
 SELECT * from db_storedproc.t4 limit 0, 10;
 SELECT routine_schema from information_schema.routines where specific_name = 'sp6';
-routine_schema
+ROUTINE_SCHEMA
 db_storedproc
 drop table t46;
 DROP PROCEDURE sp6;

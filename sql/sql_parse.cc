@@ -2018,24 +2018,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   DBUG_ENTER("prepare_schema_table");
 
   switch (schema_table_idx) {
-  case SCH_TRIGGERS:
-  case SCH_EVENTS:
-    {
-      LEX_STRING db;
-      size_t dummy;
-      if (lex->select_lex->db == NULL &&
-          lex->copy_db_to(&lex->select_lex->db, &dummy))
-        DBUG_RETURN(1);
-      if ((schema_select_lex= lex->new_empty_query_block()) == NULL)
-        DBUG_RETURN(1);      /* purecov: inspected */
-      db.str= schema_select_lex->db= lex->select_lex->db;
-      schema_select_lex->table_list.first= NULL;
-      db.length= strlen(db.str);
-
-      if (check_and_convert_db_name(&db, false) != Ident_name_check::OK)
-        DBUG_RETURN(1);
-      break;
-    }
   case SCH_TMP_TABLE_COLUMNS:
   case SCH_TMP_TABLE_KEYS:
   {
@@ -2060,7 +2042,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   case SCH_OPTIMIZER_TRACE:
   case SCH_OPEN_TABLES:
-  case SCH_PROCEDURES:
   case SCH_ENGINES:
   case SCH_USER_PRIVILEGES:
   case SCH_SCHEMA_PRIVILEGES:
@@ -4677,11 +4658,13 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
   {
     // For below show commands, perform check_show_access() call
     case SQLCOM_SHOW_DATABASES:
+    case SQLCOM_SHOW_EVENTS:
       new_dd_show= true;
       break;
 
     case SQLCOM_SHOW_TABLES:
     case SQLCOM_SHOW_TABLE_STATUS:
+    case SQLCOM_SHOW_TRIGGERS:
     {
       new_dd_show= true;
 
@@ -4692,9 +4675,6 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
       if (make_lex_string_root(thd->mem_root, &lex_str_db,
                                lex->select_lex->db,
                                strlen(lex->select_lex->db), false) == nullptr)
-        return true;
-
-      if (check_and_convert_db_name(&lex_str_db, false) != Ident_name_check::OK)
         return true;
 
       // Acquire IX MDL lock on schema name.

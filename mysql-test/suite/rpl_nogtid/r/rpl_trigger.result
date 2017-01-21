@@ -93,12 +93,12 @@ a=b && a=c
 SELECT routine_name, definer
 FROM information_schema.routines
 WHERE routine_name = 'bug12480';
-routine_name	definer
+ROUTINE_NAME	DEFINER
 bug12480	root@localhost
 SELECT trigger_name, definer
 FROM information_schema.triggers
 WHERE trigger_name = 't1_first';
-trigger_name	definer
+TRIGGER_NAME	DEFINER
 t1_first	root@localhost
 include/sync_slave_sql_with_master.inc
 
@@ -106,12 +106,12 @@ include/sync_slave_sql_with_master.inc
 SELECT routine_name, definer
 FROM information_schema.routines
 WHERE routine_name = 'bug12480';
-routine_name	definer
+ROUTINE_NAME	DEFINER
 bug12480	root@localhost
 SELECT trigger_name, definer
 FROM information_schema.triggers
 WHERE trigger_name = 't1_first';
-trigger_name	definer
+TRIGGER_NAME	DEFINER
 t1_first	root@localhost
 select a=b && a=c from t1;
 a=b && a=c
@@ -1036,13 +1036,16 @@ tr1_1_bi	INSERT	t1	SET @a:=11	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,S
 tr2_bi	INSERT	t1	SET @a:=2	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 tr1_bu	UPDATE	t1	SET @b:=1	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 tr2_bu	UPDATE	t1	SET @b:=2	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-SELECT trigger_name, action_order, created FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order	created
+SELECT trigger_name, action_order, created
+FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER	CREATED
 tr0_bi	1	2013-01-31 09:00:00.00
-tr1_bi	2	2013-01-31 09:00:00.00
 tr1_1_bi	3	2013-01-31 09:00:00.00
-tr2_bi	4	2013-01-31 09:00:00.00
+tr1_bi	2	2013-01-31 09:00:00.00
 tr1_bu	1	2013-01-31 09:00:00.00
+tr2_bi	4	2013-01-31 09:00:00.00
 tr2_bu	2	2013-01-31 09:00:00.00
 DROP TABLE t1;
 include/rpl_end.inc

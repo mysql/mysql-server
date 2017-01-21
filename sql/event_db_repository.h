@@ -2,7 +2,7 @@
 #define _EVENT_DB_REPOSITORY_H_
 
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,8 +95,6 @@ public:
 
   bool load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                         Event_basic *et);
-
-  bool fill_schema_events(THD *thd, TABLE_LIST *tables, const char *db);
 
   bool update_timing_fields_for_event(THD *thd,
                                       LEX_STRING event_db_name,

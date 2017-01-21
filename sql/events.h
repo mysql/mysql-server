@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,9 +139,6 @@ public:
   static int reconstruct_interval_expression(String *buf,
                                              interval_type interval,
                                              longlong expression);
-
-  static int fill_schema_events(THD *thd, TABLE_LIST *tables,
-                                Item * /* cond */);
 
   static void dump_internal_status();
 

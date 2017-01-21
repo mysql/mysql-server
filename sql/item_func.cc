@@ -9218,9 +9218,76 @@ longlong Item_func_can_access_database::val_int()
   DBUG_RETURN(TRUE);
 }
 
+static
+bool check_table_and_trigger_access(Item **args,
+                                    bool check_trigger_acl,
+                                    bool *null_value)
+{
+  DBUG_ENTER("check_table_and_trigger_access");
+
+  // Read schema_name, table_name
+  String schema_name;
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  String table_name;
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
+  {
+    *null_value= true;
+    DBUG_RETURN(false);
+  }
+
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+
+  // Check if table is hidden.
+  THD *thd= current_thd;
+  if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(false);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()))
+    DBUG_RETURN(true);
+
+  // Check access
+  ulong db_access= 0;
+  if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
+                   &db_access, nullptr, false, true))
+    DBUG_RETURN(false);
+
+  TABLE_LIST table_list;
+  memset(&table_list, 0, sizeof (table_list));
+  table_list.db= schema_name_ptr->ptr();
+  table_list.db_length= schema_name_ptr->length();
+  table_list.table_name= table_name_ptr->ptr();
+  table_list.table_name_length= table_name_ptr->length();
+  table_list.grant.privilege= db_access;
+
+  if (check_trigger_acl == false)
+  {
+    if (db_access & TABLE_ACLS)
+      DBUG_RETURN(true);
+
+    // Check table access
+    if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+      DBUG_RETURN(false);
+  }
+  else // Trigger check.
+  {
+    // Check trigger access
+    if (check_trigger_acl &&
+        check_table_access(thd, TRIGGER_ACL, &table_list, false, 1, true))
+      DBUG_RETURN(false);
+  }
+#endif
+
+  DBUG_RETURN(true);
+}
+
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from DD using system views.
+    INFORMATION_SCHEMA picks metadata from new DD using system views.
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
@@ -9235,12 +9302,141 @@ longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
 
+  if (check_table_and_trigger_access(args, false, &null_value))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from new DD using system views. In
+    order for INFORMATION_SCHEMA to skip listing table for which the user
+    does not have rights on triggers, the following UDF's is used.
+
+  Syntax:
+    int CAN_ACCCESS_TRIGGER(schema_name, table_name);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+longlong Item_func_can_access_trigger::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_trigger::val_int");
+
+  if (check_table_and_trigger_access(args, true, &null_value))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views. In
+    order for INFORMATION_SCHEMA to skip listing routine for which the user
+    does not have rights, the following UDF's is used.
+
+  Syntax:
+    int CAN_ACCESS_ROUTINE(schema_name, name, type, user, definer,
+                           check_full_access);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+longlong Item_func_can_access_routine::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_routine::val_int");
+
   // Read schema_name, table_name
   String schema_name;
+  String routine_name;
+  String type;
+  String definer;
   String *schema_name_ptr= args[0]->val_str(&schema_name);
-  String table_name;
-  String *table_name_ptr= args[1]->val_str(&table_name);
-  if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
+  String *routine_name_ptr= args[1]->val_str(&routine_name);
+  String *type_ptr= args[2]->val_str(&type);
+  String *definer_ptr= args[3]->val_str(&definer);
+  bool check_full_access= args[4]->val_int();
+  if (schema_name_ptr == nullptr || routine_name_ptr == nullptr ||
+      type_ptr == nullptr || definer_ptr == nullptr || args[4]->null_value)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Make strings safe.
+  schema_name_ptr->c_ptr_safe();
+  routine_name_ptr->c_ptr_safe();
+  type_ptr->c_ptr_safe();
+  definer_ptr->c_ptr_safe();
+
+  bool is_procedure= (strcmp(type_ptr->ptr(), "PROCEDURE") == 0);
+
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()) ||
+      !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
+    DBUG_RETURN(TRUE);
+
+  /*
+    Before WL#7897 changes, full access to routine information is provided to
+    the definer of routine and to the user having SELECT privilege on
+    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
+    definer user can not have full access on the routine. So backup of routine
+    or getting exact create string of stored routine is not possible with this
+    change.
+    So as workaround for this issue, currently full access on stored routine
+    provided to any user having global SELECT privilege.
+    Correct solution to this issue will be provided with the WL#8131
+    and WL#9049.
+  */
+  THD *thd= current_thd;
+  char sp_user[USER_HOST_BUFF_SIZE];
+  strxmov(sp_user, thd->security_context()->priv_user().str, "@",
+          thd->security_context()->priv_host().str, NullS);
+  bool full_access= (thd->security_context()->check_access(SELECT_ACL) ||
+                     !strcmp(sp_user, definer_ptr->ptr()));
+
+  if (check_full_access)
+  {
+    DBUG_RETURN(full_access ? TRUE : FALSE);
+  }
+  else if (!full_access &&
+           check_some_routine_access(thd,
+                                     schema_name_ptr->ptr(),
+                                     routine_name_ptr->ptr(),
+                                     is_procedure))
+  {
+    DBUG_RETURN(FALSE);
+  }
+
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views.
+    In order for INFORMATION_SCHEMA to skip listing event for which
+    the user does not have rights, the following internal functions are used.
+
+  Syntax:
+    int CAN_ACCCESS_EVENT(schema_name);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+
+longlong Item_func_can_access_event::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_event::val_int");
+
+  // Read schema_name
+  String schema_name;
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  if (schema_name_ptr == nullptr)
   {
     null_value= TRUE;
     DBUG_RETURN(FALSE);
@@ -9248,11 +9444,10 @@ longlong Item_func_can_access_table::val_int()
 
   // Make sure we have safe string to access.
   schema_name_ptr->c_ptr_safe();
-  table_name_ptr->c_ptr_safe();
 
-  // Check if table is hidden.
+  // Check if schema is hidden.
   THD *thd= current_thd;
-  if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+  if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
     DBUG_RETURN(FALSE);
 
   // Skip INFORMATION_SCHEMA database
@@ -9260,26 +9455,9 @@ longlong Item_func_can_access_table::val_int()
     DBUG_RETURN(TRUE);
 
   // Check access
-  ulong db_access= 0;
-  if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
-                   &db_access, nullptr, false, true))
-    DBUG_RETURN(FALSE);
-
-  if (!(db_access & TABLE_ACLS))
+  if (check_access(thd, EVENT_ACL, schema_name_ptr->ptr(), NULL, NULL, 0, 1))
   {
-    TABLE_LIST table_list;
-    memset(&table_list, 0, sizeof (table_list));
-    table_list.db= schema_name_ptr->ptr();
-    table_list.db_length= schema_name_ptr->length();
-    table_list.table_name= table_name_ptr->ptr();
-    table_list.table_name_length= table_name_ptr->length();
-    table_list.grant.privilege= db_access;
-
-    // Check access
-    if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
-    {
-      DBUG_RETURN(FALSE);
-    }
+    DBUG_RETURN(FALSE);
   }
 
   DBUG_RETURN(TRUE);

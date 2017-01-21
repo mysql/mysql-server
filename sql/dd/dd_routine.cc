@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,52 +83,6 @@ enum_sp_return_code find_routine(cache::Dictionary_client *dd_client,
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
-  Helper method to get numeric scale for types using Create_field type object.
-
-  @param[in]  field      Field object.
-  @param[out] scale      numeric scale value for types.
-
-  @retval false  ON SUCCESS
-  @retval true   ON FAILURE
-*/
-
-static bool get_field_numeric_scale(Create_field *field, uint *scale)
-{
-  bool error= false;
-
-  DBUG_ASSERT(*scale == 0);
-
-  switch (field->sql_type)
-  {
-  case MYSQL_TYPE_FLOAT:
-  case MYSQL_TYPE_DOUBLE:
-    /* For these types we show NULL in I_S if scale was not given. */
-    if (field->decimals != NOT_FIXED_DEC)
-      *scale= field->decimals;
-    else
-      error= true;
-    break;
-  case MYSQL_TYPE_NEWDECIMAL:
-  case MYSQL_TYPE_DECIMAL:
-    *scale= field->decimals;
-    break;
-  case MYSQL_TYPE_TINY:
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_LONGLONG:
-    DBUG_ASSERT(field->decimals == 0);
-    break;
-  default:
-    error= true;
-  }
-
-  return error;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-/**
   Helper method for create_routine() to fill return type information of stored
   routine from the sp_head.
   from the sp_head.
@@ -152,6 +105,20 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   // Set result data type.
   sf->set_result_data_type(get_new_field_type(return_field->sql_type));
 
+  // We need a fake table and share to generate a utf8 string
+  // representation of result data type.
+  TABLE table;
+  TABLE_SHARE share;
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
+  table.s= &share;
+  table.in_use= thd;
+  table.s->db_low_byte_first= 1;
+
+  // Reset result data type in utf8
+  sf->set_result_data_type_utf8(
+        get_sql_type_by_create_field(&table, return_field));
+
   // Set result is_zerofill flag.
   sf->set_result_zerofill(return_field->is_zerofill);
 
@@ -161,12 +128,22 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   // set result char length.
   sf->set_result_char_length(return_field->length);
 
-  // Set result numric scale.
+  // Set result numeric precision.
+  uint numeric_precision= 0;
+  if (get_field_numeric_precision(return_field, &numeric_precision) == false)
+    sf->set_result_numeric_precision(numeric_precision);
+
+  // Set result numeric scale.
   uint scale= 0;
-  if (!get_field_numeric_scale(return_field, &scale))
+  if (get_field_numeric_scale(return_field, &scale) == false ||
+      numeric_precision)
     sf->set_result_numeric_scale(scale);
   else
     DBUG_ASSERT(sf->is_result_numeric_scale_null());
+
+  uint dt_precision= 0;
+  if (get_field_datetime_precision(return_field, &dt_precision) == false)
+    sf->set_result_datetime_precision(dt_precision);
 
   // Set result collation id.
   sf->set_result_collation_id(return_field->charset->number);
@@ -181,6 +158,7 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   from the object of type Create_field.
   Method is called by the fill_routine_parameters_info().
 
+  @param[in]  thd      Thread handle.
   @param[in]  field    Object of type Create_field.
   @param[out] param    Parameter object to be filled using the state of field
                        object.
@@ -189,13 +167,27 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   @retval true   ON FAILURE
 */
 
-static bool fill_parameter_info_from_field(Create_field *field,
+static bool fill_parameter_info_from_field(THD *thd,
+                                           Create_field *field,
                                            dd::Parameter *param)
 {
   DBUG_ENTER("fill_parameter_info_from_field");
 
   // Set data type.
   param->set_data_type(get_new_field_type(field->sql_type));
+
+  // We need a fake table and share to generate the default values.
+  // We prepare these once, and reuse them for all fields.
+  TABLE table;
+  TABLE_SHARE share;
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
+  table.s= &share;
+  table.in_use= thd;
+  table.s->db_low_byte_first= 1;
+
+  // Reset data type in utf8
+  param->set_data_type_utf8(get_sql_type_by_create_field(&table, field));
 
   // Set is_zerofill flag.
   param->set_zerofill(field->is_zerofill);
@@ -206,12 +198,21 @@ static bool fill_parameter_info_from_field(Create_field *field,
   // Set char length.
   param->set_char_length(field->length);
 
+  // Set result numeric precision.
+  uint numeric_precision= 0;
+  if (get_field_numeric_precision(field, &numeric_precision) == false)
+    param->set_numeric_precision(numeric_precision);
+
   // Set numeric scale.
   uint scale= 0;
   if (!get_field_numeric_scale(field, &scale))
     param->set_numeric_scale(scale);
   else
     DBUG_ASSERT(param->is_numeric_scale_null());
+
+  uint dt_precision= 0;
+  if (get_field_datetime_precision(field, &dt_precision) == false)
+    param->set_datetime_precision(dt_precision);
 
   // Set geometry sub type
   if (field->sql_type == MYSQL_TYPE_GEOMETRY)
@@ -275,7 +276,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
     dd::Parameter *param= routine->add_parameter();
 
     // Fill return type information.
-    fill_parameter_info_from_field(&sp->m_return_field_def, param);
+    fill_parameter_info_from_field(thd, &sp->m_return_field_def, param);
   }
 
   // Fill parameter information of the stored routine.
@@ -312,7 +313,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
     param->set_mode(mode);
 
     // Fill return type information.
-    fill_parameter_info_from_field(field_def, param);
+    fill_parameter_info_from_field(thd, field_def, param);
   }
 
   DBUG_RETURN(false);

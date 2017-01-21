@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -236,18 +236,12 @@ dd::enum_column_types get_new_field_type(enum_field_types type)
 
 
 /**
-  @brief Function returns string representing column type by Create_field.
-         This is required for the IS implementation which uses views on DD
-         tables
-
-  @param[in]   table           TABLE object.
-  @param[in]   field           Column information.
-
-  @return dd::String_type representing column type.
+  Function returns string representing column type by Create_field.
+  This is required for the IS implementation which uses views on DD
 */
 
-static dd::String_type get_sql_type_by_create_field(TABLE *table,
-                                                Create_field *field)
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             Create_field *field)
 {
   DBUG_ENTER("get_sql_type_by_create_field");
 
@@ -378,6 +372,126 @@ static void prepare_default_value_string(THD *thd,
   }
 }
 
+/**
+  Helper method to get numeric scale for types using
+  Create_field type object.
+*/
+bool get_field_numeric_scale(Create_field *field, uint *scale)
+{
+  DBUG_ASSERT(*scale == 0);
+
+  switch (field->sql_type)
+  {
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    /* For these types we show NULL in I_S if scale was not given. */
+    if (field->decimals != NOT_FIXED_DEC)
+    {
+      *scale= field->decimals;
+      return false;
+    }
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_DECIMAL:
+    *scale= field->decimals;
+    return false;
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONGLONG:
+    DBUG_ASSERT(field->decimals == 0);
+  default:
+    return true;
+  }
+
+  return true;
+}
+
+/**
+  Helper method to get numeric precision for types using
+  Create_field type object.
+*/
+bool get_field_numeric_precision(Create_field *field,
+                                 uint *numeric_precision)
+{
+  switch(field->sql_type)
+  {
+    // these value is taken from Field_XXX::max_display_length() -1
+  case MYSQL_TYPE_TINY:
+    *numeric_precision= 3;
+    return false;
+  case MYSQL_TYPE_SHORT:
+    *numeric_precision= 5;
+    return false;
+  case MYSQL_TYPE_INT24:
+    *numeric_precision= 7;
+    return false;
+  case MYSQL_TYPE_LONG:
+    *numeric_precision= 10;
+    return false;
+  case MYSQL_TYPE_LONGLONG:
+    if (field->is_unsigned)
+      *numeric_precision= 20;
+    else
+      *numeric_precision= 19;
+
+    return false;
+  case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    *numeric_precision= field->length;
+    return false;
+  case MYSQL_TYPE_DECIMAL:
+    {
+      uint tmp= field->length;
+      if (!field->is_unsigned)
+        tmp--;
+      if (field->decimals)
+        tmp--;
+      *numeric_precision= tmp;
+      return false;
+    }
+  case MYSQL_TYPE_NEWDECIMAL:
+    *numeric_precision=
+      my_decimal_length_to_precision(field->length,
+                                     field->decimals,
+                                     field->is_unsigned);
+    return false;
+  default:
+    return true;
+  }
+
+  return true;
+}
+
+/**
+  Helper method to get datetime precision for types using
+  Create_field type object.
+*/
+bool get_field_datetime_precision(Create_field *field,
+                                  uint *datetime_precision)
+{
+  switch(field->sql_type)
+  {
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
+    *datetime_precision= field->length > MAX_DATETIME_WIDTH ?
+      (field->length - 1 - MAX_DATETIME_WIDTH) : 0;
+    return false;
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+    *datetime_precision= field->length > MAX_TIME_WIDTH ?
+      (field->length - 1 - MAX_TIME_WIDTH) : 0;
+    return false;
+  default:
+    return true;
+  }
+
+  return true;
+}
 
 static dd::String_type now_with_opt_decimals(uint decimals)
 {
@@ -474,83 +588,18 @@ fill_dd_columns_from_create_fields(THD *thd,
 
     col_obj->set_char_length(field->length);
 
-    bool unsigned_flag= field->is_unsigned;
-    uint field_length= field->length;
-    uint dec= field->decimals;
-    switch(field->sql_type)
-    {
-      // these value is taken from Field_XXX::max_display_length() -1
-      case MYSQL_TYPE_TINY:
-        col_obj->set_numeric_precision(3);
-        break;
-      case MYSQL_TYPE_SHORT:
-         col_obj->set_numeric_precision(5);
-        break;
-      case MYSQL_TYPE_INT24:
-        col_obj->set_numeric_precision(7);
-        break;
-      case MYSQL_TYPE_LONG:
-        col_obj->set_numeric_precision(10);
-        break;
-      case MYSQL_TYPE_LONGLONG:
-      {
-        if (unsigned_flag)
-          col_obj->set_numeric_precision(20);
-        else
-          col_obj->set_numeric_precision(19);
-        break;
-      }
-      case MYSQL_TYPE_BIT:
-        col_obj->set_numeric_precision(field_length);
-        break;
-      case MYSQL_TYPE_FLOAT:
-      case MYSQL_TYPE_DOUBLE:
-      {
-        if (field->decimals != NOT_FIXED_DEC)
-        {
-          col_obj->set_numeric_scale(dec);
-        }
-        col_obj->set_numeric_precision(field_length);
-        break;
-      }
-      case MYSQL_TYPE_DECIMAL:
-      {
-        uint tmp= field_length;
-        if (!unsigned_flag)
-          tmp--;
-        if (dec)
-          tmp--;
-        col_obj->set_numeric_scale(dec);
-        col_obj->set_numeric_precision(tmp);
-        break;
-      }
-      case MYSQL_TYPE_NEWDECIMAL:
-      {
-        uint length= my_decimal_length_to_precision(field_length,
-                                                    dec, unsigned_flag);
+    // Set result numeric scale.
+    uint value= 0;
+    if (get_field_numeric_scale(field, &value) == false)
+      col_obj->set_numeric_scale(value);
 
-        col_obj->set_numeric_scale(dec);
-        col_obj->set_numeric_precision(length);
-        break;
-      }
-      case MYSQL_TYPE_DATETIME2:
-      case MYSQL_TYPE_TIMESTAMP2:
-      {
-        uint tmp= field_length > MAX_DATETIME_WIDTH ?
-                    (field_length - 1 - MAX_DATETIME_WIDTH) : 0;
-        col_obj->set_datetime_precision(tmp);
-        break;
-      }
-      case MYSQL_TYPE_TIME2:
-      {
-        uint tmp= field_length > MAX_TIME_WIDTH ?
-                    (field_length - 1 - MAX_TIME_WIDTH) : 0;
-        col_obj->set_datetime_precision(tmp);
-        break;
-      }
-      default:
-        break;
-    }
+    // Set result numeric precision.
+    if (get_field_numeric_precision(field, &value) == false)
+      col_obj->set_numeric_precision(value);
+
+    // Set result datetime precision.
+    if (get_field_datetime_precision(field, &value) == false)
+      col_obj->set_datetime_precision(value);
 
     col_obj->set_nullable(field->maybe_null);
 

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -797,21 +797,17 @@ enum enum_schema_tables
   SCH_FIRST=0,
   SCH_COLUMN_PRIVILEGES=SCH_FIRST,
   SCH_ENGINES,
-  SCH_EVENTS,
   SCH_FILES,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
-  SCH_PARAMETERS,
   SCH_PARTITIONS,
   SCH_PLUGINS,
   SCH_PROCESSLIST,
   SCH_PROFILES,
   SCH_REFERENTIAL_CONSTRAINTS,
-  SCH_PROCEDURES,
   SCH_SCHEMA_PRIVILEGES,
   SCH_TABLESPACES,
   SCH_TABLE_PRIVILEGES,
-  SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
   SCH_TMP_TABLE_COLUMNS,
   SCH_TMP_TABLE_KEYS,

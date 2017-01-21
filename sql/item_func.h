@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2218,6 +2218,55 @@ public:
   longlong val_int() override;
   const char *func_name() const override { return "can_access_table"; }
   bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+class Item_func_can_access_trigger : public Item_int_func
+{
+public:
+  Item_func_can_access_trigger(const POS &pos, Item *a, Item *b)
+    : Item_int_func(pos, a, b)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "can_access_trigger"; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 4;
+    maybe_null= true;
+    return false;
+  }
+};
+
+class Item_func_can_access_routine : public Item_int_func
+{
+public:
+  Item_func_can_access_routine(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "can_access_routine"; }
+  bool resolve_type(THD *thd)
+  {
+    max_length= 4;
+    maybe_null= true;
+    return false;
+  }
+};
+
+class Item_func_can_access_event : public Item_int_func
+{
+public:
+  Item_func_can_access_event(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "can_access_event"; }
+  bool resolve_type(THD *thd)
   {
     max_length= 21;
     maybe_null= true;

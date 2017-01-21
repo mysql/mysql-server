@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1882,6 +1882,9 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 2) },
   { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 3) },
   { "CAN_ACCESS_VIEW", SQL_FN_INTERNAL(Item_func_can_access_view, 4) },
+  { "CAN_ACCESS_TRIGGER", SQL_FN_INTERNAL(Item_func_can_access_trigger, 2) },
+  { "CAN_ACCESS_ROUTINE", SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
+  { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
   { "INTERNAL_TABLE_ROWS", SQL_FN_INTERNAL(Item_func_internal_table_rows, 4) },
   { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_INTERNAL(Item_func_internal_avg_row_length, 4) },
   { "INTERNAL_DATA_LENGTH", SQL_FN_INTERNAL(Item_func_internal_data_length, 4) },

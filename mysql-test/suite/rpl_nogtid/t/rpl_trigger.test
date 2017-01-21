@@ -553,7 +553,10 @@ connection slave;
 
 SHOW TRIGGERS;
 
-SELECT trigger_name, action_order, created FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order, created
+  FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 connection master;
 

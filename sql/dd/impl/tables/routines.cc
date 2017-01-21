@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,9 @@ Routines::Routines()
                          "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
                          "    'MYSQL_TYPE_JSON'\n"
                          "  ) DEFAULT NULL");
+  m_target_def.add_field(FIELD_RESULT_DATA_TYPE_UTF8,
+                         "FIELD_RESULT_DATA_TYPE_UTF8",
+                         "result_data_type_utf8 MEDIUMTEXT NOT NULL");
   m_target_def.add_field(FIELD_RESULT_IS_ZEROFILL,
                          "FIELD_RESULT_IS_ZEROFILL",
                          "result_is_zerofill BOOL DEFAULT NULL");
@@ -111,9 +114,9 @@ Routines::Routines()
                          "is_deterministic BOOL NOT NULL");
   m_target_def.add_field(FIELD_SQL_DATA_ACCESS,
                          "FIELD_SQL_DATA_ACCESS",
-                         "sql_data_access ENUM('CONTAINS_SQL', 'NO_SQL',\n"
-                         "     'READS_SQL_DATA',\n"
-                         "     'MODIFIES_SQL_DATA') NOT NULL");
+                         "sql_data_access ENUM('CONTAINS SQL', 'NO SQL',\n"
+                         "     'READS SQL DATA',\n"
+                         "     'MODIFIES SQL DATA') NOT NULL");
   m_target_def.add_field(FIELD_SECURITY_TYPE,
                          "FIELD_SECURITY_TYPE",
                          "security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER') NOT NULL");

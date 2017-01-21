@@ -11784,21 +11784,27 @@ show_param:
                                          $4.where, false) == nullptr)
                MYSQL_YYABORT;
            }
-         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
+         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where_for_show
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TRIGGERS;
              lex->verbose= $1;
              lex->select_lex->db= $3;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
+             if (Lex->set_wild($4.wild))
+               MYSQL_YYABORT; // OOM
+             if (dd::info_schema::build_show_triggers_query(
+                                    @$, YYTHD, lex->wild, $4.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | EVENTS_SYM opt_db opt_wild_or_where
+         | EVENTS_SYM opt_db opt_wild_or_where_for_show
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_EVENTS;
              lex->select_lex->db= $2;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
+             if (Lex->set_wild($3.wild))
+               MYSQL_YYABORT; // OOM
+             if (dd::info_schema::build_show_events_query(
+                                    @$, YYTHD, lex->wild, $3.where) == nullptr)
                MYSQL_YYABORT;
            }
          | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where_for_show
@@ -12100,18 +12106,24 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
+        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
+             if (Lex->set_wild($3.wild))
+               MYSQL_YYABORT; // OOM
+            if (dd::info_schema::build_show_procedures_query(
+                                    @$, YYTHD, lex->wild, $3.where) == nullptr)
               MYSQL_YYABORT;
           }
-        | FUNCTION_SYM STATUS_SYM opt_wild_or_where
+        | FUNCTION_SYM STATUS_SYM opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
+             if (Lex->set_wild($3.wild))
+               MYSQL_YYABORT; // OOM
+            if (dd::info_schema::build_show_procedures_query(
+                                    @$, YYTHD, lex->wild, $3.where) == nullptr)
               MYSQL_YYABORT;
           }
         | PROCEDURE_SYM CODE_SYM sp_name

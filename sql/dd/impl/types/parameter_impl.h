@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,6 +126,17 @@ public:
   { m_data_type= type; }
 
   /////////////////////////////////////////////////////////////////////////
+  // display type
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &data_type_utf8() const
+  { return m_data_type_utf8; }
+
+  virtual void set_data_type_utf8(
+                 const String_type &data_type_utf8)
+  { m_data_type_utf8= data_type_utf8; }
+
+  /////////////////////////////////////////////////////////////////////////
   // is_zerofill.
   /////////////////////////////////////////////////////////////////////////
 
@@ -163,7 +174,16 @@ public:
   { return m_numeric_precision; }
 
   virtual void set_numeric_precision(uint numeric_precision)
-  { m_numeric_precision= numeric_precision; }
+  {
+     m_numeric_precision_null= false;
+     m_numeric_precision= numeric_precision;
+  }
+
+  virtual void set_numeric_precision_null(bool is_null)
+  { m_numeric_precision_null= is_null; }
+
+  virtual bool is_numeric_precision_null() const
+  { return m_numeric_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // numeric_scale.
@@ -192,7 +212,16 @@ public:
   { return m_datetime_precision; }
 
   virtual void set_datetime_precision(uint datetime_precision)
-  { m_datetime_precision= datetime_precision; }
+  {
+    m_datetime_precision_null= false;
+    m_datetime_precision= datetime_precision;
+  }
+
+  virtual void set_datetime_precision_null(bool is_null)
+  { m_datetime_precision_null= is_null; }
+
+  virtual bool is_datetime_precision_null() const
+  { return m_datetime_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // collation.
@@ -273,6 +302,7 @@ private:
   enum_parameter_mode m_parameter_mode;
   bool m_parameter_mode_null;
   enum_column_types m_data_type;
+  String_type m_data_type_utf8;
 
   bool m_is_zerofill;
   bool m_is_unsigned;
@@ -280,9 +310,11 @@ private:
   uint m_ordinal_position;
   size_t m_char_length;
   uint m_numeric_precision;
+  bool m_numeric_precision_null;
   uint m_numeric_scale;
   bool m_numeric_scale_null;
   uint m_datetime_precision;
+  bool m_datetime_precision_null;
 
   Parameter_type_element_collection m_elements;
 

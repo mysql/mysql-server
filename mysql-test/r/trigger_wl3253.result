@@ -77,8 +77,10 @@ SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
-SELECT trigger_name, created, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	created	action_order
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	CREATED	ACTION_ORDER
 tr1_bi	2013-01-31 09:00:00.00	1
 tr2_bi	2013-01-31 09:00:01.00	2
 DROP TABLE t1;
@@ -93,7 +95,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE TRIGGER tr1_bi;
@@ -107,13 +111,17 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 DROP TRIGGER tr1_bi;
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 DROP TABLE t1;
 #
@@ -125,8 +133,10 @@ CREATE TABLE t1 (a INT);
 SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
-SELECT trigger_name, created, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	created	action_order
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	CREATED	ACTION_ORDER
 tr1_bi	2013-01-31 09:00:01.00	1
 tr2_bi	2013-01-31 09:00:01.00	2
 DROP TABLE t1;
@@ -155,7 +165,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:01.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	2013-01-31 09:00:01.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TABLE t1;
@@ -169,8 +181,10 @@ CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 tr2_bi	2
 tr3_bi	3
@@ -191,8 +205,10 @@ CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr3_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 tr2_bi	2
 tr3_bi	3
@@ -212,8 +228,10 @@ CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
 CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi INSERT INTO t2 (a) VALUES (NEW.a);
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr0_bi	1
 tr1_bi	2
 INSERT INTO t1 VALUES (1);
@@ -233,8 +251,10 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr0_bi SET @a:=2;
 ERROR HY000: Referenced trigger 'tr0_bi' for the given action time and event type does not exist.
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 tr3_bi	2
 DROP TABLE t1;
@@ -248,8 +268,10 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr0_bi SET @a:=2;
 ERROR HY000: Referenced trigger 'tr0_bi' for the given action time and event type does not exist.
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 tr3_bi	2
 DROP TABLE t1;
@@ -263,19 +285,21 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
 CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
 SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
 tr2_bi	2
 tr1_bu	1
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr2_bi SET @a:=3;
 CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	action_order
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
-tr2_bi	2
-tr3_bi	3
 tr1_bu	1
+tr2_bi	2
 tr2_bu	2
+tr3_bi	3
 DROP TABLE t1;
 #
 # Test 16.
@@ -297,7 +321,9 @@ SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 tr1_bu	UPDATE	t1	SET @a:=3	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 def	test	tr1_bu	UPDATE	def	test	t1	1	NULL	SET @a:=3	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci

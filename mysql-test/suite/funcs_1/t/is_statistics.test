@@ -86,7 +86,8 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 --sorted_result
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
 FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
-     table_name != 'ndb_binlog_index';
+     table_name != 'ndb_binlog_index'
+ORDER BY table_schema, table_name, index_schema, index_name;
 
 
 --echo ####################################################################################

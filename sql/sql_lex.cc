@@ -3610,14 +3610,23 @@ bool LEX::can_use_merged()
     temporary tables anymore now. So these queries should be
     allowed to be mergeable, which makes the INFORMATION_SCHEMA
     query execution faster.
+
+    According to optimizer team (Roy), making this decision based on
+    the command type here is a hack. This should probably change when
+    we introduce Sql_cmd_show class, which should treat the following
+    SHOW commands same as SQLCOM_SELECT.
   */
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_DATABASES:
-  case SQLCOM_SHOW_TABLES:
-  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_EVENTS:
   case SQLCOM_SHOW_FIELDS:
   case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_STATUS_FUNC:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_TRIGGERS:
     return TRUE;
   default:
     return FALSE;
