@@ -35,16 +35,16 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
-test/t1#p#p1	test/t1#p#p1	97	5	Dynamic	0	Single
+test/t1#p#p0	innodb_system	0	4	Dynamic	0	General
+test/t1#p#p1	innodb_system	0	4	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 # Verifying .ibd files
 # Verifying that there are no MyISAM files
 # Test TRUNCATE TABLE with partitioned InnoDB tables
@@ -71,16 +71,16 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
-test/t1#p#p1	test/t1#p#p1	97	5	Dynamic	0	Single
+test/t1#p#p0	innodb_system	0	4	Dynamic	0	General
+test/t1#p#p1	innodb_system	0	4	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 # Verifying .ibd files
 # Test RENAME TABLE with partitioned InnoDB tables
 RENAME TABLE t1 TO t11;
@@ -96,16 +96,16 @@ t11	CREATE TABLE `t11` (
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t11#p#p0	test/t11#p#p0	97	5	Dynamic	0	Single
-test/t11#p#p1	test/t11#p#p1	97	5	Dynamic	0	Single
+test/t11#p#p0	innodb_system	0	4	Dynamic	0	General
+test/t11#p#p1	innodb_system	0	4	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t11#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
-test/t11#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t11#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
-test/t11#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
 # Verifying .ibd files
 DROP TABLE t11;
 # Test the previous DDL as a prepared statement.
@@ -130,16 +130,16 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
-test/t1#p#p1	test/t1#p#p1	97	5	Dynamic	0	Single
+test/t1#p#p0	innodb_system	0	4	Dynamic	0	General
+test/t1#p#p1	innodb_system	0	4	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 DROP TABLE t1;
 # Test DATA DIRECTORY with Sub-partitions.
 SET GLOBAL innodb_file_per_table = ON;
@@ -194,28 +194,31 @@ SUBPARTITION BY HASH (TO_DAYS(purchased))
   SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0#sp#s0	test/t1#p#p0#sp#s0	97	5	Dynamic	0	Single
-test/t1#p#p0#sp#s1	test/t1#p#p0#sp#s1	97	5	Dynamic	0	Single
-test/t1#p#p1#sp#s2	test/t1#p#p1#sp#s2	97	5	Dynamic	0	Single
-test/t1#p#p1#sp#s3	test/t1#p#p1#sp#s3	97	5	Dynamic	0	Single
-test/t1#p#p2#sp#s4	test/t1#p#p2#sp#s4	97	5	Dynamic	0	Single
-test/t1#p#p2#sp#s5	test/t1#p#p2#sp#s5	97	5	Dynamic	0	Single
+test/t1#p#p0	innodb_system	0	5	Dynamic	0	General
+test/t1#p#p1	innodb_system	0	5	Dynamic	0	General
+test/t1#p#p2	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s0	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s1	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s2	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s3	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s4	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s5	innodb_system	0	5	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t1#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-test/t1#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
-test/t1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-test/t1#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
-test/t1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
-test/t1#p#p2#sp#s5	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-test/t1#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
-test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
-test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
-test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 # Verifying .ibd files
 DROP TABLE t1;
 # Same as above except with ROW_FORMAT=Dyamic.
@@ -272,28 +275,31 @@ SUBPARTITION BY HASH (TO_DAYS(purchased))
   SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0#sp#s0	test/t1#p#p0#sp#s0	97	5	Dynamic	0	Single
-test/t1#p#p0#sp#s1	test/t1#p#p0#sp#s1	97	5	Dynamic	0	Single
-test/t1#p#p1#sp#s2	test/t1#p#p1#sp#s2	97	5	Dynamic	0	Single
-test/t1#p#p1#sp#s3	test/t1#p#p1#sp#s3	97	5	Dynamic	0	Single
-test/t1#p#p2#sp#s4	test/t1#p#p2#sp#s4	97	5	Dynamic	0	Single
-test/t1#p#p2#sp#s5	test/t1#p#p2#sp#s5	97	5	Dynamic	0	Single
+test/t1#p#p0	innodb_system	0	5	Dynamic	0	General
+test/t1#p#p1	innodb_system	0	5	Dynamic	0	General
+test/t1#p#p2	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s0	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s1	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s2	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s3	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s4	innodb_system	0	5	Dynamic	0	General
+test/t1#p#s5	innodb_system	0	5	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t1#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-test/t1#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
-test/t1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-test/t1#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
-test/t1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
-test/t1#p#p2#sp#s5	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-test/t1#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
-test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
-test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
-test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 # Verifying .ibd files
 #
 # Cleanup
@@ -632,69 +638,77 @@ SUBPARTITION BY HASH (a)
 SET @@sql_quote_show_create=@old_sql_quote_show_create;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	test/t1#p#p0	97	4	Dynamic	0	Single
-test/t2#p#p0#sp#sp0	ts_part3	161	5	Dynamic	0	General
-test/t2#p#p0#sp#sp1	ts part2	161	5	Dynamic	0	General
-test/t2#p#p0#sp#sp2	ts_part4	161	5	Dynamic	0	General
-test/t2#p#p1#sp#sp3	ts_part1	161	5	Dynamic	0	General
-test/t2#p#p1#sp#sp4	test/t2#p#p1#sp#sp4	33	5	Dynamic	0	Single
-test/t2#p#p1#sp#sp5	ts_part1	161	5	Dynamic	0	General
-test/t2#p#p2#sp#sp6	innodb_system	161	5	Dynamic	0	System
-test/t2#p#p2#sp#sp7	ts_part1	161	5	Dynamic	0	General
-test/t2#p#p2#sp#sp8	ts_part1	161	5	Dynamic	0	General
-test/t2#p#p3#sp#sp10	test/t2#p#p3#sp#sp10	33	5	Dynamic	0	Single
-test/t2#p#p3#sp#sp11	test/t2#p#p3#sp#sp11	33	5	Dynamic	0	Single
-test/t2#p#p3#sp#sp9	ts_part4	161	5	Dynamic	0	General
-test/t3#p#p0#sp#sp0	ts_part3	161	5	Dynamic	0	General
-test/t3#p#p0#sp#sp1	ts part2	161	5	Dynamic	0	General
-test/t3#p#p0#sp#sp2	ts_part4	161	5	Dynamic	0	General
-test/t3#p#p1#sp#sp3	test/t3#p#p1#sp#sp3	33	5	Dynamic	0	Single
-test/t3#p#p1#sp#sp4	test/t3#p#p1#sp#sp4	33	5	Dynamic	0	Single
-test/t3#p#p1#sp#sp5	test/t3#p#p1#sp#sp5	33	5	Dynamic	0	Single
-test/t3#p#p2#sp#sp6	innodb_system	161	5	Dynamic	0	System
-test/t3#p#p2#sp#sp7	test/t3#p#p2#sp#sp7	33	5	Dynamic	0	Single
-test/t3#p#p2#sp#sp8	test/t3#p#p2#sp#sp8	33	5	Dynamic	0	Single
-test/t3#p#p3#sp#sp10	test/t3#p#p3#sp#sp10	33	5	Dynamic	0	Single
-test/t3#p#p3#sp#sp11	test/t3#p#p3#sp#sp11	33	5	Dynamic	0	Single
-test/t3#p#p3#sp#sp9	ts_part4	161	5	Dynamic	0	General
-test/t_file_per_table_off	innodb_system	33	5	Dynamic	0	System
-test/t_file_per_table_on	test/t_file_per_table_on	33	5	Dynamic	0	Single
+test/t1#p#p0	innodb_system	0	3	Dynamic	0	General
+test/t2#p#p0	ts part2	0	4	Dynamic	0	General
+test/t2#p#p1	innodb_system	0	4	Dynamic	0	General
+test/t2#p#p2	innodb_system	0	4	Dynamic	0	General
+test/t2#p#p3	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp0	ts_part3	0	4	Dynamic	0	General
+test/t2#p#sp1	ts part2	0	4	Dynamic	0	General
+test/t2#p#sp10	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp11	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp2	ts_part4	0	4	Dynamic	0	General
+test/t2#p#sp3	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp4	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp5	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp6	innodb_system	0	4	Dynamic	0	System
+test/t2#p#sp7	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp8	innodb_system	0	4	Dynamic	0	General
+test/t2#p#sp9	ts_part4	0	4	Dynamic	0	General
+test/t3#p#p0	ts part2	0	4	Dynamic	0	General
+test/t3#p#p1	innodb_system	0	4	Dynamic	0	General
+test/t3#p#p2	innodb_system	0	4	Dynamic	0	General
+test/t3#p#p3	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp0	ts_part3	0	4	Dynamic	0	General
+test/t3#p#sp1	ts part2	0	4	Dynamic	0	General
+test/t3#p#sp10	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp11	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp2	ts_part4	0	4	Dynamic	0	General
+test/t3#p#sp3	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp4	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp5	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp6	innodb_system	0	4	Dynamic	0	System
+test/t3#p#sp7	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp8	innodb_system	0	4	Dynamic	0	General
+test/t3#p#sp9	ts_part4	0	4	Dynamic	0	General
+test/t_file_per_table_off	innodb_system	0	4	Dynamic	0	System
+test/t_file_per_table_on	innodb_file_per_table.##	0	4	Dynamic	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-ts_part1	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part1.ibd
-ts part2	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part2.ibd
-ts_part3	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part3.ibd
-ts_part4	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part4.ibd
-test/t2#p#p1#sp#sp4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
-test/t2#p#p3#sp#sp10	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
-test/t2#p#p3#sp#sp11	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
-test/t3#p#p1#sp#sp3	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd
-test/t3#p#p1#sp#sp4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd
-test/t3#p#p1#sp#sp5	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd
-test/t3#p#p2#sp#sp7	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd
-test/t3#p#p2#sp#sp8	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd
-test/t3#p#p3#sp#sp10	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd
-test/t3#p#p3#sp#sp11	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
-test/t_file_per_table_on	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
-test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
+ts_part1	GENERAL	0	0	Dynamic	ts_part1.ibd
+ts part2	GENERAL	0	0	Dynamic	ts_part2.ibd
+ts_part3	GENERAL	0	0	Dynamic	ts_part3.ibd
+ts_part4	GENERAL	0	0	Dynamic	ts_part4.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ts_part1	TABLESPACE	InnoDB	NORMAL	ts_part1	ts_part1.ibd
 ts part2	TABLESPACE	InnoDB	NORMAL	ts part2	ts_part2.ibd
 ts_part3	TABLESPACE	InnoDB	NORMAL	ts_part3	ts_part3.ibd
 ts_part4	TABLESPACE	InnoDB	NORMAL	ts_part4	ts_part4.ibd
-test/t2#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
-test/t2#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
-test/t2#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
-test/t3#p#p1#sp#sp3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd
-test/t3#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd
-test/t3#p#p1#sp#sp5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd
-test/t3#p#p2#sp#sp7	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd
-test/t3#p#p2#sp#sp8	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd
-test/t3#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd
-test/t3#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
-test/t_file_per_table_on	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
 DROP TABLE t1,t2,t3;
 DROP TABLESPACE ts_part1;
 DROP TABLESPACE `ts part2`;

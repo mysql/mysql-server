@@ -1492,8 +1492,7 @@ struct dict_sys_t{
                         (it can be persistent or temporary) */
         static bool is_hardcoded(table_id_t id)
         {
-		/* TODO: Remove this 16 once we get rid of SYS_* tables */
-                return(id < NUM_HARD_CODED_TABLES + 16);
+                return(id < NUM_HARD_CODED_TABLES);
         }
 
 	/** Number of hard coded table */
