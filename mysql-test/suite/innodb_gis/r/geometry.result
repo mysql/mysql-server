@@ -167,15 +167,18 @@ INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab'
 ORDER BY sc.name;
-name	pos	mtype
-c1	0	14
-c2	1	14
-c3	2	14
-C4	3	14
-c5	4	14
-c6	5	14
-c7	6	14
-c8	7	14
+NAME	POS	MTYPE
+c1	1	0
+c2	2	0
+c3	3	0
+C4	4	0
+c5	5	0
+c6	6	0
+c7	7	0
+c8	8	0
+DB_ROLL_PTR	11	0
+DB_ROW_ID	9	0
+DB_TRX_ID	10	0
 #check Perform convesrion before INSERT using WKT functions
 SET @c1=ST_PointFromText('POINT(10 10)');
 SET @c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
@@ -673,15 +676,18 @@ INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
-name	pos	mtype
-c1	0	14
-c2	1	14
-c3	2	14
-C4	3	14
-c5	4	14
-c6	5	14
-c7	6	14
-c8	7	14
+NAME	POS	MTYPE
+c1	1	0
+c2	2	0
+c3	3	0
+C4	4	0
+c5	5	0
+c6	6	0
+c7	7	0
+c8	8	0
+DB_ROLL_PTR	11	0
+DB_ROW_ID	9	0
+DB_TRX_ID	10	0
 #check Perform convesrion before INSERT using WKT functions
 SET @c1=ST_PointFromText('POINT(10 10)');
 SET @c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');

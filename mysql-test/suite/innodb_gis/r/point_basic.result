@@ -64,16 +64,16 @@ POINT(1 1)	POINT(10 12)
 POINT(1 0)	POINT(10 13)
 POINT(0 0)	POINT(10 14)
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
-name	mtype	prtype	len
-p	14	1535	12
-g	14	1535	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
 ALTER TABLE t1 ADD COLUMN p1 POINT, ADD COLUMN p2 POINT, ADD KEY(p);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
-name	mtype	prtype	len
-p	14	1535	12
-g	14	1535	12
-p1	14	1279	12
-p2	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
+p1	0	0	0
+p2	0	0	0
 # NOT NULL POINT will use ''
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = '';
 Expect 4
@@ -89,11 +89,11 @@ ALTER TABLE t1 DROP COLUMN p2;
 # NULLABLE POINT will use NULL
 ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
-name	mtype	prtype	len
-p	14	1535	12
-g	14	1535	12
-p1	14	1279	12
-p2	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
+p1	0	0	0
+p2	0	0	0
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
 Expect 4
 4
@@ -101,10 +101,10 @@ UPDATE t1 SET p2 = ST_PointFromText('POINT(10 20)');
 UPDATE t1 SET p1 = ST_PointFromText('POINT(10 20)');
 ALTER TABLE t1 DROP COLUMN p2;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-p	14	1535	12
-g	14	1535	12
-p1	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
+p1	0	0	0
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p1;
 ST_AsText(p)	ST_AsText(p1)
 INSERT INTO t1 VALUES (ST_PointFromText('POINT(0.5 0.5)'), ST_PointFromText('POINT(0 1)'), ST_PointFromText('POINT(10 19)'));
@@ -126,10 +126,10 @@ POINT(10 20)
 ALTER TABLE t1 ADD SPATIAL(p), ADD SPATIAL(p1);
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-p	14	1535	12
-g	14	1535	12
-p1	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
+p1	0	0	0
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10 30)');
 ST_AsText(p)	ST_AsText(p1)
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10 20)');
@@ -151,10 +151,10 @@ POINT(0 0)	POINT(10 20)
 ALTER TABLE t1 DROP KEY p, DROP KEY p1;
 ERROR 42000: Can't DROP 'p1'; check that column/key exists
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-p	14	1535	12
-g	14	1535	12
-p1	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
+p1	0	0	0
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10 30)');
 ST_AsText(p)	ST_AsText(p1)
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10 20)');
@@ -175,14 +175,14 @@ POINT(0 0)	POINT(10 20)
 TRUNCATE t1;
 ALTER TABLE t1 DROP COLUMN p, DROP COLUMN p1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-g	14	1535	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
 ALTER TABLE t1 ADD COLUMN p POINT, ADD COLUMN p1 POINT;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-g	14	1535	12
-p	14	1279	12
-p1	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
+p1	0	0	0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -208,10 +208,10 @@ ST_AsText(p)	ST_AsText(p1)
 POINT(0 0)	POINT(10 22)
 ALTER TABLE t1 DROP COLUMN p1, ADD COLUMN p1 POINT, CHANGE COLUMN p pp POINT AFTER p1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-g	14	1535	12
-p1	14	1279	12
-pp	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p1	0	0	0
+pp	0	0	0
 UPDATE t1 SET p1 = ST_PointFromText('POINT(5 5)');
 SELECT ST_AsText(pp), ST_AsText(p1) FROM t1;
 ST_AsText(pp)	ST_AsText(p1)
@@ -222,10 +222,10 @@ POINT(0 0)	POINT(5 5)
 ALTER TABLE t1 ADD SPATIAL(p1), ADD SPATIAL(pp), ALGORITHM = COPY;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
-name	mtype	prtype	len
-g	14	1535	12
-p1	14	1279	12
-pp	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p1	0	0	0
+pp	0	0	0
 SELECT ST_AsText(pp), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10 30)');
 ST_AsText(pp)	ST_AsText(p1)
 SELECT ST_AsText(pp), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10 20)');
@@ -331,9 +331,9 @@ TABLE_NAME	COLUMN_NAME	DATA_TYPE	COLUMN_TYPE
 gis_point	g	point	point
 gis_point	p	point	point
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
-name	mtype	prtype	len
-p	14	1279	12
-g	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
 SELECT length(p) FROM gis_point;
 length(p)
 25
@@ -380,9 +380,9 @@ CHECK TABLE gis_point;
 Table	Op	Msg_type	Msg_text
 test.gis_point	check	status	OK
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
-name	mtype	prtype	len
-p	14	1279	12
-g	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+g	0	0	0
+p	0	0	0
 DROP TABLE gis_point;
 #
 # Check the mtype of other geometry data types should be 15
@@ -397,14 +397,14 @@ mpoly MULTIPOLYGON NOT NULL,
 gc GEOMETRYCOLLECTION NOT NULL
 ) ENGINE=InnoDB;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'geom' OR name = 'l' OR name = 'poly' OR name = 'mp' OR name = 'ml' OR name = 'mpoly' OR name = 'gc';
-name	mtype	prtype	len
-geom	14	1535	12
-l	14	1535	12
-poly	14	1535	12
-mp	14	1535	12
-ml	14	1535	12
-mpoly	14	1535	12
-gc	14	1535	12
+NAME	MTYPE	PRTYPE	LEN
+gc	0	0	0
+geom	0	0	0
+l	0	0	0
+ml	0	0	0
+mp	0	0	0
+mpoly	0	0	0
+poly	0	0	0
 DROP TABLE g;
 #
 # check the mtype and len with CREATE TABLE AS
@@ -415,13 +415,13 @@ g GEOMETRY NOT NULL
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(ST_PointFromText('POINT(10 10)'),ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' AND name='t1';
-name	mtype	prtype	len
-p	14	1535	12
+NAME	MTYPE	PRTYPE	LEN
+p	0	0	0
 CREATE TABLE t2 AS SELECT * FROM t1;
 DROP TABLE t1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' AND name='t2';
-name	mtype	prtype	len
-p	14	1535	12
+NAME	MTYPE	PRTYPE	LEN
+p	0	0	0
 DROP table t2;
 #
 # Test when POINT is used in spatial index
@@ -453,11 +453,11 @@ INSERT INTO gis_point VALUES
 (ST_PointFromText('POINT(32.1234 64.2468)'), ST_PointFromText('POINT(-1 -1)'));
 CREATE TABLE gis_point1 SELECT * FROM gis_point;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p2';
-name	mtype	prtype	len
-p1	14	1535	12
-p2	14	1535	12
-p1	14	1535	12
-p2	14	1535	12
+NAME	MTYPE	PRTYPE	LEN
+p1	0	0	0
+p2	0	0	0
+p1	0	0	0
+p2	0	0	0
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point1;
 ST_AsText(p1)	ST_AsText(p2)
 POINT(1 2)	POINT(-1 -3)
@@ -1327,11 +1327,11 @@ INSERT INTO gis_point VALUES(1, ST_PointFromText('POINT(2 2)'));
 INSERT INTO gis_point VALUES(2, NULL);
 ALTER TABLE gis_point ADD COLUMN j INT, ALGORITHM = COPY;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p';
-name	mtype	prtype	len
-p	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+p	0	0	0
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p';
-name	mtype	prtype	len
-p	14	1279	12
+NAME	MTYPE	PRTYPE	LEN
+p	0	0	0
 SELECT i, ST_AsText(p) FROM gis_point;
 i	ST_AsText(p)
 0	POINT(1 1)
