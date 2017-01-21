@@ -47,3 +47,12 @@ log_alter_table           : Waiting for WL#9175
 innodb_bug-13628249       : Waiting for WL#9175
 
 innodb-copy-alter-debug	  : Require atomic DDL, WL#9536
+
+innodb_bug53046           : WL9535 disable it, need to check it deeper
+tablespace_portability    : WL9535 disable it, need to check it deeper
+log_corruption            : WL9535 disable it, need to check it deeper
+innodb-index-online-fk    : WL9535 disable it, need to check it deeper
+create_tablespace         : WL9535 disable it, need to check it deeper
+create_tablespace_16k     : WL9535 disable it, need to check it deeper
+foreign_key               : WL9535 disable it, need to check it deeper
+innodb-multiple-tablespaces : WL9535 disable it, need to check it deeper

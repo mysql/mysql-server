@@ -104,22 +104,14 @@ this_sixty_four_byte_name_is_not_too_long_______________________.ibd
 #################################################_long.ibd
 SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
 name
-##################################################_long/#################################################_long
-test/#################################################_long_
-this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
-twenty_byte_db_name_/#################################################_long_
 SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
-name
-this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
-test/#################################################_long_
-twenty_byte_db_name_/#################################################_long_
-##################################################_long/#################################################_long
+NAME
 SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
-path
-./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
-./test/#################################################_long_.ibd
-./twenty_byte_db_name_/#################################################_long_.ibd
+PATH
 ./##################################################_long/#################################################_long.ibd
+./test/#################################################_long_.ibd
+./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+./twenty_byte_db_name_/#################################################_long_.ibd
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
 file_name	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
 tablespace_name	innodb_file_per_table_##

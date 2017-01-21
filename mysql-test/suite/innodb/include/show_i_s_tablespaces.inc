@@ -3,7 +3,7 @@
 #     LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --echo === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 --disable_query_log
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_regex  /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/ /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/  $MYSQL_TMP_DIR MYSQL_TMP_DIR  $INNODB_PAGE_SIZE DEFAULT
 SELECT s.name 'Space_Name',
 	s.space_type 'Space_Type',

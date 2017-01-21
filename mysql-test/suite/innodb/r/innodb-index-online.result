@@ -217,8 +217,7 @@ SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
-name	pos
-c2	0
+NAME	POS
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
 ERROR HY000: Creating index 'c2e' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
@@ -229,7 +228,7 @@ SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
-name	pos
+NAME	POS
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
@@ -286,8 +285,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
-name	pos
-c3	0
+NAME	POS
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
 INSERT INTO t1 VALUES(347,33101,NULL);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -295,7 +293,7 @@ SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
-name	pos
+NAME	POS
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count

@@ -59,11 +59,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i1	a
 test/t	i1	f
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -132,11 +143,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	aa	a
 test/t	aa	f
+test/t	i1	a
 test/t	i1	b
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -223,12 +245,28 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	bb	a
+test/t	bb	a
 test/t	bb	b
+test/t	bb	f
+test/t	i1	a
+test/t	i1	a
+test/t	i1	b
 test/t	i1	f
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -323,10 +361,20 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i1	a
 test/t	i1	e
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -423,11 +471,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	aa	a
 test/t	aa	f
+test/t	dd	a
 test/t	dd	d
+test/t	i1	a
 test/t	i1	b
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -490,11 +549,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i1	a
 test/t	i1	f
+test/t	i2	a
 test/t	i2	b
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -577,11 +647,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	aa	a
 test/t	aa	f
+test/t	i1	a
 test/t	i1	b
+test/t	i3	a
 test/t	i3	c
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -658,11 +739,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	bb	a
 test/t	bb	d
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	f
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -739,11 +831,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	bb	a
 test/t	bb	b
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	f
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -805,10 +908,21 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
+test/t	x	a
 test/t	x	b
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
@@ -876,12 +990,24 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
+test/t	i8	a
 test/t	i8	b
+test/t	i9	a
 test/t	i9	f
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -946,12 +1072,28 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i1	a
+test/t	i1	a
+test/t	i1	b
 test/t	i1	f
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
+test/t	i9	a
+test/t	i9	a
 test/t	i9	b
+test/t	i9	f
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -1026,11 +1168,22 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i1	a
 test/t	i1	b
+test/t	i2	a
 test/t	i2	c
+test/t	i3	a
 test/t	i3	d
+test/t	i4	a
 test/t	i4	e
 test/t	PRIMARY	a
+test/t	PRIMARY	b
+test/t	PRIMARY	c
+test/t	PRIMARY	d
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	PRIMARY	e
+test/t	PRIMARY	f
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
@@ -1084,8 +1237,15 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i2	c2
 test/t	i2	c4
+test/t	PRIMARY	c1
 test/t	PRIMARY	c2
+test/t	PRIMARY	c3
+test/t	PRIMARY	c4
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	x	c2
 test/t	x	c3
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
@@ -1125,8 +1285,15 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	PRIMARY	c1
 test/t	PRIMARY	c2
+test/t	PRIMARY	c3
+test/t	PRIMARY	c4
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	x	c2
 test/t	x	c3
+test/t	y	c2
 test/t	y	c4
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
@@ -1174,8 +1341,14 @@ t.table_id = i.table_id AND
 i.index_id = f.index_id
 ORDER BY 1, 2, 3;
 table_name	index_name	column_name
+test/t	i2	c1
 test/t	i2	c3
 test/t	PRIMARY	c1
+test/t	PRIMARY	c2
+test/t	PRIMARY	c3
+test/t	PRIMARY	DB_ROLL_PTR
+test/t	PRIMARY	DB_TRX_ID
+test/t	x	c1
 test/t	x	c2
 SELECT index_name, stat_description
 FROM mysql.innodb_index_stats

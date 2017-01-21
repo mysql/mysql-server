@@ -25,7 +25,7 @@ CREATE TABLE sys_foreign SELECT i.*
 FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i
 WHERE FOR_NAME LIKE 'test/t%';
 
-SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
+SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 
 -- source suite/innodb/include/innodb_dict.inc
@@ -52,7 +52,7 @@ ALTER TABLE t1 CHANGE c3 C INT;
 
 ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
 
-SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
+SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 
 -- source suite/innodb/include/innodb_dict.inc
@@ -383,7 +383,7 @@ WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
-WHERE st.NAME='test/t';
+WHERE st.NAME='test/t' ORDER BY sc.pos, sc.NAME;
 
 ALTER TABLE t ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
 
@@ -397,7 +397,7 @@ ALTER TABLE t ADD FULLTEXT INDEX(t);
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
-WHERE st.NAME='test/t';
+WHERE st.NAME='test/t' ORDER BY sc.pos, sc.NAME;
 
 DROP TABLE t;
 

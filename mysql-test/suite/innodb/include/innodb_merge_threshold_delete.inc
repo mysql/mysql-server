@@ -9,7 +9,7 @@
 --replace_result tab1#P tab1#p
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 
 # turn on flags
 --disable_query_log

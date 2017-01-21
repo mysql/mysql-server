@@ -8,7 +8,7 @@
 --echo # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));

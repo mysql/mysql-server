@@ -50,16 +50,16 @@ tab	CREATE TABLE `tab` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab';
+WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	PRIMARY	50
-test/tab	index1	50
-test/tab	index2	50
-test/tab	index3	20
-test/tab	index4	25
-test/tab	index5	30
-test/tab	index6	35
-test/tab	index7	40
+test/tab	index1	0
+test/tab	index2	0
+test/tab	index3	0
+test/tab	index4	0
+test/tab	index5	0
+test/tab	index6	0
+test/tab	index7	0
+test/tab	PRIMARY	0
 ALTER TABLE tab comment='MERGE_THRESHOLD=49';
 Warnings:
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
@@ -86,16 +86,16 @@ tab	CREATE TABLE `tab` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 COMMENT='MERGE_THRESHOLD=49'
 SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab';
+WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	PRIMARY	49
-test/tab	index1	49
-test/tab	index2	49
-test/tab	index3	20
-test/tab	index4	25
-test/tab	index5	30
-test/tab	index6	35
-test/tab	index7	40
+test/tab	index1	0
+test/tab	index2	0
+test/tab	index3	0
+test/tab	index4	0
+test/tab	index5	0
+test/tab	index6	0
+test/tab	index7	0
+test/tab	PRIMARY	0
 ALTER TABLE tab MODIFY COLUMN c7 VARCHAR(2048) ;
 Warnings:
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
@@ -124,16 +124,16 @@ tab	CREATE TABLE `tab` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 COMMENT='MERGE_THRESHOLD=49'
 SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab';
+WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	PRIMARY	49
-test/tab	index1	49
-test/tab	index2	49
-test/tab	index3	20
-test/tab	index4	25
-test/tab	index5	30
-test/tab	index6	35
-test/tab	index7	40
+test/tab	index1	0
+test/tab	index2	0
+test/tab	index3	0
+test/tab	index4	0
+test/tab	index5	0
+test/tab	index6	0
+test/tab	index7	0
+test/tab	PRIMARY	0
 ALTER TABLE tab ADD INDEX index8 (c7(750)) COMMENT 'Check index level merge MERGE_THRESHOLD=45';
 Warnings:
 Warning	1831	Duplicate index 'index8' defined on the table 'test.tab'. This is deprecated and will be disallowed in a future release.
@@ -162,17 +162,17 @@ tab	CREATE TABLE `tab` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 COMMENT='MERGE_THRESHOLD=49'
 SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab';
+WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	PRIMARY	49
-test/tab	index1	49
-test/tab	index2	49
-test/tab	index3	20
-test/tab	index4	25
-test/tab	index5	30
-test/tab	index6	35
-test/tab	index7	40
-test/tab	index8	45
+test/tab	index1	0
+test/tab	index2	0
+test/tab	index3	0
+test/tab	index4	0
+test/tab	index5	0
+test/tab	index6	0
+test/tab	index7	0
+test/tab	index8	0
+test/tab	PRIMARY	0
 DROP TABLE tab;
 #
 # behavior for deleting records
@@ -182,9 +182,9 @@ CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB STATS_PE
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	50
+test/tab1	PRIMARY	0
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -205,9 +205,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -228,9 +225,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	4
-7	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -265,9 +259,9 @@ COMMENT='MERGE_THRESHOLD=35';
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	35
+test/tab1	PRIMARY	0
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -288,9 +282,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -311,9 +302,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	4
-7	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -348,9 +336,9 @@ COMMENT='MERGE_THRESHOLD=25';
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	25
+test/tab1	PRIMARY	0
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -371,9 +359,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -394,9 +379,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	4
-7	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -434,10 +416,8 @@ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1#p#p0	PRIMARY	35
-test/tab1#p#p1	PRIMARY	35
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -458,10 +438,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	0
-5	2
-6	7
-7	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -482,10 +458,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	0
-5	2
-6	4
-7	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -522,9 +494,9 @@ CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB STATS_PE
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	50
+test/tab1	PRIMARY	0
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -545,9 +517,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
 update tab1 set b='' where a = 14;
@@ -566,9 +535,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 update tab1 set b='' where a = 11;
 # check page merge happens (MERGE_THRESHOLD=50 causes merge here)
 SELECT name,count_reset FROM information_schema.innodb_metrics
@@ -597,9 +563,9 @@ COMMENT='MERGE_THRESHOLD=35' STATS_PERSISTENT=0;
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	35
+test/tab1	PRIMARY	0
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -620,9 +586,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
 update tab1 set b='' where a = 14;
@@ -641,9 +604,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 update tab1 set b='' where a = 11;
 # check page merge happens (MERGE_THRESHOLD=50 causes merge here)
 SELECT name,count_reset FROM information_schema.innodb_metrics
@@ -672,9 +632,9 @@ COMMENT='MERGE_THRESHOLD=25' STATS_PERSISTENT=0;
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	25
+test/tab1	PRIMARY	0
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -695,9 +655,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
 update tab1 set b='' where a = 14;
@@ -716,9 +673,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	2
-6	7
-7	7
 update tab1 set b='' where a = 11;
 # check page merge happens (MERGE_THRESHOLD=50 causes merge here)
 SELECT name,count_reset FROM information_schema.innodb_metrics
@@ -748,7 +702,7 @@ COMMENT='MERGE_THRESHOLD=35' STATS_PERSISTENT=0;
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
@@ -819,10 +773,10 @@ CREATE INDEX index1 ON tab1(b(750));
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	50
-test/tab1	index1	50
+test/tab1	index1	0
+test/tab1	PRIMARY	0
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -871,10 +825,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	42
-6	2
-29	21
-30	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -909,10 +859,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	22
-6	2
-29	11
-30	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
@@ -947,10 +893,10 @@ CREATE INDEX index1 ON tab1(b(750)) COMMENT 'MERGE_THRESHOLD=45';
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	50
-test/tab1	index1	45
+test/tab1	index1	0
+test/tab1	PRIMARY	0
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -999,10 +945,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	42
-6	2
-29	21
-30	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -1037,10 +979,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	22
-6	2
-29	11
-30	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
@@ -1075,10 +1013,10 @@ CREATE INDEX index1 ON tab1(b(750)) COMMENT 'MERGE_THRESHOLD=40';
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	50
-test/tab1	index1	40
+test/tab1	index1	0
+test/tab1	PRIMARY	0
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -1127,10 +1065,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	42
-6	2
-29	21
-30	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -1165,10 +1099,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	22
-6	2
-29	11
-30	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
@@ -1204,10 +1134,10 @@ CREATE INDEX index1 ON tab1(b(750)) COMMENT 'MERGE_THRESHOLD=45';
 # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	50
-test/tab1	index1	45
+test/tab1	index1	0
+test/tab1	PRIMARY	0
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -1256,10 +1186,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	42
-6	2
-29	21
-30	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -1294,10 +1220,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-5	22
-6	2
-29	11
-30	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
