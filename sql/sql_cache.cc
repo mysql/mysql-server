@@ -1255,7 +1255,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   DBUG_ENTER("Query_cache::store_query");
   /*
     Testing 'query_cache_size' without a lock here is safe: the thing
-    we may loose is that the query won't be cached, but we save on
+    we may lose is that the query won't be cached, but we save on
     mutex locking in the case when query cache is disabled or the
     query is uncachable.
 
@@ -1555,7 +1555,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
 
   /*
     Testing 'query_cache_size' without a lock here is safe: the thing
-    we may loose is that the query won't be served from cache, but we
+    we may lose is that the query won't be served from cache, but we
     save on mutex locking in the case when query cache is disabled.
 
     See also a note on double-check locking usage above.
