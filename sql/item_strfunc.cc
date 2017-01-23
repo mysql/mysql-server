@@ -2252,7 +2252,6 @@ void Item_func_decode::crypto_transform(String *res)
 
 Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
 {
-  Item_string *conv;
   uint conv_errors;
   String tmp, cstr, *ostr= val_str(&tmp);
   if (null_value)
@@ -2262,14 +2261,16 @@ Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
     return null_item;
   }
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors ||
-      !(conv= new Item_static_string_func(fully_qualified_func_name(),
-                                          cstr.ptr(), cstr.length(),
-                                          cstr.charset(),
-                                          collation.derivation)))
-  {
-    return NULL;
-  }
+  if (conv_errors != 0)
+    return nullptr;
+
+  auto conv= new Item_static_string_func(fully_qualified_func_name(),
+                                         cstr.ptr(), cstr.length(),
+                                         cstr.charset(),
+                                         collation.derivation);
+  if (conv == nullptr)
+    return nullptr;
+
   conv->str_value.copy();
   conv->str_value.mark_as_const();
   return conv;
