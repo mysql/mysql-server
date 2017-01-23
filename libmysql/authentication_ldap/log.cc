@@ -15,7 +15,8 @@ int Log_writer_error::Close() {
 }
 
 void Log_writer_error::Write(std::string data) {
-  std::cerr << data;
+  std::cerr << data << "\n";
+  std::cerr.flush();
 }
 
 Log_writer_file::Log_writer_file() {
@@ -39,7 +40,7 @@ int Log_writer_file::Open(std::string file_name) {
    m_file_stream->open(m_file_name.c_str(), std::ios_base::binary|std::ios_base::out );
    if( m_file_stream->is_open() ) {
      ret_val = 0;
-   }    
+   }
   }
 EXIT:
   return ret_val;

@@ -231,7 +231,10 @@ IF(WIN32)
 ENDIF()
 
 # LDAP authentication SASL client plugin
-ADD_SUBDIRECTORY(authentication_ldap)
+IF (NOT WIN32)
+  ADD_SUBDIRECTORY(authentication_ldap)
+  LIST(APPEND LIBS authentication_ldap_sasl_client)
+ENDIF()
   
 # Merge several convenience libraries into one big mysqlclient
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)

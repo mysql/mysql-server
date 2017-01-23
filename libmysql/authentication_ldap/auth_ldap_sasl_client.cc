@@ -11,32 +11,26 @@
 #include <mysql/client_plugin.h>
 #include <mysql.h>
 
-#define LDAP_LOG_INTO_FILE // Will add compile time option for this varaible
-#ifdef LDAP_LOG_INTO_FILE
-// Log into external log file
-Logger<Log_writer_file> g_logger("ldap_log_client.txt");
-#else
-// This will be redirect to error stream
-Logger<Log_writer_error> g_logger("");  
-#endif
+MYSQL_PLUGIN g_ldap_plugin_info = NULL;
+Logger<Log_writer_error> g_logger("");
 
 void Sasl_client::Interact(sasl_interact_t *ilist) {
   while(ilist->id != SASL_CB_LIST_END) {
     switch(ilist->id) {
-    case SASL_CB_USER: 
+    case SASL_CB_USER:
       ilist->result = strdup(m_user_name);
       ilist->len = strlen((const char*)ilist->result);
       break;
-    case SASL_CB_AUTHNAME:            
+    case SASL_CB_AUTHNAME:
       ilist->result = strdup(m_user_name);
       ilist->len = strlen((const char*)ilist->result);
       break;
-    case SASL_CB_PASS:            
+    case SASL_CB_PASS:
       ilist->result = strdup(m_user_pwd);
       ilist->len = strlen((const char*)ilist->result);
       break;
     default:
-      ilist->result =  NULL;
+      ilist->result = NULL;
       ilist->len = 0;
     }
     ilist++;
@@ -48,24 +42,23 @@ void Sasl_client::SetPluginInfo(MYSQL_PLUGIN_VIO *vio,  MYSQL *mysql) {
   m_mysql = mysql;
 }
 
-/*
+/**
   SASL method is send from the Mysql server, and this is set by the client.
   SASL client and sasl server may support many sasl authentication methods and can negotiate in anyone.
-  We want to inforce the SASL authentication set by the client.
+  We want to enforce the SASL authentication set by the client.
 */
 int Sasl_client::ReadMethodNameFromServer() {
   int rc_server_read = CR_ERROR;
   unsigned char* packet = NULL;
   std::stringstream log_stream;
-
   if(m_vio == NULL) {
     return rc_server_read;
   }
   // Get authentication method from the server
   rc_server_read = m_vio->read_packet(m_vio, (unsigned char**)&packet);
   strncpy(m_mechanism, (const char*)packet, sizeof(m_mechanism));
-  log_stream << "Method name : " << m_mechanism;
-  log_info(log_stream.str());
+  log_stream << "Sasl_client::ReadMethodNameFromServer : " << m_mechanism;
+  log_dbg(log_stream.str());
   return rc_server_read;
 }
 
@@ -74,25 +67,29 @@ int Sasl_client::ReadMethodNameFromServer() {
 }
 
 int Sasl_client::Initilize() {
+  std::stringstream log_stream;
   int rc_sasl = SASL_FAIL;
-
   strncpy(m_service_name, SASL_SERVICE_NAME, sizeof(m_service_name));
-
   // Initialize client-side of SASL
   rc_sasl = sasl_client_init(NULL);
-  if(rc_sasl != SASL_OK) 
+  if(rc_sasl != SASL_OK) {
     goto EXIT;
+  }
 
   // Creating sasl connection
   rc_sasl = sasl_client_new(m_service_name, NULL, NULL, NULL, callbacks,
                             0, &m_connection);
-  if(rc_sasl != SASL_OK) 
+  if(rc_sasl != SASL_OK)
     goto EXIT;
 
-  // Set security peoperties
+  // Set security properties
   sasl_setprop(m_connection, SASL_SEC_PROPS, &security_properties);
   rc_sasl= SASL_OK;
 EXIT:
+  if (rc_sasl != SASL_OK) {
+    log_stream << "Sasl_client::Initilize failed rc: " << rc_sasl;
+    log_error(log_stream.str());
+  }
   return rc_sasl;
 }
 
@@ -115,21 +112,22 @@ int Sasl_client::SendSaslRequestToServer(const unsigned char *request, int reque
   }
   // Send the request to the MySQL server
   log_stream << "Sasl_client::SendSaslRequestToServer request:" << request;
-  log_info(log_stream.str());
+  log_dbg(log_stream.str());
   rc_server = m_vio->write_packet(m_vio, request, request_len);
   if(rc_server) {
     log_error("Sasl_client::SendSaslRequestToServer: sasl request write failed");
     goto EXIT;
   }
 
-  // Get the sasl reponse from the MySQL server
+  // Get the sasl response from the MySQL server
   *response_len = m_vio->read_packet(m_vio, response);
   if((*response_len) < 0 || (*response == NULL)) {
-    log_error("Sasl_client::SendSaslRequestToServer: sasl reponse read failed");
+    log_error("Sasl_client::SendSaslRequestToServer: sasl response read failed");
     goto EXIT;
   }
   log_stream.str("");
   log_stream << "Sasl_client::SendSaslRequestToServer response:" << *response;
+  log_dbg(log_stream.str());
 EXIT:
   return rc_server;
 }
@@ -147,7 +145,7 @@ int Sasl_client::SaslStart(char **client_output, int* client_output_length) {
   }
   do {
      rc_sasl = sasl_client_start(m_connection, m_mechanism, &interactions,
-                                 (const char**)&sasl_client_output,  (unsigned int *)client_output_length, 
+                                 (const char**)&sasl_client_output,  (unsigned int *)client_output_length,
                                  &mechanisum);
 
      if(rc_sasl == SASL_INTERACT) Interact(interactions);
@@ -157,7 +155,7 @@ int Sasl_client::SaslStart(char **client_output, int* client_output_length) {
   if(client_output != NULL) {
     *client_output = sasl_client_output;
     log_stream << "Sasl_client::SaslStart sasl output: " << sasl_client_output;
-    log_info(log_stream.str());
+    log_dbg(log_stream.str());
   }
   return rc_sasl;
 }
@@ -176,7 +174,7 @@ int Sasl_client::SaslStep(char* server_in, int server_in_length, char** client_o
                                 &interactions,
                                 (const char**)client_out, (unsigned int *)client_out_length);
      if(rc_sasl == SASL_INTERACT) Sasl_client::Interact(interactions);
-  } 
+  }
   while(rc_sasl == SASL_INTERACT);
 
   return rc_sasl;
@@ -201,13 +199,13 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   sasl_client.SetPluginInfo(vio, mysql);
   server_packet_len = sasl_client.ReadMethodNameFromServer();
   if(server_packet_len < 0) {
-    log_error("sasl_authenticate: method name read from server side plugin failed");
+    log_error("sasl_authenticate: method name read from server side plug-in failed");
     goto EXIT;
   }
 
   rc_sasl = sasl_client.Initilize();
   if(rc_sasl != SASL_OK) {
-    log_error("sasl_authenticate: initilize failed");
+    log_error("sasl_authenticate: initialize failed");
     goto EXIT;
   }
 
@@ -217,8 +215,9 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     goto EXIT;
   }
 
-  // Running SASL authentication step till authentication process is concluded
-  // MySQL server plugin working as proxy for SASL / LDAP server.
+  /** Running SASL authentication step till authentication process is concluded
+      MySQL server plug-in working as proxy for SASL / LDAP server.
+  */
   do {
     rc_auth = sasl_client.SendSaslRequestToServer((const unsigned char *)sasl_client_output,sasl_client_output_len,&server_packet,&server_packet_len);
     if(rc_auth < 0) {
@@ -231,26 +230,40 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   if(rc_sasl == SASL_OK) {
     rc_auth = CR_OK;
-    log_info("sasl_authenticate authentication successful");
+    log_dbg("sasl_authenticate authentication successful");
   }
   else {
     log_error("sasl_authenticate client failed");
   }
 
 EXIT:
+  if (rc_sasl != SASL_OK) {
+    log_stream.str("");
+    log_stream << "sasl_authenticate client failed rc: " << rc_sasl;
+    log_error(log_stream.str());
+  }
   rc_sasl = sasl_client.UnInitilize();
   return rc_auth;
 }
 
-mysql_declare_client_plugin(AUTHENTICATION)
+/*
+  Client plugin declaration. This is added to mysql_client_builtins[]
+  in sql-common/client.c
+*/
+
+//extern "C"
+st_mysql_client_plugin_AUTHENTICATION ldap_auth_client_plugin=
+{
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
   "authentication_ldap_sasl_client",
-  "Oracle",
+  "Yashwant Sahu",
   "LDAP SASL Client Authentication Plugin",
   {0,1,0},
   "PROPRIETARY",
   NULL,
   NULL,
   NULL,
-  NULL,
+  NULL,                            // option handling
   sasl_authenticate
-mysql_end_client_plugin;
+};
