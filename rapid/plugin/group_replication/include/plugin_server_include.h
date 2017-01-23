@@ -16,10 +16,6 @@
 #ifndef PLUGIN_SERVER_INCLUDE
 #define PLUGIN_SERVER_INCLUDE
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 /*
   Includes only from server include folder.
 */

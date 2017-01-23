@@ -592,9 +592,6 @@ void log_slow_do(THD *thd);
 */
 void log_slow_statement(THD *thd);
 
-
-#ifdef MYSQL_SERVER // Security_context not defined otherwise.
-
 /**
   @class Log_throttle
   @brief Base class for rate-limiting a log (slow query log etc.)
@@ -831,8 +828,6 @@ public:
 
 
 extern Slow_log_throttle log_throttle_qni;
-
-#endif // MYSQL_SERVER
 
 ////////////////////////////////////////////////////////////
 //

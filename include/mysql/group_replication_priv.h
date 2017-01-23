@@ -20,10 +20,6 @@
   @file include/mysql/group_replication_priv.h
 */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 #include <my_global.h>
 #include <my_thread.h>
 #include <my_sys.h>
