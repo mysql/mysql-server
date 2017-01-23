@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -36,6 +36,37 @@ Created 9/5/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0counter.h"
+
+#ifdef HAVE_PSI_INTERFACE
+
+/** Define for performance schema registration key */
+struct mysql_pfs_key_t {
+public:
+
+        /** Default Constructor */
+        mysql_pfs_key_t() {
+                s_count++;
+        }
+
+        /** Constructor */
+        mysql_pfs_key_t(unsigned int    val) : m_value(val) {}
+
+        /** Retreive the count.
+        @return number of keys defined */
+        static int get_count() {
+                return s_count;
+        }
+
+        /* Key value. */
+        unsigned int            m_value;
+
+private:
+
+        /** To keep count of number of PS keys defined. */
+        static unsigned int     s_count;
+};
+
+#endif /* HAVE_PFS_INTERFACE */
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -29,7 +29,6 @@ Debug checks for latches.
 Created 2012-08-21 Sunny Bains
 *******************************************************/
 
-#include "sync0sync.h"
 #include "sync0debug.h"
 
 #include "ut0new.h"

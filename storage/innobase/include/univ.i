@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -94,37 +94,6 @@ support cross-platform development and expose comonly used SQL names. */
 #endif /* !UNIV_HOTBACKUP  */
 
 #include "my_psi_config.h"
-
-#ifdef HAVE_PSI_INTERFACE
-
-/** Define for performance schema registration key */
-struct mysql_pfs_key_t {
-public:
-
-        /** Default Constructor */
-        mysql_pfs_key_t() {
-                s_count++;
-        }
-
-        /** Constructor */
-        mysql_pfs_key_t(unsigned int    val) : m_value(val) {}
-
-        /** Retreive the count.
-        @return number of keys defined */
-        static int get_count() {
-                return s_count;
-        }
-
-        /* Key value. */
-        unsigned int            m_value;
-
-private:
-
-        /** To keep count of number of PS keys defined. */
-        static unsigned int     s_count;
-};
-
-#endif /* HAVE_PFS_INTERFACE */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 #include <sys/stat.h>
