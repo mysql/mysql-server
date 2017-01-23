@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -154,13 +154,6 @@ ENDIF()
 # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
 # is compiled without this define)
 IF(NOT WITHOUT_SERVER)
-  # Add MYSQL_SERVER to the list of compile definitions used when compiling
-  # the ndbcluster plugin. This is a workaround to BUG#23508762 where a spelling
-  # error in plugin.cmake causes MYSQL_SERVER to not be defined. Workaround can
-  # be removed when bug is fixed. NOTE! ndbcluster_embedded is not affected by the
-  # spelling error.
-  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "MYSQL_SERVER")
-
   # Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
   # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
   # is compiled without this define)
