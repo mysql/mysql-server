@@ -4375,6 +4375,10 @@ dict_table_get_highest_foreign_id(
 		}
 	}
 
+	ulint size = table->foreign_set.size();
+
+	biggest_id = (size > biggest_id) ? size : biggest_id;
+
 	DBUG_PRINT("dict_table_get_highest_foreign_id",
 		   ("id: %lu", biggest_id));
 
