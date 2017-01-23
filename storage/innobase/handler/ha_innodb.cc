@@ -15802,8 +15802,8 @@ ha_innobase::rename_table_impl(
                         new_path = fil_space_get_first_path(table->space);
                 }
 
-		if (row_is_mysql_tmp_table_name(from)
-		    && !row_is_mysql_tmp_table_name(to)
+		if (row_is_mysql_tmp_table_name(norm_from)
+		    && !row_is_mysql_tmp_table_name(norm_to)
 		    && !dict_table_is_partition(table)) {
 			ut_ad(table->n_ref_count == 0);
 			btr_search_drop_table(table);
