@@ -23,7 +23,6 @@
 #include "rpl_msr.h"
 #include "rpl_rli.h"
 
-#ifdef HAVE_NDB_BINLOG
 
 /*
   Utility class for interacting with the global structure which
@@ -121,4 +120,3 @@ bool ndb_mi_get_slave_sql_running()
   return msi.get_default_mi()->rli->slave_running;
 }
 
-#endif

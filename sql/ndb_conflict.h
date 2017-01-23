@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,6 @@ enum enum_binlog_extra_info_conflict_flags
   NDB_ERIF_CFT_READ_OP = 0x4
 };
 
-#ifdef HAVE_NDB_BINLOG
 static const Uint32 MAX_CONFLICT_ARGS= 8;
 
 enum enum_conflict_fn_arg_type
@@ -337,9 +336,6 @@ struct NDB_CONFLICT_FN_SHARE{
 };
 
 
-/* HAVE_NDB_BINLOG */
-#endif
-
 /**
  * enum_slave_conflict_role
  *
@@ -495,7 +491,6 @@ struct st_ndb_slave_state
   ~st_ndb_slave_state();
 };
 
-#ifdef HAVE_NDB_BINLOG
 
 const uint error_conflict_fn_violation= 9999;
 
@@ -530,8 +525,6 @@ slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share);
 
 bool 
 is_exceptions_table(const char *table_name);
-
-#endif /* HAVE_NDB_BINLOG */
 
 
 /**

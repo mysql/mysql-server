@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ enum NDB_SHARE_STATE {
   NSS_ALTERED 
 };
 
-#ifdef HAVE_NDB_BINLOG
+
 enum Ndb_binlog_type
 {
   NBT_DEFAULT                   = 0
@@ -43,7 +43,6 @@ enum Ndb_binlog_type
   ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
   ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
 };
-#endif
 
 
 /*
@@ -75,9 +74,7 @@ struct NDB_SHARE {
   struct Ndb_index_stat* index_stat_list;
   bool util_thread; // if opened by util thread
   uint32 flags;
-#ifdef HAVE_NDB_BINLOG
   struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
-#endif
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   class NdbEventOperation *op;
   class NdbEventOperation *new_op;

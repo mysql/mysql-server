@@ -4458,7 +4458,6 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
   DBUG_PRINT("info", ("ndb_rep_event_name: %s", event_name->c_ptr()));
 }
 
-#ifdef HAVE_NDB_BINLOG
 static void 
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
@@ -4720,7 +4719,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
 
   DBUG_RETURN(0);
 }
-#endif /* HAVE_NDB_BINLOG */
+
 
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
@@ -4793,12 +4792,12 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
                               dict->getNdbError().code);
       break; // error
     }
-#ifdef HAVE_NDB_BINLOG
+
     /*
      */
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
                                        ::server_id);
-#endif
+
     /*
       check if logging turned off for this table
     */
@@ -5112,12 +5111,9 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   else if (!ndb_apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
     do_ndb_apply_status_share= 1;
-  else
-#ifdef HAVE_NDB_BINLOG
-    if (!binlog_filter->db_ok(share->db) ||
-        !ndb_binlog_running ||
-        is_exceptions_table(share->table_name))
-#endif
+  else if (!binlog_filter->db_ok(share->db) ||
+           !ndb_binlog_running ||
+           is_exceptions_table(share->table_name))
   {
     set_binlog_nologging(share);
     DBUG_RETURN(0);

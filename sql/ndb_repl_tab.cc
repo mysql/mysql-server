@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #include "ha_ndbcluster_tables.h"
 #include "ndb_repl_tab.h"
 
-#ifdef HAVE_NDB_BINLOG
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_connection.h"  /* do_retry_sleep() */
 #include "mf_wcomp.h"
@@ -554,8 +553,3 @@ Ndb_rep_tab_reader::get_warning_message() const
 {
   return warning_msg;
 }
-
-
-/* #ifdef HAVE_NDB_BINLOG */
-
-#endif

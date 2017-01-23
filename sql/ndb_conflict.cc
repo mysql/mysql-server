@@ -23,7 +23,6 @@
 
 extern st_ndb_slave_state g_ndb_slave_state;
 
-#ifdef HAVE_NDB_BINLOG
 #include "ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
@@ -871,8 +870,6 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
   DBUG_RETURN(0);
 }
 
-/* HAVE_NDB_BINLOG */
-#endif
 
 /**
    st_ndb_slave_state constructor
@@ -951,11 +948,9 @@ st_ndb_slave_state::resetPerAttemptCounters()
 void
 st_ndb_slave_state::atTransactionAbort()
 {
-#ifdef HAVE_NDB_BINLOG
   /* Reset any gathered transaction dependency information */
   atEndTransConflictHandling();
   trans_conflict_apply_state = SAS_NORMAL;
-#endif
 
   /* Reset current-transaction counters + state */
   resetPerAttemptCounters();
@@ -1102,7 +1097,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                                     Uint32 master_server_id) const
 {
   DBUG_ENTER("verifyNextEpoch");
-#ifdef HAVE_NDB_BINLOG
+
   /**
     WRITE_ROW to ndb_apply_status injected by MySQLD
     immediately upstream of us.
@@ -1266,7 +1261,6 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       }
     }
   }
-#endif
 
   /* Epoch looks ok */
   DBUG_RETURN(true);
@@ -1361,7 +1355,6 @@ st_ndb_slave_state::atResetSlave()
 void
 st_ndb_slave_state::atStartSlave()
 {
-#ifdef HAVE_NDB_BINLOG
   if (trans_conflict_apply_state != SAS_NORMAL)
   {
     /*
@@ -1371,7 +1364,6 @@ st_ndb_slave_state::atStartSlave()
     atEndTransConflictHandling();
     trans_conflict_apply_state = SAS_NORMAL;
   }
-#endif
 }
 
 bool
@@ -1426,7 +1418,6 @@ st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_ro
     return false;
   }
   
-#ifdef HAVE_NDB_BINLOG
   /* Check that Slave SQL thread is not running */
   if (ndb_mi_get_slave_sql_running())
   {
@@ -1434,13 +1425,11 @@ st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_ro
       "thread is running.  Use STOP SLAVE first.";
     return false;
   }
-#endif
 
   return true;
 }
 
 
-#ifdef HAVE_NDB_BINLOG
 
 /**
    atEndTransConflictHandling
@@ -2918,8 +2907,6 @@ void slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share)
     memset(cfn_share, 0, sizeof(*cfn_share));
   }
 }
-
-#endif
 
 
 /**
