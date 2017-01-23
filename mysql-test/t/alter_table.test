@@ -1775,9 +1775,9 @@ create table t1 ( a int, b int, c int, d int,
                   primary key (a), index i1 (b), index i2 (c) ) engine=innodb;
 alter table t1 add index i1 (d), rename index i1 to x;
 show create table t1;
-select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
-                                     information_schema.innodb_sys_indexes as i,
-                                     information_schema.innodb_sys_fields as f
+select i.name as k, f.name as c from information_schema.innodb_tables as t,
+                                     information_schema.innodb_indexes as i,
+                                     information_schema.innodb_fields as f
 where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
 order by k, c;
 drop table t1;
@@ -1785,9 +1785,9 @@ create table t1 (a int, b int, c int, d int,
                  primary key (a), index i1 (b), index i2 (c)) engine=innodb;
 alter table t1 add index i1 (d), rename index i1 to i2, drop index i2;
 show create table t1;
-select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
-                                     information_schema.innodb_sys_indexes as i,
-                                     information_schema.innodb_sys_fields as f
+select i.name as k, f.name as c from information_schema.innodb_tables as t,
+                                     information_schema.innodb_indexes as i,
+                                     information_schema.innodb_fields as f
 where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
 order by k, c;
 drop table t1;
@@ -2060,9 +2060,9 @@ SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
             ELSE 'Unknown'
        END AS INDEX_TYPE,
        F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
-              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
+              INFORMATION_SCHEMA.INNODB_TABLES AS T JOIN
+              INFORMATION_SCHEMA.INNODB_INDEXES AS I JOIN
+              INFORMATION_SCHEMA.INNODB_FIELDS AS F
               ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
        WHERE T.NAME = 'test/t1';
 
@@ -2148,30 +2148,30 @@ DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE=INNODB;
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 'MERGE_THRESHOLD=45';
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
 ENGINE=INNODB;
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
 ENGINE=INNODB;
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 'MERGE_THRESHOLD=45';
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
 
 --echo #
@@ -2341,9 +2341,9 @@ SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
             WHEN 3 THEN "yes"
             ELSE "no" END AS IS_PRIMARY_KEY,
        F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
-              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
+              INFORMATION_SCHEMA.INNODB_TABLES AS T JOIN
+              INFORMATION_SCHEMA.INNODB_INDEXES AS I JOIN
+              INFORMATION_SCHEMA.INNODB_FIELDS AS F
               ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
        WHERE T.NAME LIKE 'test/%' ORDER BY T.NAME, I.NAME, F.POS;
 

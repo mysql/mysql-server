@@ -24,9 +24,9 @@ ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
 # duplicated foreign key name
 --error ER_FK_DUP_NAME
@@ -69,9 +69,9 @@ ALGORITHM = INPLACE;
 ALTER TABLE child ADD CONSTRAINT fk_3 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
 SET foreign_key_checks = 1;
 
@@ -98,13 +98,13 @@ REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 SET DEBUG = '-d,innodb_test_open_ref_fail';
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%';
 
 # this should succeed, since we disabled the foreign key check
 INSERT INTO child VALUES(5,4);
@@ -137,9 +137,9 @@ SHOW ERRORS;
 
 SET DEBUG = '-d,innodb_test_no_foreign_idx';
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
 # This is to test the scenario no index on referenced table,
 # alter table should fail
@@ -162,9 +162,9 @@ REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 SET DEBUG = '-d,innodb_test_wrong_fk_option';
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
 # This is to test the scenario cannot add fk to the system table,
 # alter table should fail
@@ -190,9 +190,9 @@ ADD CONSTRAINT fk_6 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
 DROP TABLE child;
 DROP TABLE parent;
@@ -222,9 +222,9 @@ ALGORITHM = INPLACE;
 
 SHOW CREATE TABLE child;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 
 SET foreign_key_checks = 1;
 
@@ -286,10 +286,10 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%';
 
 # This should be successful. It will also check any left over
 # from previous failed operation (if dictionary entries not cleaned,
@@ -299,10 +299,10 @@ ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%';
 
 SHOW CREATE TABLE child;
 
@@ -316,10 +316,10 @@ ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%';
 
 SHOW CREATE TABLE child;
 
@@ -332,10 +332,10 @@ ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%';
 
 SHOW CREATE TABLE child;
 
@@ -373,8 +373,8 @@ ALTER TABLE child CHANGE a2 a2_new INT, CHANGE a1 a1_new INT;
 
 SHOW CREATE TABLE child;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
 
 # The third add FK will fail
 --error ER_FK_NO_INDEX_PARENT
@@ -387,9 +387,9 @@ ALGORITHM = INPLACE;
 # It should still have only 2 FKs
 SHOW CREATE TABLE child;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
 
 #Now let's make it successful
 ALTER TABLE child
@@ -401,9 +401,9 @@ ALGORITHM = INPLACE;
 # It should still have 5 FKs
 SHOW CREATE TABLE child;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
 
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
@@ -420,9 +420,9 @@ ALGORITHM = INPLACE;
 # It should still have no FKs, no PRIMARY
 SHOW CREATE TABLE child;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
 
 # make it successful
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
@@ -434,9 +434,9 @@ ALGORITHM = INPLACE;
 # It should have 3 FKs, a new PRIMARY
 SHOW CREATE TABLE child;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * from information_schema.INNODB_FOREIGN_COLS;
 
 SET foreign_key_checks = 1;
 
@@ -478,8 +478,8 @@ ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
 --error ER_FK_DUP_NAME
 ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
 
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 
 DROP TABLE t2;
 

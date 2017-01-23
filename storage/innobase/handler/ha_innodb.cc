@@ -6991,7 +6991,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			<< ib_table->get_n_user_cols() << " user"
 			" defined columns in InnoDB, but " << table->s->fields
 			<< " columns in MySQL. Please check"
-			" INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and " REFMAN
+			" INFORMATION_SCHEMA.INNODB_COLUMNS and " REFMAN
 			"innodb-troubleshooting.html for how to resolve the"
 			" issue.";
 
@@ -22526,19 +22526,19 @@ i_s_innodb_ft_config,
 i_s_innodb_ft_index_cache,
 i_s_innodb_ft_index_table,
 #ifdef INNODB_NO_NEW_DD
-i_s_innodb_sys_tables,
+i_s_innodb_tables,
 #endif /* INNODB_NO_NEW_DD */
-i_s_innodb_sys_tablestats,
+i_s_innodb_tablestats,
 #ifdef INNODB_NO_NEW_DD
-i_s_innodb_sys_indexes,
-i_s_innodb_sys_columns,
-i_s_innodb_sys_fields,
-i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols,
-i_s_innodb_sys_tablespaces,
-i_s_innodb_sys_datafiles,
+i_s_innodb_indexes,
+i_s_innodb_columns,
+i_s_innodb_fields,
+i_s_innodb_foreign,
+i_s_innodb_foreign_cols,
+i_s_innodb_tablespaces,
+i_s_innodb_datafiles,
 #endif /* INNODB_NO_NEW_DD */
-i_s_innodb_sys_virtual,
+i_s_innodb_virtual,
 i_s_innodb_cached_indexes
 
 mysql_declare_plugin_end;

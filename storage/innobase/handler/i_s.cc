@@ -5817,7 +5817,7 @@ i_s_common_deinit(
 
 /**  SYS_TABLES  ***************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
-static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
+static ST_FIELD_INFO	innodb_tables_fields_info[] =
 {
 #define SYS_TABLES_ID			0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -5896,7 +5896,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Populate information_schema.innodb_sys_tables table with information
+Populate information_schema.innodb_tables table with information
 from SYS_TABLES.
 @return 0 on success */
 static
@@ -5962,7 +5962,7 @@ i_s_dict_fill_sys_tables(
 #endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to go through each record in SYS_TABLES table, and fill the
-information_schema.innodb_sys_tables table with related table information
+information_schema.innodb_tables table with related table information
 @return 0 on success */
 static
 int
@@ -6038,27 +6038,27 @@ i_s_sys_tables_fill_table(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_tables
+Bind the dynamic table INFORMATION_SCHEMA.innodb_tables
 @return 0 on success */
 static
 int
-innodb_sys_tables_init(
+innodb_tables_init(
 /*===================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_tables_init");
+	DBUG_ENTER("innodb_tables_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_tables_fields_info;
+	schema->fields_info = innodb_tables_fields_info;
 	schema->fill_table = i_s_sys_tables_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_tables =
+struct st_mysql_plugin	i_s_innodb_tables =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6070,7 +6070,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tables =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_TABLES"),
+	STRUCT_FLD(name, "INNODB_TABLES"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -6086,7 +6086,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tables =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_tables_init),
+	STRUCT_FLD(init, innodb_tables_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -6113,7 +6113,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tables =
 
 /**  SYS_TABLESTATS  ***********************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
-static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
+static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 {
 #define SYS_TABLESTATS_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -6199,7 +6199,7 @@ static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/** Populate information_schema.innodb_sys_tablestats table with information
+/** Populate information_schema.innodb_tablestats table with information
 from SYS_TABLES.
 @param[in]	thd		thread ID
 @param[in,out]	table		table
@@ -6268,7 +6268,7 @@ i_s_dict_fill_sys_tablestats(
 
 /*******************************************************************//**
 Function to go through each record in SYS_TABLES table, and fill the
-information_schema.innodb_sys_tablestats table with table statistics
+information_schema.innodb_tablestats table with table statistics
 related information
 @return 0 on success */
 static
@@ -6354,27 +6354,27 @@ i_s_sys_tables_fill_table_stats(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_tablestats
+Bind the dynamic table INFORMATION_SCHEMA.innodb_tablestats
 @return 0 on success */
 static
 int
-innodb_sys_tablestats_init(
+innodb_tablestats_init(
 /*=======================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_tablestats_init");
+	DBUG_ENTER("innodb_tablestats_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_tablestats_fields_info;
+	schema->fields_info = innodb_tablestats_fields_info;
 	schema->fill_table = i_s_sys_tables_fill_table_stats;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_tablestats =
+struct st_mysql_plugin	i_s_innodb_tablestats =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6386,7 +6386,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_TABLESTATS"),
+	STRUCT_FLD(name, "INNODB_TABLESTATS"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -6402,7 +6402,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_tablestats_init),
+	STRUCT_FLD(init, innodb_tablestats_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -6508,7 +6508,7 @@ static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to populate the information_schema.innodb_sys_indexes table with
+Function to populate the information_schema.innodb_indexes table with
 collected index information
 @return 0 on success */
 static
@@ -6555,7 +6555,7 @@ i_s_dict_fill_sys_indexes(
 #endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to go through each record in SYS_INDEXES table, and fill the
-information_schema.innodb_sys_indexes table with related index information
+information_schema.innodb_indexes table with related index information
 @return 0 on success */
 static
 int
@@ -6626,17 +6626,17 @@ i_s_sys_indexes_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_indexes
+Bind the dynamic table INFORMATION_SCHEMA.innodb_indexes
 @return 0 on success */
 static
 int
-innodb_sys_indexes_init(
+innodb_indexes_init(
 /*====================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_indexes_init");
+	DBUG_ENTER("innodb_indexes_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
@@ -6646,7 +6646,7 @@ innodb_sys_indexes_init(
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_indexes =
+struct st_mysql_plugin	i_s_innodb_indexes =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6658,7 +6658,7 @@ struct st_mysql_plugin	i_s_innodb_sys_indexes =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_INDEXES"),
+	STRUCT_FLD(name, "INNODB_INDEXES"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -6674,7 +6674,7 @@ struct st_mysql_plugin	i_s_innodb_sys_indexes =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_indexes_init),
+	STRUCT_FLD(init, innodb_indexes_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -6700,8 +6700,8 @@ struct st_mysql_plugin	i_s_innodb_sys_indexes =
 };
 
 /**  SYS_COLUMNS  **************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_COLUMNS */
-static ST_FIELD_INFO	innodb_sys_columns_fields_info[] =
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_COLUMNS */
+static ST_FIELD_INFO	innodb_columns_fields_info[] =
 {
 #define SYS_COLUMN_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -6762,7 +6762,7 @@ static ST_FIELD_INFO	innodb_sys_columns_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to populate the information_schema.innodb_sys_columns with
+Function to populate the information_schema.innodb_columns with
 related column information
 @return 0 on success */
 static
@@ -6807,7 +6807,7 @@ i_s_dict_fill_sys_columns(
 }
 #endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
-Function to fill information_schema.innodb_sys_columns with information
+Function to fill information_schema.innodb_columns with information
 collected by scanning SYS_COLUMNS table.
 @return 0 on success */
 static
@@ -6881,27 +6881,27 @@ i_s_sys_columns_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_columns
+Bind the dynamic table INFORMATION_SCHEMA.innodb_columns
 @return 0 on success */
 static
 int
-innodb_sys_columns_init(
+innodb_columns_init(
 /*====================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_columns_init");
+	DBUG_ENTER("innodb_columns_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_columns_fields_info;
+	schema->fields_info = innodb_columns_fields_info;
 	schema->fill_table = i_s_sys_columns_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_columns =
+struct st_mysql_plugin	i_s_innodb_columns =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6913,7 +6913,7 @@ struct st_mysql_plugin	i_s_innodb_sys_columns =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_COLUMNS"),
+	STRUCT_FLD(name, "INNODB_COLUMNS"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -6929,7 +6929,7 @@ struct st_mysql_plugin	i_s_innodb_sys_columns =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_columns_init),
+	STRUCT_FLD(init, innodb_columns_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -6955,8 +6955,8 @@ struct st_mysql_plugin	i_s_innodb_sys_columns =
 };
 
 /**  SYS_VIRTUAL **************************************************/
-/** Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL */
-static ST_FIELD_INFO	innodb_sys_virtual_fields_info[] =
+/** Fields of the dynamic table INFORMATION_SCHEMA.INNODB_VIRTUAL */
+static ST_FIELD_INFO	innodb_virtual_fields_info[] =
 {
 #define SYS_VIRTUAL_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -6989,7 +6989,7 @@ static ST_FIELD_INFO	innodb_sys_virtual_fields_info[] =
 };
 
 #ifdef INNODB_NO_NEW_DD
-/** Function to populate the information_schema.innodb_sys_virtual with
+/** Function to populate the information_schema.innodb_virtual with
 related information
 param[in]	thd		thread
 param[in]	table_id	table ID
@@ -7024,7 +7024,7 @@ i_s_dict_fill_sys_virtual(
 }
 #endif /* INNODB_NO_NEW_DD */
 
-/** Function to fill information_schema.innodb_sys_virtual with information
+/** Function to fill information_schema.innodb_virtual with information
 collected by scanning SYS_VIRTUAL table.
 param[in]	thd		thread
 param[in,out]	tables		tables to fill
@@ -7098,27 +7098,27 @@ i_s_sys_virtual_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 
-/** Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_virtual
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_virtual
 param[in,out]	p	table schema object
 @return 0 on success */
 static
 int
-innodb_sys_virtual_init(
+innodb_virtual_init(
 	void*	p)
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_virtual_init");
+	DBUG_ENTER("innodb_virtual_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_virtual_fields_info;
+	schema->fields_info = innodb_virtual_fields_info;
 	schema->fill_table = i_s_sys_virtual_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_virtual =
+struct st_mysql_plugin	i_s_innodb_virtual =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7130,7 +7130,7 @@ struct st_mysql_plugin	i_s_innodb_sys_virtual =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_VIRTUAL"),
+	STRUCT_FLD(name, "INNODB_VIRTUAL"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -7146,7 +7146,7 @@ struct st_mysql_plugin	i_s_innodb_sys_virtual =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_virtual_init),
+	STRUCT_FLD(init, innodb_virtual_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -7171,8 +7171,8 @@ struct st_mysql_plugin	i_s_innodb_sys_virtual =
 	STRUCT_FLD(flags, 0UL),
 };
 /**  SYS_FIELDS  ***************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FIELDS */
-static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FIELDS */
+static ST_FIELD_INFO	innodb_fields_fields_info[] =
 {
 #define SYS_FIELD_INDEX_ID	0
 	{STRUCT_FLD(field_name,		"INDEX_ID"),
@@ -7206,7 +7206,7 @@ static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to fill information_schema.innodb_sys_fields with information
+Function to fill information_schema.innodb_fields with information
 collected by scanning SYS_FIELDS table.
 @return 0 on success */
 static
@@ -7238,7 +7238,7 @@ i_s_dict_fill_sys_fields(
 #endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
 Function to go through each record in SYS_FIELDS table, and fill the
-information_schema.innodb_sys_fields table with related index field
+information_schema.innodb_fields table with related index field
 information
 @return 0 on success */
 static
@@ -7316,27 +7316,27 @@ i_s_sys_fields_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_fields
+Bind the dynamic table INFORMATION_SCHEMA.innodb_fields
 @return 0 on success */
 static
 int
-innodb_sys_fields_init(
+innodb_fields_init(
 /*===================*/
 	void*   p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_field_init");
+	DBUG_ENTER("innodb_field_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_fields_fields_info;
+	schema->fields_info = innodb_fields_fields_info;
 	schema->fill_table = i_s_sys_fields_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_fields =
+struct st_mysql_plugin	i_s_innodb_fields =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7348,7 +7348,7 @@ struct st_mysql_plugin	i_s_innodb_sys_fields =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_FIELDS"),
+	STRUCT_FLD(name, "INNODB_FIELDS"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -7364,7 +7364,7 @@ struct st_mysql_plugin	i_s_innodb_sys_fields =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_fields_init),
+	STRUCT_FLD(init, innodb_fields_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -7390,8 +7390,8 @@ struct st_mysql_plugin	i_s_innodb_sys_fields =
 };
 
 /**  SYS_FOREIGN        ********************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FOREIGN */
-static ST_FIELD_INFO	innodb_sys_foreign_fields_info[] =
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FOREIGN */
+static ST_FIELD_INFO	innodb_foreign_fields_info[] =
 {
 #define SYS_FOREIGN_ID		0
 	{STRUCT_FLD(field_name,		"ID"),
@@ -7443,7 +7443,7 @@ static ST_FIELD_INFO	innodb_sys_foreign_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to fill information_schema.innodb_sys_foreign with information
+Function to fill information_schema.innodb_foreign with information
 collected by scanning SYS_FOREIGN table.
 @return 0 on success */
 static
@@ -7479,7 +7479,7 @@ i_s_dict_fill_sys_foreign(
 #endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
-Function to populate INFORMATION_SCHEMA.innodb_sys_foreign table. Loop
+Function to populate INFORMATION_SCHEMA.innodb_foreign table. Loop
 through each record in SYS_FOREIGN, and extract the foreign key
 information.
 @return 0 on success */
@@ -7550,27 +7550,27 @@ i_s_sys_foreign_fill_table(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign
+Bind the dynamic table INFORMATION_SCHEMA.innodb_foreign
 @return 0 on success */
 static
 int
-innodb_sys_foreign_init(
+innodb_foreign_init(
 /*====================*/
 	void*   p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_foreign_init");
+	DBUG_ENTER("innodb_foreign_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_foreign_fields_info;
+	schema->fields_info = innodb_foreign_fields_info;
 	schema->fill_table = i_s_sys_foreign_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_foreign =
+struct st_mysql_plugin	i_s_innodb_foreign =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7582,7 +7582,7 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_FOREIGN"),
+	STRUCT_FLD(name, "INNODB_FOREIGN"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -7598,7 +7598,7 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_foreign_init),
+	STRUCT_FLD(init, innodb_foreign_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -7624,8 +7624,8 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign =
 };
 
 /**  SYS_FOREIGN_COLS   ********************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS */
-static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FOREIGN_COLS */
+static ST_FIELD_INFO	innodb_foreign_cols_fields_info[] =
 {
 #define SYS_FOREIGN_COL_ID		0
 	{STRUCT_FLD(field_name,		"ID"),
@@ -7668,7 +7668,7 @@ static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to fill information_schema.innodb_sys_foreign_cols with information
+Function to fill information_schema.innodb_foreign_cols with information
 collected by scanning SYS_FOREIGN_COLS table.
 @return 0 on success */
 static
@@ -7703,9 +7703,9 @@ i_s_dict_fill_sys_foreign_cols(
 }
 #endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
-Function to populate INFORMATION_SCHEMA.innodb_sys_foreign_cols table. Loop
+Function to populate INFORMATION_SCHEMA.innodb_foreign_cols table. Loop
 through each record in SYS_FOREIGN_COLS, and extract the foreign key column
-information and fill the INFORMATION_SCHEMA.innodb_sys_foreign_cols table.
+information and fill the INFORMATION_SCHEMA.innodb_foreign_cols table.
 @return 0 on success */
 static
 int
@@ -7777,27 +7777,27 @@ i_s_sys_foreign_cols_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols
+Bind the dynamic table INFORMATION_SCHEMA.innodb_foreign_cols
 @return 0 on success */
 static
 int
-innodb_sys_foreign_cols_init(
+innodb_foreign_cols_init(
 /*========================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_foreign_cols_init");
+	DBUG_ENTER("innodb_foreign_cols_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_foreign_cols_fields_info;
+	schema->fields_info = innodb_foreign_cols_fields_info;
 	schema->fill_table = i_s_sys_foreign_cols_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
+struct st_mysql_plugin	i_s_innodb_foreign_cols =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7809,7 +7809,7 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_FOREIGN_COLS"),
+	STRUCT_FLD(name, "INNODB_FOREIGN_COLS"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -7825,7 +7825,7 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_foreign_cols_init),
+	STRUCT_FLD(init, innodb_foreign_cols_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -7851,8 +7851,8 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 };
 
 /**  SYS_TABLESPACES    ********************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES */
-static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES */
+static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 {
 #define SYS_TABLESPACES_SPACE		0
 	{STRUCT_FLD(field_name,		"SPACE"),
@@ -7950,7 +7950,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to fill INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES with information
+Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES with information
 collected by scanning SYS_TABLESPACESS table.
 @return 0 on success */
 static
@@ -8080,9 +8080,9 @@ i_s_dict_fill_sys_tablespaces(
 #endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
-Function to populate INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES table.
+Function to populate INFORMATION_SCHEMA.INNODB_TABLESPACES table.
 Loop through each record in SYS_TABLESPACES, and extract the column
-information and fill the INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES table.
+information and fill the INFORMATION_SCHEMA.INNODB_TABLESPACES table.
 @return 0 on success */
 static
 int
@@ -8152,27 +8152,27 @@ i_s_sys_tablespaces_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES
 @return 0 on success */
 static
 int
-innodb_sys_tablespaces_init(
+innodb_tablespaces_init(
 /*========================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_tablespaces_init");
+	DBUG_ENTER("innodb_tablespaces_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_tablespaces_fields_info;
+	schema->fields_info = innodb_tablespaces_fields_info;
 	schema->fill_table = i_s_sys_tablespaces_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
+struct st_mysql_plugin	i_s_innodb_tablespaces =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -8184,7 +8184,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_TABLESPACES"),
+	STRUCT_FLD(name, "INNODB_TABLESPACES"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -8200,7 +8200,7 @@ struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_tablespaces_init),
+	STRUCT_FLD(init, innodb_tablespaces_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -8226,8 +8226,8 @@ struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
 };
 
 /**  SYS_DATAFILES  ************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_DATAFILES */
-static ST_FIELD_INFO	innodb_sys_datafiles_fields_info[] =
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_DATAFILES */
+static ST_FIELD_INFO	innodb_datafiles_fields_info[] =
 {
 #define SYS_DATAFILES_SPACE		0
 	{STRUCT_FLD(field_name,		"SPACE"),
@@ -8252,7 +8252,7 @@ static ST_FIELD_INFO	innodb_sys_datafiles_fields_info[] =
 
 #ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
-Function to fill INFORMATION_SCHEMA.INNODB_SYS_DATAFILES with information
+Function to fill INFORMATION_SCHEMA.INNODB_DATAFILES with information
 collected by scanning SYS_DATAFILESS table.
 @return 0 on success */
 static
@@ -8280,9 +8280,9 @@ i_s_dict_fill_sys_datafiles(
 }
 #endif /* INNODB_NO_NEW_DD */
 /*******************************************************************//**
-Function to populate INFORMATION_SCHEMA.INNODB_SYS_DATAFILES table.
+Function to populate INFORMATION_SCHEMA.INNODB_DATAFILES table.
 Loop through each record in SYS_DATAFILES, and extract the column
-information and fill the INFORMATION_SCHEMA.INNODB_SYS_DATAFILES table.
+information and fill the INFORMATION_SCHEMA.INNODB_DATAFILES table.
 @return 0 on success */
 static
 int
@@ -8350,27 +8350,27 @@ i_s_sys_datafiles_fill_table(
 #endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_DATAFILES
 @return 0 on success */
 static
 int
-innodb_sys_datafiles_init(
+innodb_datafiles_init(
 /*======================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_datafiles_init");
+	DBUG_ENTER("innodb_datafiles_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innodb_sys_datafiles_fields_info;
+	schema->fields_info = innodb_datafiles_fields_info;
 	schema->fill_table = i_s_sys_datafiles_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_sys_datafiles =
+struct st_mysql_plugin	i_s_innodb_datafiles =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -8382,7 +8382,7 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_SYS_DATAFILES"),
+	STRUCT_FLD(name, "INNODB_DATAFILES"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -8398,7 +8398,7 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_sys_datafiles_init),
+	STRUCT_FLD(init, innodb_datafiles_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */

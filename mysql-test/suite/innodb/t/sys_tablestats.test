@@ -17,7 +17,7 @@ set debug ='d,test_sys_tablestats';
 --disable_result_log
 set debug_sync = 'dict_table_not_protected SIGNAL have_t1 WAIT_FOR del_t1';
 --send
-select name from information_schema.innodb_sys_tablestats;
+select name from information_schema.innodb_tablestats;
 
 --echo # Connection con1:
 connect (con1,localhost,root,,test);

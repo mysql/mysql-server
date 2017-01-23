@@ -142,14 +142,14 @@ void System_views::init()
     "TABLES",
     "TABLES_DYNAMIC",
     "VIEWS",
-    "INNODB_SYS_TABLES",
-    "INNODB_SYS_TABLESPACES",
-    "INNODB_SYS_DATAFILES",
-    "INNODB_SYS_COLUMNS",
-    "INNODB_SYS_FIELDS",
-    "INNODB_SYS_INDEXES",
-    "INNODB_SYS_FOREIGN",
-    "INNODB_SYS_FOREIGN_COLS",
+    "INNODB_TABLES",
+    "INNODB_TABLESPACES",
+    "INNODB_DATAFILES",
+    "INNODB_COLUMNS",
+    "INNODB_FIELDS",
+    "INNODB_INDEXES",
+    "INNODB_FOREIGN",
+    "INNODB_FOREIGN_COLS",
     nullptr
   };
   for (int i= 0; system_view_names[i] != NULL; ++i)

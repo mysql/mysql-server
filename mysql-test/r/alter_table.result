@@ -2370,9 +2370,9 @@ t1	CREATE TABLE `t1` (
   KEY `i2` (`c`),
   KEY `i1` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
-information_schema.innodb_sys_indexes as i,
-information_schema.innodb_sys_fields as f
+select i.name as k, f.name as c from information_schema.innodb_tables as t,
+information_schema.innodb_indexes as i,
+information_schema.innodb_fields as f
 where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
 order by k, c;
 k	c
@@ -2407,9 +2407,9 @@ t1	CREATE TABLE `t1` (
   KEY `i2` (`b`),
   KEY `i1` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
-information_schema.innodb_sys_indexes as i,
-information_schema.innodb_sys_fields as f
+select i.name as k, f.name as c from information_schema.innodb_tables as t,
+information_schema.innodb_indexes as i,
+information_schema.innodb_fields as f
 where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
 order by k, c;
 k	c
@@ -2644,9 +2644,9 @@ WHEN 0 THEN 'Secondary'
             ELSE 'Unknown'
        END AS INDEX_TYPE,
 F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
-INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
-INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
-INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
+INFORMATION_SCHEMA.INNODB_TABLES AS T JOIN
+INFORMATION_SCHEMA.INNODB_INDEXES AS I JOIN
+INFORMATION_SCHEMA.INNODB_FIELDS AS F
 ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME = 'test/t1';
 TABLE_NAME	INDEX_NAME	INDEX_TYPE	FIELD_NAME	FIELD_POS
@@ -2741,7 +2741,7 @@ CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE=INNODB;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 0
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
@@ -2749,7 +2749,7 @@ ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=45	YES
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 0
 DROP TABLE t1;
@@ -2758,14 +2758,14 @@ ENGINE=INNODB;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=40	YES
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 0
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 0
 DROP TABLE t1;
@@ -2774,7 +2774,7 @@ ENGINE=INNODB;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=40	YES
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 0
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
@@ -2782,7 +2782,7 @@ ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=45	YES
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 0
 DROP TABLE t1;
@@ -2938,9 +2938,9 @@ CASE (I.TYPE & 3)
 WHEN 3 THEN "yes"
             ELSE "no" END AS IS_PRIMARY_KEY,
 F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
-INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
-INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
-INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
+INFORMATION_SCHEMA.INNODB_TABLES AS T JOIN
+INFORMATION_SCHEMA.INNODB_INDEXES AS I JOIN
+INFORMATION_SCHEMA.INNODB_FIELDS AS F
 ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME LIKE 'test/%' ORDER BY T.NAME, I.NAME, F.POS;
 TABLE_NAME	INDEX_NAME	IS_PRIMARY_KEY	FIELD_NAME	FIELD_POS

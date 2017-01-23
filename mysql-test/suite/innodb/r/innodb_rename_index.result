@@ -50,9 +50,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -134,9 +134,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -236,9 +236,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -352,9 +352,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -462,9 +462,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -540,9 +540,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -638,9 +638,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -730,9 +730,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -822,9 +822,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -899,9 +899,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -981,9 +981,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1063,9 +1063,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1159,9 +1159,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1228,9 +1228,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1276,9 +1276,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1332,9 +1332,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND

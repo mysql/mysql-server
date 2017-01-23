@@ -4,15 +4,15 @@ set global innodb_file_per_table = off;
 SELECT @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
 0
-SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
+SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
 @mycount_SYS_DATAFILES:=COUNT(*)
 NUM
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 # creation of shared temp-tablespace in MYSQL_DATA_DIR
 ibtmp1
-# check no entries made INNODB_SYS_DATAFILES
-SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
+# check no entries made INNODB_DATAFILES
+SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
 @mycount_SYS_DATAFILES=COUNT(*)
 1
 INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),

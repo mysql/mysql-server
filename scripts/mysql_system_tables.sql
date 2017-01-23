@@ -4409,9 +4409,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SHOW_STATIS
   FROM information_schema.STATISTICS_BASE);
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_TABLES
+-- INFORMATION_SCHEMA.INNODB_TABLES
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_tables AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_tables AS
   (SELECT
     tbl.se_private_id AS `TABLE_ID`,
     CONCAT(sch.name, "/", tbl.name) AS `NAME`,
@@ -4454,9 +4454,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
   GROUP BY tp.name, tp.se_private_id, tbl.id, tbl.name, tbl.se_private_data, ts.id);
 
  --
---- INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+--- INFORMATION_SCHEMA.INNODB_INDEXES
 ---
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_indexes AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_indexes AS
   (SELECT
     GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id') AS INDEX_ID,
     idx.name AS `NAME`,
@@ -4473,9 +4473,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
   GROUP BY idx.name, tbl.se_private_id, idx.se_private_data, idx.tablespace_id, idx.type);
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+-- INFORMATION_SCHEMA.INNODB_TABLESPACES
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_tablespaces AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_tablespaces AS
   (SELECT
     IF (ts.id < 4, NULL, ts.id-3) AS `SPACE`,
    ts.name AS `NAME`,
@@ -4489,9 +4489,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
   WHERE ts.engine="InnoDB" AND ts.id > 3);
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_COLUMNS
+-- INFORMATION_SCHEMA.INNODB_COLUMNS
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_columns AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_columns AS
   (SELECT
     tbl.se_private_id AS `TABLE_ID`,
     col.name AS `NAME`,
@@ -4504,9 +4504,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
   WHERE tbl.engine="InnoDB");
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_FIELDS
+-- INFORMATION_SCHEMA.INNODB_FIELDS
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_fields AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_fields AS
   (SELECT
     GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id') AS `INDEX_ID`,
     col.name AS `NAME`,
@@ -4518,9 +4518,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
    WHERE tbl.engine="InnoDB");
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
+-- INFORMATION_SCHEMA.INNODB_DATAFILES
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_datafiles AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_datafiles AS
   (SELECT
     GET_DD_TABLESPACE_PRIVATE_DATA(ts.se_private_data, 'id') AS `SPACE`,
     tf.file_name AS `PATH`
@@ -4528,9 +4528,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
     JOIN mysql.tablespaces ts ON tf.tablespace_id=ts.id);
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_FOREIGN
+-- INFORMATION_SCHEMA.INNODB_FOREIGN
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_foreign AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_foreign AS
 (SELECT fk.id AS `ID`,
     CONCAT(sch.name, "/", tbl.name) AS `FOR_NAME`,
 	CONCAT(fk.referenced_table_schema, "/", fk.referenced_table_name) AS `REF_NAME`,
@@ -4545,9 +4545,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_
   GROUP BY fk.id);
 
 --
--- INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS
+-- INFORMATION_SCHEMA.INNODB_FOREIGN_COLS
 --
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_sys_foreign_cols AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.innodb_foreign_cols AS
 (SELECT fk.id AS `ID`,
     col.name AS `FOR_COL_NAME`,
 	referenced_column_name AS `REF_COL_NAME`,
