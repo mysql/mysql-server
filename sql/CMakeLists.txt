@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -379,6 +379,13 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
+ENDIF()
+
+#
+# authentication LDAP SASL client
+#
+IF(NOT WIN32)
+  TARGET_LINK_LIBRARIES(sql authentication_ldap_sasl_client)
 ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc

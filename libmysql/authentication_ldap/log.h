@@ -15,12 +15,12 @@ extern MYSQL_PLUGIN g_ldap_plugin_info;
 
 struct log_type {
   typedef enum {
-    LOG_INFO, LOG_WARNING, LOG_ERROR
+    LOG_DBG, LOG_INFO, LOG_WARNING, LOG_ERROR
   } type;
 };
 
 enum log_level {
-  LOG_LEVEL_NONE = 1, LOG_LEVEL_ERROR_WARNING, LOG_LEVEL_ALL
+  LOG_LEVEL_NONE = 1, LOG_LEVEL_ERROR_WARNING, LOG_LEVEL_ERROR_WARNING_INFO, LOG_LEVEL_ALL
 };
 
 class Log_writer {
@@ -83,39 +83,56 @@ Logger<LOGGER_TYPE>::~Logger() {
 template<class LOGGER_TYPE>
 template<log_type::type type>
 void Logger<LOGGER_TYPE>::Log(std::string msg) {
-  if (!m_log_writer)
-    return;
-  /** Log all the messages as debug messages as well. */
-  DBUG_PRINT("ldap", (": %s", msg.c_str()));
   std::stringstream header;
-  header << my_getsystime() << ": ";
   int plugin_error_level = MY_INFORMATION_LEVEL;
-  switch (type) {
-  case log_type::LOG_INFO:
-      plugin_error_level = MY_INFORMATION_LEVEL;
-      if (LOG_LEVEL_ALL > m_log_level)
-        return;
-      header << "<INFO> ";
-      break;
-  case log_type::LOG_WARNING:
-      plugin_error_level = MY_WARNING_LEVEL;
-      if (LOG_LEVEL_ERROR_WARNING > m_log_level)
-        return;
-      header << "<WARNING> ";
-      break;
-  case log_type::LOG_ERROR:
-      plugin_error_level = MY_ERROR_LEVEL;
-      if (LOG_LEVEL_NONE > m_log_level)
-          return;
-      header << "<ERROR> ";
-      break;
-    }
 
-  header << my_getsystime() << ": ";
-  m_log_writer->Write(header.str());
-  m_log_writer->Write(msg);
-  my_plugin_log_message(&g_ldap_plugin_info,
-                        (plugin_log_level) plugin_error_level, msg.c_str());
+  switch (type) {
+  case log_type::LOG_DBG:
+    if (LOG_LEVEL_ALL > m_log_level) {
+      goto  WRITE_SERVER_LOG;
+    }
+    header << "<DBG> ";
+    break;
+  case log_type::LOG_INFO:
+    plugin_error_level = MY_INFORMATION_LEVEL;
+    if (LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
+      goto  WRITE_SERVER_LOG;
+    }
+    header << "<INFO> ";
+    break;
+  case log_type::LOG_WARNING:
+    plugin_error_level = MY_WARNING_LEVEL;
+    if (LOG_LEVEL_ERROR_WARNING > m_log_level) {
+      goto  WRITE_SERVER_LOG;
+    }
+    header << "<WARNING> ";
+    break;
+  case log_type::LOG_ERROR:
+    plugin_error_level = MY_ERROR_LEVEL;
+    if (LOG_LEVEL_NONE > m_log_level) {
+      goto  WRITE_SERVER_LOG;
+    }
+    header << "<ERROR> ";
+    break;
+  };
+
+  /** We can write debug messages also in error log file if logging level is set to debug. */
+  /** For MySQL server this will be set using option. */
+  /** For MySQL client this will come from environment variable */
+  if (m_log_writer){
+    header << my_getsystime() << ": ";
+    m_log_writer->Write(header.str());
+    m_log_writer->Write(msg);
+  }
+
+WRITE_SERVER_LOG:
+    
+  if(g_ldap_plugin_info && (type != log_type::LOG_DBG)) {
+     DBUG_PRINT("ldap plugin log type: ", (": %d", plugin_error_level));
+  }
+  
+  /** Log all the messages as debug messages as well. */
+  DBUG_PRINT("ldap plugin: ", (": %s", msg.c_str()));
 }
 
 template<class LOGGER_TYPE>
@@ -123,17 +140,11 @@ void Logger<LOGGER_TYPE>::SetLogLevel(log_level level) {
   m_log_level = level;
 }
 
-extern Logger<Log_writer_file> g_logger;
+extern Logger<Log_writer_error> g_logger;
 
-//#define LDAP_PLUGIN_AUTH_LOG_NONE
-#ifndef LDAP_PLUGIN_AUTH_LOG_NONE
+#define log_dbg g_logger.Log< log_type::LOG_DBG >
 #define log_info g_logger.Log< log_type::LOG_INFO >
 #define log_warning g_logger.Log< log_type::LOG_WARNING >
 #define log_error g_logger.Log< log_type::LOG_ERROR >
-#else
-#define log_info(...)
-#define log_warning(...)
-#define log_error(...)
-#endif
 
 #endif
