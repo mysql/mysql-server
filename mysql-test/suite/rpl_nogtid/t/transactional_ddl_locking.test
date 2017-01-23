@@ -17,9 +17,9 @@
 ######################################################################
 
 --source include/big_test.inc
---source include/master-slave.inc
 --source include/have_myisam.inc
 --source include/no_ps_protocol.inc
+--source include/master-slave.inc
 
 --echo # Prepare playground for test by creating tables
 
