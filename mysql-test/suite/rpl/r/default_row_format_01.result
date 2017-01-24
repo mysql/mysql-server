@@ -28,7 +28,7 @@ test.tab	check	status	OK
 CHECK TABLE tab1;
 Table	Op	Msg_type	Msg_text
 test.tab1	check	status	OK
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tab#p#p0	innodb_system	0	6	Dynamic	0	General
 test/tab#p#p1	innodb_system	0	6	Dynamic	0	General
@@ -49,14 +49,14 @@ CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(767)))
 ENGINE= InnoDB ROW_FORMAT=COMPACT;
 INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tab	innodb_file_per_table.##	0	4	Compressed	0	Single
 include/sync_slave_sql_with_master.inc
 SELECT @@innodb_default_row_format;
 @@innodb_default_row_format
 dynamic
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tab	innodb_file_per_table.##	0	4	Compressed	0	Single
 DROP TABLE tab;
