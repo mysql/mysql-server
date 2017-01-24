@@ -11664,13 +11664,9 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
     }
     else
     {
-#ifdef BUG25353234_PROPERLY_FIXED
       /* If backup scan disktables in disk order */
       AccScanReq::setNoDiskScanFlag(requestInfo,
-                                    !tcConnectptr.p->m_disk_table);
-#else
-      AccScanReq::setNoDiskScanFlag(requestInfo, 1);
-#endif
+                                    !regTcPtr->m_disk_table);
       AccScanReq::setLcpScanFlag(requestInfo, 0);
     }
   }
