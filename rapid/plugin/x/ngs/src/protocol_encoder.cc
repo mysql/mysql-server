@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -129,7 +129,9 @@ bool Protocol_encoder::send_init_error(const Error_code& error_code)
 }
 
 
-void Protocol_encoder::send_local_notice(uint32_t type, const std::string &data, bool force_flush)
+void Protocol_encoder::send_local_notice(Notice_type type,
+                                         const std::string &data,
+                                         bool force_flush)
 {
   get_protocol_monitor().on_notice_other_send();
 
@@ -139,21 +141,20 @@ void Protocol_encoder::send_local_notice(uint32_t type, const std::string &data,
 /*
 NOTE: Commented for coverage. Uncomment when needed.
 
-void Protocol_encoder::send_global_notice(uint32_t type, const std::string &data)
+void Protocol_encoder::send_global_notice(Notice_type type, const std::string &data)
 {
   get_protocol_monitor().on_notice_other_send();
 
   send_notice(type, data, FRAME_SCOPE_GLOBAL, true);
 }
+*/
 
-
-void Protocol_encoder::send_local_warning(uint32_t type, const std::string &data, bool force_flush)
+void Protocol_encoder::send_local_warning(const std::string &data, bool force_flush)
 {
   get_protocol_monitor().on_notice_warning_send();
 
-  send_notice(type, data, FRAME_SCOPE_LOCAL, force_flush);
+  send_notice(k_notice_warning, data, FRAME_SCOPE_LOCAL, force_flush);
 }
-*/
 
 
 void Protocol_encoder::send_auth_ok(const std::string &data)

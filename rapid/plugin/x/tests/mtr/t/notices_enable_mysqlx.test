@@ -2,9 +2,11 @@
 
 --source ../include/xplugin_preamble.inc
 
+
 ## Test starts here
 --let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
 --write_file $xtest_result
+-->import assert_status_variable.macro
 -->quiet
 -->echo check with password function which is deprecated
 -->stmtsql select 1/0,1/0,password('test'),password('')
@@ -563,14 +565,15 @@ use test;
 -->stmtadmin enable_notices	{"notice":"account_expired"}
 -->recvresult
 
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	1
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
 --let $xtest_warnings= $MYSQL_TMP_DIR/stmtexecute_proc_warnings_mysqlx.tmp
 --write_file $xtest_warnings
+-->import assert_status_variable.macro
 -->quiet
 -->echo checking warnings with procedure execution
 -->sql
@@ -717,13 +720,17 @@ drop table worklog5743_1;
 drop table worklog5743_2;
 drop table worklog5743_4;
 drop table worklog5743_8;
-show status like 'Mysqlx%notice%';
 -->endsql
 
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
 --let $xtest_enable_notice= $MYSQL_TMP_DIR/enable_notice_mysqlx.tmp
 --write_file $xtest_enable_notice
+-->import assert_status_variable.macro
 -->quiet
 -->echo Try enable warnings
 -->stmtadmin enable_notices	{"notice":"warnings"}
@@ -745,14 +752,15 @@ EOF
 -->stmtadmin enable_notices	{"notice":"produced_message"}
 -->recvresult
 
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	5
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
 --let $xtest_multiple_notices= $MYSQL_TMP_DIR/enable_multiple_notices_mysqlx.tmp
 --write_file $xtest_multiple_notices
+-->import assert_status_variable.macro
 -->quiet
 -->echo Enable multiple notices both read-only and read-write with single StmtExecute,expect success
 -->stmtadmin enable_notices	{"notice":["warnings","account_expired","generated_insert_id","rows_affected","produced_message"]}
@@ -761,20 +769,16 @@ EOF
 -->stmtadmin list_notices
 -->recvresult
 
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	1
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	1
 EOF
 
 --let $xtest_stats= $MYSQL_TMP_DIR/stats_notices_mysqlx.tmp
 --write_file $xtest_stats
+-->import assert_status_variable.macro
 -->quiet
-
-# check initial count (should be 1 after login)
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
 
 -->echo check with password function which is deprecated
 -->stmtsql select 1/0,1/0,password('test'),password('')
@@ -789,26 +793,13 @@ use mysql;
 
 -->echo expect Mysqlx_notice_other_sent=8 and Mysqlx_notice_warning_sent=3
 -->echo seems like some problem with these stats, need to change values once issues fixed
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
 
 -->echo disable warnings notice and observe stats
 -->stmtadmin disable_notices	{"notice": "warnings"}
 -->recvresult
 
--->echo expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult
-
--->echo expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
 
 -->echo enable account_expired notice and check stats
 -->stmtadmin enable_notices	{"notice":"warnings"}
@@ -818,33 +809,23 @@ show status like 'Mysqlx%notice%';
 -->stmtadmin enable_notices	{"notice":"account_expired"}
 -->recvresult
 
--->echo expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
 -->echo listing notices after enabling warnings,account_expired notices
 -->stmtadmin list_notices
 -->recvresult
-
--->echo expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
 
 -->echo listing notices with mixed case
 -->stmtadmin LIST_notices
 -->recvresult
 
--->echo expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	1
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	2
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	2
 EOF
 
 --let $xtest_stats_noti= $MYSQL_TMP_DIR/stats_noti_mysqlx.tmp
 --write_file $xtest_stats_noti
+-->import assert_status_variable.macro
 -->quiet
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult
@@ -858,15 +839,15 @@ use mysql;
 -->expecterror 1046
 -->recvresult
 
--->echo expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
 --let $xtest_stats_noti_no_err= $MYSQL_TMP_DIR/stats_noti_no_err_mysqlx.tmp
 --write_file $xtest_stats_noti_no_err
+-->import assert_status_variable.macro
 -->quiet
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult
@@ -878,51 +859,39 @@ use mysql;
 -->stmtsql drop tables if exists t1;
 -->recvresult
 
--->echo expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3
--->sql
-show status like 'Mysqlx%notice%';
--->endsql
-
+-->callmacro Assert_recived_notices
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_result 2>&1
-show status like 'Mysqlx%notice%';
-##change result file once Bug#21611216 is fixed 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_warnings 2>&1
-show status like 'Mysqlx%notice%';
+
+--let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_result $MACROS 2>&1
+
+##change result file once Bug#21611216 is fixed
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_warnings $MACROS 2>&1
+
 ##try enable read-only notices
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_enable_notice 2>&1
-show status like 'Mysqlx%notice%';
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_enable_notice $MACROS 2>&1
+
 ##try enable read-only notices with normal user
 create user xplugin@localhost identified by 'xplugin';
---exec $MYSQLXTEST -uxplugin --password='xplugin' --file=$xtest_enable_notice 2>&1
-show status like 'Mysqlx%notice%';
+--exec $MYSQLXTEST -uxplugin --password='xplugin' --file=$xtest_enable_notice $MACROS 2>&1
 
 ## Enable multiple notices both read-only and read-write with single StmtExecute,expect success
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_multiple_notices 2>&1
-show status like 'Mysqlx%notice%';
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_multiple_notices $MACROS 2>&1
 
 ## checking notices related stats
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats 2>&1
-show status like 'Mysqlx%notice%';
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats $MACROS 2>&1
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with show_compatibility_56=OFF which is default in 5.7
 let $restart_parameters = restart: --show_compatibility_56=OFF;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
-##expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3 with both native and xconnection
-##change result file once Bug#21777465 is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats_noti_no_err 2>&1
-show status like 'Mysqlx%notice%';
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats_noti_no_err $MACROS 2>&1
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with show_compatibility_56=ON with unprivileged user
 let $restart_parameters = restart: --show_compatibility_56=ON;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 create user noti@localhost identified by 'noti';
-##expect MYSQLX_NOTICE_OTHER_SENT=2,MYSQLX_NOTICE_WARNING_SENT=3 with both native and xconnection
-##change result file once Bug#21777465 is fixed
---exec $MYSQLXTEST -unoti --password='noti' --file=$xtest_stats_noti 2>&1
-show status like 'Mysqlx%notice%';
-drop user noti@localhost;
+--exec $MYSQLXTEST -unoti --password='noti' --file=$xtest_stats_noti $MACROS 2>&1
 
 --remove_file $xtest_result
 --remove_file $xtest_warnings
@@ -933,5 +902,6 @@ drop user noti@localhost;
 --remove_file $xtest_stats_noti_no_err
 
 ## Postamble
+drop user noti@localhost;
 drop user xplugin@localhost;
 uninstall plugin mysqlx;
