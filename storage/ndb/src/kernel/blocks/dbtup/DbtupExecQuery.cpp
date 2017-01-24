@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ int Dbtup::getStoredProcAttrInfo(Uint32 storedId,
                                  KeyReqStruct* req_struct,
                                  Uint32& attrInfoIVal) 
 {
-  jam();
+  jamDebug();
   StoredProcPtr storedPtr;
   c_storedProcPool.getPtr(storedPtr, storedId);
   if (storedPtr.i != RNIL) {
@@ -167,7 +167,7 @@ Dbtup::setChecksum(Tuple_header* tuple_ptr,
 {
   if (regTabPtr->m_bits & Tablerec::TR_Checksum)
   {
-    jam();
+    jamDebug();
     tuple_ptr->m_checksum= 0;
     tuple_ptr->m_checksum= calculateChecksum(tuple_ptr, regTabPtr);
   }
@@ -618,7 +618,7 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
   Fragrecord * Rfragrecord = fragrecord;
   Tablerec * Rtablerec = tablerec;
 
-  jamEntry();
+  jamEntryDebug();
   ndbrequire(fragptr.i < RnoOfFragrec);
   ptrAss(fragptr, Rfragrecord);
   tabptr.i = fragptr.p->fragTableId;
@@ -640,7 +640,7 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
     register Uint32 *tuple_ptr = get_ptr(&pagePtr,
                                          &key,
                                          tabptr.p);
-    jam();
+    jamDebug();
     prepare_pageptr = pagePtr;
     prepare_tuple_ptr = tuple_ptr;
     prepare_page_no = page_id;
@@ -661,7 +661,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
 
    Uint32 RoperPtr= tupKeyReq->connectPtr;
 
-   jamEntry();
+   jamEntryDebug();
 
    c_operation_pool.getPtr(operPtr, RoperPtr);
 
@@ -955,7 +955,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
     * Check operation
     */
    if (Roptype == ZREAD) {
-     jam();
+     jamDebug();
      
      if (setup_read(&req_struct, regOperPtr, regFragPtr, regTabPtr, 
 		    disk_page != RNIL))
@@ -1053,7 +1053,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      }
 
      if (Roptype == ZUPDATE) {
-       jam();
+       jamDebug();
        if (unlikely(handleUpdateReq(signal, regOperPtr,
                                     regFragPtr, regTabPtr,
                                     &req_struct, disk_page != RNIL) == -1))
@@ -1273,7 +1273,7 @@ int Dbtup::handleReadReq(Signal* signal,
   if(node != 0 && node != getOwnNodeId()) {
     start_index= 25;
   } else {
-    jam();
+    jamDebug();
     /**
      * execute direct
      */
@@ -1282,7 +1282,7 @@ int Dbtup::handleReadReq(Signal* signal,
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
   if (!req_struct->interpreted_exec) {
-    jam();
+    jamDebug();
     int ret = readAttributes(req_struct,
 			     &cinBuffer[0],
 			     req_struct->attrinfo_len,
@@ -1293,7 +1293,7 @@ int Dbtup::handleReadReq(Signal* signal,
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
-      jam();
+      jamDebug();
       Uint32 TnoOfDataRead= (Uint32) ret;
       req_struct->read_length += TnoOfDataRead;
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead);
@@ -1431,7 +1431,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   req_struct->optimize_options = 0;
   
   if (!req_struct->interpreted_exec) {
-    jam();
+    jamDebug();
 
     if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
     {
@@ -2693,7 +2693,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
   Uint32 RfinalRLen= cinBuffer[3];
   Uint32 RsubLen= cinBuffer[4];
 
-  jam();
+  jamDebug();
 
   Uint32 RattrinbufLen= req_struct->attrinfo_len;
   const BlockReference sendBref= req_struct->rec_blockref;
@@ -2757,7 +2757,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
       }
     }
     if (RexecRegionLen > 0) {
-      jam();
+      jamDebug();
       /* ---------------------------------------------------------------- */
       // The next step is the actual interpreted execution. This executes
       // a register-based virtual machine which can read and write attributes
@@ -3029,7 +3029,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
       TprogramCounter++;
       switch (Interpreter::getOpCode(theInstruction)) {
       case Interpreter::READ_ATTR_INTO_REG:
-	jam();
+	jamDebug();
 	/* ---------------------------------------------------------------- */
 	// Read an attribute from the tuple into a register.
 	// While reading an attribute we allow the attribute to be an array
@@ -3068,7 +3068,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister + 2]= 0;
 	    TregMemBuffer[theRegister + 3]= 0;
 	  } else if (TnoDataRW < 0) {
-	    jam();
+	    jamDebug();
             terrorCode = Uint32(-TnoDataRW);
 	    tupkeyErrorLab(req_struct);
 	    return -1;
@@ -3083,7 +3083,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 
       case Interpreter::WRITE_ATTR_FROM_REG:
-	jam();
+	jamDebug();
 	{
 	  Uint32 TattrId= theInstruction >> 16;
 	  Uint32 TattrDescrIndex= req_struct->tablePtrP->tabDescriptor +
@@ -3149,18 +3149,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 
       case Interpreter::LOAD_CONST_NULL:
-	jam();
+	jamDebug();
 	TregMemBuffer[theRegister]= 0;	/* NULL INDICATOR */
 	break;
 
       case Interpreter::LOAD_CONST16:
-	jam();
+	jamDebug();
 	TregMemBuffer[theRegister]= 0x50;	/* 32 BIT UNSIGNED CONSTANT */
 	* (Int64*)(TregMemBuffer+theRegister+2)= theInstruction >> 16;
 	break;
 
       case Interpreter::LOAD_CONST32:
-	jam();
+	jamDebug();
 	TregMemBuffer[theRegister]= 0x50;	/* 32 BIT UNSIGNED CONSTANT */
 	* (Int64*)(TregMemBuffer+theRegister+2)= * 
 	  (TcurrentProgram+TprogramCounter);
@@ -3168,7 +3168,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	break;
 
       case Interpreter::LOAD_CONST64:
-	jam();
+	jamDebug();
 	TregMemBuffer[theRegister]= 0x60;	/* 64 BIT UNSIGNED CONSTANT */
         TregMemBuffer[theRegister + 2 ]= * (TcurrentProgram +
                                              TprogramCounter++);
@@ -3227,20 +3227,20 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::BRANCH_REG_EQ_NULL:
 	if (TregMemBuffer[theRegister] != 0) {
-	  jam();
+	  jamDebug();
 	  continue;
 	} else {
-	  jam();
+	  jamDebug();
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
 	break;
 
       case Interpreter::BRANCH_REG_NE_NULL:
 	if (TregMemBuffer[theRegister] == 0) {
-	  jam();
+	  jamDebug();
 	  continue;
 	} else {
-	  jam();
+	  jamDebug();
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
 	break;
@@ -3258,7 +3258,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 Tright0= TregMemBuffer[TrightRegister + 2];
 	  Uint32 Tright1= TregMemBuffer[TrightRegister + 3];
 	  if ((TrightType | TleftType) != 0) {
-	    jam();
+	    jamDebug();
 	    if ((Tleft0 == Tright0) && (Tleft1 == Tright1)) {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
@@ -3280,7 +3280,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 Tright0= TregMemBuffer[TrightRegister + 2];
 	  Uint32 Tright1= TregMemBuffer[TrightRegister + 3];
 	  if ((TrightType | TleftType) != 0) {
-	    jam();
+	    jamDebug();
 	    if ((Tleft0 != Tright0) || (Tleft1 != Tright1)) {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
@@ -3302,7 +3302,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
          
 
 	  if ((TrightType | TleftType) != 0) {
-	    jam();
+	    jamDebug();
 	    if (Tleft0 < Tright0) {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
@@ -3324,7 +3324,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  
 
 	  if ((TrightType | TleftType) != 0) {
-	    jam();
+	    jamDebug();
 	    if (Tleft0 <= Tright0) {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
@@ -3346,7 +3346,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  
 
 	  if ((TrightType | TleftType) != 0) {
-	    jam();
+	    jamDebug();
 	    if (Tleft0 > Tright0){
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
@@ -3368,7 +3368,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  
 
 	  if ((TrightType | TleftType) != 0) {
-	    jam();
+	    jamDebug();
 	    if (Tleft0 >= Tright0){
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
@@ -3380,7 +3380,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::BRANCH_ATTR_OP_ARG_2:
       case Interpreter::BRANCH_ATTR_OP_ARG:{
-	jam();
+	jamDebug();
 	Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
 	Uint32 ins2 = TcurrentProgram[TprogramCounter];
 	Uint32 attrId = Interpreter::getBranchCol_AttrId(ins2) << 16;
@@ -3427,7 +3427,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
         if (Interpreter::getOpCode(theInstruction) ==
             Interpreter::BRANCH_ATTR_OP_ARG_2)
         {
-          jam();
+          jamDebug();
           Uint32 paramNo = Interpreter::getBranchCol_ParamNo(ins2);
           const Uint32 * paramptr = lookupInterpreterParameter(paramNo,
                                                                subroutineProg,
@@ -3465,7 +3465,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
             // NULL==NULL and NULL<not-NULL
             res1 = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
           } else {
-	    jam();
+	    jamDebug();
 	    if (unlikely(sqlType.m_cmp == 0))
 	    {
 	      return TUPKEY_abort(req_struct, 40);
@@ -3569,7 +3569,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
       }
 	
       case Interpreter::BRANCH_ATTR_EQ_NULL:{
-	jam();
+	jamDebug();
 	Uint32 ins2= TcurrentProgram[TprogramCounter];
 	Uint32 attrId= Interpreter::getBranchCol_AttrId(ins2) << 16;
 	
@@ -3598,7 +3598,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
       }
 
       case Interpreter::BRANCH_ATTR_NE_NULL:{
-	jam();
+	jamDebug();
 	Uint32 ins2= TcurrentProgram[TprogramCounter];
 	Uint32 attrId= Interpreter::getBranchCol_AttrId(ins2) << 16;
 	
@@ -3627,14 +3627,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
       }
 	
       case Interpreter::EXIT_OK:
-	jam();
+	jamDebug();
 #ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_ok");
 #endif
 	return TdataWritten;
 
       case Interpreter::EXIT_OK_LAST:
-	jam();
+	jamDebug();
 #ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_ok_last");
 #endif
@@ -3650,7 +3650,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	return TUPKEY_abort(req_struct, 29);
 
       case Interpreter::CALL:
-	jam();
+	jamDebug();
 #ifdef TRACE_INTERPRETER
         ndbout_c(" - call addr=%u, subroutine len=%u ret addr=%u",
                  theInstruction >> 16, TsubroutineLen, TprogramCounter);
@@ -3671,7 +3671,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	break;
 
       case Interpreter::RETURN:
-	jam();
+	jamDebug();
 #ifdef TRACE_INTERPRETER
         ndbout_c(" - return to %u from stack level %u",
                  TstackMemBuffer[RstackPtr],

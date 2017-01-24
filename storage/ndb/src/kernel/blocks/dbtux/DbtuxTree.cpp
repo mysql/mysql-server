@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,19 +33,19 @@ Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
   do {
     if (treePos.m_loc != NullTupLoc) {
       // non-empty tree
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       selectNode(node, treePos.m_loc);
       unsigned pos = treePos.m_pos;
       if (node.getOccup() < tree.m_maxOccup) {
         // node has room
-        thrjam(ctx.jamBuffer);
+        thrjamDebug(ctx.jamBuffer);
         nodePushUp(ctx, node, pos, ent, RNIL);
         break;
       }
       treeAddFull(ctx, frag, node, pos, ent);
       break;
     }
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     insertNode(node);
     nodePushUp(ctx, node, 0, ent, RNIL);
     node.setSide(2);
@@ -68,16 +68,16 @@ Dbtux::treeAddFull(TuxCtx& ctx, Frag& frag, NodeHandle lubNode, unsigned pos, Tr
     // find g.l.b node
     NodeHandle glbNode(frag);
     do {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       selectNode(glbNode, loc);
       loc = glbNode.getLink(1);
     } while (loc != NullTupLoc);
     if (glbNode.getOccup() < tree.m_maxOccup) {
       // g.l.b node has room
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       Uint32 scanList = RNIL;
       if (pos != 0) {
-        thrjam(ctx.jamBuffer);
+        thrjamDebug(ctx.jamBuffer);
         // add the new entry and return min entry
         nodePushDown(ctx, lubNode, pos - 1, ent, scanList);
       }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5794,7 +5794,7 @@ Backup::execSCAN_HBREP(Signal* signal)
 void
 Backup::execTRANSID_AI(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
 
   const Uint32 filePtrI = signal->theData[0];
   //const Uint32 transId1 = signal->theData[1];
