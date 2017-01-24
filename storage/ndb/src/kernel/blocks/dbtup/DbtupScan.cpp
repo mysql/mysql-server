@@ -684,6 +684,61 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   scan.m_state = ScanOp::Next;
 }
 
+bool
+Dbtup::is_disk_page_written(Fix_page *page,
+                            Fragrecord &frag,
+                            ScanPos &pos)
+{
+  Uint32 page_table_id = page->m_table_id;
+  Uint32 page_frag_id = page->m_fragment_id;
+  Uint32 page_create_table_version = page->m_create_table_version;
+  Uint32 frag_table_id = frag.fragTableId;
+  Uint32 frag_frag_id = frag.fragmentId;
+  Uint32 frag_create_table_version = c_lqh->getCreateSchemaVersion(frag_table_id);
+  ndbrequire(page->m_ndb_version >= NDB_DISK_V2);
+  if (page_table_id == frag_table_id &&
+      page_frag_id == frag_frag_id &&
+      page_create_table_version == frag_create_table_version)
+  {
+    return true;
+  }
+  jam();
+  /**
+   * The page haven't been written yet. We can skip the page when scanning.
+   * To safeguard against using the table in the wrong way we initialise the
+   * page to be a page of the table.
+   */
+   Ptr<Tablerec> tabPtr;
+   Ptr<Extent_info> ext_ptr;
+   c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i);
+   Extent_info* ext = ext_ptr.p;
+   Disk_alloc_info &alloc = frag.m_disk_alloc_info;
+   tabPtr.i = frag.fragTableId;
+   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+   memset((char*)page, 0, Page::HEADER_WORDS * 4);
+   convertThPage(page, tabPtr.p, DD);
+ 
+   Uint32 file_no = ext->m_key.m_file_no;
+   Uint32 page_no = ext->m_key.m_file_no;
+ 
+   page->m_page_no = page_no;
+   page->m_file_no = file_no,
+   page->m_table_id = frag_table_id;
+   page->m_fragment_id = frag_frag_id;
+   page->m_create_table_version = frag_create_table_version;
+   page->m_ndb_version = htonl(NDB_DISK_V2);
+   page->nextList = RNIL;
+   page->prevList = RNIL;
+   page->m_restart_seq = globalData.m_restart_seq;
+   page->uncommitted_used_space = 0;
+   page->m_extent_no = ext->m_key.m_page_idx;
+   page->m_extent_info_ptr = pos.m_extent_info_ptr_i;
+ 
+   page->list_index = alloc.calc_page_free_bits(page->free_space);
+   return false;
+}
+
 /**
  * Handling heavy insert and delete activity during LCP scans
  * ----------------------------------------------------------
@@ -1098,6 +1153,23 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       if ((bits & ScanOp::SCAN_VS) == 0)
       {
         Fix_page* page = (Fix_page*)pos.m_page;
+        if (bits & ScanOp::SCAN_DD && key.m_page_idx == first)
+        {
+          /**
+           * We need to verify that page is actually even initialised.
+           * Since we are scanning in disk order we will also encounter
+           * pages that are not yet written to. In this case they
+           * can contain more or less random stuff.
+           * We can check that the page is a correct page and belonging
+           * to our fragment by checking the page header to see if it
+           * contains our table id, fragment id and create table version.
+           */
+          if (!is_disk_page_written(page, frag, pos))
+          {
+            jam();
+            key.m_page_idx = Fix_page::DATA_WORDS; //Skip page
+          }
+        }
         if (key.m_page_idx + size <= Fix_page::DATA_WORDS) 
 	{
 	  pos.m_get = ScanPos::Get_next_tuple;
