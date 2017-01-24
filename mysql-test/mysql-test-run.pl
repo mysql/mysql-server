@@ -2814,6 +2814,16 @@ sub environment_setup {
     $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
   }
 
+  # ----------------------------------------------------
+  # mysqldumpslow
+  # ----------------------------------------------------
+  my $mysqldumpslow=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqldumpslow") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqldumpslow");
+  if ($mysqldumpslow)
+  {
+    $ENV{'MYSQLDUMPSLOW'}= $mysqldumpslow;
+  }
 
   # ----------------------------------------------------
   # perror
