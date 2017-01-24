@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -263,6 +263,7 @@ private:
                                         Uint32 extent_size,
                                         Uint64 data_pages,
                                         bool v2);
+  bool is_only_using_v2_format();
 };
 
 inline
@@ -403,9 +404,9 @@ public:
   int get_tablespace_info(CreateFilegroupImplReq* rep);
 
   /**
-   * Update lsn of page corresponing to key
+   * Check if we only use tablespaces with v2 format.
    */
-  int update_lsn(Local_key* key, Uint64 lsn);
+  bool is_only_using_v2_format();
 };
 
 inline
@@ -492,6 +493,13 @@ int
 Tablespace_client::unmap_page(Local_key *key, unsigned uncommitted_bits)
 {
   return m_tsman->unmap_page(m_signal, key, uncommitted_bits);
+}
+
+inline
+bool
+Tablespace_client::is_only_using_v2_format()
+{
+  return m_tsman->is_only_using_v2_format();
 }
 
 inline

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ struct Tup_fixsize_page
   Uint32 unushed_insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
   Uint32 m_ndb_version;
-  Uint32 m_schema_version;
+  Uint32 m_create_table_version;
   Uint32 unused_ph[4];
 
   STATIC_CONST( FREE_RECORD = ~(Uint32)0 );

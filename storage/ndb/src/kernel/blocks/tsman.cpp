@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #define JAM_FILE_ID 359
 
 static bool g_use_old_format = false;
+static bool g_use_only_v2 = true;
 
 #define COMMITTED_MASK   ((1 << 0) | (1 << 1))
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
@@ -161,6 +162,11 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
                                         &disk_data_format));
   g_use_old_format = (disk_data_format == 0);
+  if (g_use_old_format)
+  {
+    jam();
+    g_use_only_v2 = false;
+  }
 #endif
   m_file_pool.init(RT_TSMAN_FILE, pc);
   m_tablespace_pool.init(RT_TSMAN_FILEGROUP, pc);
@@ -1224,6 +1230,7 @@ Tsman::execFSOPENCONF(Signal* signal)
         jam();
         ptr.p->m_ndb_version = 0;
         ptr.p->m_create.m_extent_pages = Uint32(extent_pages);
+        g_use_only_v2 = false;
       }
       else if (file_size > calc_file_size_v1)
       {
@@ -1311,6 +1318,7 @@ Tsman::execFSREADCONF(Signal* signal){
     jam();
     assert(v2 && !assumed_v2);
     ptr.p->m_create.m_extent_pages = page->m_extent_pages;
+    g_use_only_v2 = false;
   }
   if (v2)
   {
@@ -2254,6 +2262,12 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
   }
   
   return AllocExtentReq::UnmappedExtentPageIsNotImplemented;
+}
+
+bool
+Tsman::is_only_using_v2_format()
+{
+  return g_use_only_v2;
 }
 
 int
