@@ -97,7 +97,7 @@ modify_configuration(const Gcs_interface_parameters& reconfigured_group)
         format because it will not be handed over to XCOM and noboby
         will free it otherwise.
       */
-      for (int j=i; i > 0; j--)
+      for (int j=i; j > 0; j--)
       {
         free(uuids[j - 1].data.data_val);
       } 
