@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,7 +134,6 @@ public:
   virtual bool report_data(unsigned node_id, unsigned backup_id);
   virtual bool report_log(unsigned node_id, unsigned backup_id);
   virtual bool report_completed(unsigned node_id, unsigned backup_id);
-  void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
                   uint data_len, uint *new_data_len);
   bool search_replace(char *search_str, char **new_data,
