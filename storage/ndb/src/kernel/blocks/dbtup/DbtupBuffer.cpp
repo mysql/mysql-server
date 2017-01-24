@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,14 +32,13 @@ void Dbtup::execSEND_PACKED(Signal* signal)
   Uint32 i;
   Uint32 TpackedListIndex= cpackedListIndex;
   bool present = false;
-  jamEntry();
   for (i= 0; i < TpackedListIndex; i++) {
     jam();
     hostId= cpackedList[i];
     ndbrequire((hostId - 1) < (MAX_NODES - 1)); // Also check not zero
     Uint32 TpacketTA= hostBuffer[hostId].noOfPacketsTA;
     if (TpacketTA != 0) {
-      jam();
+      jamDebug();
 
       if (ERROR_INSERTED(4037))
       {
@@ -48,14 +47,14 @@ void Dbtup::execSEND_PACKED(Signal* signal)
         if (!present)
         {
           /* First valid packed data in this pass */
-          jam();
+          jamDebug();
           present = true;
           cerrorPackedDelay++;
           
           if ((cerrorPackedDelay % 10) != 0)
           {
             /* Skip it */
-            jam();
+            jamDebug();
             return;
           }
         }
@@ -97,7 +96,7 @@ void Dbtup::bufferTRANSID_AI(Signal* signal, BlockReference aRef,
 // There is still space in the buffer. We will copy it into the
 // buffer.
 // ----------------------------------------------------------------
-    jam();
+    jamDebug();
     updatePackedList(signal, hostId);
   } else if (false && TnoOfPackets == 1) {
 // ----------------------------------------------------------------
@@ -142,7 +141,7 @@ void Dbtup::updatePackedList(Signal* signal, Uint16 hostId)
 {
   if (hostBuffer[hostId].inPackedList == false) {
     Uint32 TpackedListIndex= cpackedListIndex;
-    jam();
+    jamDebug();
     hostBuffer[hostId].inPackedList= true;
     cpackedList[TpackedListIndex]= hostId;
     cpackedListIndex= TpackedListIndex + 1;
@@ -211,18 +210,18 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
      * Own node -> execute direct
      */
     if(nodeId != getOwnNodeId()){
-      jam();
+      jamDebug();
     
       /**
        * Send long sig
        */
       if (ToutBufIndex >= 22 && is_api) {
-	jam();
+	jamDebug();
 	/**
 	 * Flush buffer so that order is maintained
 	 */
 	if (TpacketTA != 0) {
-	  jam();
+	  jamDebug();
 	  BlockReference TBref = numberToRef(API_PACKED, nodeId);
 	  MEMCOPY_NO_WORDS(&signal->theData[0],
 			   &hostBuffer[nodeId].packetBufferTA[0],
@@ -259,7 +258,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
        */
 #ifndef NDB_NO_DROPPED_SIGNAL
       if (ToutBufIndex < 22 && is_api){
-	jam();
+	jamDebug();
 	bufferTRANSID_AI(signal, recBlockref, 3+ToutBufIndex);
 	return;
       }
@@ -304,7 +303,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
          blockNumber == SUMA))
     {
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
-      jamEntry();
+      jamEntryDebug();
     }
     else
     {

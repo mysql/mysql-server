@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -946,7 +946,7 @@ void Dbacc::sendAcckeyconf(Signal* signal) const
 /* ******************--------------------------------------------------------------- */
 void Dbacc::execACCKEYREQ(Signal* signal) 
 {
-  jamEntry();
+  jamEntryDebug();
   AccKeyReq* const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
   operationRecPtr.i = req->connectPtr;   /* CONNECTION PTR */
   fragrecptr.i = req->fragmentPtr;        /* FRAGMENT RECORD POINTER         */
@@ -1065,7 +1065,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
                                          getHighResTimer());
           
         } else {
-          jam();
+          jamDebug();
 	  /*---------------------------------------------------------------*/
 	  // It is a dirty read. We do not lock anything. Set state to
 	  // IDLE since no COMMIT call will come.
@@ -1126,7 +1126,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 void
 Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
 {
-  jamEntry();
+  jamEntryDebug();
   OperationrecPtr lastOp;
   lastOp.i = opPtrI;
   ptrCheckGuard(lastOp, coprecsize, operationrec);
@@ -1135,7 +1135,7 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
   
   if (likely(opbits == Operationrec::OP_EXECUTED_DIRTY_READ))
   {
-    jam();
+    jamDebug();
     lastOp.p->m_op_bits = Operationrec::OP_INITIAL;
     return;
   }
@@ -1442,7 +1442,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
       return_result = placeWriteInLockQueue(lockOwnerPtr);
     }//if
     if (return_result == ZPARALLEL_QUEUE) {
-      jam();
+      jamDebug();
       c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
                               operationRecPtr.p->localdata.m_page_idx,
                               fragrecptr.p->tupFragptr);
@@ -3495,7 +3495,7 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 localkey2,
     }
     ret = c_lqh->readPrimaryKeys(opPtr.p->userptr, ckeys, xfrm);
   }
-  jamEntry();
+  jamEntryDebug();
   ndbrequire(ret >= 0);
   return ret;
 }
@@ -3553,7 +3553,7 @@ Dbacc::getElement(const AccKeyReq* signal,
 
   do {
     if (tgeNextptrtype == ZLEFT) {
-      jam();
+      jamDebug();
       elemConptr = getForwardContainerPtr(tgePageindex);
       elemptr = elemConptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
@@ -3562,7 +3562,7 @@ Dbacc::getElement(const AccKeyReq* signal,
       tgeRemLen = conhead.getLength();
       ndbrequire((elemConptr + tgeRemLen - 1) < 2048);
     } else if (tgeNextptrtype == ZRIGHT) {
-      jam();
+      jamDebug();
       elemConptr = getBackwardContainerPtr(tgePageindex);
       tgeElemStep = 0 - TelemLen;
       elemptr = elemConptr - TelemLen;
@@ -3588,14 +3588,14 @@ Dbacc::getElement(const AccKeyReq* signal,
 	lockOwnerPtr.p = NULL;
         LHBits16 reducedHashValue;
         if (ElementHeader::getLocked(tgeElementHeader)) {
-          jam();
+          jamDebug();
 	  lockOwnerPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
           ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
           possible_match = lockOwnerPtr.p->hashValue.match(operationRecPtr.p->hashValue);
           reducedHashValue = lockOwnerPtr.p->reducedHashValue;
 	  localkey = lockOwnerPtr.p->localdata;
         } else {
-          jam();
+          jamDebug();
           reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
           const Uint32 pos = elemptr + 1;
           ndbrequire(localkeylen == 1);
@@ -3606,7 +3606,7 @@ Dbacc::getElement(const AccKeyReq* signal,
         if (possible_match &&
             operationRecPtr.p->hashValue.match(fragrecptr.p->level.enlarge(reducedHashValue, bucket_number)))
         {
-          jam();
+          jamDebug();
           bool found;
           if (! searchLocalKey) 
 	  {
@@ -3620,7 +3620,7 @@ Dbacc::getElement(const AccKeyReq* signal,
           }
           if (found) 
 	  {
-            jam();
+            jamDebug();
             operationRecPtr.p->localdata = localkey;
             return ZTRUE;
           }

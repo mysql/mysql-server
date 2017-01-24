@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10337,6 +10337,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     /**
      * This is a master only state...
      */
+    gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
     ndbrequire(false);
   }
 
@@ -15060,7 +15061,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
-  thrjamEntry(jambuf);
+  thrjamEntryDebug(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
   /**
@@ -15521,20 +15522,22 @@ Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
    * that scans can continue also during schema changes).
    */
 
+  Uint32 line;
   NdbMutex_Lock(&tabPtr.p->theMutex);
   if (map_ptr_i == tabPtr.p->m_map_ptr_i)
   {
-    thrjam(jambuf);
+    line = __LINE__;
     ndbassert(tabPtr.p->m_scan_count[0]);
     tabPtr.p->m_scan_count[0]--;
   }
   else
   {
-    thrjam(jambuf);
+    line = __LINE__;
     ndbassert(tabPtr.p->m_scan_count[1]);
     tabPtr.p->m_scan_count[1]--;
   }
   NdbMutex_Unlock(&tabPtr.p->theMutex);
+  thrjamLine(jambuf, line);
 }
 
 bool
@@ -16227,8 +16230,6 @@ Dbdih::execDIH_SCAN_TAB_COMPLETE_REP(Signal* signal)
 {
   DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)rep->jamBufferPtr;
-
-  thrjamEntry(jambuf);
 
   TabRecordPtr tabPtr;
   tabPtr.i = rep->tableId;
