@@ -53,6 +53,224 @@ typedef struct {
   unsigned int group_id_hash;
 } nodes_to_kill;
 
+
+/**
+  @class Gcs_node_suspicion
+
+  This class stores the id of the suspect node, as well as the timestamp
+  of the suspicion.
+*/
+class Gcs_node_suspicion
+{
+public:
+  /**
+    Constructor for Gcs_node_suspicion, which sets both the identifier
+    of the suspect node and the timestamp of the suspicion creation
+    according to received parameters.
+    @param[in] id Member identifier of the suspect node
+    @param[in] ts Timestamp of the creation of the suspicion
+  */
+  explicit Gcs_node_suspicion(Gcs_member_identifier id, uint64_t ts);
+
+
+  ~Gcs_node_suspicion();
+
+
+  /**
+    Compares the object's timestamp with the received one, in order
+    to check if the suspicion has timed out and the suspect node
+    must be removed.
+    @param[in] ts Provided timestamp
+    @param[in] timeout Time interval for the suspicion to timeout
+  */
+
+  bool has_timed_out(uint64_t ts, uint64_t timeout);
+
+
+  /**
+    Compares m_suspect with the received Gcs_member_identifier object
+    to determine if both refer to the same suspect node.
+    @param[in] id Provided member identifier
+  */
+
+  bool equals(Gcs_member_identifier id);
+
+
+  /**
+    Retrieves the identifier of the suspect node.
+  */
+
+  Gcs_member_identifier get_member_id();
+
+private:
+
+  /**
+    Stores the identifier of the suspect node.
+  */
+  Gcs_member_identifier m_suspect_id;
+
+  /**
+    Stores the timestamp of the creation of the suspicion.
+  */
+  uint64_t m_timestamp;
+};
+
+
+/**
+  @class Gcs_suspicions_manager
+
+  This class stores all node suspicions, as well as the timeout and period
+  parameters used by the thread that processes the suspicions.
+  Suspicions are added and removed upon reception of a new global view.
+*/
+class Gcs_suspicions_manager
+{
+public:
+  /**
+    Constructor for Gcs_suspicions_manager, which sets m_proxy with the
+    received pointer parameter.
+    @param[in] proxy Pointer to Gcs_xcom_proxy
+  */
+
+  explicit Gcs_suspicions_manager(Gcs_xcom_proxy *proxy);
+
+
+  /**
+    Destructor for Gcs_suspicions_manager.
+  */
+
+  ~Gcs_suspicions_manager();
+
+
+  /**
+    Invoked by Gcs_xcom_control::xcom_receive_global_view, it invokes the
+    remove_suspicions method for the alive_nodes and expel_nodes parameters,
+    if they're not empty, neither m_suspicions. It also invokes the
+    add_suspicions method if the suspect_nodes parameter isn't empty.
+
+    @param[in] alive_nodes List of the nodes that currently belong to the group
+    @param[in] expel_nodes List of nodes to expel from the group
+    @param[in] suspect_nodes List of nodes to suspect
+  */
+
+  void process_view(std::vector<Gcs_member_identifier *> alive_nodes,
+                    std::vector<Gcs_member_identifier *> expel_nodes,
+                    std::vector<Gcs_member_identifier *> suspect_nodes);
+
+
+  /**
+    Invoked periodically by the suspicions processing thread, it picks a
+    timestamp and verifies which suspect nodes should be removed as they
+    have timed out.
+  */
+
+  void process_suspicions();
+
+
+  /**
+    Retrieves current list of suspicions.
+  */
+
+  std::vector<Gcs_node_suspicion> get_suspicions();
+
+
+  /**
+    Retrieves suspicion thread period in seconds.
+  */
+
+  unsigned int get_period();
+
+
+  /**
+    Sets the period or sleep time, between iterations, for the suspicion
+    thread.
+    @param[in] sec Suspicion thread period
+  */
+
+  void set_period(unsigned int sec);
+
+
+  /**
+    Retrieves suspicion timeout in 100s of nanoseconds.
+  */
+
+  uint64_t get_timeout();
+
+
+  /**
+    Sets the time interval to wait before removing the suspect nodes
+    from the cluster.
+    @param[in] sec Suspicions timeout in seconds
+  */
+
+  void set_timeout_seconds(unsigned long sec);
+
+
+  /**
+    Sets the hash for the current group identifier.
+    @param[in] gid_h Group ID hash
+  */
+
+  void set_groupid_hash(unsigned int gid_h);
+
+
+private:
+
+  /**
+    Invoked by Gcs_suspicions_manager::process_view, it verifies if any
+    of the nodes in the received list was a suspect and removes it from
+    m_suspicions.
+    @param[in] nodes List of nodes to remove from m_suspicions
+  */
+
+  void remove_suspicions(std::vector<Gcs_member_identifier *> nodes);
+
+
+  /**
+    Invoked by Gcs_suspicions_manager::process_view, it adds suspicions
+    for the nodes received as argument if they aren't already suspects.
+    @param[in] suspect_nodes List of nodes to add to m_suspicions
+  */
+
+  void add_suspicions(std::vector<Gcs_member_identifier *> suspect_nodes);
+
+
+  /**
+    XCom proxy pointer
+  */
+  Gcs_xcom_proxy *m_proxy;
+
+  /**
+    Suspicions processing thread period in seconds
+  */
+  unsigned int m_period;
+
+  /**
+    Suspicion timeout stored in 100s of nanoseconds
+  */
+  uint64_t m_timeout;
+
+  /*
+   Group ID hash
+  */
+  unsigned int m_gid_hash;
+
+  /*
+    List of suspicions
+  */
+  std::vector<Gcs_node_suspicion> m_suspicions;
+
+  // Mutex to control access to m_suspicions
+  My_xp_mutex_impl m_suspicions_mutex;
+
+  /*
+    Disabling the copy constructor and assignment operator.
+  */
+  Gcs_suspicions_manager(Gcs_suspicions_manager const&);
+  Gcs_suspicions_manager& operator=(Gcs_suspicions_manager const&);
+};
+
+
 /**
   @class Gcs_xcom_control_interface
 
@@ -176,6 +394,9 @@ public:
   Gcs_xcom_proxy *get_xcom_proxy();
 
 
+  Gcs_suspicions_manager *get_suspicions_manager();
+
+
   // For testing purposes
   void set_boot_node(bool boot);
 
@@ -230,7 +451,7 @@ public:
   */
   void set_join_behavior(unsigned int join_attempts,
                          unsigned int join_sleep_time);
-  
+
 private:
   void init_me();
 
@@ -256,6 +477,12 @@ private:
   build_expel_members(std::vector<Gcs_member_identifier *> &expel_members,
                       std::vector<Gcs_member_identifier *> &failed_members,
                       const std::vector<Gcs_member_identifier> *current_members);
+
+  void
+  build_suspect_members(std::vector<Gcs_member_identifier *> &suspect_members,
+                        std::vector<Gcs_member_identifier *> &failed_members,
+                        const std::vector<Gcs_member_identifier> *current_members);
+
 
   /**
      Decides if this node shall be the one to kill failed nodes. The algorithm
@@ -350,12 +577,18 @@ private:
     Number of attempts to join a group before giving up and reporting
     an error.
   */
-  unsigned int m_join_attempts; 
+  unsigned int m_join_attempts;
 
   /*
     Number of time in seconds to wait between attempts to join a group.
   */
   unsigned int m_join_sleep_time;
+
+  // Suspect nodes holding object
+  Gcs_suspicions_manager *m_suspicions_manager;
+
+  // Suspicions processing task
+  My_xp_thread_impl m_suspicions_processing_thread;
 
 protected:
   /*

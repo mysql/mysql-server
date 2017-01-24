@@ -415,8 +415,11 @@ Gcs_xcom_interface::configure(const Gcs_interface_parameters &interface_params)
   }
 
   xcom_control->set_join_behavior(
-    static_cast<unsigned int>(atoi(join_attempts_str->c_str())), 
+    static_cast<unsigned int>(atoi(join_attempts_str->c_str())),
     static_cast<unsigned int>(atoi(join_sleep_time_str->c_str())));
+
+  // Set suspicion configuration parameters
+  configure_suspicions_mgr(validated_params, xcom_control->get_suspicions_manager());
 
 end:
   if (error == GCS_NOK || !reconfigured)
@@ -585,7 +588,7 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
       m_initialization_parameters.get_parameter("join_attempts");
     const std::string *join_sleep_time_str=
       m_initialization_parameters.get_parameter("join_sleep_time");
-  
+
     /*
       If the group interfaces do not exist, create and add them to
       the dictionary.
@@ -608,7 +611,7 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
     Gcs_xcom_state_exchange_interface *se=
       new Gcs_xcom_state_exchange(group_interface->communication_interface);
 
-    Gcs_xcom_control *xcom_control= 
+    Gcs_xcom_control *xcom_control=
       new Gcs_xcom_control(m_local_node_information,
                            m_xcom_peers,
                            group_identifier,
@@ -621,9 +624,14 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
     group_interface->control_interface= xcom_control;
 
     xcom_control->set_join_behavior(
-      static_cast<unsigned int>(atoi(join_attempts_str->c_str())), 
+      static_cast<unsigned int>(atoi(join_attempts_str->c_str())),
       static_cast<unsigned int>(atoi(join_sleep_time_str->c_str()))
     );
+
+    // Set suspicion configuration parameters
+    configure_suspicions_mgr(m_initialization_parameters,
+      static_cast<Gcs_xcom_control*>(group_interface->control_interface)
+        ->get_suspicions_manager());
 
     group_interface->management_interface=
       new Gcs_xcom_group_management(xcom_proxy, vce, group_identifier);
@@ -1034,6 +1042,27 @@ Gcs_xcom_interface::configure_msg_stages(const Gcs_interface_parameters& p,
   // build the pipeline for sending messages
   pipeline.configure_outgoing_pipeline(pipeline_setup);
 
+  return GCS_OK;
+}
+
+
+enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(Gcs_interface_parameters &p,
+                                                            Gcs_suspicions_manager *mgr)
+{
+  const std::string *suspicions_timeout_ptr= p.get_parameter("suspicions_timeout");
+  if(suspicions_timeout_ptr != NULL) {
+    mgr->set_timeout_seconds(static_cast<unsigned long>(atoi(suspicions_timeout_ptr->c_str())));
+    MYSQL_GCS_LOG_TRACE(
+      "::configure_suspicions_mgr():: Set suspicions timeout to " << suspicions_timeout_ptr << " seconds")
+  }
+
+  const std::string *suspicions_processing_period_ptr= p.get_parameter("suspicions_processing_period");
+  if(suspicions_processing_period_ptr != NULL) {
+    mgr->set_period(static_cast<unsigned int>(atoi(suspicions_processing_period_ptr->c_str())));
+    MYSQL_GCS_LOG_TRACE(
+      "::configure_suspicions_mgr():: Set suspicions processing period to "
+      << suspicions_processing_period_ptr << " seconds")
+  }
   return GCS_OK;
 }
 
