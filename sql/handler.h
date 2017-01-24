@@ -1383,6 +1383,20 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
                             List<const Plugin_tablespace> *DDSE_tablespaces);
 
 
+/**
+  Invalidate an entry in the local dictionary cache.
+
+  Needed during bootstrap to make sure the contents in the DDSE
+  dictionary cache is in sync with the global DD.
+
+  @param   schema_name    Schema name.
+  @param   table name     Table name.
+ */
+
+typedef void (*dict_cache_reset_t)(const char* schema_name,
+                                   const char* table_name);
+
+
 /** Mode for data dictionary recovery. */
 enum dict_recovery_mode_t
 {
@@ -1612,6 +1626,7 @@ struct handlerton
   alter_tablespace_t alter_tablespace;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
+  dict_cache_reset_t dict_cache_reset;
   dict_recover_t dict_recover;
 
   /** Global handler flags. */

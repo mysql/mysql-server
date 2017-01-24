@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -912,7 +912,21 @@ bool sync_meta_data(THD *thd)
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
   // Commit and flush tables to force re-opening using the refreshed meta data.
-  return end_transaction(thd, false) || execute_query(thd, "FLUSH TABLES");
+  if (end_transaction(thd, false) || execute_query(thd, "FLUSH TABLES"))
+    return true;
+
+  // Reset the DDSE local dictionary cache.
+  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->dict_cache_reset == nullptr)
+    return true;
+
+  for (System_tables::Const_iterator it=
+         System_tables::instance()->begin(System_tables::Types::CORE);
+       it != System_tables::instance()->end(); it=
+         System_tables::instance()->next(it, System_tables::Types::CORE))
+    ddse->dict_cache_reset(MYSQL_SCHEMA_NAME.str, (*it)->entity()->name().c_str());
+
+  return false;
 }
 
 

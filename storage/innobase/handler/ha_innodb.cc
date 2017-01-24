@@ -3799,6 +3799,29 @@ predefine_undo_tablespaces(
         return(false);
 }
 
+/** Invalidate an entry from the dict cache.
+@param[in]	schema_name	Schema name
+@param[in]	table_name	Table name */
+static
+void
+innobase_dict_cache_reset(
+	const char*	schema_name,
+	const char*	table_name)
+{
+	char	name[FN_REFLEN];
+	snprintf(name, sizeof name, "%s/%s", schema_name, table_name);
+	dict_table_t* table = dd_table_open_on_name(
+		current_thd, NULL, name,
+		false, DICT_ERR_IGNORE_NONE);
+
+	btr_search_drop_table(table);
+
+	mutex_enter(&dict_sys->mutex);
+	dd_table_close(table, NULL, NULL, true);
+	dict_table_remove_from_cache(table);
+	mutex_exit(&dict_sys->mutex);
+}
+
 /** Perform high-level recovery in InnoDB as part of initializing the
 data dictionary.
 @param[in]	dict_recovery_mode	How to do recovery
@@ -4527,6 +4550,9 @@ innodb_init(
 
 	innobase_hton->dict_init=
 		innobase_dict_init;
+
+	innobase_hton->dict_cache_reset=
+		innobase_dict_cache_reset;
 
 	innobase_hton->dict_recover=
 		innobase_dict_recover;
