@@ -1954,6 +1954,9 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
 
   DBUG_ENTER("evaluate_null_complemented_join_record");
 
+  bool matching= true;
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
+
   for ( ; qep_tab <= last_inner_tab ; qep_tab++)
   {
     // Make sure that the rowid buffer is bound, duplicates weedout needs it
@@ -1983,32 +1986,35 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
       /* check for errors */
       if (join->thd->is_error())
         DBUG_RETURN(NESTED_LOOP_ERROR);
-      else
-        DBUG_RETURN(NESTED_LOOP_OK);
+
+      matching= false;
+      break;
     }
   }
-  qep_tab= last_inner_tab;
-  /*
-    From the point of view of the rest of execution, this record matches
-    (it has been built and satisfies conditions, no need to do more evaluation
-    on it). See similar code in evaluate_join_record().
-  */
-  plan_idx f_u= QEP_AT(qep_tab, first_unmatched).first_upper();
-  if (f_u != NO_PLAN_IDX &&
-      join->qep_tab[f_u].last_inner() != qep_tab->idx())
-    f_u= NO_PLAN_IDX;
-  qep_tab->first_unmatched= f_u;
-  /*
-    The row complemented by nulls satisfies all conditions
-    attached to inner tables.
-    Finish evaluation of record and send it to be joined with
-    remaining tables.
-    Note that evaluate_join_record will re-evaluate the condition attached
-    to the last inner table of the current outer join. This is not deemed to
-    have a significant performance impact.
-  */
-  const enum_nested_loop_state rc= evaluate_join_record(join, qep_tab);
-
+  if (matching)
+  {
+    qep_tab= last_inner_tab;
+    /*
+      From the point of view of the rest of execution, this record matches
+      (it has been built and satisfies conditions, no need to do more evaluation
+      on it). See similar code in evaluate_join_record().
+    */
+    plan_idx f_u= QEP_AT(qep_tab, first_unmatched).first_upper();
+    if (f_u != NO_PLAN_IDX &&
+        join->qep_tab[f_u].last_inner() != qep_tab->idx())
+      f_u= NO_PLAN_IDX;
+    qep_tab->first_unmatched= f_u;
+    /*
+      The row complemented by nulls satisfies all conditions
+      attached to inner tables.
+      Finish evaluation of record and send it to be joined with
+      remaining tables.
+      Note that evaluate_join_record will re-evaluate the condition attached
+      to the last inner table of the current outer join. This is not deemed to
+      have a significant performance impact.
+    */
+    rc= evaluate_join_record(join, qep_tab);
+  }
   for (QEP_TAB *tab= first_inner_tab; tab <= last_inner_tab; tab++)
   {
     tab->table()->reset_null_row();
