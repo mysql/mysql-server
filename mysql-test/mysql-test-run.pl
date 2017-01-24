@@ -7441,6 +7441,8 @@ Options to control what test suites or cases to run
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
+  only-big-test         Run only big tests and skip the normal(non-big)
+                        tests.
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
