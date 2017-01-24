@@ -2752,6 +2752,7 @@ void
 dd_open_fk_tables(
 	dd::cache::Dictionary_client*	client,
 	dict_names_t&			fk_list,
+	bool				dict_locked,
 	THD*				thd)
 {
 	while (!fk_list.empty()) {
@@ -2761,10 +2762,16 @@ dd_open_fk_tables(
 
 		fk_table_name.m_name =
 			const_cast<char*>(fk_list.front());
-		mutex_enter(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
+
 		fk_table = dict_table_check_if_in_cache_low(
 			fk_table_name.m_name);
-		mutex_exit(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
+
 		if (!fk_table) {
 			MDL_ticket*     fk_mdl = nullptr;
 			char		db_buf[NAME_LEN + 1];
@@ -2872,7 +2879,7 @@ dd_open_table(
 		dd::cache::Dictionary_client::Auto_releaser
 			releaser(client);
 
-		dd_open_fk_tables(client, fk_list, thd);
+		dd_open_fk_tables(client, fk_list, false, thd);
 	}
 
 	return(m_table);

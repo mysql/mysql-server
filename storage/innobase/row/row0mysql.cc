@@ -3469,7 +3469,7 @@ row_table_add_foreign_constraints(
                 dict_mem_table_free_foreign_vcol_set(table);
                 dict_mem_table_fill_foreign_vcol_set(table);
 
-                dd_open_fk_tables(client, fk_tables, thd);
+                dd_open_fk_tables(client, fk_tables, true, thd);
 		dd_table_close(table, NULL, NULL, true);
 	}
 
@@ -5642,7 +5642,7 @@ end:
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		dd_open_fk_tables(client, fk_tables, thd);
+		dd_open_fk_tables(client, fk_tables, dict_locked, thd);
 	}
 
 funct_exit:
