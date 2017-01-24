@@ -1210,6 +1210,7 @@ public:
       return redo_written_bytes;
     }
   };
+  bool c_is_io_lag_reported;
   bool is_ldm_instance_io_lagging();
   Uint64 report_redo_written_bytes();
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ void Dblqh::initData()
 #ifdef ERROR_INSERT
   c_master_node_id = RNIL;
 #endif
+
+  c_is_io_lag_reported = false;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
