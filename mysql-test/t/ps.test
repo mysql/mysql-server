@@ -3680,5 +3680,38 @@ EXECUTE stmt;
 deallocate prepare stmt;
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # MDEV-11859: the plans for the first and the second executions
+--echo #             of PS are not the same
+--echo #
+
+create table t1 (id int, c varchar(3), key idx(c))engine=myisam;
+insert into t1 values (3,'bar'), (1,'xxx'), (2,'foo'), (5,'yyy');
+
+prepare stmt1 from
+"explain extended
+ select * from t1 where (1, 2) in ( select 3, 4 ) or c = 'foo'";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+prepare stmt1 from
+"select * from t1 where (1, 2) in ( select 3, 4 ) or c = 'foo'";
+flush status;
+execute stmt1;
+show status like '%Handler_read%';
+flush status;
+execute stmt1;
+show status like '%Handler_read%';
+deallocate prepare stmt1;
+
+prepare stmt2 from
+"explain extended
+ select * from t1 where (1, 2) in ( select 3, 4 )";
+execute stmt2;
+execute stmt2;
+deallocate prepare stmt2;
+
+drop table t1;
 
 --echo # End of 5.5 tests
