@@ -27195,15 +27195,41 @@ Dblqh::report_redo_written_bytes()
 bool
 Dblqh::is_ldm_instance_io_lagging()
 {
-  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  bool io_lag_now = false;
+  do
   {
-    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
-    if (logPartPtr.p->m_io_tracker.get_lag_in_seconds() >= 2)
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      if (logPartPtr.p->m_io_tracker.get_lag_in_seconds() >= 2)
+      {
+        jam();
+        io_lag_now = true;
+        break;
+      }
+      jam();
+    }
+  } while (0);
+
+  Int32 change = 0;
+  if (c_is_io_lag_reported)
+  {
+    jam();
+    if (!io_lag_now)
     {
       jam();
-      return true;
+      change = Int32(-1);
     }
-    jam();
   }
-  return false;
+  else
+  {
+    jam();
+    if (io_lag_now)
+    {
+      jam();
+      change = Int32(+1);
+    }
+  }
+  c_is_io_lag_reported = io_lag_now;
+  return change_and_get_io_laggers(change) == 0 ? false : true;
 }
