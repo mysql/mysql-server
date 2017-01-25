@@ -12,6 +12,11 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
+# Disabling the ps-protocol for the test, as enabling it will
+# give result content mismatch due to logging of some additional
+# statements in the slow-query-log.
+--disable_ps_protocol
+
 # Save the old values of these variables to be restored at the end
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
@@ -51,5 +56,8 @@ while($2)
 SET GLOBAL  log_output=         @old_log_output;
 SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
+
+# Enable the ps-protocol
+--enable_ps_protocol
 
 --echo End of test!
