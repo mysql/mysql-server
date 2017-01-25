@@ -13615,13 +13615,24 @@ create_table_info_t::create_table_update_global_dd(
 		DBUG_RETURN(0);
 	}
 
-	/* InnoDB dict_table_t should already be created */
+	dd::cache::Dictionary_client*   client = dd::get_dd_client(m_thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
 	dict_table_t*	table = dd_table_open_on_name_in_mem(
 		m_table_name, false, DICT_ERR_IGNORE_NONE);
-	ut_ad(table != NULL);
-
-	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+	/* TODO: A better solution could be preventing this table to
+	be evicted during the whole creation process */
+	if (table == NULL) {
+		dd::Partition*	part =
+			dd_table->table().partition_type()
+			== dd::Table::PT_NONE ?
+			NULL : reinterpret_cast<dd::Partition*>(dd_table);
+		int error = dd_table_open_on_dd_obj(
+			client, dd_table->table(), part, m_table_name,
+			NULL, table, true, m_thd);
+		ut_ad(error == 0);
+		ut_ad(table != NULL);
+	}
 
 	bool		file_per_table = dict_table_is_file_per_table(table);
 	dd::Object_id	dd_space_id = file_per_table
