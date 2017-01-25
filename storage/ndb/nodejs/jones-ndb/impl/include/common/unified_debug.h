@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -65,7 +65,11 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
 */
 
 
-void udeb_print(const char *, int level, const char *fmt, ...);
+void udeb_print(const char *, int level, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 3, 4)))
+#endif
+    ;
 
 inline void udeb_trace(const char *src_path, int line) {
   udeb_print(src_path, UDEB_DETAIL, "  Trace: %27s line %d", ".....", line);
