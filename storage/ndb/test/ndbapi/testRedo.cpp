@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include <NDBT_Stats.hpp>
 #include <random.h>
 #include <NdbMgmd.hpp>
+#include "../../src/ndbapi/NdbInfo.hpp"
+#include <signaldata/DumpStateOrd.hpp>
 
 static NdbMutex* g_msgmutex = 0;
 
@@ -54,6 +56,15 @@ static NdbMutex* g_msgmutex = 0;
     NdbMutex_Unlock(g_msgmutex); \
     result = NDBT_FAILED; \
     break; \
+  }
+
+#define CHK3(b, e) \
+  if (!(b)) { \
+    NdbMutex_Lock(g_msgmutex); \
+    g_err << "ERROR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    NdbMutex_Unlock(g_msgmutex); \
+    return NDBT_FAILED;          \
   }
 
 #define info(x) \
@@ -246,7 +257,7 @@ run_write_ops(NDBT_Context* ctx, NDBT_Step* step, int upval, NdbError& err, bool
 
     if (abort_on_error) 
     {
-      g_err << "Temporary error " << err.code << " during write" << endl;
+      g_info << "Temporary error " << err.code << " during write" << endl;
       result = NDBT_FAILED;
       break;
     }
@@ -1278,7 +1289,10 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   Uint32 noOfLogFiles = ctx->getProperty("REDOLOGCOUNT", (Uint32)16);
   Uint32 logFileSize = ctx->getProperty("REDOLOGSIZE", (Uint32)16*1024*1024);
+  Uint32 LCPinterval = ctx->getProperty("LCPINTERVAL", (Uint32)20);
   Uint32 defaultNoOfLogFiles = 0, defaultLogFileSize = 0;
+  Uint32 defaultLCPinterval = 0;
+
   do
   {
     NdbMgmd mgmd;
@@ -1294,7 +1308,8 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_err << "Setting NoOfFragmentLogFiles = " << noOfLogFiles
-          << " and FragmentLogFileSize = " << logFileSize << "..." << endl;
+          << " FragmentLogFileSize = " << logFileSize
+          << " TimeBetweenLCP " << LCPinterval << endl;
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
     {
@@ -1327,12 +1342,26 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
           break; 
         }
       }
+      if(iter.get(CFG_DB_LCP_INTERVAL, &oldValue))
+      {
+        iter.set(CFG_DB_LCP_INTERVAL, LCPinterval);
+        if(defaultLCPinterval == 0)
+        {
+           defaultLCPinterval = oldValue;
+        }
+        else if(oldValue != defaultLCPinterval)
+        {
+          g_err << "defaultLCPinterval is not consistent across nodes" << endl;
+          break;
+        }
+      }
       iter.closeSection();
     }
  
-    // Save old values of NoOfFragmentLogFiles and FragmentLogFileSize 
+    // Save old config values
     ctx->setProperty("REDOLOGCOUNT", (Uint32)defaultNoOfLogFiles);
     ctx->setProperty("REDOLOGSIZE", (Uint32)defaultLogFileSize);
+    ctx->setProperty("LCPINTERVAL", (Uint32)defaultLCPinterval);
   
     if (!mgmd.set_config(conf))
     {
@@ -1358,39 +1387,47 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 static int
+start_open_transaction(NDBT_Context* ctx, NDBT_Step* step, HugoOperations **ops)
+{
+  /**
+   * Ensure we don't use the same record for the open transaction as for
+   * the ones filling up the REDO log. In that case we get into a deadlock,
+   * we solve this by using a different table for the pending transaction.
+   */
+  const NdbDictionary::Table* pTab = g_tabptr[0];
+
+  g_info << "Starting a write and leaving it open so the pending "
+        << "COMMIT indefinitely delays redo log trimming"
+        << pTab <<endl;
+
+  *ops = new HugoOperations(*pTab);
+  CHK3((*ops) != NULL, "Could not create new HugoOperations");
+  
+  (*ops)->setQuiet();
+
+  Ndb* pNdb = GETNDB(step);
+  CHK3((*ops)->startTransaction(pNdb) == 0,
+       "Failed to start transaction: error ");
+  int upval = 0;
+  CHK3((*ops)->pkWriteRecord(pNdb, 0, 1, upval++) == 0,
+       (*ops)->getNdbError());
+  CHK3((*ops)->execute_NoCommit(pNdb) == 0,
+       "Error: failed to execute NoCommit");
+
+  return NDBT_OK;
+}
+
+static int
 runWriteWithRedoFull(NDBT_Context* ctx, NDBT_Step* step)
 {
   int upval = 0;
   NdbRestarter restarter;
   Ndb* pNdb = GETNDB(step);
 
-  /**
-   * Ensure we don't use the same record for the open transaction as for the ones
-   * filling up the REDO log. In that case we get into a deadlock, we solve this
-   * by using a different table for the pending transaction.
-   */
-  const NdbDictionary::Table* pTab = g_tabptr[0];
-
-  g_err << "Starting a write and leaving it open so the pending " <<
-           "COMMIT indefinitely delays redo log trimming..." << endl;
-  HugoOperations ops(*pTab);
-  ops.setQuiet();
-  if(ops.startTransaction(pNdb) != 0)
-  { 
-    g_err << "Failed to start transaction: error " << ops.getNdbError() << endl;
-    return NDBT_FAILED;
-  }
-  if(ops.pkWriteRecord(pNdb, 0, 1, upval++) != 0)
-  { 
-    g_err << "Failed to write record: error " << ops.getNdbError() << endl;
-    return NDBT_FAILED;
-  }
-  if(ops.execute_NoCommit(pNdb) != 0)
-  {
-    g_err << "Error: failed to execute NoCommit" << ops.getNdbError() << endl;
-    return NDBT_FAILED;
-  }
-
+  // Block redo logpart being trimmed by holding a transaction open
+  HugoOperations *ops = NULL;
+  start_open_transaction(ctx, step, &ops);
+  
   g_err << "Starting PK insert load..." << endl;
   int loop = 0;
   int result = NDBT_FAILED;
@@ -1423,14 +1460,413 @@ runWriteWithRedoFull(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   g_err << "Executing pending COMMIT so that redo log can be trimmed..." << endl;
-  int ret = ops.execute_Commit(pNdb);
+  int ret = ops->execute_Commit(pNdb);
   if(ret != 0)
   {
-    g_err << "Error: failed to execute commit" << ops.getNdbError() << endl;
+    g_err << "Error: failed to execute commit" << ops->getNdbError() << endl;
     result = NDBT_FAILED;
   }
-  ops.closeTransaction(pNdb);
+  ops->closeTransaction(pNdb);
   return result;
+}
+
+/**
+ * Run one or more LCP requests when signalled until stop is signalled
+ */
+int
+runLCP(NDBT_Context* ctx, NDBT_Step* step)
+{
+  while ((ctx->getProperty("stop_lcp", (Uint32)0)) == 0 &&
+         !ctx->isTestStopped())
+  {
+    NdbSleep_MilliSleep(1000);
+    // Check whether start lcp is signalled
+    Uint32 lcps = 0;
+    if ((lcps = ctx->getProperty("start_lcp", (Uint32)0)) == 0)
+      continue;
+
+    // Perform LCP the number of times indicated by 'lcps'
+    ctx->setProperty("lcps_done", (Uint32)0);
+    NdbRestarter restarter;
+    int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+    restarter.getNumDbNodes();
+
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+    struct ndb_logevent event;
+
+    for (Uint32 i = 0; i < lcps; i++)
+    {
+      CHK3(restarter.dumpStateAllNodes(dump, 1) == 0, "Could not start LCP");
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointStarted);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted);
+    }
+
+    // Signal lcps done
+    ctx->setProperty("lcps_done", (Uint32)1);
+    ctx->setProperty("start_lcp", (Uint32)0);
+  }
+  return NDBT_OK;
+}
+
+/**
+ * If the given logpart_with_maxusage and nodeid are invalid,
+ *   return the maximum REDO log usage and the node id and logpart
+ *      which is having it. Fails if two distinct logparts
+ *      (except primary and backup) have same usage.
+ * else return the REDO log usage of the given nodeid and logpart.
+ */
+static int
+get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
+                          Uint32 &logpart_with_maxusage)
+{
+  NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
+  if (!ndbinfo.init())
+  {
+    g_err << "ndbinfo.init failed" << endl;
+    return -1;
+  }
+
+  const NdbInfo::Table* table;
+  if (ndbinfo.openTable("ndbinfo/logspaces", &table) != 0)
+  {
+    g_err << "Failed to openTable(logspaces)" << endl;
+    return -1;
+  }
+
+  NdbInfoScanOperation* scanOp = NULL;
+  if (ndbinfo.createScanOperation(table, &scanOp))
+  {
+    g_err << "No NdbInfoScanOperation" << endl;
+    return -1;
+  }
+
+  if (scanOp->readTuples() != 0)
+  {
+    g_err << "scanOp->readTuples failed" << endl;
+    return -1;
+  }
+
+  const NdbInfoRecAttr* nodeid_colval = scanOp->getValue("node_id");
+  const NdbInfoRecAttr* logtype_colval = scanOp->getValue("log_type");
+  const NdbInfoRecAttr* logpart_colval = scanOp->getValue("log_part");
+  const NdbInfoRecAttr* total_colval = scanOp->getValue("total");
+  const NdbInfoRecAttr* used_colval = scanOp->getValue("used");
+
+  if(scanOp->execute() != 0)
+  {
+    g_err << "scanOp->execute failed" << endl;
+    return -1;
+  }
+
+  int max_usage = -1, usage = -1;
+  while(scanOp->nextResult() == 1)
+  {
+    Uint32 node_id = nodeid_colval->u_32_value();
+    Uint64 total = total_colval->u_64_value();
+    Uint64 used = used_colval->u_64_value();
+    Uint32 logtype = logtype_colval->u_32_value();
+    Uint32 logpart = logpart_colval->u_32_value();
+
+    // Check whether this result row is relevant for our search
+    if (logtype != 0 && // Not a redo log
+        nodeid != 0 && nodeid != node_id &&  // Not the requested nodeid
+        logpart_with_maxusage != UINT32_MAX && logpart_with_maxusage != logpart
+        // Not the requested logpart
+        )
+    {
+      continue;
+    }
+
+    if (total != 0)
+    {
+      usage = (int)(100 * used / total);
+
+      g_info << "nodeid " << node_id << " " << nodeid
+            << " logpart " << logpart << " " << logpart_with_maxusage
+            << " usage " << usage << " " << max_usage << endl;
+
+      // Requested row is found
+      if (node_id == nodeid && logpart == logpart_with_maxusage)
+        return usage;
+
+      /* The test blocks one logpart from being trimmed.
+       * The following check may become true when LCP races with the load.
+       * The probability is less for runCheckLCPStartsAfterSR
+       * than for runCheckLCPStartsAfterNR,
+       * since the latter calls this method without LCPs performed.
+       */
+      if (usage > 0 && usage == max_usage &&
+          logpart_with_maxusage != logpart && nodeid != node_id)
+      {
+        g_err << "Two log parts having same usage is not handled" << endl;
+        return -1;
+      }
+
+      // Find the max usage and the corresponding nodeid/logpart.
+      // Primary and backup logparts will be full. Return the
+      // usage of the last row retrieved from ndbinfo/logspace.
+      if (usage > max_usage)
+      {
+        max_usage = usage;
+        logpart_with_maxusage = logpart;
+        nodeid = node_id;
+      }
+    }
+  }
+  ndbinfo.releaseScanOperation(scanOp);
+  ndbinfo.closeTable(table);
+
+  g_info << "get_redo_logpart_maxusage returns: nodeid " << nodeid
+        << " lp " << logpart_with_maxusage
+        << " usage " << max_usage << endl;
+  return max_usage;
+}
+
+static int
+redologpart_is_trimmed(NDBT_Context* ctx, int usage_before,
+                   Uint32 full_logpart, Uint32 nodeid)
+{
+  // Check whether the redo log is trimmed after system or node restart.
+  // Wait max 2/3 of max LCP_INTERVAL (20) seconds for an lcp to
+  // trim the logpart that was full. Slow machines may need more time.
+  int retries = 20;
+  int usage_after = -1;
+  do
+  {
+    NdbSleep_MilliSleep(1000);
+    usage_after = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
+    CHK3(usage_after != -1, "Could not retrieve redo log usage");
+    g_info << "Retrying : Usage before : " << usage_before
+          << " Usage after : " << usage_after
+          << " Retries " << 20-retries << endl;
+  } //while (retries-- > 0 && usage_after >= usage_before);
+  while (retries-- > 0 && usage_after > 0);
+
+
+  if (usage_after > 0)
+  {
+    g_err << "Redo log is not trimmed " <<  20 - retries
+          << " seconds after restart. "
+          << " Usage before : " << usage_before
+          << " Usage after : " << usage_after
+          << " logpart " << full_logpart
+          << " nodeid " << nodeid << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+/**
+ * Test to see if lcp is started after an SR and some space
+ * from an almost-filled redo log part is released :
+ * - Change the config to disable change-based LCP start
+ *   by timeBetweenLocalCheckpoints = 31(max, default 20)
+ * - Start a write and not commit in order to prevent corresponding
+ *     redo logpart from being trimmed. Other log parts are free to be
+ *     trimmed as normal.
+ * - Fill until some of the redo logpart, most probably the one containing
+ *     the redo log for the above open transaction, to become almost full.
+ * - Perform 3 LCPs while loading further writes.
+ * - Get the <nodeid, logpart> pair that has max usage.
+ *     Assumption here is that there will be only one logpart
+ *    (primary and backup) that will have the
+ *     maximum and others are trimmed by LCPs. If more than one
+ *     logparts that will have the same usage, the test will fail.
+ * - Start an SR.
+ * - After completing the SR, check the redo log usage of
+ *   the logpart that went full.
+ * - If the usage is not reduced within 2/3 of the LCP_INTERVAL seconds,
+ *     (approximates to 20 seconds) the test will fail.
+ */
+static int
+runCheckLCPStartsAfterSR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Block redo logpart being trimmed by holding a transaction open
+  HugoOperations *ops = NULL;
+  start_open_transaction(ctx, step, &ops);
+
+  g_info << "Starting normal load and fill some logpart" << endl;
+
+  bool lcp_started = false;
+  int upval = 0;
+  while (ctx->getProperty("lcps_done", (Uint32)0) != 1 &&
+         !ctx->isTestStopped())
+  {
+    NdbError err;
+    run_write_ops(ctx, step, upval++, err, true);
+
+    // When some logpart is getting full, continue with the load
+    // in order to fill more of it (to its maximum)
+    // while performing 3 LCPs
+    if (err.code == 410 && !lcp_started)
+    {
+      lcp_started = true;
+      ctx->setProperty("start_lcp", (Uint32)3);
+      g_info << "Starting lcp" << endl;
+    }
+  }
+  
+  if (ctx->isTestStopped())
+    return NDBT_FAILED;
+
+  // Perform one more checkpoint
+  ctx->setProperty("start_lcp", (Uint32)1);
+
+  ctx->setProperty("stop_lcp", (Uint32)1); // stop runLCP()
+
+  // Find the max redo log usage and the corresponding logpart and nodeid
+  int usage_before_SR = -1;
+  Uint32 full_logpart = UINT32_MAX;
+  Uint32 nodeid = 0;
+
+  usage_before_SR = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
+  CHK3(usage_before_SR > 0, "Redo log usage <= 0");
+  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+  CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+
+  NdbRestarter restarter;
+  // Perform a system restart
+  CHK3(restarter.restartAll(false, true, true) == 0,
+       "Starting all nodes failed");
+  g_err << "Wait until all nodes are stopped" << endl;
+  CHK3(restarter.waitClusterNoStart() == 0,
+       "Nodes have not reached NoStart state");
+  g_err << "Starting all nodes" << endl;
+  CHK3(restarter.startAll() == 0,
+       "Starting all nodes failed");
+  CHK3(restarter.waitClusterStarted() == 0, "Cluster has not started");
+
+  // Check whether the full redo log part has been trimmed
+  CHK3((redologpart_is_trimmed(ctx, usage_before_SR, full_logpart, nodeid)) == NDBT_OK,
+       "Check for redolog trimmed failed");
+  return NDBT_OK;
+}
+
+/**
+ * Test to see if lcp is started after an NR and some space
+ * from an almost-filled redo log part is released :
+ * - Change the config to disable change-based LCP start
+ *   by timeBetweenLocalCheckpoints = 31(max, default 20).
+ * - Start a write and not commit in order to prevent corresponding
+ *     redo logpart from being trimmed. Other log parts are free to be
+ *     trimmed as normal.
+ * - Perform 1 LCP.
+ * - Generate more writes and perform an LCP.
+ * - Fill until some of the redo logparts, most probably the one containing
+ *     the redo log for the above open transaction, to become almost full.
+ *   Assumption here is that there will be only one logpart
+ *    (primary and backup) that will have the
+ *    maximum and others are trimmed by LCPs. If more than one
+ *    logparts that will have the same usage, the test will fail.
+ * - Find the logpart usage, node id and log part that went full.
+ * - Restart the found node id. After completing the NR,
+ *   check the usage of that nodeid/logpart.
+ * - If the usage is not reduced within 2/3 of the LCP_INTERVAL seconds,
+ *     (approximates to 20 seconds) the test will fail.
+ */
+static int
+runCheckLCPStartsAfterNR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Block redo logpart being trimmed by holding a transaction open
+  HugoOperations *ops = NULL;
+  start_open_transaction(ctx, step, &ops);
+
+  // Perform 1 LCP
+  ctx->setProperty("start_lcp", (Uint32)1);
+  while (ctx->getProperty("lcps_done", (Uint32)0) != 1)
+    NdbSleep_MilliSleep(1000);
+  ctx->setProperty("lcps_done", (Uint32)0);
+
+  // Perform some writes
+  NdbError err;
+  int upval = 0;
+  run_write_ops(ctx, step, upval++, err, true);
+
+  // Perform 1 LCP
+  ctx->setProperty("start_lcp", (Uint32)1);
+  while (ctx->getProperty("lcps_done", (Uint32)0) != 1)
+    NdbSleep_MilliSleep(1000);
+
+  // When redolog starts to get full (err code 410),
+  // fill more (100 run_write_ops = 100k pkWrite ops) to force
+  // the logpart to get filled to its max
+
+  // Find the redo logpart usage and node id of the logpart that went full
+  int retries = -1;
+  while (!ctx->isTestStopped())
+  {
+    run_write_ops(ctx, step, upval++, err, true);
+
+    if (err.code == 410 && retries == -1)
+    {
+      retries = 100;
+    }
+    if (retries > 0 && retries-- == 1)
+      break;
+
+    // Continue load until lcps are finished
+  }
+
+  if (ctx->isTestStopped())
+    return NDBT_FAILED;
+
+  // Find the redo logpart usage and node id of the logpart that went full
+  int usage_before = -1;
+  Uint32 nodeid = 0; // The node with full redo logpart
+  Uint32 full_logpart = UINT32_MAX;
+  usage_before = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
+  CHK3(usage_before > 0, "Redo log usage <= 0");
+  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+  CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+
+   // The node with full redo logpart. Same as nodeid but of type 'int'.
+  int victim = (int)nodeid;
+
+  g_info << "Stopping node " << victim << endl;
+  NdbRestarter restarter;
+  CHK3(restarter.restartOneDbNode(victim,
+                                  /** initial */ false,
+                                  /** nostart */ true,
+                                  /** abort   */ true) == 0,
+       "Restart a node failed");
+  CHK3(restarter.waitNodesNoStart(&victim, 1) == 0,
+       "Started node has not reached NoStart state");
+
+  // World is moving on with more load and lcps while the victim is away
+  bool lcp_started = false;
+  while (ctx->getProperty("lcps_done", (Uint32)0) != 1 &&
+         !ctx->isTestStopped())
+  {
+    NdbError err;
+    run_write_ops(ctx, step, upval++, err);
+
+    if (!lcp_started)
+    {
+      lcp_started = true;
+      ctx->setProperty("start_lcp", (Uint32)4);
+      g_info << "Starting lcp" << endl;
+    }
+    // Continue load until lcps are finished
+  }
+
+  if (ctx->isTestStopped())
+    return NDBT_FAILED;
+
+  ctx->setProperty("stop_lcp", (Uint32)1); // stop runLCP()
+
+  g_err << "Restarting the stopped node " << victim << endl;
+  CHK3(restarter.startNodes(&victim, 1) == 0, "Start node failed");
+  CHK3(restarter.waitNodesStarted(&victim, 1) == 0, "Node not started");
+
+  // Check whether the full redo log part has been trimmed
+  CHK3((redologpart_is_trimmed(ctx, usage_before, full_logpart, nodeid)) == NDBT_OK,
+       "Check for redolog trimmed failed");
+  return NDBT_OK;
 }
 
 NDBT_TESTSUITE(testRedo);
@@ -1490,6 +1926,30 @@ TESTCASE("RedoFull",
   INITIALIZER(resizeRedoLog);
   INITIALIZER(runCreate);
   STEP(runWriteWithRedoFull);
+  FINALIZER(runDrop);
+  FINALIZER(resizeRedoLog);
+}
+TESTCASE("CheckLCPStartsAfterSR",
+         "Fill redo logs to full, SR, and see if LCP starts"){
+  TC_PROPERTY("TABMASK", (Uint32)(3));
+  TC_PROPERTY("LCPINTERVAL", (Uint32)(31));
+  INITIALIZER(resizeRedoLog);
+  INITIALIZER(runCreate);
+  STEP(runCheckLCPStartsAfterSR);
+  STEP(runLCP);
+  FINALIZER(runDrop);
+  FINALIZER(resizeRedoLog);
+}
+TESTCASE("CheckLCPStartsAfterNR",
+         "Fill redo logs to full, restart the node having full redo,"
+         "and see if LCP starts"){
+  TC_PROPERTY("TABMASK", (Uint32)(3));
+  TC_PROPERTY("LCPINTERVAL", (Uint32)(31));
+  TC_PROPERTY("NR", (Uint32)(1));
+  INITIALIZER(resizeRedoLog);
+  INITIALIZER(runCreate);
+  STEP(runCheckLCPStartsAfterNR);
+  STEP(runLCP);
   FINALIZER(runDrop);
   FINALIZER(resizeRedoLog);
 }

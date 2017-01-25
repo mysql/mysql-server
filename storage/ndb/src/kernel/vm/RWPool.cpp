@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#if 0
 #include "RWPool.hpp"
 #include <ndbd_exit_codes.h>
 #include <NdbOut.hpp>
 
 #define JAM_FILE_ID 278
-
+#endif
 
 #define REC_NIL GLOBAL_PAGE_SIZE_WORDS
 
-RWPool::RWPool() 
+template<typename T>
+RWPool<T>::RWPool() 
 {
   memset(this, 0, sizeof(* this));
   m_current_pos = RWPage::RWPAGE_WORDS;
@@ -32,8 +34,9 @@ RWPool::RWPool()
   m_first_free_page = RNIL;
 }
 
+template<typename T>
 void
-RWPool::init(const Record_info& ri, const Pool_context& pc)
+RWPool<T>::init(const Record_info& ri, const Pool_context& pc)
 {
   m_ctx = pc;
   m_record_info = ri;
@@ -46,8 +49,9 @@ RWPool::init(const Record_info& ri, const Pool_context& pc)
 #endif
 }
 
+template<typename T>
 bool
-RWPool::seize(Ptr<void>& ptr)
+RWPool<T>::seize(Ptr<T>& ptr)
 {
   Uint32 pos = m_current_pos;
   Uint32 size = m_record_info.m_size;
@@ -58,7 +62,8 @@ RWPool::seize(Ptr<void>& ptr)
 seize_free:
     pos = m_current_first_free;
     ptr.i = (m_current_page_no << POOL_RECORD_BITS) + pos;
-    ptr.p = pageP->m_data + pos;
+    Uint32* const p = pageP->m_data + pos;
+    ptr.p = reinterpret_cast<T*>(p); // TODO dynamic_cast?
     pageP->m_data[pos+off] = ~(Uint32)m_record_info.m_type_id;
     m_current_ref_count++;
     m_current_first_free = pageP->m_data[pos+m_record_info.m_offset_next_pool];
@@ -68,7 +73,8 @@ seize_free:
   {
 seize_first:
     ptr.i = (m_current_page_no << POOL_RECORD_BITS) + pos;
-    ptr.p = (pageP->m_data + pos);
+    Uint32* const p = pageP->m_data + pos;
+    ptr.p = reinterpret_cast<T*>(p); // TODO dynamic_cast?
     pageP->m_data[pos+off] = ~(Uint32)m_record_info.m_type_id;
     m_current_ref_count++;
     m_current_pos = pos + size;
@@ -121,8 +127,9 @@ seize_first:
   return false;
 }
 
+template<typename T>
 void
-RWPool::release(Ptr<void> ptr)
+RWPool<T>::release(Ptr<T> ptr)
 {
   Uint32 cur_page = m_current_page_no;
   Uint32 ptr_page = ptr.i >> POOL_RECORD_BITS;
@@ -196,8 +203,9 @@ RWPool::release(Ptr<void> ptr)
   handle_invalid_release(ptr);
 }
 
+template<typename T>
 void
-RWPool::handle_invalid_release(Ptr<void> ptr)
+RWPool<T>::handle_invalid_release(Ptr<T> ptr)
 {
   char buf[255];
 
@@ -216,8 +224,9 @@ RWPool::handle_invalid_release(Ptr<void> ptr)
   m_ctx.handleAbort(NDBD_EXIT_PRGERR, buf);
 }
 
+template<typename T>
 void
-RWPool::handle_invalid_get_ptr(Uint32 ptrI)
+RWPool<T>::handle_invalid_get_ptr(Uint32 ptrI) const
 {
   char buf[255];
 

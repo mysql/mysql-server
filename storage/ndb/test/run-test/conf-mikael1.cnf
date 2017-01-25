@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ Checksum=1
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
-InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
 

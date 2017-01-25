@@ -1195,7 +1195,7 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   Uint32 *theData = &signal->theData[0];
   const OpSection& fragSection =
     getOpSection(op_ptr, CreateTabReq::FRAGMENTATION);
-  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
   copyOut(op_sec_pool, fragSection, &theData[25], ZNIL);
   theData[0] = 0;
 }
@@ -1466,7 +1466,7 @@ Dbdict::writeTableFile(Signal* signal, SchemaOpPtr op_ptr, Uint32 tableId,
     Uint32* dst = &pageRecPtr.p->word[ZPAGE_HEADER_SIZE];
     Uint32 dstSize = (ZMAX_PAGES_OF_TABLE_DEFINITION * ZSIZE_OF_PAGES_IN_WORDS)
       - ZPAGE_HEADER_SIZE;
-    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+    LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
     bool ok = copyOut(op_sec_pool, tabInfoSec, dst, dstSize);
     ndbrequire(ok);
 
@@ -7770,7 +7770,7 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
     // wl3600_todo add ndbrequire on SR, NR
     if (size != 0) {
       jam();
-      LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+      LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
       bool ok = copyOut(op_sec_pool, fragSec, page, size);
       ndbrequire(ok);
       ptr[noOfSections].sz = size;
@@ -9414,7 +9414,7 @@ Dbdict::alterTable_release(SchemaOpPtr op_ptr)
     LocalRope r(c_rope_pool, alterTabPtr.p->m_oldFrmData);
     r.erase();
   }
-  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
   release(op_sec_pool, alterTabPtr.p->m_newAttrData);
   releaseOpRec<AlterTableRec>(op_ptr);
 }
@@ -9765,7 +9765,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     AttributeRecordPtr attrPtr;
     list.first(attrPtr);
     Uint32 i = 0;
-    LocalArenaPoolImpl op_sec_pool(trans_ptr.p->m_arena, c_opSectionBufferPool);
+    LocalArenaPool<OpSectionSegment> op_sec_pool(trans_ptr.p->m_arena, c_opSectionBufferPool);
     for (i = 0; i < newTablePtr.p->noOfAttributes; i++) {
       if (i >= tablePtr.p->noOfAttributes) {
         jam();
@@ -11196,7 +11196,7 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
     Uint32 newAttrData[2 * MAX_ATTRIBUTES_IN_TABLE];
     ndbrequire(impl_req->noOfNewAttr <= MAX_ATTRIBUTES_IN_TABLE);
     ndbrequire(2 * impl_req->noOfNewAttr == alterTabPtr.p->m_newAttrData.getSize());
-    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+    LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
     bool ok = copyOut(op_sec_pool, alterTabPtr.p->m_newAttrData, newAttrData, 2 * impl_req->noOfNewAttr);
     ndbrequire(ok);
 
@@ -11211,7 +11211,7 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
     const OpSection& fragInfoSec =
       getOpSection(op_ptr, AlterTabReq::FRAGMENTATION);
     SegmentedSectionPtr fragInfoPtr;
-    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+    LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
     bool ok = copyOut(op_sec_pool, fragInfoSec, fragInfoPtr);
     ndbrequire(ok);
 
@@ -11622,7 +11622,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     const OpSection& tabInfoSec =
       getOpSection(op_ptr, AlterTabReq::DICT_TAB_INFO);
     SegmentedSectionPtr tabInfoPtr;
-    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+    LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
     bool ok = copyOut(op_sec_pool, tabInfoSec, tabInfoPtr);
     ndbrequire(ok);
 
@@ -15365,7 +15365,7 @@ Dbdict::alterIndex_toAddPartitions(Signal* signal, SchemaOpPtr op_ptr)
   const OpSection& fragInfoSec =
     getOpSection(base_op, AlterTabReq::FRAGMENTATION);
   SegmentedSectionPtr fragInfoPtr;
-  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
   bool ok = copyOut(op_sec_pool, fragInfoSec, fragInfoPtr);
   ndbrequire(ok);
   SectionHandle handle(this, fragInfoPtr.i);
@@ -29343,7 +29343,7 @@ Dbdict::saveOpSection(SchemaOpPtr op_ptr,
   OpSection& op_sec = op_ptr.p->m_section[ss_no];
   op_ptr.p->m_sections++;
 
-  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
   bool ok =  copyIn(op_sec_pool, op_sec, ss_ptr);
   ndbrequire(ok);
   return true;
@@ -29360,7 +29360,7 @@ Dbdict::replaceOpSection(SchemaOpPtr op_ptr,
   OpSection& op_sec = op_ptr.p->m_section[ss_no];
   op_sec.init();
 
-  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,
+  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,
                                  c_opSectionBufferPool);
   if (copyIn(op_sec_pool, op_sec, ss_ptr))
   {
@@ -29377,7 +29377,7 @@ Dbdict::releaseOpSection(SchemaOpPtr op_ptr, Uint32 ss_no)
 {
   ndbrequire(ss_no + 1 == op_ptr.p->m_sections);
   OpSection& op_sec = op_ptr.p->m_section[ss_no];
-  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
   release(op_sec_pool, op_sec);
   op_ptr.p->m_sections = ss_no;
 }
@@ -33526,7 +33526,7 @@ Dbdict::findCallback(Callback& callback, Uint32 any_key)
 
 // MODULE: CreateHashMap
 
-ArrayPool<Hash2FragmentMap> g_hash_map;
+Hash2FragmentMap_pool g_hash_map;
 
 const Dbdict::OpInfo
 Dbdict::CreateHashMapRec::g_opInfo = {

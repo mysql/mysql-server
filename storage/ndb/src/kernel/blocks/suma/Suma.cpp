@@ -218,7 +218,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_page_chunk_pool.setSize(numPageChunks);
   
   {
-    SLList<SyncRecord> tmp(c_syncPool);
+    SyncRecord_sllist tmp(c_syncPool);
     Ptr<SyncRecord> ptr;
     while (tmp.seizeFirst(ptr))
       new (ptr.p) SyncRecord(* this, c_dataBufferPool);
@@ -1308,7 +1308,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   Uint32 subscriptionId = signal->theData[4];
   Uint32 subscriptionKey = signal->theData[5];
 
-  DLHashTable<Subscription>::Iterator iter;
+  Subscription_hash::Iterator iter;
   if (bucket == RNIL)
   {
     jam();
@@ -1350,7 +1350,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   subOpPtr.p->m_senderRef = nodeId;
   subOpPtr.p->m_senderData = iter.bucket;
 
-  LocalDLFifoList<SubOpRecord> list(c_subOpPool, iter.curr.p->m_stop_req);
+  Local_SubOpRecord_fifo list(c_subOpPool, iter.curr.p->m_stop_req);
   bool empty = list.isEmpty();
   list.addLast(subOpPtr);
 
@@ -1384,7 +1384,7 @@ Suma::api_fail_subscription(Signal* signal)
 
   Ptr<Subscriber> ptr;
   {
-    LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+    Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
     if (signal->theData[2] == RNIL)
     {
       jam();
@@ -1441,7 +1441,7 @@ Suma::api_fail_subscription(Signal* signal)
   check_release_subscription(signal, subPtr);
 
   // Continue iterating through subscriptions
-  DLHashTable<Subscription>::Iterator iter;
+  Subscription_hash::Iterator iter;
   iter.bucket = subOpPtr.p->m_senderData;
   iter.curr = subPtr;
 
@@ -1705,7 +1705,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     
     if(tCase == 8003){
       subPtr.p->m_subscriptionType = SubCreateReq::SingleTableScan;
-      LocalDataBuffer<15> attrs(c_dataBufferPool, syncPtr.p->m_attributeList);
+      LocalSyncRecordBuffer attrs(c_dataBufferPool, syncPtr.p->m_attributeList);
       Uint32 tab = 0;
       Uint32 att[] = { 0, 1, 1 };
       syncPtr.p->m_tableList.append(&tab, 1);
@@ -1807,7 +1807,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
   {
     jam();
     Uint32 bucket = signal->theData[1];
-    KeyTable<Table>::Iterator it;
+    Table_keyhash::Iterator it;
     if (signal->getLength() == 1)
     {
       jam();
@@ -1833,14 +1833,14 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
       Uint32 cnt = 0;
       Ptr<Subscription> subPtr;
-      LocalDLList<Subscription> subList(c_subscriptionPool,
+      Local_Subscription_list subList(c_subscriptionPool,
                                         it.curr.p->m_subscriptions);
       for(subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
       {
         infoEvent(" Subcription %u", subPtr.i);
         {
           Ptr<Subscriber> ptr;
-          LocalDLList<Subscriber> list(c_subscriberPool,
+          Local_Subscriber_list list(c_subscriberPool,
                                        subPtr.p->m_subscribers);
           for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
           {
@@ -1855,7 +1855,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
         {
           Ptr<SubOpRecord> ptr;
-          LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+          Local_SubOpRecord_fifo list(c_subOpPool,
                                        subPtr.p->m_create_req);
 
           for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
@@ -1869,7 +1869,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
         {
           Ptr<SubOpRecord> ptr;
-          LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+          Local_SubOpRecord_fifo list(c_subOpPool,
                                        subPtr.p->m_start_req);
 
           for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
@@ -1883,7 +1883,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
         {
           Ptr<SubOpRecord> ptr;
-          LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+          Local_SubOpRecord_fifo list(c_subOpPool,
                                         subPtr.p->m_stop_req);
 
           for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
@@ -1910,7 +1910,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
   {
     jam();
     Uint32 bucket = signal->theData[1];
-    KeyTable<Subscription>::Iterator it;
+    Subscription_keyhash::Iterator it;
     if (signal->getLength() == 1)
     {
       jam();
@@ -1948,7 +1948,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
                 cstr(tabPtr.p->m_state));
       {
         Ptr<Subscriber> ptr;
-        LocalDLList<Subscriber> list(c_subscriberPool,
+        Local_Subscriber_list list(c_subscriberPool,
                                      subPtr.p->m_subscribers);
         for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
         {
@@ -1962,7 +1962,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
       {
         Ptr<SubOpRecord> ptr;
-        LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+        Local_SubOpRecord_fifo list(c_subOpPool,
                                           subPtr.p->m_create_req);
 
         for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
@@ -1976,7 +1976,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
       {
         Ptr<SubOpRecord> ptr;
-        LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+        Local_SubOpRecord_fifo list(c_subOpPool,
                                           subPtr.p->m_start_req);
 
         for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
@@ -1990,7 +1990,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
       {
         Ptr<SubOpRecord> ptr;
-        LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+        Local_SubOpRecord_fifo list(c_subOpPool,
                                           subPtr.p->m_stop_req);
 
         for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
@@ -2021,7 +2021,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     {
       jam();
       c_gcp_list.first(gcp);
-      infoEvent("Waiting for acknowledge of epoch %llu, buffering %u epochs", gcp.p->m_gci, c_gcp_list.count());
+      infoEvent("Waiting for acknowledge of epoch %llu, buffering %u epochs", gcp.p->m_gci, c_gcp_list.getCount());
       NodeBitmask subs = gcp.p->m_subscribers;
       for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
       {
@@ -2399,7 +2399,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   }
 
   Ptr<SubOpRecord> subOpPtr;
-  LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_create_req);
+  Local_SubOpRecord_fifo subOpList(c_subOpPool, subPtr.p->m_create_req);
   if ((ERROR_INSERTED(13044) && found == false) ||
       subOpList.seizeLast(subOpPtr) == false)
   {
@@ -2469,7 +2469,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   {
     jam();
     c_subscriptions.add(subPtr);
-    LocalDLList<Subscription> list(c_subscriptionPool,
+    Local_Subscription_list list(c_subscriptionPool,
                                    tabPtr.p->m_subscriptions);
     list.addFirst(subPtr);
     subPtr.p->m_table_ptrI = tabPtr.i;
@@ -2532,7 +2532,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subOpList.release(subOpPtr);
 
     {
-      LocalDLList<Subscription> list(c_subscriptionPool,
+      Local_Subscription_list list(c_subscriptionPool,
                                      tabPtr.p->m_subscriptions);
       list.remove(subPtr);
     }
@@ -2592,7 +2592,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   Ptr<SyncRecord> syncPtr;
   bool seize_ret;
   {
-    LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
+    Local_SyncRecord_dllist list(c_syncPool, subPtr.p->m_syncRecords);
     seize_ret = list.seizeFirst(syncPtr);
   }
   if (!seize_ret)
@@ -2628,7 +2628,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     {
       SegmentedSectionPtr ptr;
       handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
-      LocalDataBuffer<15> attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
+      LocalSyncRecordBuffer attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
     }
     if (req->requestInfo & SubSyncReq::RangeScan)
@@ -2637,7 +2637,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
       ndbrequire(handle.m_cnt > 1)
       SegmentedSectionPtr ptr;
       handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO);
-      LocalDataBuffer<15> boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
+      LocalSyncRecordBuffer boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
       append(boundBuf, ptr, getSectionSegmentPool());
     }
     releaseSections(handle);
@@ -2759,7 +2759,7 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
   c_syncPool.getPtr(ptr, conf->senderData);
 
   {
-    LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+    LocalSyncRecordBuffer fragBuf(c_dataBufferPool, ptr.p->m_fragments);
     ndbrequire(fragBuf.getSize() == 0);
   }
   D("fragCount = " << fragCount << " m_frag_cnt = " << ptr.p->m_frag_cnt);
@@ -2807,7 +2807,7 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     ndbrequire(errCode == 0);
 
     {
-      LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+      LocalSyncRecordBuffer fragBuf(c_dataBufferPool, ptr.p->m_fragments);
 
       /**
        * Add primary node for fragment to list
@@ -2937,7 +2937,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
 void
 Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
 {
-  LocalDLList<Subscription> subList(c_subscriptionPool,
+  Local_Subscription_list subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
   ndbassert(!subList.isEmpty());
@@ -2947,7 +2947,7 @@ Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
     Ptr<SubOpRecord> ptr;
     ndbassert(subPtr.p->m_start_req.isEmpty());
     ndbassert(subPtr.p->m_stop_req.isEmpty());
-    LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_create_req);
+    Local_SubOpRecord_fifo list(c_subOpPool, subPtr.p->m_create_req);
     for (list.first(ptr); !ptr.isNull(); )
     {
       jam();
@@ -2997,7 +2997,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
 
   tabPtr.p->m_state = Table::DEFINED;
 
-  LocalDLList<Subscription> subList(c_subscriptionPool,
+  Local_Subscription_list subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
   ndbassert(!subList.isEmpty());
@@ -3007,7 +3007,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
     subPtr.p->m_state = Subscription::DEFINED;
 
     Ptr<SubOpRecord> ptr;
-    LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_create_req);
+    Local_SubOpRecord_fifo list(c_subOpPool, subPtr.p->m_create_req);
     for (list.first(ptr); !ptr.isNull();)
     {
       jam();
@@ -3079,11 +3079,11 @@ Suma::SyncRecord::getNextFragment(TablePtr * tab,
   jam();
   SubscriptionPtr subPtr;
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
-  DataBuffer<15>::DataBufferIterator fragIt;
+  SyncRecordBuffer::DataBufferIterator fragIt;
   
   TablePtr tabPtr;
   suma.c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
-  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool,  m_fragments);
+  LocalSyncRecordBuffer fragBuf(suma.c_dataBufferPool,  m_fragments);
     
   fragBuf.position(fragIt, m_currentFragment);
   for(; !fragIt.curr.isNull(); fragBuf.next(fragIt), m_currentFragment++)
@@ -3116,8 +3116,8 @@ Suma::SyncRecord::nextScan(Signal* signal)
 
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
  
-  DataBuffer<15>::Head head = m_attributeList;
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
+  SyncRecordBuffer::Head head = m_attributeList;
+  LocalSyncRecordBuffer attrBuf(suma.c_dataBufferPool, head);
 
   Uint32 instanceKey = fd.m_fragDesc.m_lqhInstanceKey;
   BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
@@ -3196,7 +3196,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   attrInfo[4] = 0;
   
   Uint32 pos = 5;
-  DataBuffer<15>::DataBufferIterator it;
+  SyncRecordBuffer::DataBufferIterator it;
   for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it))
   {
     AttributeHeader::init(&attrInfo[pos++], * it.data, 0);
@@ -3210,7 +3210,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   {
     jam();
     Uint32 oldpos = pos; // after attrInfo
-    LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+    LocalSyncRecordBuffer boundBuf(suma.c_dataBufferPool, m_boundInfo);
     for (boundBuf.first(it); !it.curr.isNull(); boundBuf.next(it))
     {
       attrInfo[pos++] = *it.data;
@@ -3301,8 +3301,8 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   {
     Ptr<SyncRecord> syncPtr;
     c_syncPool.getPtr(syncPtr, syncPtrI);
-    LocalDataBuffer<15> fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
-    DataBuffer<15>::DataBufferIterator fragIt;
+    LocalSyncRecordBuffer fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
+    SyncRecordBuffer::DataBufferIterator fragIt;
     bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
     ndbrequire(ok);
     FragmentDescriptor tmp;
@@ -3361,7 +3361,7 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
 
   release();
   {
-    LocalDLList<SyncRecord> list(suma.c_syncPool, subPtr.p->m_syncRecords);
+    Local_SyncRecord_dllist list(suma.c_syncPool, subPtr.p->m_syncRecords);
     Ptr<SyncRecord> tmp;
     tmp.i = ptrI;
     tmp.p = this;
@@ -3545,7 +3545,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   subOpPtr.p->m_subscriberRef = subbPtr.i;
 
   {
-    LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_start_req);
+    Local_SubOpRecord_fifo subOpList(c_subOpPool, subPtr.p->m_start_req);
     subOpList.addLast(subOpPtr);
   }
 
@@ -3754,9 +3754,9 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
 {
   const Uint64 gci = get_current_gci(signal);
   {
-    LocalDLList<Subscriber> list(c_subscriberPool,
+    Local_Subscriber_list list(c_subscriberPool,
                                  subPtr.p->m_subscribers);
-    LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_start_req);
+    Local_SubOpRecord_fifo subOpList(c_subOpPool, subPtr.p->m_start_req);
 
     Ptr<Subscriber> ptr;
     Ptr<SubOpRecord> subOpPtr;
@@ -3818,9 +3818,9 @@ Suma::report_sub_start_ref(Signal* signal,
                            Ptr<Subscription> subPtr,
                            Uint32 errCode)
 {
-  LocalDLList<Subscriber> list(c_subscriberPool,
+  Local_Subscriber_list list(c_subscriberPool,
                                subPtr.p->m_subscribers);
-  LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_start_req);
+  Local_SubOpRecord_fifo subOpList(c_subOpPool, subPtr.p->m_start_req);
 
   Ptr<Subscriber> ptr;
   Ptr<SubOpRecord> subOpPtr;
@@ -4083,7 +4083,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
   }
 
   Ptr<SubOpRecord> subOpPtr;
-  LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
+  Local_SubOpRecord_fifo list(c_subOpPool, subPtr.p->m_stop_req);
   bool empty = list.isEmpty();
   if (list.seizeLast(subOpPtr) == false)
   {
@@ -4133,7 +4133,7 @@ Suma::sub_stop_req(Signal* signal)
 
   Ptr<Subscriber> ptr;
   {
-    LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+    Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
     if (signal->theData[2] == RNIL)
     {
       jam();
@@ -4175,7 +4175,7 @@ Suma::sub_stop_req(Signal* signal)
 
 found:
   {
-    LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+    Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
     list.remove(ptr);
     /**
      * NOTE: remove before...so we done send UNSUBSCRIBE to self (yuck)
@@ -4195,7 +4195,7 @@ Suma::check_remove_queue(Signal* signal,
                          bool ishead,
                          bool dorelease)
 {
-  LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
+  Local_SubOpRecord_fifo list(c_subOpPool, subPtr.p->m_stop_req);
 
   {
     Ptr<SubOpRecord> tmp;
@@ -4268,7 +4268,7 @@ Suma::report_sub_stop_conf(Signal* signal,
                            Ptr<SubOpRecord> subOpPtr,
                            Ptr<Subscriber> ptr,
                            bool report,
-                           LocalDLList<Subscriber>& list)
+                           Local_Subscriber_list& list)
 {
   jam();
   CRASH_INSERTION(13020);
@@ -4326,7 +4326,7 @@ Suma::send_sub_start_stop_event(Signal *signal,
                                 Ptr<Subscriber> ptr,
                                 NdbDictionary::Event::_TableEvent event,
                                 bool report,
-                                LocalDLList<Subscriber>& list)
+                                Local_Subscriber_list& list)
 {
   const Uint64 gci = get_current_gci(signal);
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
@@ -4912,7 +4912,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->transId2       = transId2;
     
     {
-      LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+      Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
       SubscriberPtr subbPtr;
       for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
       {
@@ -4966,7 +4966,7 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
             c_maxBufferedEpochs, m_max_seen_gci,
             m_last_complete_gci, gcp.p->m_gci);
   }
-  else if (c_gcp_list.count() < c_maxBufferedEpochs)
+  else if (c_gcp_list.getCount() < c_maxBufferedEpochs)
   {
     return;
   }
@@ -4991,7 +4991,7 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
       signal->theData[2] = nodeId;
       signal->theData[3] = (Uint32) gcp.p->m_gci;
       signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
-      signal->theData[5] = (Uint32) c_gcp_list.count();
+      signal->theData[5] = (Uint32) c_gcp_list.getCount();
       signal->theData[6] = c_maxBufferedEpochs;
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
       
@@ -5451,7 +5451,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
     SubTableData::setReqNodeId(data->requestInfo, refToNode(senderRef));
 
     Ptr<Subscription> subPtr;
-    LocalDLList<Subscription> subList(c_subscriptionPool,
+    Local_Subscription_list subList(c_subscriptionPool,
                                       tabPtr.p->m_subscriptions);
 
     for (subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
@@ -5472,7 +5472,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
       }
 
       Ptr<Subscriber> ptr;
-      LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+      Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
       for(list.first(ptr); !ptr.isNull(); list.next(ptr))
       {
         jam();
@@ -5504,7 +5504,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
      */
     Ptr<Subscription> subPtr;
     {
-      LocalDLList<Subscription> subList(c_subscriptionPool,
+      Local_Subscription_list subList(c_subscriptionPool,
                                         tabPtr.p->m_subscriptions);
       subList.first(subPtr);
     }
@@ -5512,7 +5512,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
     {
       Ptr<Subscription> tmp = subPtr;
       {
-        LocalDLList<Subscription> subList(c_subscriptionPool,
+        Local_Subscription_list subList(c_subscriptionPool,
                                           tabPtr.p->m_subscriptions);
         subList.next(subPtr);
       }
@@ -5582,7 +5582,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   data->changeMask     = changeMask;
   data->totalLen       = tabInfoPtr.sz;
   Ptr<Subscription> subPtr;
-  LocalDLList<Subscription> subList(c_subscriptionPool,
+  Local_Subscription_list subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
 
   for (subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
@@ -5602,7 +5602,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
     }
 
     Ptr<Subscriber> ptr;
-    LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+    Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
     for(list.first(ptr); !ptr.isNull(); list.next(ptr))
     {
       jam();
@@ -5855,7 +5855,7 @@ do_release:
   }
 
   {
-    LocalDLList<Subscription> list(c_subscriptionPool,
+    Local_Subscription_list list(c_subscriptionPool,
                                    tabPtr.p->m_subscriptions);
     list.remove(subPtr);
   }
@@ -5911,13 +5911,13 @@ void
 Suma::SyncRecord::release(){
   jam();
 
-  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
+  LocalSyncRecordBuffer fragBuf(suma.c_dataBufferPool, m_fragments);
   fragBuf.release();
 
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributeList);
+  LocalSyncRecordBuffer attrBuf(suma.c_dataBufferPool, m_attributeList);
   attrBuf.release();  
 
-  LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+  LocalSyncRecordBuffer boundBuf(suma.c_dataBufferPool, m_boundInfo);
   boundBuf.release();  
 
   ndbassert(m_sourceInstance == RNIL);
@@ -5980,7 +5980,7 @@ Suma::execSUMA_START_ME_REQ(Signal* signal) {
   c_restart.m_max_seq = c_current_seq;
   c_restart.m_subOpPtrI = subOpPtr.i;
 
-  DLHashTable<Subscription>::Iterator it;
+  Subscription_hash::Iterator it;
   if (c_subscriptions.first(it))
   {
     jam();
@@ -5997,7 +5997,7 @@ Suma::execSUMA_START_ME_REQ(Signal* signal) {
 }
 
 void
-Suma::copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator it)
+Suma::copySubscription(Signal* signal, Subscription_hash::Iterator it)
 {
   jam();
 
@@ -6011,7 +6011,7 @@ Suma::copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator it)
     c_restart.m_subPtrI = subPtr.i;
     c_restart.m_bucket = it.bucket;
 
-    LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
+    Local_SubOpRecord_fifo list(c_subOpPool, subPtr.p->m_stop_req);
     bool empty = list.isEmpty();
     list.addLast(subOpPtr);
 
@@ -6173,7 +6173,7 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
   if (tabPtr.p->m_state != Table::DROPPED)
   {
     jam();
-    LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+    Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
     list.first(ptr);
   }
   else
@@ -6217,7 +6217,7 @@ Suma::copySubscriber(Signal* signal,
     check_remove_queue(signal, subPtr, subOpPtr, true, false);
     check_release_subscription(signal, subPtr);
 
-    DLHashTable<Subscription>::Iterator it;
+    Subscription_hash::Iterator it;
     it.curr = subPtr;
     it.bucket = c_restart.m_bucket;
     c_subscriptions.next(it);
@@ -6238,7 +6238,7 @@ Suma::execSUB_START_CONF(Signal* signal)
   Ptr<Subscriber> ptr;
   c_subscriberPool.getPtr(ptr, conf->senderData);
 
-  LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+  Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
   list.next(ptr);
   copySubscriber(signal, subPtr, ptr);
 }
@@ -7052,7 +7052,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
         data->transId2       = transId2;
 	
 	{
-          LocalDLList<Subscriber> list(c_subscriberPool,
+          Local_Subscriber_list list(c_subscriberPool,
                                        subPtr.p->m_subscribers);
           SubscriberPtr subbPtr;
           for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
@@ -7290,5 +7290,5 @@ Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
   return;
 }
 
-template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);
+//template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);
 

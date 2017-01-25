@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@
 #define RT_LGMAN_FILEGROUP         MAKE_TID( 5, RG_DISK_RECORDS)
 #define RT_TSMAN_FILE              MAKE_TID( 6, RG_DISK_RECORDS)
 #define RT_TSMAN_FILEGROUP         MAKE_TID( 7, RG_DISK_RECORDS)
+#define RT_PGMAN_FILE              MAKE_TID( 8, RG_DISK_RECORDS)
 
 #define RT_DBTUP_PAGE              MAKE_TID( 1, RG_DATAMEM)
 #define RT_DBTUP_PAGE_MAP          MAKE_TID( 2, RG_DATAMEM)

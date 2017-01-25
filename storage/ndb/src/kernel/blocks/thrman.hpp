@@ -114,15 +114,14 @@ private:
   };
   typedef Ptr<MeasurementRecord> MeasurementRecordPtr;
   typedef ArrayPool<MeasurementRecord> MeasurementRecord_pool;
-  typedef DLCFifoListImpl<MeasurementRecord_pool,
-                          MeasurementRecord,
-                          MeasurementRecord> MeasurementRecord_list;
+  typedef DLCFifoList<MeasurementRecord,
+                      MeasurementRecord_pool> MeasurementRecord_fifo;
 
   MeasurementRecord_pool c_measurementRecordPool;
 
-  DLCFifoList<MeasurementRecord> c_next_50ms_measure;
-  DLCFifoList<MeasurementRecord> c_next_1sec_measure;
-  DLCFifoList<MeasurementRecord> c_next_20sec_measure;
+  MeasurementRecord_fifo c_next_50ms_measure;
+  MeasurementRecord_fifo c_next_1sec_measure;
+  MeasurementRecord_fifo c_next_20sec_measure;
 
   MeasurementRecord m_last_50ms_base_measure;
   MeasurementRecord m_last_1sec_base_measure;
@@ -147,13 +146,11 @@ private:
   };
   typedef Ptr<SendThreadMeasurement> SendThreadMeasurementPtr;
   typedef ArrayPool<SendThreadMeasurement> SendThreadMeasurement_pool;
-  typedef DLCFifoListImpl<SendThreadMeasurement_pool,
-                          SendThreadMeasurement,
-                          SendThreadMeasurement> SendThreadMeasurement_list;
-  typedef LocalDLCFifoListImpl<SendThreadMeasurement_pool,
-                               SendThreadMeasurement,
-                               SendThreadMeasurement>
-                               LocalSendThreadMeasurement_list;
+  typedef DLCFifoList<SendThreadMeasurement,
+                      SendThreadMeasurement_pool> SendThreadMeasurement_fifo;
+  typedef LocalDLCFifoList<SendThreadMeasurement,
+                               SendThreadMeasurement_pool>
+                               Local_SendThreadMeasurement_fifo;
 
   SendThreadMeasurement_pool c_sendThreadMeasurementPool;
 
@@ -163,9 +160,9 @@ private:
     SendThreadMeasurement m_last_1sec_send_thread_measure;
     SendThreadMeasurement m_last_20sec_send_thread_measure;
 
-    SendThreadMeasurement_list::Head m_send_thread_50ms_measurements;
-    SendThreadMeasurement_list::Head m_send_thread_1sec_measurements;
-    SendThreadMeasurement_list::Head m_send_thread_20sec_measurements;
+    SendThreadMeasurement_fifo::Head m_send_thread_50ms_measurements;
+    SendThreadMeasurement_fifo::Head m_send_thread_1sec_measurements;
+    SendThreadMeasurement_fifo::Head m_send_thread_20sec_measurements;
 
     union {
       Uint32 nextPool;

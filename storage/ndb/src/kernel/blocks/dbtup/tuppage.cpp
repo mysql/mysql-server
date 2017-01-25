@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ Tup_fixsize_page::free_record(Uint32 page_idx)
   next_free_index = page_idx;
   m_data[page_idx] = 0xFFFF0000 | next;
   m_data[page_idx + 1] = FREE_RECORD;
-  
+
   return ++free_space;
 }
 
@@ -238,7 +238,7 @@ Tup_varsize_page::alloc_record(Uint32 page_idx, Uint32 alloc_size,
       
       * ptr++ = insert_pos + (alloc_size << LEN_SHIFT);
       * ptr = ((* ptr) & ~PREV_MASK) | (END_OF_FREE_LIST << PREV_SHIFT);
-      
+
       next_free_index = hi - 1;
     }
     high_index = hi + 1;
@@ -282,7 +282,8 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
     assert((get_index_word(page_idx) & FREE) == FREE);
     assert(((get_index_word(page_idx) & PREV_MASK) >> PREV_SHIFT) == 
 	   END_OF_FREE_LIST);
-    next_free_index= (get_index_word(page_idx) & NEXT_MASK) >> NEXT_SHIFT;
+    Uint32 next = (get_index_word(page_idx) & NEXT_MASK) >> NEXT_SHIFT;
+    next_free_index = next;
     assert(next_free_index);
     if (next_free_index != END_OF_FREE_LIST)
     {

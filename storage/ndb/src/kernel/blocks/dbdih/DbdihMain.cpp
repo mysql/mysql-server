@@ -15985,6 +15985,30 @@ Dbdih::getFragstore(const TabRecord * tab,      //In parameter
   ndbrequire(false);
 }//Dbdih::getFragstore()
 
+void 
+Dbdih::getFragstoreCanFail(const TabRecord * tab,      //In parameter
+                           Uint32 fragNo,              //In parameter
+                           FragmentstorePtr & fragptr) //Out parameter
+{
+  FragmentstorePtr fragPtr;
+  Uint32 TfragstoreFileSize = cfragstoreFileSize;
+  Fragmentstore* TfragStore = fragmentstore;
+  Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
+  Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
+  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
+  if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid)))
+  {
+    if (fragPtr.i < TfragstoreFileSize)
+    {
+      ptrAss(fragPtr, TfragStore);
+      fragptr = fragPtr;
+      return;
+    }
+  }//if
+  fragptr.i = RNIL;
+  fragptr.p = NULL;
+}//Dbdih::getFragstoreCanFail()
+
 /**
  * End of TRANSACTION MODULE
  * -------------------------
@@ -27454,6 +27478,30 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
 loop:
   Uint32 tab_val = tTabPtr.p->m_lock.read_lock();
   getFragstore(tTabPtr.p, fragId, tFragPtr);
+  Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
+  if (unlikely(!tTabPtr.p->m_lock.read_unlock(tab_val)))
+    goto loop;
+  return instanceKey;
+}
+
+Uint32
+Dbdih::dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId)
+{
+  TabRecordPtr tTabPtr;
+  tTabPtr.i = tabId;
+  if (tabId >= ctabFileSize)
+  {
+    return Uint32(RNIL);
+  }
+  ptrAss(tTabPtr, tabRecord);
+  FragmentstorePtr tFragPtr;
+loop:
+  Uint32 tab_val = tTabPtr.p->m_lock.read_lock();
+  getFragstoreCanFail(tTabPtr.p, fragId, tFragPtr);
+  if (tFragPtr.p == NULL)
+  {
+    return Uint32(RNIL);
+  }
   Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
   if (unlikely(!tTabPtr.p->m_lock.read_unlock(tab_val)))
     goto loop;

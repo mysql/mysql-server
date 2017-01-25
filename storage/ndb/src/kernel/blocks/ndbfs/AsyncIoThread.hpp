@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,6 +124,8 @@ public:
 
   // file info for debug
   Uint32 m_fileinfo;
+  Uint32 m_file_size_hi;
+  Uint32 m_file_size_lo;
 };
 
 NdbOut& operator <<(NdbOut&, const Request&);

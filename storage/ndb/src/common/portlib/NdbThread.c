@@ -241,6 +241,14 @@ ndb_thread_wrapper(void* _ss){
        */
       sigset_t mask;
       sigfillset(&mask);
+      /** Unblock SIGBUS, SIGFPE, SIGILL and SIGSEGV
+          because behaviour is undefined when any of
+          these signals is blocked
+       */
+      sigdelset(&mask, SIGBUS);
+      sigdelset(&mask, SIGFPE);
+      sigdelset(&mask, SIGILL);
+      sigdelset(&mask, SIGSEGV);
       pthread_sigmask(SIG_BLOCK, &mask, 0);
     }      
 #endif

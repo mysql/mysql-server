@@ -185,6 +185,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   Pool_context pc;
   pc.m_block = this;
   m_page_request_pool.wo_pool_init(RT_PGMAN_PAGE_REQUEST, pc);
+  m_file_entry_pool.init(RT_PGMAN_FILE, pc);
   
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -380,7 +381,7 @@ void
 Pgman::set_page_state(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr, 
                       Page_state new_state)
 {
-  D(">set_page_state: state=" << hex << new_state);
+  D("> [" << ptr.i << "]->set_page_state: state=" << hex << new_state);
   D(ptr << ": before");
 
   Page_state old_state = ptr.p->m_state;
@@ -538,7 +539,7 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>& ptr,
       set_page_state(jamBuf, idle_ptr, state);
       ndbrequire(idle_ptr.p->m_state == 0);
 
-      release_page_entry(idle_ptr);
+      release_page_entry(idle_ptr, jamBuf);
     }
   }
 
@@ -559,10 +560,8 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>& ptr,
 }
 
 void
-Pgman::release_page_entry(Ptr<Page_entry>& ptr)
+Pgman::release_page_entry(Ptr<Page_entry>& ptr, EmulatedJamBuffer *jamBuf)
 {
-  EmulatedJamBuffer *jamBuf = getThrJamBuf();
-
   D("release_page_entry");
   D(ptr);
   Page_state state = ptr.p->m_state;
@@ -585,7 +584,7 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
     m_global_page_pool.release(ptr.p->m_copy_page_i);
   }
   
-  set_page_state(jamBuffer(), ptr, 0);
+  set_page_state(jamBuf, ptr, 0);
   m_page_hashlist.remove(ptr);
   m_page_entry_pool.release(ptr);
 }
@@ -600,7 +599,7 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
  * entry without requests is returned to entry pool.
  */
 void
-Pgman::lirs_stack_prune()
+Pgman::lirs_stack_prune(EmulatedJamBuffer *jamBuf)
 {
   D(">lirs_stack_prune");
   Page_stack& pl_stack = m_page_stack;
@@ -611,7 +610,7 @@ Pgman::lirs_stack_prune()
     Page_state state = ptr.p->m_state;
     if (state & Page_entry::HOT)
     {
-      jam();
+      thrjam(jamBuf);
       break;
     }
 
@@ -619,23 +618,23 @@ Pgman::lirs_stack_prune()
 
     pl_stack.remove(ptr);
     state &= ~ Page_entry::ONSTACK;
-    set_page_state(jamBuffer(), ptr, state);
+    set_page_state(jamBuf, ptr, state);
 
     if (state & Page_entry::BOUND)
     {
-      jam();
+      thrjam(jamBuf);
       ndbrequire(state & Page_entry::ONQUEUE);
     }
     else if (state & Page_entry::REQUEST)
     {
       // enters queue at bind
-      jam();
+      thrjam(jamBuf);
       ndbrequire(! (state & Page_entry::ONQUEUE));
     }
     else
     {
-      jam();
-      release_page_entry(ptr);
+      thrjam(jamBuf);
+      release_page_entry(ptr, jamBuf);
     }
   }
   D("<lirs_stack_prune");
@@ -648,7 +647,7 @@ Pgman::lirs_stack_prune()
  * queue at bind time.
  */
 void
-Pgman::lirs_stack_pop()
+Pgman::lirs_stack_pop(EmulatedJamBuffer *jamBuf)
 {
   D("lirs_stack_pop");
   Page_stack& pl_stack = m_page_stack;
@@ -670,26 +669,27 @@ Pgman::lirs_stack_pop()
 
   if (state & Page_entry::BOUND)
   {
-    jam();
+    thrjam(jamBuf);
     pl_queue.addLast(ptr);
     state |= Page_entry::ONQUEUE;
   }
   else
   {
     // enters queue at bind
-    jam();
+    thrjam(jamBuf);
     ndbrequire(state & Page_entry::REQUEST);
   }
 
-  set_page_state(jamBuffer(), ptr, state);
-  lirs_stack_prune();
+  set_page_state(jamBuf, ptr, state);
+  lirs_stack_prune(jamBuf);
 }
 
 /*
  * Update LIRS lists when page is referenced.
  */
 void
-Pgman::lirs_reference(Ptr<Page_entry> ptr)
+Pgman::lirs_reference(EmulatedJamBuffer *jamBuf,
+                      Ptr<Page_entry> ptr)
 {
   D(">lirs_reference");
   D(ptr);
@@ -707,33 +707,33 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
     if (state & Page_entry::HOT)
     {
       // case 1
-      jam();
+      thrjam(jamBuf);
       ndbrequire(state & Page_entry::ONSTACK);
       bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
       pl_stack.addLast(ptr);
       if (at_bottom)
       {
-        jam();
-        lirs_stack_prune();
+        thrjam(jamBuf);
+        lirs_stack_prune(jamBuf);
       }
     }
     else if (state & Page_entry::ONSTACK)
     {
       // case 2a 3a
-      jam();
+      thrjam(jamBuf);
       pl_stack.remove(ptr);
       if (! pl_stack.isEmpty())
       {
-        jam();
-        lirs_stack_pop();
+        thrjam(jamBuf);
+        lirs_stack_pop(jamBuf);
       }
       pl_stack.addLast(ptr);
       state |= Page_entry::HOT;
       if (state & Page_entry::ONQUEUE)
       {
-        jam();
-        move_cleanup_ptr(ptr);
+        thrjam(jamBuf);
+        move_cleanup_ptr(ptr, jamBuf);
         pl_queue.remove(ptr);
         state &= ~ Page_entry::ONQUEUE;
       }
@@ -741,7 +741,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
     else
     {
       // case 2b 3b
-      jam();
+      thrjam(jamBuf);
       pl_stack.addLast(ptr);
       state |= Page_entry::ONSTACK;
       /*
@@ -751,22 +751,22 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
        */
       ndbrequire(pl_stack.hasPrev(ptr));
       if (state & Page_entry::ONQUEUE)
-      {
-        jam();
-        move_cleanup_ptr(ptr);
+      { 
+        thrjam(jamBuf);
+        move_cleanup_ptr(ptr, jamBuf);
         pl_queue.remove(ptr);
         state &= ~ Page_entry::ONQUEUE;
       }
       if (state & Page_entry::BOUND)
       {
-        jam();
+        thrjam(jamBuf);
         pl_queue.addLast(ptr);
         state |= Page_entry::ONQUEUE;
       }
       else
       {
         // enters queue at bind
-        jam();
+        thrjam(jamBuf);
       }
     }
   }
@@ -774,17 +774,17 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
   {
     D("filling up hot pages: " << m_stats.m_num_hot_pages << "/"
                                << m_param.m_max_hot_pages);
-    jam();
+    thrjam(jamBuf);
     if (state & Page_entry::ONSTACK)
     {
-      jam();
+      thrjam(jamBuf);
       bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
       if (at_bottom)
       {
-        jam();
+        thrjam(jamBuf);
         ndbassert(state & Page_entry::HOT);
-        lirs_stack_prune();
+        lirs_stack_prune(jamBuf);
       }
     }
     pl_stack.addLast(ptr);
@@ -792,13 +792,13 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
     state |= Page_entry::HOT;
     // it could be on queue already
     if (state & Page_entry::ONQUEUE) {
-      jam();
+      thrjam(jamBuf);
       pl_queue.remove(ptr);
       state &= ~Page_entry::ONQUEUE;
     }
   }
 
-  set_page_state(jamBuffer(), ptr, state);
+  set_page_state(jamBuf, ptr, state);
   D("<lirs_reference");
 }
 
@@ -836,8 +836,8 @@ Pgman::do_busy_loop(Signal* signal, bool direct, EmulatedJamBuffer *jamBuf)
   {
     thrjam(jamBuf);
     // may not cover the calling entry
-    (void)process_bind(signal);
-    (void)process_map(signal);
+    (void)process_bind(signal, jamBuf);
+    (void)process_map(signal, jamBuf);
     // callback must be queued
     if (! m_busy_loop_on)
     {
@@ -851,9 +851,9 @@ Pgman::do_busy_loop(Signal* signal, bool direct, EmulatedJamBuffer *jamBuf)
     thrjam(jamBuf);
     ndbrequire(m_busy_loop_on);
     restart = true;
-    (void)process_bind(signal);
-    (void)process_map(signal);
-    (void)process_callback(signal);
+    (void)process_bind(signal, jamBuf);
+    (void)process_map(signal, jamBuf);
+    (void)process_callback(signal, jamBuf);
     Page_sublist& pl_bind = *m_page_sublist[Page_entry::SL_BIND];
     Page_sublist& pl_map = *m_page_sublist[Page_entry::SL_MAP];
     Page_sublist& pl_callback = *m_page_sublist[Page_entry::SL_CALLBACK];
@@ -867,6 +867,7 @@ Pgman::do_busy_loop(Signal* signal, bool direct, EmulatedJamBuffer *jamBuf)
   }
   if (restart)
   {
+    thrjam(jamBuf);
     signal->theData[0] = PgmanContinueB::BUSY_LOOP;
     sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
   }
@@ -914,7 +915,7 @@ Pgman::do_lcp_loop(Signal* signal)
 // busy loop
 
 bool
-Pgman::process_bind(Signal* signal)
+Pgman::process_bind(Signal* signal, EmulatedJamBuffer *jamBuf)
 {
   D(">process_bind");
   int max_count = 32;
@@ -922,12 +923,13 @@ Pgman::process_bind(Signal* signal)
 
   while (! pl_bind.isEmpty() && --max_count >= 0)
   {
-    jam();
+    thrjam(jamBuf);
     Ptr<Page_entry> ptr;
     pl_bind.first(ptr);
-    if (! process_bind(signal, ptr))
+    if (! process_bind(signal, ptr, jamBuf))
     {
       jam();
+      thrjam(jamBuf);
       break;
     }
   }
@@ -936,7 +938,9 @@ Pgman::process_bind(Signal* signal)
 }
 
 bool
-Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
+Pgman::process_bind(Signal* signal,
+                    Ptr<Page_entry> ptr,
+                    EmulatedJamBuffer *jamBuf)
 {
   D(ptr << " : process_bind");
   Page_queue& pl_queue = m_page_queue;
@@ -944,18 +948,18 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
 
   if (m_stats.m_num_pages < m_param.m_max_pages)
   {
-    jam();
+    thrjam(jamBuf);
     bool ok = seize_cache_page(gptr);
     // to handle failure requires some changes in LIRS
     ndbrequire(ok);
   }
   else
   {
-    jam();
+    thrjam(jamBuf);
     Ptr<Page_entry> clean_ptr;
     if (! pl_queue.first(clean_ptr))
     {
-      jam();
+      thrjam(jamBuf);
       D("bind failed: queue empty");
       // XXX busy loop
       return false;
@@ -966,7 +970,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
         clean_state & Page_entry::DIRTY ||
         clean_state & Page_entry::REQUEST)
     {
-      jam();
+      thrjam(jamBuf);
       D("bind failed: queue front not evictable");
       D(clean_ptr);
       // XXX busy loop
@@ -980,7 +984,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
     ndbrequire(clean_state & Page_entry::BOUND);
     ndbrequire(clean_state & Page_entry::MAPPED);
 
-    move_cleanup_ptr(clean_ptr);
+    move_cleanup_ptr(clean_ptr, jamBuf);
     pl_queue.remove(clean_ptr);
     clean_state &= ~ Page_entry::ONQUEUE;
 
@@ -990,12 +994,12 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
     clean_state &= ~ Page_entry::BOUND;
     clean_state &= ~ Page_entry::MAPPED;
 
-    set_page_state(jamBuffer(), clean_ptr, clean_state);
+    set_page_state(jamBuf, clean_ptr, clean_state);
 
     if (! (clean_state & Page_entry::ONSTACK))
     {
-      jam();
-      release_page_entry(clean_ptr);
+      thrjam(jamBuf);
+      release_page_entry(clean_ptr, jamBuf);
     }
 
     m_global_page_pool.getPtr(gptr);
@@ -1007,7 +1011,11 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
   state |= Page_entry::BOUND;
   if (state & Page_entry::EMPTY)
   {
-    jam();
+    /**
+     * When we retrieve an EMPTY page we don't read it from disk.
+     * We will immediately overwrite it.
+     */
+    thrjam(jamBuf);
     state |= Page_entry::MAPPED;
   }
 
@@ -1015,19 +1023,19 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
       ! (state & Page_entry::ONQUEUE) &&
       ! (state & Page_entry::HOT))
   {
-    jam();
+    thrjam(jamBuf);
 
     D(ptr << " : add to queue at bind");
     pl_queue.addLast(ptr);
     state |= Page_entry::ONQUEUE;
   }
 
-  set_page_state(jamBuffer(), ptr, state);
+  set_page_state(jamBuf, ptr, state);
   return true;
 }
 
 bool
-Pgman::process_map(Signal* signal)
+Pgman::process_map(Signal* signal, EmulatedJamBuffer *jamBuf)
 {
   D(">process_map");
   int max_count = 0;
@@ -1039,12 +1047,12 @@ Pgman::process_map(Signal* signal)
 
   while (! pl_map.isEmpty() && --max_count >= 0)
   {
-    jam();
+    thrjam(jamBuf);
     Ptr<Page_entry> ptr;
     pl_map.first(ptr);
-    if (! process_map(signal, ptr))
+    if (! process_map(signal, ptr, jamBuf))
     {
-      jam();
+      thrjam(jamBuf);
       break;
     }
   }
@@ -1053,15 +1061,17 @@ Pgman::process_map(Signal* signal)
 }
 
 bool
-Pgman::process_map(Signal* signal, Ptr<Page_entry> ptr)
+Pgman::process_map(Signal* signal,
+                   Ptr<Page_entry> ptr,
+                   EmulatedJamBuffer *jamBuf)
 {
   D(ptr << " : process_map");
-  pagein(signal, ptr);
+  pagein(signal, ptr, jamBuf);
   return true;
 }
 
 bool
-Pgman::process_callback(Signal* signal)
+Pgman::process_callback(Signal* signal, EmulatedJamBuffer *jamBuf)
 {
   D(">process_callback");
   int max_count = 1;
@@ -1072,13 +1082,13 @@ Pgman::process_callback(Signal* signal)
 
   while (! ptr.isNull() && --max_count >= 0)
   {
-    jam();
+    thrjam(jamBuf);
     Ptr<Page_entry> curr = ptr;
     pl_callback.next(ptr);
     
-    if (! process_callback(signal, curr))
+    if (! process_callback(signal, curr, jamBuf))
     {
-      jam();
+      thrjam(jamBuf);
       break;
     }
   }
@@ -1087,14 +1097,16 @@ Pgman::process_callback(Signal* signal)
 }
 
 bool
-Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
+Pgman::process_callback(Signal* signal,
+                        Ptr<Page_entry> ptr,
+                        EmulatedJamBuffer *jamBuf)
 {
   D(ptr << " : process_callback");
   int max_count = 1;
 
   while (! ptr.p->m_requests.isEmpty() && --max_count >= 0)
   {
-    jam();
+    thrjam(jamBuf);
     Page_state state = ptr.p->m_state;
     SimulatedBlock* b;
     Callback callback;
@@ -1127,7 +1139,7 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
       
       if (req_ptr.p->m_flags & DIRTY_FLAGS)
       {
-        jam();
+        thrjam(jamBuf);
         state |= Page_entry::DIRTY;
 	ndbassert(ptr.p->m_dirty_count);
 	ptr.p->m_dirty_count --;
@@ -1141,12 +1153,12 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
     // make REQUEST state consistent before set_page_state()
     if (ptr.p->m_requests.isEmpty())
     {
-      jam();
+      thrjam(jamBuf);
       state &= ~ Page_entry::REQUEST;
     }
     
     // callback may re-enter PGMAN and change page state
-    set_page_state(jamBuffer(), ptr, state);
+    set_page_state(jamBuf, ptr, state);
     b->execute(signal, callback, ptr.p->m_real_page_i);
   }
   return true;
@@ -1215,12 +1227,12 @@ Pgman::process_cleanup(Signal* signal)
  * clean-up pointer, move it towards front.
  */
 void
-Pgman::move_cleanup_ptr(Ptr<Page_entry> ptr)
+Pgman::move_cleanup_ptr(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
 {
   Page_queue& pl_queue = m_page_queue;
   if (ptr.i == m_cleanup_ptr.i)
   {
-    jam();
+    thrjam(jamBuf);
     pl_queue.prev(m_cleanup_ptr);
   }
 }
@@ -1404,7 +1416,7 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
   CRASH_INSERTION(11006);
 
   // protect from tsman parallel access
-  Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
+  Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
   ptr.p->m_last_lcp = m_last_lcp;
   if (ptr.p->m_state & Page_entry::DIRTY)
   {
@@ -1449,13 +1461,13 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 // page read and write
 
 void
-Pgman::pagein(Signal* signal, Ptr<Page_entry> ptr)
+Pgman::pagein(Signal* signal, Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
 {
   D("pagein");
   D(ptr);
 
   ndbrequire(! (ptr.p->m_state & Page_entry::PAGEIN));
-  set_page_state(jamBuffer(), ptr, ptr.p->m_state | Page_entry::PAGEIN);
+  set_page_state(jamBuf, ptr, ptr.p->m_state | Page_entry::PAGEIN);
 
   fsreadreq(signal, ptr);
   m_stats.m_current_io_waits++;
@@ -1598,7 +1610,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
     if (ptr.p->m_copy_page_i != RNIL)
     {
       jam();
-      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
+      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
       process_lcp_locked_fswriteconf(signal, ptr);
       set_page_state(jamBuffer(), ptr, state);
       do_busy_loop(signal, true, jamBuffer());
@@ -1626,10 +1638,14 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 void
 Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
 {
+  Ptr<File_entry> file_ptr;
   File_map::ConstDataBufferIterator it;
   bool ret = m_file_map.first(it) && m_file_map.next(it, ptr.p->m_file_no);
   ndbrequire(ret);
-  Uint32 fd = * it.data;
+  Uint32 ptrI = * it.data;
+  m_file_entry_pool.getPtr(file_ptr, ptrI);
+
+  Uint32 fd = file_ptr.p->m_fd;
 
   ndbrequire(ptr.p->m_page_no > 0);
 
@@ -1655,6 +1671,9 @@ Pgman::execFSREADCONF(Signal* signal)
   Ptr<Page_entry> ptr;
   m_page_entry_pool.getPtr(ptr, conf->userPointer);
 
+  /**
+   * Here is a good place to check checksums written.
+   */
   fsreadconf(signal, ptr);
 }
 
@@ -1669,10 +1688,56 @@ Pgman::execFSREADREF(Signal* signal)
 void
 Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
 {
+  Ptr<File_entry> file_ptr;
+  Ptr<GlobalPage> gptr;
   File_map::ConstDataBufferIterator it;
   m_file_map.first(it);
   m_file_map.next(it, ptr.p->m_file_no);
-  Uint32 fd = * it.data;
+  m_file_entry_pool.getPtr(file_ptr, *it.data);
+  Uint32 fd = file_ptr.p->m_fd;
+
+  /**
+   * Before writing the page we need to ensure that we write it
+   * using the correct version of the header information.
+   * We have to ensure that we write using the correct format,
+   * we could write both v1 format and v2 format. If it is v2
+   * format we need to ensure that we actually write this format
+   * and we also need to mark the page as using the v2 format.
+   *
+   * This is also a good place to introduce writing of checksums
+   * of disk data pages.
+   */
+  if (file_ptr.p->m_ndb_version >= NDB_DISK_V2)
+  {
+    gptr.i = ptr.p->m_real_page_i;
+    m_global_page_pool.getPtr(gptr);
+    File_formats::Page_header *page_header =
+      (File_formats::Page_header*)gptr.p;
+    if (page_header->m_page_type == File_formats::PT_Tup_fixsize_page)
+    {
+      Tup_page* tup_page_v2 = (Tup_page*)gptr.p;
+      tup_page_v2->m_ndb_version = NDB_DISK_V2;
+      tup_page_v2->unused_ph[0] = 0;
+      tup_page_v2->unused_ph[1] = 0;
+      tup_page_v2->unused_ph[2] = 0;
+      tup_page_v2->unused_ph[3] = 0;
+    }
+    else if (page_header->m_page_type == File_formats::PT_Extent_page)
+    {
+      File_formats::Datafile::Extent_page_v2 *page_v2 =
+        (File_formats::Datafile::Extent_page_v2*)gptr.p;
+      page_v2->m_ndb_version = NDB_DISK_V2;
+      page_v2->m_checksum = 0;
+      page_v2->m_unused[0] = 0;
+      page_v2->m_unused[1] = 0;
+      page_v2->m_unused[2] = 0;
+      page_v2->m_unused[3] = 0;
+    }
+    else
+    {
+      ndbrequire(false);
+    }
+  }
 
   ndbrequire(ptr.p->m_page_no > 0);
 
@@ -1853,7 +1918,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
     if (is_new)
     {
       thrjam(jamBuf);
-      release_page_entry(ptr);
+      release_page_entry(ptr, jamBuf);
     }
     D("<get_page: error out of requests");
     return -1;
@@ -1889,7 +1954,9 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
 }
 
 int
-Pgman::get_page(EmulatedJamBuffer* jamBuf, Signal* signal, Ptr<Page_entry> ptr,
+Pgman::get_page(EmulatedJamBuffer* jamBuf,
+                Signal* signal,
+                Ptr<Page_entry> ptr,
                 Page_request page_req)
 {
   int i = get_page_no_lirs(jamBuf, signal, ptr, page_req);
@@ -1907,7 +1974,7 @@ Pgman::get_page(EmulatedJamBuffer* jamBuf, Signal* signal, Ptr<Page_entry> ptr,
       ! (req_flags & Page_request::CORR_REQ))
   {
     thrjam(jamBuf);
-    lirs_reference(ptr);
+    lirs_reference(jamBuf, ptr);
   }
 
   // start processing if request was queued
@@ -1948,37 +2015,52 @@ Pgman::update_lsn(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr, Uint32 block,
 }
 
 Uint32
-Pgman::create_data_file()
+Pgman::create_data_file(Uint32 version)
 {
   File_map::DataBufferIterator it;
+  Ptr<File_entry> file_ptr;
+  if (!m_file_entry_pool.seize(file_ptr))
+  {
+    D("create_data_file: RNIL (lack of File_entry records)");
+    return RNIL;
+  }
+  file_ptr.p->m_fd = 0;
+  file_ptr.p->m_ndb_version = version;
   if(m_file_map.first(it))
   {
     do 
     {
       if(*it.data == RNIL)
       {
-	*it.data = (1u << 31) | it.pos;
+        *it.data = file_ptr.i;
+        file_ptr.p->m_file_no = it.pos;
         D("create_data_file:" << V(it.pos));
 	return it.pos;
       }
     } while(m_file_map.next(it));
   }
 
-  Uint32 file_no = m_file_map.getSize();
-  Uint32 fd = (1u << 31) | file_no;
+  file_ptr.p->m_file_no = m_file_map.getSize();
 
-  if (m_file_map.append(&fd, 1))
+  if (m_file_map.append(&file_ptr.i, 1))
   {
-    D("create_data_file:" << V(file_no));
-    return file_no;
+    D("create_data_file:" << V(file_ptr.p->m_file_no));
+    return file_ptr.p->m_file_no;
   }
+  m_file_entry_pool.release(file_ptr);
   D("create_data_file: RNIL");
   return RNIL;
 }
 
 Uint32
-Pgman::alloc_data_file(Uint32 file_no)
+Pgman::alloc_data_file(Uint32 file_no, Uint32 version)
 {
+  Ptr<File_entry> file_ptr;
+  if (!m_file_entry_pool.seize(file_ptr))
+  {
+    D("alloc_data_file: RNIL (lack of File_entry records)");
+    return RNIL;
+  }
   Uint32 sz = m_file_map.getSize();
   if (file_no >= sz)
   {
@@ -1989,6 +2071,7 @@ Pgman::alloc_data_file(Uint32 file_no)
       if (! m_file_map.append(&fd, 1))
       {
         D("alloc_data_file: RNIL");
+        m_file_entry_pool.release(file_ptr);
 	return RNIL;
       }
     }
@@ -2000,10 +2083,14 @@ Pgman::alloc_data_file(Uint32 file_no)
   if (* it.data != RNIL)
   {
     D("alloc_data_file: RNIL");
+    m_file_entry_pool.release(file_ptr);
     return RNIL;
   }
 
-  *it.data = (1u << 31) | file_no;
+  *it.data = file_ptr.i;
+  file_ptr.p->m_ndb_version = version;
+  file_ptr.p->m_file_no = file_no;
+  file_ptr.p->m_fd = 0;
   D("alloc_data_file:" << V(file_no));
   return file_no;
 }
@@ -2011,30 +2098,35 @@ Pgman::alloc_data_file(Uint32 file_no)
 void
 Pgman::map_file_no(Uint32 file_no, Uint32 fd)
 {
+  Ptr<File_entry> file_ptr;
   File_map::DataBufferIterator it;
   m_file_map.first(it);
   m_file_map.next(it, file_no);
-
-  ndbassert(*it.data == ((1u << 31) | file_no));
-  *it.data = fd;
   D("map_file_no:" << V(file_no) << V(fd));
+
+  m_file_entry_pool.getPtr(file_ptr, *it.data);
+  ndbassert(file_ptr.p->m_fd == 0);
+  file_ptr.p->m_fd = fd;
 }
 
 void
 Pgman::free_data_file(Uint32 file_no, Uint32 fd)
 {
+  Ptr<File_entry> file_ptr;
   File_map::DataBufferIterator it;
   m_file_map.first(it);
   m_file_map.next(it, file_no);
+  m_file_entry_pool.getPtr(file_ptr, *it.data);
   
   if (fd == RNIL)
   {
-    ndbrequire(*it.data == ((1u << 31) | file_no));
+    ndbrequire(file_ptr.p->m_fd == 0);
   }
   else
   {
-    ndbrequire(*it.data == fd);
+    ndbrequire(file_ptr.p->m_fd == fd);
   }
+  m_file_entry_pool.release(file_ptr);
   *it.data = RNIL;
   D("free_data_file:" << V(file_no) << V(fd));
 }
@@ -2046,11 +2138,11 @@ Pgman::execDATA_FILE_ORD(Signal* signal)
   Uint32 ret;
   switch (ord->cmd) {
   case DataFileOrd::CreateDataFile:
-    ret = create_data_file();
+    ret = create_data_file(ord->version);
     ndbrequire(ret == ord->ret);
     break;
   case DataFileOrd::AllocDataFile:
-    ret = alloc_data_file(ord->file_no);
+    ret = alloc_data_file(ord->file_no, ord->version);
     ndbrequire(ret == ord->ret);
     break;
   case DataFileOrd::MapFileNo:
@@ -2066,7 +2158,7 @@ Pgman::execDATA_FILE_ORD(Signal* signal)
 }
 
 int
-Pgman::drop_page(Ptr<Page_entry> ptr)
+Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
 {
   D("drop_page");
   D(ptr);
@@ -2079,64 +2171,64 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
   {
     if (state & Page_entry::ONSTACK)
     {
-      jam();
+      thrjam(jamBuf);
       bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
       state &= ~ Page_entry::ONSTACK;
       if (at_bottom)
       {
-        jam();
-        lirs_stack_prune();
+        thrjam(jamBuf);
+        lirs_stack_prune(jamBuf);
       }
       if (state & Page_entry::HOT)
       {
-        jam();
+        thrjam(jamBuf);
         state &= ~ Page_entry::HOT;
       }
     }
 
     if (state & Page_entry::ONQUEUE)
     {
-      jam();
+      thrjam(jamBuf);
       pl_queue.remove(ptr);
       state &= ~ Page_entry::ONQUEUE;
     }
 
     if (state & Page_entry::BUSY)
     {
-      jam();
+      thrjam(jamBuf);
       state &= ~ Page_entry::BUSY;
     }
 
     if (state & Page_entry::DIRTY)
     {
-      jam();
+      thrjam(jamBuf);
       state &= ~ Page_entry::DIRTY;
     }
 
     if (state & Page_entry::EMPTY)
     {
-      jam();
+      thrjam(jamBuf);
       state &= ~ Page_entry::EMPTY;
     }
 
     if (state & Page_entry::MAPPED)
     {
-      jam();
+      thrjam(jamBuf);
       state &= ~ Page_entry::MAPPED;
     }
 
     if (state & Page_entry::BOUND)
     {
-      jam();
+      thrjam(jamBuf);
       ndbrequire(ptr.p->m_real_page_i != RNIL);
       release_cache_page(ptr.p->m_real_page_i);
       ptr.p->m_real_page_i = RNIL;
       state &= ~ Page_entry::BOUND;
     }
 
-    set_page_state(jamBuffer(), ptr, state);
-    release_page_entry(ptr);
+    set_page_state(jamBuf, ptr, state);
+    release_page_entry(ptr, jamBuf);
     return 1;
   }
   
@@ -2176,7 +2268,7 @@ Pgman::execRELEASE_PAGES_REQ(Signal* signal)
       ndbrequire(!(ptr.p->m_state & Page_entry::PAGEIN));
       ndbrequire(!(ptr.p->m_state & Page_entry::PAGEOUT));
       ndbrequire(!(ptr.p->m_state & Page_entry::LOGSYNC));
-      drop_page(ptr);
+      drop_page(ptr, jamBuffer());
     }
     pl_hash.next(iter);
   }
@@ -2303,32 +2395,36 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
   require(found && entry_ptr.p->m_real_page_i == page_id);
 
-  return m_pgman->drop_page(entry_ptr);
+  return m_pgman->drop_page(entry_ptr, m_jamBuf);
 }
 
 Uint32
-Page_cache_client::create_data_file(Signal* signal)
+Page_cache_client::create_data_file(Signal* signal, Uint32 version)
 {
   if (m_pgman_proxy != 0) {
     thrjam(m_jamBuf);
-    return m_pgman_proxy->create_data_file(signal);
+    return m_pgman_proxy->create_data_file(signal, version);
   }
-  return m_pgman->create_data_file();
+  return m_pgman->create_data_file(version);
 }
 
 Uint32
-Page_cache_client::alloc_data_file(Signal* signal, Uint32 file_no)
+Page_cache_client::alloc_data_file(Signal* signal,
+                                   Uint32 file_no,
+                                   Uint32 version)
 {
   if (m_pgman_proxy != 0) {
     thrjam(m_jamBuf);
-    return m_pgman_proxy->alloc_data_file(signal, file_no);
+    return m_pgman_proxy->alloc_data_file(signal, file_no, version);
   }
   thrjam(m_jamBuf);
-  return m_pgman->alloc_data_file(file_no);
+  return m_pgman->alloc_data_file(file_no, version);
 }
 
 void
-Page_cache_client::map_file_no(Signal* signal, Uint32 file_no, Uint32 fd)
+Page_cache_client::map_file_no(Signal* signal,
+                               Uint32 file_no,
+                               Uint32 fd)
 {
   if (m_pgman_proxy != 0) {
     thrjam(m_jamBuf);
@@ -2537,8 +2633,8 @@ Pgman::verify_page_lists()
 
   ndbrequire(is_bound == stats.m_num_pages || dump_page_lists());
   ndbrequire(is_hot == stats.m_num_hot_pages || dump_page_lists());
-  ndbrequire(on_stack == pl_stack.count() || dump_page_lists());
-  ndbrequire(on_queue == pl_queue.count() || dump_page_lists());
+  ndbrequire(on_stack == pl_stack.getCount() || dump_page_lists());
+  ndbrequire(on_queue == pl_queue.getCount() || dump_page_lists());
 
   Uint32 k;
   Uint32 entry_count = 0;
@@ -2549,11 +2645,11 @@ Pgman::verify_page_lists()
     const Page_sublist& pl = *m_page_sublist[k];
     for (pl.first(ptr); ptr.i != RNIL; pl.next(ptr))
       ndbrequire(get_sublist_no(ptr.p->m_state) == k || dump_page_lists(ptr.i));
-    entry_count += pl.count();
+    entry_count += pl.getCount();
     sprintf(sublist_info + strlen(sublist_info),
-            " %s:%u", get_sublist_name(k), pl.count());
+            " %s:%u", get_sublist_name(k), pl.getCount());
   }
-  ndbrequire(entry_count == pl_hash.count() || dump_page_lists());
+  ndbrequire(entry_count == pl_hash.getCount() || dump_page_lists());
 
   Uint32 hit_pct = 0;
   char hit_pct_str[20];
@@ -2569,7 +2665,7 @@ Pgman::verify_page_lists()
     << " lcp:" << Uint32(m_lcp_state));
 
   D("page"
-    << " entries:" << pl_hash.count()
+    << " entries:" << pl_hash.getCount()
     << " pages:" << stats.m_num_pages << "/" << param.m_max_pages
     << " mapped:" << is_mapped
     << " hot:" << is_hot
@@ -2578,8 +2674,8 @@ Pgman::verify_page_lists()
 
   D("list"
     << " locked:" << is_locked
-    << " stack:" << pl_stack.count()
-    << " queue:" << pl_queue.count()
+    << " stack:" << pl_stack.getCount()
+    << " queue:" << pl_queue.getCount()
     << " to queue:" << to_queue);
 
   D(sublist_info);
@@ -2694,7 +2790,7 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
 NdbOut&
 operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 {
-  const Pgman::Page_entry pe = *ptr.p;
+  const Pgman::Page_entry& pe = *ptr.p;
   Uint32 list_no = Pgman::get_sublist_no(pe.m_state);
   out << "PE [" << dec << ptr.i << "]";
   out << " state=" << hex << pe.m_state;

@@ -2175,7 +2175,7 @@ Backup::CompoundState::forceState(State newState)
 #endif
 }
 
-Backup::Table::Table(ArrayPool<Fragment> & fh)
+Backup::Table::Table(Fragment_pool & fh)
   : fragments(fh)
 {
   triggerIds[0] = ILLEGAL_TRIGGER_ID;
@@ -3598,7 +3598,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 
   if (ptr.p->slaveData.dropTrig.tableId == RNIL) {
     jam();
-    if(ptr.p->tables.count())
+    if(ptr.p->tables.getCount())
       ptr.p->tables.first(tabPtr);
     else
     {
@@ -4658,7 +4658,7 @@ Backup::openFilesReply(Signal* signal,
   
   const Uint32 sz = 
     (sizeof(BackupFormat::CtlFile::TableList) >> 2) +
-    ptr.p->tables.count() - 1;
+    ptr.p->tables.getCount() - 1;
   
   Uint32 * dst;
   ndbrequire(sz < buf.getMaxWrite());

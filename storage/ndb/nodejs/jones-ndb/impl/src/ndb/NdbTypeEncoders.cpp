@@ -1469,13 +1469,21 @@ Local<Value> YearReader(const NdbDictionary::Column *col,
 
 Local<Value> YearWriter(const NdbDictionary::Column * col,
                          Handle<Value> value, char *buffer, uint32_t offset) {
-  bool valid = value->IsInt32();
-  if(valid) {
-    int chkv = value->Int32Value() - 1900;
-    valid = checkIntValue<uint8_t>(chkv);
-    if(valid) STORE_ALIGNED_DATA(uint8_t, chkv, buffer+offset);
+  int chkv;
+  if(value->IsInt32()) {
+    chkv = value->Int32Value();
+  } else {
+    double dval = value->ToNumber()->Value();
+    chkv = static_cast<int>(rint(dval));
   }
-  return valid ? writerOK : K_22007_InvalidDatetime.Get(isolate);
+
+  chkv -= 1900;
+
+  if(checkIntValue<uint8_t>(chkv)) {
+    STORE_ALIGNED_DATA(uint8_t, chkv, buffer+offset);
+    return writerOK;
+  }
+  return K_22007_InvalidDatetime.Get(isolate);
 }
 
 

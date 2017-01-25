@@ -134,7 +134,6 @@ public:
   virtual bool report_data(unsigned node_id, unsigned backup_id);
   virtual bool report_log(unsigned node_id, unsigned backup_id);
   virtual bool report_completed(unsigned node_id, unsigned backup_id);
-  void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
                   uint data_len, uint *new_data_len) const;
   bool search_replace(char *search_str, char **new_data,
