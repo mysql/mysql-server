@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "handler.h"
 #include "key.h"
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "mysql/psi/psi_base.h"
 #include "sql_plugin_ref.h"
 #include "table.h"              // TABLE
@@ -39,27 +40,27 @@ const unsigned int DEFAULT_STORAGE_CLASS= 0;
 */
 
 // Default cost for evaluation of the query condition for a row.
-const double Server_cost_constants::ROW_EVALUATE_COST= 0.2;
+const double Server_cost_constants::ROW_EVALUATE_COST= 0.1;
 
 // Default cost for comparing row ids.
-const double Server_cost_constants::KEY_COMPARE_COST= 0.1;
+const double Server_cost_constants::KEY_COMPARE_COST= 0.05;
   
 /*
   Creating a Memory temporary table is by benchmark found to be as
   costly as writing 10 rows into the table.
 */
-const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST= 2.0;
+const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST= 1.0;
 
 /*
   Writing a row to or reading a row from a Memory temporary table is
   equivalent to evaluating a row in the join engine.
 */
-const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.2;
+const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.1;
 
 /*
   Creating a MyISAM table is 20 times slower than creating a Memory table.
 */
-const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 40.0;
+const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 20.0;
 
 /*
   Generating MyISAM rows sequentially is 2 times slower than
@@ -68,7 +69,7 @@ const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 40.0;
   setting this factor conservatively to be 5 times slower (ie the cost
   is 1.0).
 */
-const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 1.0;
+const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 0.5;
 
 
 cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
@@ -142,7 +143,7 @@ cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
 */
 
 // The cost of reading a block from a main memory buffer pool
-const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 1.0;
+const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 0.25;
 
 // The cost of reading a block from an IO device (disk)
 const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;

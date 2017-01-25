@@ -1,5 +1,4 @@
 # $engine_type must point to storage engine which is all time available.
---source include/have_innodb.inc
 let $engine_type = InnoDB;
 
 # suite/funcs_1/t/is_basics_mixed.test

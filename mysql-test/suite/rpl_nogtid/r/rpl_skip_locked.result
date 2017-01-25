@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Case-1: BINLOG_STMT_UNSAFE_SKIP_LOCKED
+#   Statement is unsafe because it uses SKIP LOCKED.
+# Step-1.1: Create and populate a table.
+CREATE TABLE t1( a INT PRIMARY KEY, b INT );
+INSERT INTO t1 VALUES (1, 1), (2, 1), (3, 1);
+CREATE TABLE t2( a INT, b INT );
+# Step-1.2: Lock a row in said table.
+START TRANSACTION;
+SELECT * FROM t1 WHERE a = 2 FOR UPDATE;
+a	b
+2	1
+# Step-1.3: Populate another table with the unlocked rows.
+# [conn]
+INSERT INTO t2 SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+CREATE TABLE t3 SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+ERROR HY000: Can't update table 't1' while 't3' is being created.
+# [master]
+ROLLBACK;
+include/diff_tables.inc [master:t2, slave:t2]
+# Step-1.4: Cleanup
+DROP TABLE t1, t2;
+include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
@@ -40,7 +41,6 @@
 #include "mysqld_error.h"
 #include "opt_trace.h"                // Opt_trace_start
 #include "prealloced_array.h"         // Prealloced_array
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "query_options.h"
 #include "session_tracker.h"
@@ -306,7 +306,6 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   /* Check pre-conditions. */
 
-  DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
 
   /*
@@ -354,16 +353,12 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     is no change in session state, then result sets are picked from cache
     which is wrong as the result sets picked from cache have changed
     state information.
-    In case of embedded server since session state information is not
-    sent there is no need to turn off cache.
   */
 
-#ifndef EMBEDDED_LIBRARY
   if (thd->get_protocol()->has_client_capability(CLIENT_SESSION_TRACK) &&
       thd->session_tracker.enabled_any() &&
       thd->session_tracker.changed_any())
     thd->lex->safe_to_cache_query= 0;
-#endif
 
   /* Open tables if needed. */
 
@@ -962,13 +957,6 @@ void sp_instr_stmt::print(String *str)
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id(),
-                         (char *) (thd->db().str ? thd->db().str : ""),
-                         (char *) thd->security_context()->priv_user().str,
-                         (char *) thd->security_context()->host_or_ip().str,
-                         3);
-
   thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
   thd->lex->sphead= thd->sp_runtime_ctx->sp;
 
@@ -979,8 +967,6 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   thd->lex->set_sp_current_parsing_ctx(NULL);
   thd->lex->sphead= NULL;
   thd->m_statement_psi= statement_psi_saved;
-
-  MYSQL_QUERY_EXEC_DONE(rc);
 
   *nextp= get_ip() + 1;
 
@@ -1051,7 +1037,7 @@ PSI_statement_info sp_instr_set_trigger_field::psi_info=
 bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
   *nextp= get_ip() + 1;
-  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
+  thd->check_for_truncated_fields= CHECK_FIELD_ERROR_FOR_NULL;
   Strict_error_handler strict_handler(Strict_error_handler::
                                       ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,11 +27,21 @@
 #include "mysql.h"
 #include "typelib.h"
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif 
+
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql.h"
+#include "typelib.h"
 
 const char *ssl_mode_names_lib[] =
   {"DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",

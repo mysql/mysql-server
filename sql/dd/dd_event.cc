@@ -482,10 +482,7 @@ bool update_event(THD *thd, const Event *event,
     DBUG_RETURN(true);
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<Event>(!error);
-  DBUG_RETURN(error);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 bool update_event_time_and_status(THD *thd, const Event *event,
@@ -515,10 +512,7 @@ bool update_event_time_and_status(THD *thd, const Event *event,
     DBUG_RETURN(true);
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<Event>(!error);
-  DBUG_RETURN(error);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 

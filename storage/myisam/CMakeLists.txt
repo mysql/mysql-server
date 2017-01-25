@@ -13,6 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+ADD_CONVENIENCE_LIBRARY(myisam_sys
+  my_lock.cc
+  my_redel.cc
+  queues.cc
+)
 
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
                                 ha_myisam.cc
@@ -29,20 +34,14 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
 
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
   STORAGE_ENGINE 
-  MANDATORY 
-  RECOMPILE_FOR_EMBEDDED)
+  MANDATORY
+  LINK_LIBRARIES mysys myisam_sys
+)
 
-TARGET_LINK_LIBRARIES(myisam mysys)
-
-IF (WITH_EMBEDDED_SERVER)
-  SET(MYISAM_NOPFS myisam_embedded)
-  TARGET_LINK_LIBRARIES(myisam_embedded mysys)
-ELSE()
-  ADD_CONVENIENCE_LIBRARY(myisam_nopfs ${MYISAM_SOURCES})
-  ADD_DEPENDENCIES(myisam_nopfs GenError)
-  TARGET_LINK_LIBRARIES(myisam_nopfs mysys)
-  SET(MYISAM_NOPFS myisam_nopfs)
-ENDIF()
+ADD_CONVENIENCE_LIBRARY(myisam_nopfs ${MYISAM_SOURCES})
+ADD_DEPENDENCIES(myisam_nopfs GenError)
+TARGET_LINK_LIBRARIES(myisam_nopfs mysys myisam_sys)
+SET(MYISAM_NOPFS myisam_nopfs)
 
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
 TARGET_LINK_LIBRARIES(myisam_ftdump ${MYISAM_NOPFS} mysys_ssl)

@@ -14,14 +14,12 @@ INSERT INTO t1 VALUES (1 * 13, 'Second row, p0'), (2 * 13, 'Third row, p0'),
 SHOW CREATE TABLE performance_schema.session_status;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT a, b FROM t1 WHERE a in (0, 1, 13, 113);
-SELECT * FROM performance_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE >0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	9
-Handler_external_lock	133
+Handler_commit	8
+Handler_external_lock	107
 Handler_read_first	3
-Handler_read_key	13
-Handler_read_next	8
+Handler_read_key	7
+Handler_read_next	6
 Handler_write	6
 SELECT * FROM t2 ORDER by a;
 a	b
@@ -31,13 +29,11 @@ a	b
 DROP TABLE t2;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT a, b FROM t1 WHERE b LIKE 'First%';
-SELECT * FROM performance_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE >0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	9
-Handler_external_lock	133
-Handler_read_key	23
-Handler_read_next	7
+Handler_commit	8
+Handler_external_lock	107
+Handler_read_key	17
+Handler_read_next	5
 Handler_write	8
 SELECT * FROM t2 ORDER BY a;
 a	b
@@ -52,14 +48,11 @@ CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1), (3), (9), (2), (8), (7);
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 PARTITION (p1, p2);
-SELECT * FROM performance_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE >0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	9
-Handler_external_lock	133
+Handler_commit	8
+Handler_external_lock	107
 Handler_read_first	2
-Handler_read_key	12
-Handler_read_next	1
+Handler_read_key	6
 Handler_read_rnd_next	4
 Handler_write	6
 SELECT * FROM t2;
@@ -71,14 +64,11 @@ a
 DROP TABLE t2;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 WHERE a IN (1, 3, 9);
-SELECT * FROM performance_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE >0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	9
-Handler_external_lock	133
+Handler_commit	8
+Handler_external_lock	107
 Handler_read_first	2
-Handler_read_key	12
-Handler_read_next	1
+Handler_read_key	6
 Handler_read_rnd_next	4
 Handler_write	5
 SELECT * FROM t2;

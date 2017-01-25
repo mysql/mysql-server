@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ SET(MYSYS_SOURCES
   mf_qsort.cc
   mf_radix.cc
   mf_same.cc
-  mf_soundex.cc
+  mf_tempdir.cc
   mf_tempfile.cc
   mf_unixpath.cc
   mf_wcomp.cc
@@ -70,18 +70,16 @@ SET(MYSYS_SOURCES
   my_getwd.cc
   my_init.cc
   my_lib.cc
-  my_lock.cc
   my_malloc.cc
-  my_memmem.cc
   my_mess.cc
   my_mkdir.cc
   my_mmap.cc
+  my_murmur3.cc
   my_once.cc
   my_open.cc
   my_pread.cc
   my_rdtsc.cc
   my_read.cc
-  my_redel.cc
   my_rename.cc
   my_seek.cc
   my_static.cc
@@ -92,11 +90,14 @@ SET(MYSYS_SOURCES
   my_syslog.cc
   my_thread.cc
   my_thr_init.cc
+  my_time.cc
   my_timespec.cc
+  my_user.cc
   my_write.cc
+  pack.cc
+  print_version.cc
   psi_noop.cc
   ptr_cmp.cc
-  queues.cc
   sql_chars.cc
   stacktrace.cc
   thr_cond.cc
@@ -138,7 +139,6 @@ ENDIF()
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
  ${LIBNSL} ${LIBM} ${LIBRT} ${LIBATOMIC} ${LIBEXECINFO})
-DTRACE_INSTRUMENT(mysys)
 
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
@@ -148,10 +148,6 @@ ENDIF()
 ADD_EXECUTABLE(thr_lock thr_lock.cc)
 TARGET_LINK_LIBRARIES(thr_lock mysys)
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")
-ADD_EXECUTABLE(queues queues.cc)
-TARGET_LINK_LIBRARIES(queues mysys)
-SET_TARGET_PROPERTIES(queues PROPERTIES COMPILE_FLAGS "-DMAIN")
-ADD_TEST(queues_test queues)
 ADD_EXECUTABLE(mf_iocache_test mf_iocache.cc)
 TARGET_LINK_LIBRARIES(mf_iocache_test mysys)
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")

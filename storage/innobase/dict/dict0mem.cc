@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,24 +25,27 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #ifndef UNIV_HOTBACKUP
-#include "ha_prototypes.h"
 #include <mysql_com.h>
+
+#include "ha_prototypes.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#include "dict0mem.h"
-#include "rem0rec.h"
 #include "data0type.h"
-#include "mach0data.h"
 #include "dict0dict.h"
+#include "dict0mem.h"
 #include "fts0priv.h"
+#include "mach0data.h"
+#include "my_dbug.h"
+#include "rem0rec.h"
 #include "ut0crc32.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#include "sync0sync.h"
 #include <iostream>
+
+#include "sync0sync.h"
 
 /** An interger randomly initialized at startup used to make a temporary
 table name as unuique as possible. */
@@ -509,7 +512,12 @@ dict_mem_fill_vcol_from_v_indexes(
 	     index != NULL;
 	     index = index->next()) {
 
-		if (!dict_index_has_virtual(index)) {
+		/* Skip if the index have newly added
+		virtual column because field name is NULL.
+		Later virtual column set will be
+		refreshed during loading of table. */
+		if (!dict_index_has_virtual(index)
+		    || index->has_new_v_col) {
 			continue;
 		}
 

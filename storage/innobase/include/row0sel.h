@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/row0sel.h
 Select
@@ -26,17 +28,17 @@ Created 12/19/1997 Heikki Tuuri
 #ifndef row0sel_h
 #define row0sel_h
 
-#include "univ.i"
-#include "data0data.h"
-#include "que0types.h"
-#include "dict0types.h"
-#include "trx0types.h"
-#include "read0types.h"
-#include "row0types.h"
-#include "que0types.h"
-#include "pars0sym.h"
 #include "btr0pcur.h"
+#include "data0data.h"
+#include "dict0types.h"
+#include "pars0sym.h"
+#include "que0types.h"
+#include "que0types.h"
+#include "read0types.h"
 #include "row0mysql.h"
+#include "row0types.h"
+#include "trx0types.h"
+#include "univ.i"
 
 /*********************************************************************//**
 Creates a select node struct.
@@ -459,42 +461,47 @@ enum row_sel_match_mode {
 
 #ifdef UNIV_DEBUG
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
-        row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len)
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
+        row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len,sec)
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
         row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
 #endif /* UNIV_DEBUG */
 
-/**************************************************************//**
-Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
-function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
-
+/** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
+function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
+@param[in,out] dest		buffer where to store; NOTE
+				that BLOBs are not in themselves stored
+				here: the caller must allocate and copy
+				the BLOB into buffer before, and pass
+				the pointer to the BLOB in 'data'
+@param[in]	templ		MySQL column template. Its following fields
+				are referenced: type, is_unsigned, mysql_col_len,
+				mbminlen, mbmaxlen
+@param[in]	index		InnoDB index
+@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+				or templ->icp_rec_field_no
+@param[in]	data		data to store
+@param[in]	len		length of the data
+@param[in]	sec_field	secondary index field no if the secondary index
+				record but the prebuilt template is in
+				clustered index format and used only for end
+				range comparison. */
 void
 row_sel_field_store_in_mysql_format_func(
-/*=====================================*/
-        byte*           dest,   /*!< in/out: buffer where to store; NOTE
-                                that BLOBs are not in themselves
-                                stored here: the caller must allocate
-                                and copy the BLOB into buffer before,
-                                and pass the pointer to the BLOB in
-                                'data' */
-        const mysql_row_templ_t* templ,
-                                /*!< in: MySQL column template.
-                                Its following fields are referenced:
-                                type, is_unsigned, mysql_col_len,
-                                mbminlen, mbmaxlen */
+	byte*				dest,
+	const mysql_row_templ_t*	templ,
 #ifdef UNIV_DEBUG
-        const dict_index_t* index,
-                                /*!< in: InnoDB index */
-        ulint           field_no,
-                                /*!< in: templ->rec_field_no or
-                                templ->clust_rec_field_no or
-                                templ->icp_rec_field_no */
+	const dict_index_t*		index,
+	ulint				field_no,
 #endif /* UNIV_DEBUG */
-        const byte*     data,   /*!< in: data to store */
-        ulint           len);    /*!< in: length of the data */
+	const byte*			data,
+	ulint				len
+#ifdef UNIV_DEBUG
+	,ulint				sec_field
+#endif /* UNIV_DEBUG */
+	);
 
 #include "row0sel.ic"
 

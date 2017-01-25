@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,22 +24,23 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "dict0dict.h"
-#include "ut0rbt.h"
-#include "row0sel.h"
-#include "fts0fts.h"
-#include "fts0priv.h"
-#include "fts0ast.h"
-#include "fts0pars.h"
-#include "fts0types.h"
-#include "fts0plugin.h"
-#include "ut0new.h"
-#include "lob0lob.h"
-
 #include <iomanip>
 #include <vector>
+
+#include "dict0dict.h"
+#include "fts0ast.h"
+#include "fts0fts.h"
+#include "fts0pars.h"
+#include "fts0plugin.h"
+#include "fts0priv.h"
+#include "fts0types.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "row0sel.h"
+#include "ut0new.h"
+#include "ut0rbt.h"
 
 #define FTS_ELEM(t, n, i, j) (t[(i) * n + (j)])
 

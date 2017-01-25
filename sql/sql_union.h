@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #ifndef SQL_UNION_INCLUDED
 #define SQL_UNION_INCLUDED
 
+#include "my_compiler.h"
 #include "my_global.h"          // ulong
 #include "query_result.h"       // Query_result_interceptor
 #include "table.h"
@@ -29,17 +30,18 @@ template <class T> class List;
 class Query_result_union : public Query_result_interceptor
 {
   Temp_table_param tmp_table_param;
+  /// Count of rows successfully stored in tmp table
+  ha_rows m_rows_in_table;
 public:
   TABLE *table;
-  bool is_union_mixed_with_union_all; // Mark the mixed operation
 
   Query_result_union(THD *thd)
-    : Query_result_interceptor(thd), table(0),
-    is_union_mixed_with_union_all(false) {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+    : Query_result_interceptor(thd), m_rows_in_table(0), table(0)
+    {}
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
-    Do prepare() and prepare2() if they have been postponed until
-    column type information is computed (used by Query_result_union_direct).
+    Do prepare() if preparation has been postponed until column type
+    information is computed (used by Query_result_union_direct).
 
     @param types Column types
 
@@ -56,6 +58,7 @@ public:
                            const char *alias, bool bit_fields_as_long,
                            bool create_table);
   friend bool TABLE_LIST::create_derived(THD *thd);
+  virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
 };
 
 #endif /* SQL_UNION_INCLUDED */

@@ -1,7 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+# InnoDB page size 16k is required
+--source include/have_innodb_16k.inc
 
 #
 # Test of alter table
@@ -32,7 +30,16 @@ modify column col6 int not null first;
 select * from t1;
 drop table t1;
 
-create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=myisam;
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+select * from t1;
+alter table t1 order by bandid,payoutid;
+select * from t1;
+drop table t1;
+
+# ORDER BY does not make sence for InnoDB tables,because InnoDB always orders table rows based on the clustered index
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=InnoDB;
 insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
 alter table t1 add column new_col int, order by payoutid,bandid;
 select * from t1;
@@ -117,7 +124,7 @@ select * from mysqltest.t1;
 drop table t1;
 drop database mysqltest;
 
-#
+# Disable/Enable keys supported by Myisam only
 # ALTER TABLE ... ENABLE/DISABLE KEYS
 
 create table t1 (n1 int not null, n2 int, n3 int, n4 float,
@@ -125,7 +132,7 @@ create table t1 (n1 int not null, n2 int, n3 int, n4 float,
                 key (n1, n2, n3, n4),
                 key (n2, n3, n4, n1),
                 key (n3, n4, n1, n2),
-                key (n4, n1, n2, n3) );
+                key (n4, n1, n2, n3) ) engine=Myisam;
 alter table t1 disable keys;
 show keys from t1;
 #let $1=10000;
@@ -371,6 +378,7 @@ alter table t1 add unique ( a(1) );
 drop table t1;
 
 #
+# Disable/Enable keys supported by Myisam only
 # Bug #24395: ALTER TABLE DISABLE KEYS doesn't work when modifying the table
 #
 # This problem happens if the data change is compatible.
@@ -379,7 +387,7 @@ drop table t1;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (a int, key(a));
+create table t1 (a int, key(a)) engine=myisam;
 show indexes from t1;
 --echo "this used not to disable the index"
 alter table t1 modify a int, disable keys;
@@ -413,7 +421,7 @@ show indexes from t1;
 drop table t1;
 
 --echo "Now will test with one unique index"
-create table t1(a int, b char(10), unique(a));
+create table t1(a int, b char(10), unique(a)) engine=myisam;
 show indexes from t1;
 alter table t1 disable keys;
 show indexes from t1;
@@ -438,7 +446,7 @@ show indexes from t1;
 drop table t1;
 
 --echo "Now will test with one unique and one non-unique index"
-create table t1(a int, b char(10), unique(a), key(b));
+create table t1(a int, b char(10), unique(a), key(b)) engine=myisam;
 show indexes from t1;
 alter table t1 disable keys;
 show indexes from t1;
@@ -499,10 +507,11 @@ use test;
 drop table t1;
 
 #
+# ROW_FORMAT=FIXED supported by Myisam only
 # BUG#23404 - ROW_FORMAT=FIXED option is lost is an index is added to the
 # table
 #
-CREATE TABLE t1(a INT) ROW_FORMAT=FIXED;
+CREATE TABLE t1(a INT) ENGINE=MyISAM ROW_FORMAT=FIXED;
 CREATE INDEX i1 ON t1(a);
 SHOW CREATE TABLE t1;
 DROP INDEX i1 ON t1;
@@ -510,6 +519,7 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #
+# Disable/Enable keys supported by Myisam only
 # Bug#24219 - ALTER TABLE ... RENAME TO ... , DISABLE KEYS leads to crash
 #
 --disable_warnings
@@ -517,7 +527,7 @@ DROP TABLE IF EXISTS bug24219;
 DROP TABLE IF EXISTS bug24219_2;
 --enable_warnings
 
-CREATE TABLE bug24219 (a INT, INDEX(a));
+CREATE TABLE bug24219 (a INT, INDEX(a)) ENGINE=MyISAM;
 
 SHOW INDEX FROM bug24219;
 
@@ -636,7 +646,7 @@ drop table t1;
 #            NO_ZERO_DATE mode.
 #
 set sql_mode= default;
-create table t1(f1 int);
+create table t1(f1 int) engine=myisam;
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');
 --error 1292
@@ -958,9 +968,10 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 DROP TABLE t1;
 
 #
+# pack_keys and max_data_length options are meant for Myisam tables
 # Bug#39372 "Smart" ALTER TABLE not so smart after all.
 #
-create table t1(f1 int not null, f2 int not null, key  (f1), key (f2));
+create table t1(f1 int not null, f2 int not null, key  (f1), key (f2)) engine=myisam;
 let $count= 50;
 --disable_query_log
 while ($count)
@@ -1348,11 +1359,12 @@ ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= EXCLUSIVE;
 
 DROP TABLE t1, m1;
 
+# Disable/Enable keys supported by Myisam only
 --echo #
 --echo # 6: Possible deadlock involving thr_lock.c
 --echo #
 
-CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,2);
 
 START TRANSACTION;

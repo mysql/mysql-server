@@ -12,7 +12,6 @@
 #               new wrapper t/concurrent_innodb_safelog.test
 #
 
---source include/have_innodb.inc
 
 let $engine_type= InnoDB;
 

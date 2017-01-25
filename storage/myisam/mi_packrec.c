@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 	/* Functions to compressed records */
 
 #include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 
 #define IS_CHAR ((uint) 32768)		/* Bit if char (not offset) in tree */
@@ -132,7 +134,7 @@ static mi_bit_type mask[]=
 
 	/* Read all packed info, allocate memory and fix field structs */
 
-my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
+my_bool _mi_read_pack_info(MI_INFO *info, my_bool fix_keys)
 {
   File file;
   int diff_length;

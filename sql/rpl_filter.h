@@ -111,7 +111,7 @@ public:
 private:
   bool table_rules_on;
 
-  typedef Prealloced_array<TABLE_RULE_ENT*, 16, true> Table_rule_array;
+  typedef Prealloced_array<TABLE_RULE_ENT*, 16> Table_rule_array;
 
   void init_table_rule_hash(HASH* h, bool* h_inited);
   void init_table_rule_array(Table_rule_array*, bool* a_inited);

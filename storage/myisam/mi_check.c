@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,13 +41,18 @@
   only. And it is sufficient to calculate the checksum once only.
 */
 
+#include <errno.h>
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 
 #include "ftdefs.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_pointer_arithmetic.h"
+#include "myisam_sys.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

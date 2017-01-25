@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,38 +21,40 @@ Code for native partitioning in InnoDB.
 
 Created Nov 22, 2013 Mattias Jonsson */
 
-#include "univ.i"
-
 /* Include necessary SQL headers */
 #include <debug_sync.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <log.h>
+#include <my_check_opt.h>
 #include <mysqld.h>
-#include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
-#include <my_check_opt.h>
+#include <strfunc.h>
+#include <new>
 
 /* Include necessary InnoDB headers */
 #include "btr0sea.h"
 #include "dict0dict.h"
 #include "dict0stats.h"
+#include "fsp0sysspace.h"
+#include "ha_innodb.h"
+#include "ha_innopart.h"
+#include "key.h"
 #include "lock0lock.h"
+#include "my_dbug.h"
+#include "partition_info.h"
 #include "row0import.h"
+#include "row0ins.h"
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "row0sel.h"
-#include "row0ins.h"
 #include "row0upd.h"
-#include "fsp0sysspace.h"
+#include "univ.i"
 #include "ut0ut.h"
-
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "partition_info.h"
-#include "key.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -1373,6 +1375,8 @@ ha_innopart::clone(
 
 		new_handler->m_prebuilt->select_lock_type =
 			m_prebuilt->select_lock_type;
+		new_handler->m_prebuilt->select_mode =
+			m_prebuilt->select_mode;
 	}
 
 	DBUG_RETURN(new_handler);

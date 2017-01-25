@@ -346,7 +346,6 @@ end:
    @param param_schema       schema name
    @param param_table        table name
    @param channel_name       channel name
-   @param channel_field_idx  channel name field index
 
    @return 0   on success
            1   when a failure happens
@@ -354,8 +353,7 @@ end:
 int Rpl_info_table::do_reset_info(uint nparam,
                                   const char* param_schema,
                                   const char *param_table,
-                                  const char *channel_name,
-                                  uint  channel_field_idx)
+                                  const char *channel_name)
 {
   int error= 0;
   TABLE *table= NULL;
@@ -691,7 +689,7 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
   return FALSE;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
+bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t,
                                  const char *default_value)
 {
   if (field_values->value[pos].length())

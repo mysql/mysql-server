@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "benchmark.h"
+#include "my_sys.h"
 #include "strnxfrm.h"
 #include "template_utils.h"
 
@@ -95,6 +96,13 @@ void expect_arrays_equal(const uchar *expected, const uchar *got, size_t len)
   }
 }
 
+CHARSET_INFO *init_collation(const char *name)
+{
+  MY_CHARSET_LOADER loader;
+  my_charset_loader_init_mysys(&loader);
+  return my_collation_get_by_name(&loader, name, MYF(0));
+}
+
 }  // namespace
 
 #if defined(GTEST_HAS_PARAM_TEST)
@@ -130,64 +138,72 @@ INSTANTIATE_TEST_CASE_P(Strnxfrm, StrnxfrmTest,
 
 TEST_P(StrnxfrmTest, OriginalSrcDst)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_orig(&my_charset_latin1,
+    strnxfrm_orig(cs,
                   &m_dst[0], m_length, m_length,
                   &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, OriginalUnrolledSrcDst)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_orig_unrolled(&my_charset_latin1,
+    strnxfrm_orig_unrolled(cs,
                            &m_dst[0], m_length, m_length,
                            &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, ModifiedSrcDst)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_new(&my_charset_latin1,
+    strnxfrm_new(cs,
                  &m_dst[0], m_length, m_length,
                  &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, ModifiedUnrolledSrcDst)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_new_unrolled(&my_charset_latin1,
+    strnxfrm_new_unrolled(cs,
                           &m_dst[0], m_length, m_length,
                           &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, OriginalSrcSrc)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_orig(&my_charset_latin1,
+    strnxfrm_orig(cs,
                   &m_src[0], m_length, m_length,
                   &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, OriginalUnrolledSrcSrc)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_orig_unrolled(&my_charset_latin1,
+    strnxfrm_orig_unrolled(cs,
                            &m_src[0], m_length, m_length,
                            &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, ModifiedSrcSrc)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_new(&my_charset_latin1,
+    strnxfrm_new(cs,
                  &m_src[0], m_length, m_length,
                  &m_src[0], m_length, 192);
 }
 
 TEST_P(StrnxfrmTest, ModifiedUnrolledSrcSrc)
 {
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
   for (size_t ix= 0; ix < num_iterations; ++ix)
-    strnxfrm_new_unrolled(&my_charset_latin1,
+    strnxfrm_new_unrolled(cs,
                           &m_src[0], m_length, m_length,
                           &m_src[0], m_length, 192);
 }
@@ -196,6 +212,8 @@ TEST_P(StrnxfrmTest, ModifiedUnrolledSrcSrc)
 
 TEST(StrXfrmTest, SimpleUTF8Correctness)
 {
+  CHARSET_INFO *cs= init_collation("utf8_bin");
+
   const char* src= "abc æøå 日本語";
   unsigned char buf[32];
 
@@ -210,14 +228,16 @@ TEST(StrXfrmTest, SimpleUTF8Correctness)
 
   for (size_t maxlen= 0; maxlen < sizeof(buf); maxlen += 2) {
     memset(buf, 0xff, sizeof(buf));
-    my_strnxfrm(&my_charset_utf8_bin, buf, maxlen,
-      pointer_cast<const uchar *>(src), strlen(src));
+    my_strnxfrm(
+      cs, buf, maxlen, pointer_cast<const uchar *>(src), strlen(src));
     expect_arrays_equal(full_answer_with_pad, buf, maxlen);
   }
 }
 
 TEST(StrXfrmTest, SimpleUTF8MB4Correctness)
 {
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+
   const char* src= "abc æøå 日本語";
   unsigned char buf[30];
 
@@ -231,8 +251,8 @@ TEST(StrXfrmTest, SimpleUTF8MB4Correctness)
 
   for (size_t maxlen= 0; maxlen < sizeof(buf); maxlen += 2) {
     memset(buf, 0xff, sizeof(buf));
-    my_strnxfrm(&my_charset_utf8mb4_0900_ai_ci, buf, maxlen,
-      pointer_cast<const uchar *>(src), strlen(src));
+    my_strnxfrm(
+      cs, buf, maxlen, pointer_cast<const uchar *>(src), strlen(src));
     expect_arrays_equal(full_answer_with_pad, buf, maxlen);
   }
 }
@@ -244,6 +264,8 @@ TEST(StrXfrmTest, SimpleUTF8MB4Correctness)
 */
 TEST(StrXfrmTest, UTF8MB4PadCorrectness_1)
 {
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_as_cs");
+
   const char* src= "abc     ";
   unsigned char buf[22];
 
@@ -258,14 +280,16 @@ TEST(StrXfrmTest, UTF8MB4PadCorrectness_1)
   for (size_t maxlen= 0; maxlen < sizeof(buf); maxlen += 2) {
     SCOPED_TRACE("maxlen=" + to_string(maxlen) + "/" + to_string(sizeof(buf)));
     memset(buf, 0xff, sizeof(buf));
-    my_strnxfrm(&my_charset_utf8mb4_0900_as_cs, buf, maxlen,
-      pointer_cast<const uchar *>(src), strlen(src));
+    my_strnxfrm(
+      cs, buf, maxlen, pointer_cast<const uchar *>(src), strlen(src));
     expect_arrays_equal(full_answer, buf, maxlen);
   }
 }
 
 TEST(StrXfrmTest, UTF8MB4PadCorrectness_2)
 {
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_as_cs");
+
   const char* src= "abc    a";
   unsigned char buf[52];
 
@@ -286,8 +310,8 @@ TEST(StrXfrmTest, UTF8MB4PadCorrectness_2)
   for (size_t maxlen= 0; maxlen < sizeof(buf); maxlen += 2) {
     SCOPED_TRACE("maxlen=" + to_string(maxlen) + "/" + to_string(sizeof(buf)));
     memset(buf, 0xff, sizeof(buf));
-    my_strnxfrm(&my_charset_utf8mb4_0900_as_cs, buf, maxlen,
-      pointer_cast<const uchar *>(src), strlen(src));
+    my_strnxfrm(
+      cs, buf, maxlen, pointer_cast<const uchar *>(src), strlen(src));
     expect_arrays_equal(full_answer, buf, maxlen);
   }
 }
@@ -301,6 +325,8 @@ static void BM_SimpleUTF8(size_t num_iterations)
 {
   StopBenchmarkTiming();
 
+  CHARSET_INFO *cs= init_collation("utf8_bin");
+
   static constexpr int key_cols = 12;
   static constexpr int set_key_cols = 6;  // Only the first half is set.
   static constexpr int key_col_chars = 80;
@@ -313,6 +339,7 @@ static void BM_SimpleUTF8(size_t num_iterations)
 
   const char *content= "PolyFilla27773";
   const int len= strlen(content);
+  memset(source, 0, sizeof(source));
 
   for (int k= 0, offset= 0; k < set_key_cols; ++k, offset+= key_bytes)
   {
@@ -326,11 +353,11 @@ static void BM_SimpleUTF8(size_t num_iterations)
     {
       if (k < set_key_cols)
       {
-        my_strnxfrm(&my_charset_utf8_bin, dest + offset, key_bytes, source + offset, len);
+        my_strnxfrm(cs, dest + offset, key_bytes, source + offset, len);
       }
       else
       {
-        my_strnxfrm(&my_charset_utf8_bin, dest + offset, key_bytes, source + offset, 0);
+        my_strnxfrm(cs, dest + offset, key_bytes, source + offset, 0);
       }
     }
   }
@@ -345,7 +372,7 @@ static void BM_UTF8MB4StringLength(size_t num_iterations)
 {
   StopBenchmarkTiming();
 
-  CHARSET_INFO *cs = &my_charset_utf8mb4_0900_ai_ci;
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
 
   // Some English text, then some Norwegian text, then some Japanese,
   // and then a few emoji (the last with skin tone modifiers).
@@ -362,6 +389,7 @@ static void BM_UTF8MB4StringLength(size_t num_iterations)
   StopBenchmarkTiming();
 
   EXPECT_NE(0, tot_len);
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_UTF8MB4StringLength);
 
@@ -370,6 +398,8 @@ BENCHMARK(BM_UTF8MB4StringLength);
 static void BM_SimpleUTF8MB4(size_t num_iterations)
 {
   StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
 
   const char *content= "This is a rather long string that contains only "
     "simple letters that are available in ASCII. This is a common special "
@@ -446,12 +476,14 @@ static void BM_SimpleUTF8MB4(size_t num_iterations)
   StartBenchmarkTiming();
   for (size_t i= 0; i < num_iterations; ++i)
   {
-    my_strnxfrm(&my_charset_utf8mb4_0900_ai_ci, dest, sizeof(dest),
-      reinterpret_cast<const uchar *>(content), len);
+    my_strnxfrm(
+      cs, dest, sizeof(dest), reinterpret_cast<const uchar *>(content), len);
   }
   StopBenchmarkTiming();
 
   expect_arrays_equal(expected, dest, sizeof(dest));
+
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_SimpleUTF8MB4);
 
@@ -461,6 +493,8 @@ BENCHMARK(BM_SimpleUTF8MB4);
 static void BM_MixedUTF8MB4(size_t num_iterations)
 {
   StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
 
   // Some English text, then some Norwegian text, then some Japanese,
   // and then a few emoji (the last with skin tone modifiers).
@@ -498,12 +532,13 @@ static void BM_MixedUTF8MB4(size_t num_iterations)
   StartBenchmarkTiming();
   for (size_t i= 0; i < num_iterations; ++i)
   {
-    my_strnxfrm(&my_charset_utf8mb4_0900_ai_ci, dest, sizeof(dest),
-      reinterpret_cast<const uchar *>(content), len);
+    my_strnxfrm(
+      cs, dest, sizeof(dest), reinterpret_cast<const uchar *>(content), len);
   }
   StopBenchmarkTiming();
 
   expect_arrays_equal(expected, dest, sizeof(dest));
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_MixedUTF8MB4);
 
@@ -514,14 +549,15 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
 {
   StopBenchmarkTiming();
 
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_as_cs");
+
   // Some English text, then some Norwegian text, then some Japanese,
   // and then a few emoji (the last with skin tone modifiers).
   const char *content= "Premature optimization is the root of all evil. "
     "Våre norske tegn bør æres. 日本語が少しわかります。 ✌️🐶👩🏽";
   const int len= strlen(content);
 
-  // Just recorded from a trial run on the string above. The last four
-  // bytes are padding.
+  // Just recorded from a trial run on the string above.
   static constexpr uchar expected[]= {
     // Primary weights.
     0x1e, 0x0c, 0x1e, 0x33, 0x1c, 0xaa, 0x1d, 0xaa, 0x1c,
@@ -609,7 +645,7 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
   StartBenchmarkTiming();
   for (size_t i= 0; i < num_iterations; ++i)
   {
-    ret = my_strnxfrm(&my_charset_utf8mb4_0900_as_cs, dest, sizeof(dest),
+    ret = my_strnxfrm(cs, dest, sizeof(dest),
       pointer_cast<const uchar *>(content), len);
   }
   StopBenchmarkTiming();
@@ -619,6 +655,337 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
 }
 BENCHMARK(BM_MixedUTF8MB4_AS_CS);
 
+// Specifically benchmark Japanese text.
+static void BM_JapaneseUTF8MB4(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+  const char *content= "データの保存とアクセスを行うストレージエンジンがSQLパーサとは"
+    "分離独立しており、用途に応じたストレージエンジンを選択できる"
+    "「マルチストレージエンジン」方式を採用している。";
+  const int len= strlen(content);
+
+  // Just recorded from a trial run on the string above.
+  static constexpr uchar expected[]= {
+    0x3d, 0x6d, 0x1c, 0x0e, 0x3d, 0x6a, 0x3d, 0x73,
+    0xfb, 0x40, 0xcf, 0xdd, 0xfb, 0x40, 0xdb, 0x58,
+    0x3d, 0x6e, 0x3d, 0x5a, 0x3d, 0x62, 0x3d, 0x68,
+    0x3d, 0x67, 0x3d, 0x8a, 0xfb, 0x41, 0x88, 0x4c,
+    0x3d, 0x5c, 0x3d, 0x67, 0x3d, 0x6e, 0x3d, 0x85,
+    0x1c, 0x0e, 0x3d, 0x66, 0x3d, 0x5e, 0x3d, 0x8b,
+    0x3d, 0x66, 0x3d, 0x8b, 0x3d, 0x60, 0x1e, 0x71,
+    0x1e, 0x21, 0x1d, 0x77, 0x3d, 0x74, 0x1c, 0x0e,
+    0x3d, 0x65, 0x3d, 0x6e, 0x3d, 0x74, 0xfb, 0x40,
+    0xd2, 0x06, 0xfb, 0x41, 0x96, 0xe2, 0xfb, 0x40,
+    0xf2, 0xec, 0xfb, 0x40, 0xfa, 0xcb, 0x3d, 0x66,
+    0x3d, 0x6d, 0x3d, 0x5f, 0x3d, 0x83, 0x02, 0x31,
+    0xfb, 0x40, 0xf5, 0x28, 0xfb, 0x41, 0x90, 0x14,
+    0x3d, 0x70, 0xfb, 0x40, 0xdf, 0xdc, 0x3d, 0x66,
+    0x3d, 0x6a, 0x3d, 0x67, 0x3d, 0x6e, 0x3d, 0x85,
+    0x1c, 0x0e, 0x3d, 0x66, 0x3d, 0x5e, 0x3d, 0x8b,
+    0x3d, 0x66, 0x3d, 0x8b, 0x3d, 0x8a, 0xfb, 0x41,
+    0x90, 0x78, 0xfb, 0x40, 0xe2, 0x9e, 0x3d, 0x6d,
+    0x3d, 0x61, 0x3d, 0x84, 0x03, 0x73, 0x3d, 0x79,
+    0x3d, 0x84, 0x3d, 0x6b, 0x3d, 0x67, 0x3d, 0x6e,
+    0x3d, 0x85, 0x1c, 0x0e, 0x3d, 0x66, 0x3d, 0x5e,
+    0x3d, 0x8b, 0x3d, 0x66, 0x3d, 0x8b, 0x03, 0x74,
+    0xfb, 0x40, 0xe5, 0xb9, 0xfb, 0x40, 0xdf, 0x0f,
+    0x3d, 0x8a, 0xfb, 0x40, 0xe3, 0xa1, 0xfb, 0x40,
+    0xf5, 0x28, 0x3d, 0x66, 0x3d, 0x6d, 0x3d, 0x5b,
+    0x3d, 0x84, 0x02, 0x8a
+  };
+  uchar dest[sizeof(expected)];
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    my_strnxfrm(cs, dest, sizeof(dest),
+      reinterpret_cast<const uchar *>(content), len);
+  }
+  StopBenchmarkTiming();
+
+  expect_arrays_equal(expected, dest, sizeof(dest));
+}
+BENCHMARK(BM_JapaneseUTF8MB4);
+
+/*
+  A benchmark that illustrates the potential perils of not including the
+  range [0x00,0x20) in our fast path; newlines throw us off the fast path
+  and reduce speed.
+
+  The newlines are spaced a bit randomly in order not to create a perfectly
+  predictable pattern for the branch predictor (benchmark paranoia).
+*/
+static void BM_NewlineFilledUTF8MB4(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+
+  const char *content= "This is a\n prett\ny unrealist\nic case; a\nn "
+    "Eng\nlish sente\nnce where\n we'\nve added a new\nline every te\nn "
+    "bytes or\n so.\n";
+  const int len= strlen(content);
+
+  // Just recorded from a trial run on the string above.
+  static constexpr uchar expected[]= {
+    0x1e, 0x95, 0x1d, 0x18, 0x1d, 0x32, 0x1e, 0x71,
+    0x00, 0x01, 0x1d, 0x32, 0x1e, 0x71, 0x00, 0x01,
+    0x1c, 0x47, 0x02, 0x02, 0x00, 0x01, 0x1e, 0x0c,
+    0x1e, 0x33, 0x1c, 0xaa, 0x1e, 0x95, 0x1e, 0x95,
+    0x02, 0x02, 0x1f, 0x0b, 0x00, 0x01, 0x1e, 0xb5,
+    0x1d, 0xb9, 0x1e, 0x33, 0x1c, 0xaa, 0x1c, 0x47,
+    0x1d, 0x77, 0x1d, 0x32, 0x1e, 0x71, 0x1e, 0x95,
+    0x02, 0x02, 0x1d, 0x32, 0x1c, 0x7a, 0x00, 0x01,
+    0x1c, 0x7a, 0x1c, 0x47, 0x1e, 0x71, 0x1c, 0xaa,
+    0x02, 0x34, 0x00, 0x01, 0x1c, 0x47, 0x02, 0x02,
+    0x1d, 0xb9, 0x00, 0x01, 0x1c, 0xaa, 0x1d, 0xb9,
+    0x1c, 0xf4, 0x02, 0x02, 0x1d, 0x77, 0x1d, 0x32,
+    0x1e, 0x71, 0x1d, 0x18, 0x00, 0x01, 0x1e, 0x71,
+    0x1c, 0xaa, 0x1d, 0xb9, 0x1e, 0x95, 0x1c, 0xaa,
+    0x02, 0x02, 0x1d, 0xb9, 0x1c, 0x7a, 0x1c, 0xaa,
+    0x00, 0x01, 0x1e, 0xf5, 0x1d, 0x18, 0x1c, 0xaa,
+    0x1e, 0x33, 0x1c, 0xaa, 0x02, 0x02, 0x00, 0x01,
+    0x1e, 0xf5, 0x1c, 0xaa, 0x03, 0x05, 0x02, 0x02,
+    0x1e, 0xe3, 0x1c, 0xaa, 0x00, 0x01, 0x1c, 0x47,
+    0x1c, 0x8f, 0x1c, 0x8f, 0x1c, 0xaa, 0x1c, 0x8f,
+    0x00, 0x01, 0x1c, 0x47, 0x00, 0x01, 0x1d, 0xb9,
+    0x1c, 0xaa, 0x1e, 0xf5, 0x02, 0x02, 0x1d, 0x77,
+    0x1d, 0x32, 0x1d, 0xb9, 0x1c, 0xaa, 0x00, 0x01,
+    0x1c, 0xaa, 0x1e, 0xe3, 0x1c, 0xaa, 0x1e, 0x33,
+    0x1f, 0x0b, 0x00, 0x01, 0x1e, 0x95, 0x1c, 0xaa,
+    0x02, 0x02, 0x1d, 0xb9, 0x00, 0x01, 0x1c, 0x60,
+    0x1f, 0x0b, 0x1e, 0x95, 0x1c, 0xaa, 0x1e, 0x71,
+    0x00, 0x01, 0x1d, 0xdd, 0x1e, 0x33, 0x02, 0x02,
+    0x00, 0x01, 0x1e, 0x71, 0x1d, 0xdd, 0x02, 0x77,
+    0x02, 0x02
+  };
+  uchar dest[sizeof(expected)];
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    my_strnxfrm(cs, dest, sizeof(dest),
+      reinterpret_cast<const uchar *>(content), len);
+  }
+  StopBenchmarkTiming();
+
+  expect_arrays_equal(expected, dest, sizeof(dest));
+}
+BENCHMARK(BM_NewlineFilledUTF8MB4);
+
+static void BM_HashSimpleUTF8MB4(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+
+  const char *content= "This is a rather long string that contains only "
+    "simple letters that are available in ASCII. This is a common special "
+    "case that warrants a benchmark on its own, even if the character set "
+    "and collation supports much more complicated scenarios.";
+  const int len= strlen(content);
+
+  ulong nr1= 1, nr2= 4;
+
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    cs->coll->hash_sort(
+      cs, reinterpret_cast<const uchar *>(content), len, &nr1, &nr2);
+  }
+  StopBenchmarkTiming();
+
+  /*
+    Just to keep the compiler from optimizing away everything; this is highly
+    unlikely to ever happen given hash function that's not totally broken.
+    Don't test for an exact value; it will vary by platform and number
+    of iterations.
+  */
+  EXPECT_FALSE(nr1 == 0 && nr2 == 0);
+}
+BENCHMARK(BM_HashSimpleUTF8MB4);
+
+/*
+  Test a non-trivial collation with contractions, to highlight
+  the performance difference.
+*/
+static void BM_Hungarian_AS_CS(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("utf8mb4_hu_0900_as_cs");
+
+  // Text snippet from Wikipedia.
+  const char *content= "A MySQL adatbázisok adminisztrációjára a mellékelt "
+    "parancssori eszközöket (mysql és mysqladmin) használhatjuk.";
+  const int len= strlen(content);
+
+  // Just recorded from a trial run on the string above.
+  static constexpr uchar expected[]= {
+    0x1c, 0x47, 0x00, 0x01, 0x1d, 0xaa, 0x1f, 0x0b,
+    0x1e, 0x71, 0x1e, 0x21, 0x1d, 0x77, 0x00, 0x01,
+    0x1c, 0x47, 0x1c, 0x8f, 0x1c, 0x47, 0x1e, 0x95,
+    0x1c, 0x60, 0x1c, 0x47, 0x1f, 0x21, 0x1d, 0x32,
+    0x1e, 0x71, 0x1d, 0xdd, 0x1d, 0x65, 0x00, 0x01,
+    0x1c, 0x47, 0x1c, 0x8f, 0x1d, 0xaa, 0x1d, 0x32,
+    0x1d, 0xb9, 0x1d, 0x32, 0x1e, 0x71, 0x54, 0xa5,
+    0x1e, 0x95, 0x1e, 0x33, 0x1c, 0x47, 0x1c, 0x7a,
+    0x1d, 0x32, 0x1d, 0xdd, 0x1d, 0x4c, 0x1c, 0x47,
+    0x1e, 0x33, 0x1c, 0x47, 0x00, 0x01, 0x1c, 0x47,
+    0x00, 0x01, 0x1d, 0xaa, 0x1c, 0xaa, 0x1d, 0x77,
+    0x1d, 0x77, 0x1c, 0xaa, 0x1d, 0x65, 0x1c, 0xaa,
+    0x1d, 0x77, 0x1e, 0x95, 0x00, 0x01, 0x1e, 0x0c,
+    0x1c, 0x47, 0x1e, 0x33, 0x1c, 0x47, 0x1d, 0xb9,
+    0x1c, 0x7a, 0x54, 0xa5, 0x1e, 0x71, 0x1d, 0xdd,
+    0x1e, 0x33, 0x1d, 0x32, 0x00, 0x01, 0x1c, 0xaa,
+    0x1e, 0x71, 0x54, 0xa5, 0x1d, 0x65, 0x1d, 0xdd,
+    0x54, 0xa5, 0x1f, 0x21, 0x1d, 0xdd, 0x54, 0xa5,
+    0x1d, 0x65, 0x1c, 0xaa, 0x1e, 0x95, 0x00, 0x01,
+    0x03, 0x17, 0x1d, 0xaa, 0x1f, 0x0b, 0x1e, 0x71,
+    0x1e, 0x21, 0x1d, 0x77, 0x00, 0x01, 0x1c, 0xaa,
+    0x1e, 0x71, 0x00, 0x01, 0x1d, 0xaa, 0x1f, 0x0b,
+    0x1e, 0x71, 0x1e, 0x21, 0x1d, 0x77, 0x1c, 0x47,
+    0x1c, 0x8f, 0x1d, 0xaa, 0x1d, 0x32, 0x1d, 0xb9,
+    0x03, 0x18, 0x00, 0x01, 0x1d, 0x18, 0x1c, 0x47,
+    0x1e, 0x71, 0x54, 0xa5, 0x1d, 0xb9, 0x1c, 0x47,
+    0x1d, 0x77, 0x1d, 0x18, 0x1c, 0x47, 0x1e, 0x95,
+    0x1d, 0x4c, 0x1e, 0xb5, 0x1d, 0x65, 0x02, 0x77,
+    0x00, 0x00, 0x00, 0x20, 0x00, 0x01, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x01, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x24,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x01, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x24, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x24, 0x00, 0x20, 0x00, 0x20, 0x00, 0x24,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x01, 0x00, 0x20,
+    0x00, 0x01, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x24, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x01,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x01, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x01, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x01,
+    0x00, 0x20, 0x00, 0x24, 0x00, 0x20, 0x00, 0x01,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x01,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x24, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20,
+    0x00, 0x20, 0x00, 0x20, 0x00, 0x00, 0x00, 0x08,
+    0x00, 0x01, 0x00, 0x08, 0x00, 0x02, 0x00, 0x08,
+    0x00, 0x08, 0x00, 0x08, 0x00, 0x01, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x01,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x08, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x01, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x08,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x01, 0x00, 0x02, 0x00, 0x08, 0x00, 0x02,
+    0x00, 0x08, 0x00, 0x02, 0x00, 0x08, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x01, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x01, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x01, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x01, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x08, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02,
+    0x00, 0x02, 0x00, 0x02, 0x00, 0x02, 0x00, 0x02
+  };
+  uchar dest[sizeof(expected)]={0};
+
+  size_t ret= 0;
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    ret = my_strnxfrm(
+      cs, dest, sizeof(dest), pointer_cast<const uchar *>(content), len);
+  }
+  StopBenchmarkTiming();
+
+  EXPECT_EQ(sizeof(expected), ret);
+  expect_arrays_equal(expected, dest, ret);
+
+  SetBytesProcessed(num_iterations * strlen(content));
+}
+BENCHMARK(BM_Hungarian_AS_CS);
+
+// The classic MySQL latin1 collation, for reference.
+static void BM_Latin1_CI(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  CHARSET_INFO *cs= init_collation("latin1_swedish_ci");
+
+  const char *content= "Alla människor är födda fria och lika i värde "
+    "och rättigheter. De är utrustade med förnuft och samvete och bör "
+    "handla gentemot varandra i en anda av broderskap.";
+  const int len= strlen(content);
+
+  /*
+    Just recorded from a trial run on the string above.
+    The entire last row is padding.
+  */
+  static constexpr uchar expected[]= {
+    0x41, 0x4c, 0x4c, 0x41, 0x20, 0x4d, 0x41, 0xa4,
+    0x4e, 0x4e, 0x49, 0x53, 0x4b, 0x4f, 0x52, 0x20,
+    0x41, 0xa4, 0x52, 0x20, 0x46, 0x41, 0xb6, 0x44,
+    0x44, 0x41, 0x20, 0x46, 0x52, 0x49, 0x41, 0x20,
+    0x4f, 0x43, 0x48, 0x20, 0x4c, 0x49, 0x4b, 0x41,
+    0x20, 0x49, 0x20, 0x56, 0x41, 0xa4, 0x52, 0x44,
+    0x45, 0x20, 0x4f, 0x43, 0x48, 0x20, 0x52, 0x41,
+    0xa4, 0x54, 0x54, 0x49, 0x47, 0x48, 0x45, 0x54,
+    0x45, 0x52, 0x2e, 0x20, 0x44, 0x45, 0x20, 0x41,
+    0xa4, 0x52, 0x20, 0x55, 0x54, 0x52, 0x55, 0x53,
+    0x54, 0x41, 0x44, 0x45, 0x20, 0x4d, 0x45, 0x44,
+    0x20, 0x46, 0x41, 0xb6, 0x52, 0x4e, 0x55, 0x46,
+    0x54, 0x20, 0x4f, 0x43, 0x48, 0x20, 0x53, 0x41,
+    0x4d, 0x56, 0x45, 0x54, 0x45, 0x20, 0x4f, 0x43,
+    0x48, 0x20, 0x42, 0x41, 0xb6, 0x52, 0x20, 0x48,
+    0x41, 0x4e, 0x44, 0x4c, 0x41, 0x20, 0x47, 0x45,
+    0x4e, 0x54, 0x45, 0x4d, 0x4f, 0x54, 0x20, 0x56,
+    0x41, 0x52, 0x41, 0x4e, 0x44, 0x52, 0x41, 0x20,
+    0x49, 0x20, 0x45, 0x4e, 0x20, 0x41, 0x4e, 0x44,
+    0x41, 0x20, 0x41, 0x56, 0x20, 0x42, 0x52, 0x4f,
+    0x44, 0x45, 0x52, 0x53, 0x4b, 0x41, 0x50, 0x2e,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+  };
+  uchar dest[sizeof(expected)];
+
+  size_t ret= 0;
+  StartBenchmarkTiming();
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    ret = my_strnxfrm(
+      cs, dest, sizeof(dest), pointer_cast<const uchar *>(content), len);
+  }
+  StopBenchmarkTiming();
+
+  EXPECT_EQ(sizeof(expected), ret);
+  expect_arrays_equal(expected, dest, ret);
+
+  SetBytesProcessed(num_iterations * strlen(content));
+}
+BENCHMARK(BM_Latin1_CI);
+
 TEST(PadCollationTest, BasicTest)
 {
   constexpr char foo[] = "foo";
@@ -626,25 +993,26 @@ TEST(PadCollationTest, BasicTest)
   constexpr char bar[] = "bar";
   constexpr char foobar[] = "foobar";
 
-  auto my_strnncollsp= my_charset_utf8mb4_0900_ai_ci.coll->strnncollsp;
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+  auto my_strnncollsp= cs->coll->strnncollsp;
 
   // "foo" == "foo"
-  EXPECT_EQ(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_EQ(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
   // "foo" == "foo    "
-  EXPECT_EQ(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_EQ(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(foosp), strlen(foosp)),
             0);
   // "foo" > "bar"
-  EXPECT_GT(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_GT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(bar), strlen(bar)),
             0);
   // "foo" < "foobar" because "foo    " < "foobar"
-  EXPECT_LT(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_LT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(foobar), strlen(foobar)),
             0);
@@ -652,17 +1020,17 @@ TEST(PadCollationTest, BasicTest)
   // Exactly the same tests in reverse.
 
   // "foo    " == "foo"
-  EXPECT_EQ(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_EQ(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foosp), strlen(foosp),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
   // "bar" < "foo"
-  EXPECT_LT(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_LT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(bar), strlen(bar),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
   // "foobar" > "foo" because "foobar" > "foo    "
-  EXPECT_GT(my_strnncollsp(&my_charset_utf8mb4_0900_ai_ci,
+  EXPECT_GT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foobar), strlen(foobar),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
@@ -698,55 +1066,173 @@ int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char *b)
   }
 }
 
-TEST(PadCollationTest, Strxfrm)
+TEST(StrxfrmTest, PadCollation)
 {
+  CHARSET_INFO *ai_ci= init_collation("utf8mb4_0900_ai_ci");
+  CHARSET_INFO *as_cs= init_collation("utf8mb4_0900_as_cs");
+
   // Basic sanity checks.
-  EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc", "abc"), 0);
-  EXPECT_NE(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc", "def"), 0);
+  EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc", "abc"), 0);
+  EXPECT_NE(compare_through_strxfrm(ai_ci, "abc", "def"), 0);
 
   // Spaces from the end should not matter, no matter the collation.
-  EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc", "abc  "), 0);
-  EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "abc", "abc  "), 0);
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "abc", "Abc  "), 0);
+  EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc", "abc  "), 0);
+  EXPECT_EQ(compare_through_strxfrm(as_cs, "abc", "abc  "), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "abc", "Abc  "), 0);
 
   // Same with other types of spaces.
-  EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc", u8"abc \u00a0"), 0);
+  EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc", u8"abc \u00a0"), 0);
 
   // Non-breaking space should compare _equal_ to space in ai_ci,
   // but _after_ in as_cs.
-  EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "abc ", u8"abc\u00a0"), 0);
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "abc ", u8"abc\u00a0"), 0);
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "abc", u8"abc\u00a0"), 0);
+  EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc ", u8"abc\u00a0"), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "abc ", u8"abc\u00a0"), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "abc", u8"abc\u00a0"), 0);
 
   // Also in the middle of the string.
-  EXPECT_EQ(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "a c", u8"a\u00a0c"), 0);
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "a c", u8"a\u00a0c"), 0);
+  EXPECT_EQ(compare_through_strxfrm(ai_ci, "a c", u8"a\u00a0c"), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "a c", u8"a\u00a0c"), 0);
 
   // Verify that space in the middle of the string isn't stripped.
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_ai_ci, "ab  c", "abc"), 0);
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "ab  c", "abc"), 0);
+  EXPECT_LT(compare_through_strxfrm(ai_ci, "ab  c", "abc"), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "ab  c", "abc"), 0);
 
   /*
     This is contrary to the default DUCET ordering, but is needed
     for our algorithm to work.
   */
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, " ", "\t"), 0);
-  EXPECT_LT(compare_through_strxfrm(
-    &my_charset_utf8mb4_0900_as_cs, "", "\t"), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, " ", "\t"), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "", "\t"), 0);
 }
 
-}  // namespace
+TEST(StrxfrmTest, Contractions)
+{
+  CHARSET_INFO *hu_ai_ci= init_collation("utf8mb4_hu_0900_ai_ci");
+
+  // Basic sanity checks.
+  EXPECT_EQ(compare_through_strxfrm(hu_ai_ci, "abc", "abc"), 0);
+  EXPECT_NE(compare_through_strxfrm(hu_ai_ci, "abc", "def"), 0);
+  EXPECT_EQ(compare_through_strxfrm(hu_ai_ci, "abc", "Abc"), 0);
+
+  // "cs" counts as a separate letter, where c < cs < d, so:
+  EXPECT_LT(compare_through_strxfrm(hu_ai_ci, "c", "cs"), 0);
+  EXPECT_LT(compare_through_strxfrm(hu_ai_ci, "cs", "d"), 0);
+  EXPECT_LT(compare_through_strxfrm(hu_ai_ci, "ct", "cst"), 0);
+  EXPECT_LT(compare_through_strxfrm(hu_ai_ci, "cst", "dt"), 0);
+
+  // Wikipedia gives this as an example.
+  EXPECT_LT(compare_through_strxfrm(hu_ai_ci, "cukor", "csak"), 0);
+}
+
+/*
+  This test is disabled by default since it needs ~10 seconds to run,
+  even in optimized mode.
+*/
+TEST(BitfiddlingTest, DISABLED_FastOutOfRange)
+{
+  unsigned char bytes[4];
+  for (int a= 0; a < 256; ++a)
+  {
+    bytes[0]= a;
+    for (int b= 0; b < 256; ++b)
+    {
+      bytes[1]= b;
+      for (int c= 0; c < 256; ++c)
+      {
+        bytes[2]= c;
+        for (int d= 0; d < 256; ++d)
+        {
+          bytes[3]= d;
+          bool any_out_of_range_slow=
+            (a < 0x20 || a > 0x7e) ||
+            (b < 0x20 || b > 0x7e) ||
+            (c < 0x20 || c > 0x7e) ||
+            (d < 0x20 || d > 0x7e);
+
+          uint32 four_bytes;
+          memcpy(&four_bytes, bytes, sizeof(four_bytes));
+          bool any_out_of_range_fast=
+            (((four_bytes + 0x01010101u) & 0x80808080) ||
+             ((four_bytes - 0x20202020u) & 0x80808080));
+
+          EXPECT_EQ(any_out_of_range_slow, any_out_of_range_fast);
+        }
+      }
+    }
+  }
+}
+
+/*
+  A version of FastOutOfRange that tests the analogous trick for 16-bit
+  integers instead (much, much faster).
+*/
+TEST(BitfiddlingTest, FastOutOfRange16)
+{
+  unsigned char bytes[2];
+  for (int a= 0; a < 256; ++a)
+  {
+    bytes[0]= a;
+    for (int b= 0; b < 256; ++b)
+    {
+      bytes[1]= b;
+      bool any_out_of_range_slow=
+        (a < 0x20 || a > 0x7e) ||
+        (b < 0x20 || b > 0x7e);
+
+      uint16 two_bytes;
+      memcpy(&two_bytes, bytes, sizeof(two_bytes));
+      bool any_out_of_range_fast=
+        (((two_bytes + uint16{0x0101}) & uint16{0x8080}) ||
+         ((two_bytes - uint16{0x2020}) & uint16{0x8080}));
+
+      EXPECT_EQ(any_out_of_range_slow, any_out_of_range_fast);
+    }
+  }
+}
+
+ulong hash(CHARSET_INFO *cs, const char *str)
+{
+  ulong nr1=1, nr2= 4;
+  cs->coll->hash_sort(
+    cs, pointer_cast<const uchar *>(str), strlen(str), &nr1, &nr2);
+  return nr1;
+}
+
+/*
+  NOTE: In this entire test, there's an infinitesimal chance
+  that something that we expect doesn't match, still matches
+  by pure accident.
+*/
+TEST(PadCollationTest, HashSort)
+{
+  CHARSET_INFO *ai_ci= init_collation("utf8mb4_0900_ai_ci");
+  CHARSET_INFO *as_cs= init_collation("utf8mb4_0900_as_cs");
+
+  // Basic sanity checks.
+  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, "abc"));
+  EXPECT_NE(hash(ai_ci, "abc"), hash(ai_ci, "def"));
+
+  // Spaces from the end should not matter, no matter the collation.
+  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, "abc  "));
+  EXPECT_EQ(hash(as_cs, "abc"), hash(as_cs, "abc  "));
+  EXPECT_NE(hash(as_cs, "abc"), hash(as_cs, "Abc  "));
+
+  // Same with other types of spaces.
+  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, u8"abc \u00a0"));
+
+  // Non-breaking space should compare _equal_ to space in ai_ci,
+  // but _inequal_ in as_cs.
+  EXPECT_EQ(hash(ai_ci, "abc "), hash(ai_ci, u8"abc\u00a0"));
+  EXPECT_NE(hash(as_cs, "abc "), hash(as_cs, u8"abc\u00a0"));
+  EXPECT_NE(hash(as_cs, "abc"), hash(as_cs, u8"abc\u00a0"));
+
+  // Also in the middle of the string.
+  EXPECT_EQ(hash(ai_ci, "a c"), hash(ai_ci, u8"a\u00a0c"));
+  EXPECT_NE(hash(as_cs, "a c"), hash(as_cs, u8"a\u00a0c"));
+
+  // Verify that space in the middle of the string isn't stripped.
+  EXPECT_NE(hash(ai_ci, "ab  c"), hash(ai_ci, "abc"));
+  EXPECT_NE(hash(as_cs, "ab  c"), hash(as_cs, "abc"));
+}
+
+}  // namespace strnxfrm_unittest

@@ -18,7 +18,7 @@ struct PSI_placeholder
 C_MODE_START
 struct PSI_idle_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
 struct PSI_idle_locker;
@@ -32,10 +32,9 @@ struct PSI_idle_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
-typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
-  (struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
-typedef void (*end_idle_wait_v1_t)
-  (struct PSI_idle_locker *locker);
+typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
+  struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+typedef void (*end_idle_wait_v1_t)(struct PSI_idle_locker *locker);
 struct PSI_idle_service_v1
 {
   start_idle_wait_v1_t start_idle_wait;

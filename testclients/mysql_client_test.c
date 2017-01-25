@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,12 @@
   contains only the actual tests, plus the list of test functions to call.
 */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"
@@ -7167,128 +7173,11 @@ static void test_set_option()
 }
 
 
-#ifdef EMBEDDED_LIBRARY
-static void test_embedded_start_stop()
-{
-  MYSQL *mysql_emb=NULL;
-  int i, j;
-  int argc= original_argc;                    // Start with the original args
-  char **argv, **my_argv;
-  char test_name[]= "test_embedded_start_stop";
-  const unsigned int drop_db= opt_drop_db;
-#define EMBEDDED_RESTARTS 64
-
-  myheader("test_embedded_start_stop");
-
-  /* Must stop the main embedded server, since we use the same config. */
-  opt_drop_db= 0;
-  client_disconnect(mysql);    /* disconnect from server */
-  free_defaults(defaults_argv);
-  mysql_server_end();
-  /* Free everything allocated by my_once_alloc */
-  my_end(0);
-  opt_drop_db= drop_db;
-
-  /*
-    Use a copy of the original arguments.
-    The arguments will be altered when reading the configs and parsing
-    options.
-  */
-  my_argv= malloc((argc + 1) * sizeof(char*));
-  if (!my_argv)
-    exit(1);
-
-  /* Test restarting the embedded library many times. */
-  for (i= 1; i <= EMBEDDED_RESTARTS; i++)
-  {
-    argv= my_argv;
-    argv[0]= test_name;
-    for (j= 1; j < argc; j++)
-      argv[j]= original_argv[j];
-
-    /* Initialize everything again. */
-    MY_INIT(argv[0]);
-
-    /* Load the client defaults from the .cnf file[s]. */
-    if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
-    {
-      myerror("load_defaults failed"); 
-      exit(1);
-    }
-
-    /* Parse the options (including the ones given from defaults files). */
-    get_options(&argc, &argv);
-
-    /* mysql_library_init is the same as mysql_server_init. */
-    if (mysql_library_init(embedded_server_arg_count,
-                           embedded_server_args,
-                           (char**) embedded_server_groups))
-    {
-      myerror("mysql_library_init failed"); 
-      exit(1);
-    }
-
-    /* Create a client connection. */
-    if (!(mysql_emb= mysql_client_init(NULL)))
-    {
-      myerror("mysql_client_init failed");
-      exit(1);
-    }
-
-    /* Connect it and see if we can use the database. */
-    if (!(mysql_real_connect(mysql_emb, opt_host, opt_user,
-                             opt_password, current_db, 0,
-                             NULL, 0)))
-    {
-      myerror("mysql_real_connect failed");
-    }
-
-    /* Close the client connection */
-    mysql_close(mysql_emb);
-    mysql_emb = NULL;
-    /* Free arguments allocated for defaults files. */
-    free_defaults(defaults_argv);
-    /* mysql_library_end is a define for mysql_server_end. */
-    mysql_library_end();
-    /* Free everything allocated by my_once_alloc */
-    my_end(0);
-  }
-
-  argc= original_argc;
-  argv= my_argv;
-  argv[0]= test_name;
-  for (j= 1; j < argc; j++)
-    argv[j]= original_argv[j];
-
-  MY_INIT(argv[0]);
-
-  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
-  {
-    myerror("load_defaults failed \n "); 
-    exit(1);
-  }
-
-  get_options(&argc, &argv);
-
-  /* Must start the main embedded server again after the test. */
-  if (mysql_server_init(embedded_server_arg_count,
-                        embedded_server_args,
-                        (char**) embedded_server_groups))
-    DIE("Can't initialize MySQL server");
-
-  /* connect to server with no flags, default protocol, auto reconnect true */
-  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
-  free(my_argv);
-}
-#endif /* EMBEDDED_LIBRARY */
-
-
 /*
   Test a misc GRANT option
   bug #89 (reported by mark@mysql.com)
 */
 
-#ifndef EMBEDDED_LIBRARY
 static void test_prepare_grant()
 {
   int rc;
@@ -7382,7 +7271,7 @@ static void test_prepare_grant()
 
   }
 }
-#endif /* EMBEDDED_LIBRARY */
+
 
 /* Test DECIMAL conversion */
 
@@ -7774,14 +7663,14 @@ static void test_drop_temp()
 #endif
 
 
-/* Test warnings for cuted rows */
+/* Test warnings for truncated rows */
 
-static void test_cuted_rows()
+static void test_truncated_rows()
 {
   int        rc, count;
   MYSQL_RES  *result;
 
-  myheader("test_cuted_rows");
+  myheader("test_truncated_rows");
 
   mysql_query(mysql, "DROP TABLE if exists t1");
   mysql_query(mysql, "DROP TABLE if exists t2");
@@ -13134,7 +13023,6 @@ from t2);");
 
 static void test_bug8378()
 {
-#if !defined(EMBEDDED_LIBRARY)
   MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   char buf[256];
@@ -13178,7 +13066,6 @@ static void test_bug8378()
   myquery(rc);
 
   mysql_close(lmysql);
-#endif
 }
 
 
@@ -14217,7 +14104,6 @@ static void test_bug11037()
 }
 
 /* Bug#10760: cursors, crash in a fetch after rollback. */
-#if 0 
 static void test_bug10760()
 {
   MYSQL_STMT *stmt;
@@ -14316,7 +14202,6 @@ static void test_bug10760()
   myquery(rc);
   mysql_autocommit(mysql, TRUE);                /* restore default */
 }
-#endif
 
 static void test_bug12001()
 {
@@ -15124,8 +15009,6 @@ static void test_opt_reconnect()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
-
 static void test_bug12744()
 {
   MYSQL_STMT *prep_stmt = NULL;
@@ -15157,7 +15040,6 @@ static void test_bug12744()
   DIE_UNLESS(rc == 0);
 }
 
-#endif /* EMBEDDED_LIBRARY */
 
 /* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
 
@@ -15381,9 +15263,8 @@ static void test_bug17667()
           DIE("Read error");
         }
 
-      } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
-                         statement_cursor->buffer,
-                         statement_cursor->length) == NULL);
+      } while (strstr(line_buffer,
+                      statement_cursor->buffer) == NULL);
       hits++;
     } while (hits < expected_hits);
 
@@ -17179,11 +17060,9 @@ static void test_bug31669()
 {
   int rc;
   static char buff[LARGE_BUFFER_SIZE+1];
-#ifndef EMBEDDED_LIBRARY
   static char user[USERNAME_CHAR_LENGTH+1];
   static char db[NAME_CHAR_LEN+1];
   static char query[LARGE_BUFFER_SIZE*2];
-#endif
   MYSQL *l_mysql;
 
 
@@ -17218,7 +17097,6 @@ static void test_bug31669()
   rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
   DIE_UNLESS(!rc);
 
-#ifndef EMBEDDED_LIBRARY
   memset(db, 'a', sizeof(db));
   db[NAME_CHAR_LEN]= 0;
   strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
@@ -17283,7 +17161,6 @@ static void test_bug31669()
   DIE_UNLESS(mysql_affected_rows(mysql) == 2);
 
   mysql_close(l_mysql);
-#endif
 
   DBUG_VOID_RETURN;
 }
@@ -19364,7 +19241,7 @@ static void test_wl6587()
   myquery(rc);
 }
 
-#ifndef EMBEDDED_LIBRARY
+
 /*
   Bug #17309863 AUTO RECONNECT DOES NOT WORK WITH 5.6 LIBMYSQLCLIENT
 */
@@ -19414,7 +19291,7 @@ static void test_bug17309863()
 
   mysql_close(lmysql);
 }
-#endif
+
 
 static void test_wl5928()
 {
@@ -19587,7 +19464,7 @@ static void test_wl6791()
   const_char_opts[] = {
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
     MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
     /* mysql_options() is a no-op on non-supporting platforms. */
     MYSQL_SHARED_MEMORY_BASE_NAME,
 #endif
@@ -20776,6 +20653,243 @@ static void test_bug22559575()
   myquery(rc);
 }
 
+
+/**
+  Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::INIT_WITH_SOURCE
+*/
+static void test_bug24963580()
+{
+  MYSQL_RES *result;
+  int rc;
+
+  myheader("test_bug24963580");
+
+  rc= mysql_query(mysql, "USE information_schema");
+  myquery(rc);
+
+  /* This call used to crash the server. */
+  result= mysql_list_fields(mysql, "CHARACTER_SETS", NULL);
+  mytest(result);
+
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 0);
+
+  mysql_free_result(result);
+}
+
+
+static int test_mysql_binlog_perform(MYSQL *mysql1,
+                                     const char *binlog_name,
+                                     ulong start_position,
+                                     uint server_id,
+                                     uint flags,
+                                     size_t gtid_set_size,
+                                     uchar *gtid_set)
+{
+  MYSQL_RPL rpl;
+
+  if (!opt_silent)
+  {
+    fprintf(stdout, "Perform binlog read: '%s' from %lu, flags=%u\n",
+            binlog_name, start_position, flags);
+  }
+
+  rpl.file_name_length= 0;
+  rpl.file_name= binlog_name;
+  rpl.start_position= start_position;
+  rpl.server_id= server_id;
+  rpl.flags= flags;
+  rpl.gtid_set_encoded_size= gtid_set_size;
+  rpl.gtid_set_arg= gtid_set;
+  rpl.fix_gtid_set= NULL;
+
+  if (mysql_binlog_open(mysql1, &rpl))
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_binlog_open() failed: '%s'\n", mysql_error(mysql1));
+    mysql_binlog_close(mysql1, &rpl);
+    return 1;
+  }
+
+  for (;;)
+  {
+    if (mysql_binlog_fetch(mysql1, &rpl)) // Error
+    {
+      if (!opt_silent)
+        fprintf(stdout, "Error packet: '%s'\n", mysql_error(mysql1));
+      mysql_binlog_close(mysql1, &rpl);
+      return 2;
+    }
+
+    if (rpl.size == 0) // EOF
+    {
+      if (!opt_silent)
+        fprintf(stdout, "EOF packet.\n");
+      break;
+    }
+
+    /* Normal packet. */
+    if (!opt_silent)
+      fprintf(stdout, "%lu byte length packet.\n", rpl.size);
+  }
+
+  mysql_binlog_close(mysql1, &rpl);
+
+  return 0;
+}
+
+
+static void test_mysql_binlog()
+{
+  int rc;
+  MYSQL *mysql1, *mysql2;
+  MYSQL_RPL rpl1, rpl2;
+  const char *binlog_name= "mysql-binlog.000001";
+  my_bool reconnect= TRUE;
+
+  myheader("test_mysql_binlog");
+
+  /* Check if binary logging enabled. */
+  {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    DIE_IF(mysql_query(mysql, "SHOW MASTER STATUS"));
+    DIE_UNLESS(res= mysql_store_result(mysql));
+    if (!(row= mysql_fetch_row(res)) ||
+        strcmp(row[0], binlog_name))
+    {
+      if (!opt_silent)
+        fprintf(stdout, "Skipping test_mysql_binlog\n");
+      mysql_free_result(res);
+      return;
+    }
+    mysql_free_result(res);
+  }
+
+  rc= mysql_query(mysql, "SET @save_global_binlog_checksum=@@global.binlog_checksum");
+  myquery(rc);
+  rc= mysql_query(mysql, "SET @@global.binlog_checksum=NONE");
+  myquery(rc);
+  rc= mysql_query(mysql, "RESET MASTER");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1(a INT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES(0)");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "FLUSH LOGS");
+  myquery(rc);
+
+  if (!(mysql1= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    DIE_UNLESS(0);
+  }
+
+  /* binlog_open without being connected */
+  if (!opt_silent)
+    fprintf(stdout, "binlog_open without being connected\n");
+  DIE_UNLESS(-1 == mysql_binlog_open(mysql1, &rpl1));
+  if (!opt_silent)
+    fprintf(stdout, "binlog_open error: %s\n", mysql_error(mysql1));
+  /* binlog_close on without being connected */
+  if (!opt_silent)
+    fprintf(stdout, "binlog_close without being connected\n");
+  mysql_binlog_close(mysql1, &rpl1);
+
+  mysql_options(mysql1, MYSQL_OPT_RECONNECT, &reconnect);
+  mysql1= mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket, 0);
+  if (!mysql1)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_real_connect() failed: '%s'\n", mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+
+#define BIN_LOG_HEADER_SIZE 4U
+
+  rc= test_mysql_binlog_perform(mysql1, 0, BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, "", BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE, 0,
+                                MYSQL_RPL_GTID, 0, 0);
+  DIE_UNLESS(rc == 0);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE, 0,
+                                MYSQL_RPL_GTID | MYSQL_RPL_SKIP_HEARTBEAT, 0, 0);
+  DIE_UNLESS(rc == 0);
+
+  /* Incorrect start position. */
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE - 1, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 2 && mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+  rc= test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE + 1, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 2 && mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+
+  /* Non-existing binlog file. */
+  rc= test_mysql_binlog_perform(mysql1, "Xfile", BIN_LOG_HEADER_SIZE, 0,
+                                0, 0, 0);
+  DIE_UNLESS(rc == 2 && mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+
+  /* Two readers. */
+  if (!opt_silent)
+    fprintf(stdout, "Two readers\n");
+
+  if (!(mysql2= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    DIE_UNLESS(0);
+  }
+  mysql2= mysql_real_connect(mysql2, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket, 0);
+  if (!mysql2)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_real_connect() failed: '%s'\n", mysql_error(mysql2));
+    DIE_UNLESS(0);
+  }
+
+  memset(&rpl1, 0, sizeof(rpl1));
+  memset(&rpl2, 0, sizeof(rpl2));
+  rpl1.start_position= rpl2.start_position= BIN_LOG_HEADER_SIZE;
+
+  if (mysql_binlog_open(mysql1, &rpl1) ||
+      mysql_binlog_open(mysql2, &rpl2))
+  {
+    myerror("mysql_binlog_open() failed");
+    DIE_UNLESS(0);
+  }
+
+  for (;;)
+  {
+    int rc1= mysql_binlog_fetch(mysql1, &rpl1);
+    int rc2= mysql_binlog_fetch(mysql2, &rpl2);
+    if (rc1 != 0 || rc2 != 0) // Error
+      DIE_UNLESS(0);
+    else if (rpl1.size != rpl2.size)
+      DIE_UNLESS(0);
+    else if (rpl1.size == 0) // EOF
+      break;
+    if (!opt_silent)
+      fprintf(stdout, "%lu byte length packet.\n", rpl1.size);
+    DIE_UNLESS(!memcmp(rpl1.buffer, rpl2.buffer, rpl1.size));
+  }
+
+  mysql_close(mysql1);
+  mysql_close(mysql2);
+
+  rc= mysql_query(mysql, "SET @@global.binlog_checksum=@save_global_binlog_checksum");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -20859,17 +20973,12 @@ static struct my_tests_st my_tests[]= {
   { "test_stiny_bug", test_stiny_bug },
   { "test_field_misc", test_field_misc },
   { "test_set_option", test_set_option },
-#ifdef EMBEDDED_LIBRARY
-  { "test_embedded_start_stop", test_embedded_start_stop },
-#endif
-#ifndef EMBEDDED_LIBRARY
   { "test_prepare_grant", test_prepare_grant },
-#endif
   { "test_explain_bug", test_explain_bug },
   { "test_decimal_bug", test_decimal_bug },
   { "test_nstmts", test_nstmts },
   { "test_logs;", test_logs },
-  { "test_cuted_rows", test_cuted_rows },
+  { "test_truncated_rows", test_truncated_rows },
   { "test_fetch_offset", test_fetch_offset },
   { "test_fetch_column", test_fetch_column },
   { "test_mem_overun", test_mem_overun },
@@ -20963,9 +21072,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
   { "test_bug11037", test_bug11037 },
-#if 0 
   { "test_bug10760", test_bug10760 },
-#endif
   { "test_bug12001", test_bug12001 },
   { "test_bug11718", test_bug11718 },
   { "test_bug12925", test_bug12925 },
@@ -20979,9 +21086,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug14845", test_bug14845 },
   { "test_opt_reconnect", test_opt_reconnect },
   { "test_bug15510", test_bug15510},
-#ifndef EMBEDDED_LIBRARY
   { "test_bug12744", test_bug12744 },
-#endif
   { "test_bug16143", test_bug16143 },
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
@@ -21051,9 +21156,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl6797", test_wl6797 },
   { "test_wl6791", test_wl6791 },
   { "test_wl5768", test_wl5768 },
-#ifndef EMBEDDED_LIBRARY
   { "test_bug17309863", test_bug17309863},
-#endif
   { "test_bug17512527", test_bug17512527},
   { "test_wl8016", test_wl8016},
   { "test_bug20645725", test_bug20645725 },
@@ -21067,8 +21170,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17883203", test_bug17883203 },
   { "test_bug22336527", test_bug22336527 },
   { "test_bug22559575", test_bug22559575 },
+  { "test_bug24963580", test_bug24963580 },
+  { "test_mysql_binlog", test_mysql_binlog },
   { 0, 0 }
 };
-
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

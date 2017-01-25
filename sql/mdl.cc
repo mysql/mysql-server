@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,27 +20,25 @@
 #include <algorithm>
 #include <functional>
 
-#include "pfs_metadata_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_mdl.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
-
 #include "debug_sync.h"
 #include "lf.h"
 #include "m_ctype.h"
 #include "my_atomic.h"
+#include "my_dbug.h"
 #include "my_murmur3.h"
-#include "mysqld_error.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_mdl.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/service_thd_wait.h"
-#include "my_sys.h"
-#include "my_thread.h"
+#include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "thr_malloc.h"
 

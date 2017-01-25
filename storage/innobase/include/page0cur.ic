@@ -280,7 +280,7 @@ page_cur_tuple_insert(
 					      index, rec, *offsets, mtr);
 	}
 
-	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, *offsets));
+	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, index, *offsets));
 	return(rec);
 }
 

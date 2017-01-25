@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2015 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2016 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -339,12 +339,35 @@ sub start_kill {
 
 sub dump_core {
   my ($self)= @_;
-  return if IS_WINDOWS;
   my $pid= $self->{SAFE_PID};
-  die "Can't cet core from not started process" unless defined $pid;
+  die "Can't get core from not started process" unless defined $pid;
   _verbose("Sending ABRT to $self");
   kill ("ABRT", $pid);
   return 1;
+}
+
+
+sub dump_core_windows {
+  my ($self, $mysqld, $call_cdb)= @_;
+
+  # Check if cdb utility should be called or not
+  if ($call_cdb)
+  {
+    # Check whether cdb debugging tool is installed
+    if (My::CoreDump->cdb_check())
+    {
+      # Fetch the PID of mysqld process
+      open FILE, $mysqld->value('pid-file');
+      chomp (my $pid= <FILE>);
+      close FILE;
+
+      # Generating core dump of mysqld process
+      my $core_name= $mysqld->value('datadir')."/".$mysqld->name().".dmp";
+      `cdb -pv -p $pid -c \".dump /m $core_name;q\" 2>&1`;
+    }
+  }
+
+  $self->kill();
 }
 
 

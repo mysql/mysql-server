@@ -252,7 +252,8 @@ disconnect con3anon;
 disconnect con4user2;
 use test;
 select routine_type, routine_schema, routine_name
-from information_schema.routines where routine_schema like 'db%';
+from information_schema.routines where routine_schema like 'db%'
+order by routine_type, routine_name;
 drop database db1_secret;
 drop database db2;
 # Make sure the routines are gone

@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_no_undo_tablespaces.inc
 --source include/big_test.inc
@@ -32,10 +31,7 @@
 
 # run for page size >= 8k
 --disable_warnings
-if (`SELECT COUNT(*) = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value >= 8192`)
-{
-  --skip Test requires InnoDB with page size >= 8k.
-}
+--source include/have_innodb_min_8k.inc
 --enable_warnings
 
 call mtr.ADD_suppression(".*Resizing redo log.*");

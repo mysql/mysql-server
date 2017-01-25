@@ -32,3 +32,4 @@ SHOW DATABASES;
 --source include/backup_tables_priv_and_users.inc
 
 FLUSH PRIVILEGES;
+--source include/force_restart.inc

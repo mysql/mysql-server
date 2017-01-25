@@ -78,7 +78,7 @@ struct PSI_data_lock_bootstrap
     @sa PSI_DATA_LOCK_VERSION_2
     @sa PSI_CURRENT_DATA_LOCK_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_data_lock_bootstrap PSI_data_lock_bootstrap;
 
@@ -99,9 +99,11 @@ class PSI_server_data_lock_container
 {
 public:
   PSI_server_data_lock_container()
-  {}
+  {
+  }
   virtual ~PSI_server_data_lock_container()
-  {}
+  {
+  }
 
   /**
     Add a string to the container cache.
@@ -122,21 +124,25 @@ public:
   /**
     Check if the container accepts data for a particular engine.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_locks WHERE ENGINE = ... @endcode
+    @code SELECT * from performance_schema.data_locks WHERE ENGINE = ...
+    @endcode
   */
   virtual bool accept_engine(const char *engine, size_t engine_length) = 0;
 
   /**
     Check if the container accepts data for a particular lock.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_locks WHERE ENGINE_LOCK_ID = ... @endcode
+    @code SELECT * from performance_schema.data_locks WHERE ENGINE_LOCK_ID = ...
+    @endcode
   */
-  virtual bool accept_lock_id(const char *engine_lock_id, size_t engine_lock_id_length) = 0;
+  virtual bool accept_lock_id(const char *engine_lock_id,
+                              size_t engine_lock_id_length) = 0;
 
   /**
     Check if the container accepts data for a particular transaction.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_locks WHERE ENGINE_TRANSACTION_ID = ... @endcode
+    @code SELECT * from performance_schema.data_locks WHERE
+    ENGINE_TRANSACTION_ID = ... @endcode
   */
   virtual bool accept_transaction_id(ulonglong transaction_id) = 0;
 
@@ -146,7 +152,8 @@ public:
     @code SELECT * from performance_schema.data_locks
     WHERE THREAD_ID = ... AND EVENT_ID = ... @endcode
   */
-  virtual bool accept_thread_id_event_id(ulonglong thread_id, ulonglong event_id) = 0;
+  virtual bool accept_thread_id_event_id(ulonglong thread_id,
+                                         ulonglong event_id) = 0;
 
   /**
     Check if the container accepts data for a particular object.
@@ -195,9 +202,11 @@ class PSI_server_data_lock_wait_container
 {
 public:
   PSI_server_data_lock_wait_container()
-  {}
+  {
+  }
   virtual ~PSI_server_data_lock_wait_container()
-  {}
+  {
+  }
 
   /** @sa PSI_server_data_lock_container::cache_string. */
   virtual const char *cache_string(const char *string) = 0;
@@ -208,35 +217,44 @@ public:
   /**
     Check if the container accepts data for a particular engine.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_lock_waits WHERE ENGINE = ... @endcode
+    @code SELECT * from performance_schema.data_lock_waits WHERE ENGINE = ...
+    @endcode
   */
   virtual bool accept_engine(const char *engine, size_t engine_length) = 0;
 
   /**
     Check if the container accepts data for a particular requesting lock id.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_lock_waits WHERE REQUESTING_ENGINE_LOCK_ID = ... @endcode
+    @code SELECT * from performance_schema.data_lock_waits WHERE
+    REQUESTING_ENGINE_LOCK_ID = ... @endcode
   */
-  virtual bool accept_requesting_lock_id(const char *engine_lock_id, size_t engine_lock_id_length) = 0;
+  virtual bool accept_requesting_lock_id(const char *engine_lock_id,
+                                         size_t engine_lock_id_length) = 0;
 
   /**
     Check if the container accepts data for a particular blocking lock id.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_lock_waits WHERE BLOCKING_ENGINE_LOCK_ID = ... @endcode
+    @code SELECT * from performance_schema.data_lock_waits WHERE
+    BLOCKING_ENGINE_LOCK_ID = ... @endcode
   */
-  virtual bool accept_blocking_lock_id(const char *engine_lock_id, size_t engine_lock_id_length) = 0;
+  virtual bool accept_blocking_lock_id(const char *engine_lock_id,
+                                       size_t engine_lock_id_length) = 0;
 
   /**
-    Check if the container accepts data for a particular requesting transaction id.
+    Check if the container accepts data for a particular requesting transaction
+    id.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_lock_waits WHERE REQUESTING_ENGINE_TRANSACTION_ID = ... @endcode
+    @code SELECT * from performance_schema.data_lock_waits WHERE
+    REQUESTING_ENGINE_TRANSACTION_ID = ... @endcode
   */
   virtual bool accept_requesting_transaction_id(ulonglong transaction_id) = 0;
 
   /**
-    Check if the container accepts data for a particular blocking transaction id.
+    Check if the container accepts data for a particular blocking transaction
+    id.
     This methods is used to prune data for queries like
-    @code SELECT * from performance_schema.data_lock_waits WHERE BLOCKING_ENGINE_TRANSACTION_ID = ... @endcode
+    @code SELECT * from performance_schema.data_lock_waits WHERE
+    BLOCKING_ENGINE_TRANSACTION_ID = ... @endcode
   */
   virtual bool accept_blocking_transaction_id(ulonglong transaction_id) = 0;
 
@@ -246,7 +264,8 @@ public:
     @code SELECT * from performance_schema.data_lock_waits
     WHERE REQUESTING_THREAD_ID = ... AND REQUESTING_EVENT_ID = ... @endcode
   */
-  virtual bool accept_requesting_thread_id_event_id(ulonglong thread_id, ulonglong event_id) = 0;
+  virtual bool accept_requesting_thread_id_event_id(ulonglong thread_id,
+                                                    ulonglong event_id) = 0;
 
   /**
     Check if the container accepts data for a particular blocking event.
@@ -254,7 +273,8 @@ public:
     @code SELECT * from performance_schema.data_lock_waits
     WHERE BLOCKING_THREAD_ID = ... AND BLOCKING_EVENT_ID = ... @endcode
   */
-  virtual bool accept_blocking_thread_id_event_id(ulonglong thread_id, ulonglong event_id) = 0;
+  virtual bool accept_blocking_thread_id_event_id(ulonglong thread_id,
+                                                  ulonglong event_id) = 0;
 
   /** Add a row to table performance_schema.data_lock_waits. */
   virtual void add_lock_wait_row(const char *engine,
@@ -288,9 +308,11 @@ class PSI_engine_data_lock_iterator
 {
 public:
   PSI_engine_data_lock_iterator()
-  {}
+  {
+  }
   virtual ~PSI_engine_data_lock_iterator()
-  {}
+  {
+  }
 
   /**
     Scan for more data locks.
@@ -319,9 +341,11 @@ class PSI_engine_data_lock_wait_iterator
 {
 public:
   PSI_engine_data_lock_wait_iterator()
-  {}
+  {
+  }
   virtual ~PSI_engine_data_lock_wait_iterator()
-  {}
+  {
+  }
 
   /**
     Scan for more data lock waits.
@@ -364,46 +388,53 @@ class PSI_engine_data_lock_inspector
 {
 public:
   PSI_engine_data_lock_inspector()
-  {}
+  {
+  }
   virtual ~PSI_engine_data_lock_inspector()
-  {}
+  {
+  }
 
   /**
     Create a data lock iterator.
-    The iterator returned is used to extract data_locks rows from the storage engine.
+    The iterator returned is used to extract data_locks rows from the storage
+    engine.
     @sa destroy_data_lock_iterator
   */
   virtual PSI_engine_data_lock_iterator *create_data_lock_iterator() = 0;
 
   /**
     Create a data lock wait iterator.
-    The iterator returned is used to extract data_lock_waits rows from the storage engine.
+    The iterator returned is used to extract data_lock_waits rows from the
+    storage engine.
     @sa destroy_data_lock_wait_iterator
   */
-  virtual PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator() = 0;
+  virtual PSI_engine_data_lock_wait_iterator *
+  create_data_lock_wait_iterator() = 0;
 
   /**
     Destroy a data lock iterator.
   */
-  virtual void destroy_data_lock_iterator(PSI_engine_data_lock_iterator *it) = 0;
+  virtual void destroy_data_lock_iterator(
+    PSI_engine_data_lock_iterator *it) = 0;
 
   /**
     Destroy a data lock wait iterator.
   */
-  virtual void destroy_data_lock_wait_iterator(PSI_engine_data_lock_wait_iterator *it) = 0;
+  virtual void destroy_data_lock_wait_iterator(
+    PSI_engine_data_lock_wait_iterator *it) = 0;
 };
 
 /**
   Row Lock registration API.
 */
-typedef void (*register_data_lock_v1_t)
-  (PSI_engine_data_lock_inspector *inspector);
+typedef void (*register_data_lock_v1_t)(
+  PSI_engine_data_lock_inspector *inspector);
 
 /**
   Row Lock un registration API.
 */
-typedef void (*unregister_data_lock_v1_t)
-  (PSI_engine_data_lock_inspector *inspector);
+typedef void (*unregister_data_lock_v1_t)(
+  PSI_engine_data_lock_inspector *inspector);
 
 /**
   Performance Schema Row Lock Interface, version 1.
@@ -431,4 +462,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_data_lock_service_t *psi_data_lock_service;
 /** @} (end of group psi_abi_data_lock) */
 
 #endif /* MYSQL_PSI_DATA_LOCK_H */
-

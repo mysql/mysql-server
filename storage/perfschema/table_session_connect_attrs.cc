@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,10 +22,8 @@
 
 THR_LOCK table_session_connect_attrs::m_table_lock;
 
-PFS_engine_table_share
-table_session_connect_attrs::m_share=
-{
-  { C_STRING_WITH_LEN("session_connect_attrs") },
+PFS_engine_table_share table_session_connect_attrs::m_share = {
+  {C_STRING_WITH_LEN("session_connect_attrs")},
   &pfs_readonly_acl,
   table_session_connect_attrs::create,
   NULL, /* write_row */
@@ -38,11 +36,13 @@ table_session_connect_attrs::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table* table_session_connect_attrs::create()
+PFS_engine_table*
+table_session_connect_attrs::create()
 {
   return new table_session_connect_attrs();
 }
 
 table_session_connect_attrs::table_session_connect_attrs()
   : table_session_connect(&m_share)
-{}
+{
+}

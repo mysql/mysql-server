@@ -17,6 +17,8 @@
 #ifndef MY_TABLE_MAP_INCLUDED
 #define MY_TABLE_MAP_INCLUDED
 
+#include "my_inttypes.h"
+
 /*
   TODO Convert these to use Bitmap class.
  */

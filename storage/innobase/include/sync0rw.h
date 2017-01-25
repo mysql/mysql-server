@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -35,8 +35,9 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "ut0counter.h"
+#include "my_compiler.h"
 #include "os0event.h"
+#include "ut0counter.h"
 #include "ut0mutex.h"
 
 #endif /* !UNIV_HOTBACKUP */
@@ -809,7 +810,7 @@ function!
 UNIV_INLINE
 void
 pfs_rw_lock_create_func(
-	PSI_rwlock_key  key,
+	mysql_pfs_key_t	key,
 	rw_lock_t*	lock,
 #ifdef UNIV_DEBUG
 	latch_level_t	level,

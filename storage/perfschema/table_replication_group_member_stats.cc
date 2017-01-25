@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,124 +19,126 @@
   Table replication_group_member_stats (implementation).
 */
 
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_global.h"
-
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#endif /* EMBEDDED_LIBRARY */
-
-#include "table_replication_group_member_stats.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "log.h"
-#include "rpl_group_replication.h"
-#include "thr_lock.h"
-#include "table.h"
 #include "field.h"
-
-#ifdef HAVE_REPLICATION
+#include "log.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "rpl_group_replication.h"
+#include "table.h"
+#include "table_replication_group_member_stats.h"
+#include "thr_lock.h"
 
 /*
   Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
 */
-static void set_channel_name(void* const context, const char& value,
-                             size_t length)
+static void
+set_channel_name(void* const context, const char& value, size_t length)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  const size_t max= CHANNEL_NAME_LENGTH;
-  length= std::min(length, max);
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max = CHANNEL_NAME_LENGTH;
+  length = std::min(length, max);
 
-  row->channel_name_length= length;
+  row->channel_name_length = length;
   memcpy(row->channel_name, &value, length);
 }
 
-static void set_view_id(void* const context, const char& value, size_t length)
+static void
+set_view_id(void* const context, const char& value, size_t length)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  const size_t max= HOSTNAME_LENGTH;
-  length= std::min(length, max);
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max = HOSTNAME_LENGTH;
+  length = std::min(length, max);
 
-  row->view_id_length= length;
+  row->view_id_length = length;
   memcpy(row->view_id, &value, length);
 }
 
-static void set_member_id(void* const context, const char& value, size_t length)
+static void
+set_member_id(void* const context, const char& value, size_t length)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  const size_t max= UUID_LENGTH;
-  length= std::min(length, max);
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max = UUID_LENGTH;
+  length = std::min(length, max);
 
-  row->member_id_length= length;
+  row->member_id_length = length;
   memcpy(row->member_id, &value, length);
 }
 
-static void set_transactions_committed(void* const context, const char& value,
-                                       size_t length)
+static void
+set_transactions_committed(void* const context,
+                           const char& value,
+                           size_t length)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
 
   if (row->trx_committed != NULL)
+  {
     my_free(row->trx_committed);
+  }
 
-  row->trx_committed_length= length;
-  row->trx_committed= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                        length,
-                                        MYF(0));
+  row->trx_committed_length = length;
+  row->trx_committed = (char*)my_malloc(PSI_NOT_INSTRUMENTED, length, MYF(0));
   memcpy(row->trx_committed, &value, length);
 }
 
-static void set_last_conflict_free_transaction(void* const context,
-                                               const char& value, size_t length)
+static void
+set_last_conflict_free_transaction(void* const context,
+                                   const char& value,
+                                   size_t length)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  const size_t max= Gtid::MAX_TEXT_LENGTH+1;
-  length= std::min(length, max);
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max = Gtid::MAX_TEXT_LENGTH + 1;
+  length = std::min(length, max);
 
-  row->last_cert_trx_length= length;
+  row->last_cert_trx_length = length;
   memcpy(row->last_cert_trx, &value, length);
 }
 
-static void set_transactions_in_queue(void* const context,
-                                      unsigned long long int value)
+static void
+set_transactions_in_queue(void* const context, unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_in_queue= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_in_queue = value;
 }
 
-static void set_transactions_certified(void* const context,
-                                       unsigned long long int value)
+static void
+set_transactions_certified(void* const context, unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_checked= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_checked = value;
 }
 
-static void set_transactions_conflicts_detected(void* const context,
-                                                unsigned long long int value)
+static void
+set_transactions_conflicts_detected(void* const context,
+                                    unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_conflicts= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_conflicts = value;
 }
 
-static void set_transactions_rows_in_validation(void* const context,
-                                                unsigned long long int value)
+static void
+set_transactions_rows_in_validation(void* const context,
+                                    unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_rows_validating= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_rows_validating = value;
 }
-
-#endif /* HAVE_REPLICATION */
 
 THR_LOCK table_replication_group_member_stats::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -185,15 +187,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_replication_group_member_stats::m_field_def=
-{ 9, field_types };
+table_replication_group_member_stats::m_field_def = {9, field_types};
 
-PFS_engine_table_share
-table_replication_group_member_stats::m_share=
-{
-  { C_STRING_WITH_LEN("replication_group_member_stats") },
+PFS_engine_table_share table_replication_group_member_stats::m_share = {
+  {C_STRING_WITH_LEN("replication_group_member_stats")},
   &pfs_readonly_acl,
   &table_replication_group_member_stats::create,
   NULL, /* write_row */
@@ -206,102 +206,96 @@ table_replication_group_member_stats::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table* table_replication_group_member_stats::create(void)
+PFS_engine_table*
+table_replication_group_member_stats::create(void)
 {
   return new table_replication_group_member_stats();
 }
 
 table_replication_group_member_stats::table_replication_group_member_stats()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
-#ifdef HAVE_REPLICATION
-  m_row.trx_committed= NULL;
-#endif /* HAVE_REPLICATION */
+  m_row.trx_committed = NULL;
 }
 
 table_replication_group_member_stats::~table_replication_group_member_stats()
 {
-#ifdef HAVE_REPLICATION
   if (m_row.trx_committed != NULL)
   {
     my_free(m_row.trx_committed);
-    m_row.trx_committed= NULL;
+    m_row.trx_committed = NULL;
   }
-#endif /* HAVE_REPLICATION */
 }
 
-void table_replication_group_member_stats::reset_position(void)
+void
+table_replication_group_member_stats::reset_position(void)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
 }
 
-ha_rows table_replication_group_member_stats::get_row_count()
+ha_rows
+table_replication_group_member_stats::get_row_count()
 {
-  uint row_count= 0;
+  uint row_count = 0;
 
-#ifdef HAVE_REPLICATION
   if (is_group_replication_plugin_loaded())
-    row_count= 1;
-#endif /* HAVE_REPLICATION */
+  {
+    row_count = 1;
+  }
 
   return row_count;
 }
 
-int table_replication_group_member_stats::rnd_next(void)
+int
+table_replication_group_member_stats::rnd_next(void)
 {
-#ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   m_pos.set_at(&m_next_pos);
   if (m_pos.m_index == 0)
   {
-    make_row();
     m_next_pos.set_after(&m_pos);
-    return 0;
+    return make_row();
   }
-#endif /* HAVE_REPLICATION */
 
   return HA_ERR_END_OF_FILE;
 }
 
-int table_replication_group_member_stats::rnd_pos(const void *pos)
+int
+table_replication_group_member_stats::rnd_pos(
+  const void* pos MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   if (get_row_count() == 0)
+  {
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < 1);
-  make_row();
-
-  return 0;
-#else
-  return HA_ERR_END_OF_FILE;
-#endif /* HAVE_REPLICATION */
+  return make_row();
 }
 
-#ifdef HAVE_REPLICATION
-void table_replication_group_member_stats::make_row()
+int
+table_replication_group_member_stats::make_row()
 {
   DBUG_ENTER("table_replication_group_member_stats::make_row");
   // Set default values.
-  m_row_exists= false;
-  m_row.channel_name_length= 0;
-  m_row.view_id_length= 0;
-  m_row.member_id_length= 0;
-  m_row.trx_committed_length= 0;
-  m_row.last_cert_trx_length= 0;
-  m_row.trx_in_queue= 0;
-  m_row.trx_checked= 0;
-  m_row.trx_conflicts= 0;
-  m_row.trx_rows_validating= 0;
+  m_row.channel_name_length = 0;
+  m_row.view_id_length = 0;
+  m_row.member_id_length = 0;
+  m_row.trx_committed_length = 0;
+  m_row.last_cert_trx_length = 0;
+  m_row.trx_in_queue = 0;
+  m_row.trx_checked = 0;
+  m_row.trx_conflicts = 0;
+  m_row.trx_rows_validating = 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
-  const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS callbacks=
-  {
+  const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS callbacks = {
     &m_row,
     &set_channel_name,
     &set_view_id,
@@ -321,37 +315,31 @@ void table_replication_group_member_stats::make_row()
   }
   else
   {
-    m_row_exists= true;
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
-#endif /* HAVE_REPLICATION */
 
-
-int table_replication_group_member_stats::read_row_values(TABLE *table,
-                                                   unsigned char *buf,
-                                                   Field **fields,
-                                                   bool read_all)
+int
+table_replication_group_member_stats::read_row_values(
+  TABLE* table MY_ATTRIBUTE((unused)),
+  unsigned char* buf MY_ATTRIBUTE((unused)),
+  Field** fields MY_ATTRIBUTE((unused)),
+  bool read_all MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
-  Field *f;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
+  Field* f;
 
   DBUG_ASSERT(table->s->null_bytes == 0);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /** channel_name */
-        set_field_char_utf8(f, m_row.channel_name,
-                               m_row.channel_name_length);
+        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
         break;
       case 1: /** view id */
         set_field_char_utf8(f, m_row.view_id, m_row.view_id_length);
@@ -372,12 +360,12 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.trx_rows_validating);
         break;
       case 7: /** stable_set */
-        set_field_longtext_utf8(f, m_row.trx_committed,
-                                m_row.trx_committed_length);
+        set_field_longtext_utf8(
+          f, m_row.trx_committed, m_row.trx_committed_length);
         break;
       case 8: /** last_certified_transaction */
-        set_field_longtext_utf8(f, m_row.last_cert_trx,
-                                m_row.last_cert_trx_length);
+        set_field_longtext_utf8(
+          f, m_row.last_cert_trx, m_row.last_cert_trx_length);
 
         break;
       default:
@@ -386,7 +374,4 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
     }
   }
   return 0;
-#else
-  return HA_ERR_RECORD_DELETED;
-#endif /* HAVE_REPLICATION */
 }

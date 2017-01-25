@@ -23,4 +23,3 @@
 #define HAVE_PSI_INTERFACE
 #define MY_GLOBAL_INCLUDED
 #include "mysql/psi/psi_data_lock.h"
-

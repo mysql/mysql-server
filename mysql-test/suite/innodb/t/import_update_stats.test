@@ -3,7 +3,6 @@
 #
 
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
@@ -32,7 +31,7 @@ SHOW INDEXES FROM t1;
 
 FLUSH TABLES t1 FOR EXPORT;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 
@@ -62,7 +61,7 @@ SHOW INDEXES FROM t1;
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF

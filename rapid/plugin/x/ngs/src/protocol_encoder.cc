@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,18 +18,20 @@
  */
 
 
+#include <errno.h>
+
 // "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
 // issue in Solaris (unqualified map used, which clashes with some other map defined
 // in Solaris headers)
 #include "ngs_common/protocol_protobuf.h"
-#include "ngs_common/connection_vio.h"
 
+#include "ngs/log.h"
 #include "ngs/protocol/buffer.h"
 #include "ngs/protocol/output_buffer.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol_monitor.h"
-#include "ngs/log.h"
+#include "ngs_common/connection_vio.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 
@@ -333,16 +335,22 @@ bool Protocol_encoder::send_column_metadata(uint64_t collation, int type, int de
 
 bool Protocol_encoder::flush_buffer()
 {
-  ssize_t result = m_socket->write(m_buffer->get_buffers());
-  if (result <= 0)
-  {
-    log_info("Error writing to client: %s (%i)", strerror(errno), errno);
-    on_error(errno);
-    return false;
-  }
-  m_buffer->reset();
+  const bool is_valid_socket = INVALID_SOCKET != m_socket->get_socket_id();
 
-  m_protocol_monitor->on_send(static_cast<long>(result));
+  if (is_valid_socket)
+  {
+    const ssize_t result = m_socket->write(m_buffer->get_buffers());
+    if (result <= 0)
+    {
+      log_info("Error writing to client: %s (%i)", strerror(errno), errno);
+      on_error(errno);
+      return false;
+    }
+
+    m_protocol_monitor->on_send(static_cast<long>(result));
+  }
+
+  m_buffer->reset();
 
   return true;
 }

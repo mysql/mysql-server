@@ -221,19 +221,17 @@ extern char*	srv_undo_dir;
 /** Number of undo tablespaces to use. */
 extern ulong	srv_undo_tablespaces;
 
-/** The number of UNDO tablespaces that are open and ready to use. */
-extern ulint	srv_undo_tablespaces_open;
+/** The number of rollback segments to use for durable,
+redo-logged, non-temporary transactions. */
+extern ulong	srv_rollback_segments;
 
-/** The number of UNDO tablespaces that are active (hosting some rollback
-segment). It is quite possible that some of the tablespaces doesn't host
-any of the rollback-segment based on configuration used. */
-extern ulint	srv_undo_tablespaces_active;
-
-/** The number of undo segments to use */
-extern ulong	srv_undo_logs;
+/** The number of rollback segments to use for non-durable,
+non-redo-logged, temporary transactions. These logs reside in
+the temp tablespace. */
+extern ulong	srv_tmp_rollback_segments;
 
 /** Maximum size of undo tablespace. */
-extern unsigned long long	srv_max_undo_log_size;
+extern unsigned long long	srv_max_undo_tablespace_size;
 
 /** Rate at which UNDO records should be purged. */
 extern ulong	srv_purge_rseg_truncate_frequency;
@@ -241,13 +239,16 @@ extern ulong	srv_purge_rseg_truncate_frequency;
 /** Enable or Disable Truncate of UNDO tablespace. */
 extern my_bool	srv_undo_log_truncate;
 
-/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
-extern const ulong	srv_tmp_undo_logs;
+/** Enable or disable Encrypt of UNDO tablespace. */
+extern my_bool	srv_undo_log_encrypt;
 
 /** Default size of UNDO tablespace while it is created new. */
 extern const page_no_t	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
+
+/** Enable or Disable Encrypt of REDO tablespace. */
+extern my_bool	srv_redo_log_encrypt;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
@@ -405,7 +406,7 @@ extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
 extern ulint	srv_truncated_status_writes;
-extern ulint	srv_available_undo_logs;
+extern ulint	srv_available_rollback_segments;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern my_bool	srv_ibuf_disable_background_merge;
@@ -849,7 +850,8 @@ struct export_var_t{
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
-	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
+	ulint innodb_available_rollback_segments; /*!< srv_available_rollback_segments */
+	ulint innodb_available_undo_logs;	/*!< srv_available_undo_logs */
 #ifdef UNIV_DEBUG
 	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
 	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id

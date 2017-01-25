@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_undo_log_truncate;
 SELECT @start_global_value;

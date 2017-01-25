@@ -1,5 +1,7 @@
 
 --source include/no_valgrind_without_big.inc
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 #
 # Basic stored PROCEDURE tests
 #
@@ -8779,7 +8781,7 @@ BEGIN
     SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
     ) AS t2
   WHERE t2.c2 = t1.c2
-  GROUP BY c1, c2
+  GROUP BY c1 ASC, c2 ASC
   ;
 END|
 
@@ -9109,22 +9111,6 @@ SELECT f2();
 DROP DATABASE db1;
 DROP USER myuser@localhost;
 DROP FUNCTION f1;
---echo #
---echo # Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
---echo #               IN ::SET_ERROR_STATUS
---echo #
-
-CREATE DATABASE bug22222013;
-USE bug22222013;
-SET NAMES swe7;
-CREATE FUNCTION f1() RETURNS INT RETURN (1);
-CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
---error ER_PARSE_ERROR
-SELECT sql_data_access FROM information_schema.routines WHERE
-specific_name like 'p%' and routine_schema=0;
-DROP DATABASE bug22222013;
-SET NAMES default;
-USE test;
 
 --echo #
 --echo # WL#7897 -- Use DD API for Stored Routines.

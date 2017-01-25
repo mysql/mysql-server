@@ -112,7 +112,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -129,7 +129,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -137,9 +137,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -199,10 +199,17 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 1028,
+              "row_size": 1028,
+              "max_rows_per_buffer": 215,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_tmp_files": 0,
               "sort_buffer_size": 222744,
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "max_length_for_sort_data",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -254,7 +261,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -271,7 +278,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -279,9 +286,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -341,10 +348,17 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 998483,
+              "key_size": 1022,
+              "row_size": 66557,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_tmp_files": 0,
               "sort_buffer_size": 998480,
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "row_too_large",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -396,7 +410,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -413,7 +427,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -421,9 +435,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -483,10 +497,17 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 998498,
+              "key_size": 1022,
+              "row_size": 66557,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_tmp_files": 0,
               "sort_buffer_size": 998480,
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "row_too_large",
               "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
@@ -538,7 +559,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -555,7 +576,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -563,9 +584,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -625,10 +646,16 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 998513,
+              "key_size": 1022,
+              "row_size": 66559,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_tmp_files": 0,
               "sort_buffer_size": 998512,
+              "sort_algorithm": "none",
               "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
@@ -943,7 +970,7 @@ SELECT * FROM t1 ORDER BY c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -960,7 +987,7 @@ SELECT * FROM t1 ORDER BY c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -968,9 +995,9 @@ SELECT * FROM t1 ORDER BY c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -1030,10 +1057,17 @@ SELECT * FROM t1 ORDER BY c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 261,
+              "row_size": 261,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4040,
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "max_length_for_sort_data",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }

@@ -3,7 +3,6 @@
 --echo # the database name with the table name to make a unique table name.
 --echo #
 
---source include/have_innodb.inc
 --source include/not_windows.inc
 # This will test the limit of a filename in MySQL at 512 bytes.
 # We control that by making it a relative path starting with "./".

@@ -242,15 +242,12 @@ using std::min;
 using std::max;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-#ifndef EMBEDDED_LIBRARY
 static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
                                   ulong, const CHARSET_INFO*);
 static bool write_eof_packet(THD *, NET *, uint, uint);
-#endif
 
 ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
                        ulong packet_len, ulong *header_len, bool *err);
-#ifndef EMBEDDED_LIBRARY
 bool Protocol_classic::net_store_data(const uchar *from, size_t length)
 {
   size_t packet_length=packet->length();
@@ -267,7 +264,6 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length)
   packet->length((uint) (to+length-(uchar *) packet->ptr()));
   return 0;
 }
-#endif
 
 
 /**
@@ -282,7 +278,6 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length)
   because column, table, database names fit into this limit.
 */
 
-#ifndef EMBEDDED_LIBRARY
 bool Protocol_classic::net_store_data(const uchar *from, size_t length,
                                       const CHARSET_INFO *from_cs,
                                       const CHARSET_INFO *to_cs)
@@ -324,7 +319,6 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   packet->length((uint) (to - packet->ptr()));
   return 0;
 }
-#endif
 
 
 /**
@@ -391,7 +385,6 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err)
     @retval TRUE  An error occurred and the message wasn't sent properly
 */
 
-#ifndef EMBEDDED_LIBRARY
 bool net_send_error(NET *net, uint sql_errno, const char *err)
 {
   DBUG_ENTER("net_send_error");
@@ -1009,7 +1002,6 @@ static bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
   DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar *) "", 0,
               (uchar *) buff, length));
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 /**
@@ -1124,14 +1116,12 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count)
     of binlog dump request an EOF packet is sent instead. Also, old clients
     expect EOF packet instead of OK
   */
-#ifndef EMBEDDED_LIBRARY
   if (has_client_capability(CLIENT_DEPRECATE_EOF) &&
       (m_thd->get_command() != COM_BINLOG_DUMP &&
        m_thd->get_command() != COM_BINLOG_DUMP_GTID))
     retval= net_send_ok(m_thd, server_status, statement_warn_count, 0, 0, NULL,
                         true);
   else
-#endif
     retval= net_send_eof(m_thd, server_status, statement_warn_count);
   DBUG_RETURN(retval);
 }
@@ -1427,21 +1417,13 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
   }
   case COM_STMT_SEND_LONG_DATA:
   {
-#ifndef EMBEDDED_LIBRARY
     if (input_packet_length < MYSQL_LONG_DATA_HEADER)
       goto malformed;
-#endif /* EMBEDDED_LIBRARY */
     data->com_stmt_send_long_data.stmt_id= uint4korr(input_raw_packet);
     data->com_stmt_send_long_data.param_number=
       uint2korr(input_raw_packet + 4);
-#ifdef EMBEDDED_LIBRARY
-    data->com_stmt_send_long_data.longdata=
-      reinterpret_cast<uchar*>(m_thd->extra_data);
-    data->com_stmt_send_long_data.length= m_thd->extra_length;
-#else /* !EMBEDDED_LIBRARY */
     data->com_stmt_send_long_data.longdata= input_raw_packet + 6;
     data->com_stmt_send_long_data.length= input_packet_length - 6;
-#endif /* !EMBEDDED_LIBRARY */
     break;
   }
   case COM_STMT_PREPARE:
@@ -1572,7 +1554,6 @@ bool Protocol_classic::flush()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
                                        uint param_count, ulong cond_count)
 {
@@ -1590,20 +1571,6 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
 
   DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff)));
 }
-#else
-bool
-Protocol_classic::store_ps_status(ulong stmt_id,
-                                  uint column_count MY_ATTRIBUTE((unused)),
-                                  uint param_count,
-                                  ulong cond_count MY_ATTRIBUTE((unused)))
-{
-  m_thd->client_stmt_id= stmt_id;
-  m_thd->client_param_count= param_count;
-  m_thd->clear_error();
-
-  return false;
-}
-#endif /*!EMBEDDED_LIBRARY*/
 
 
 bool Protocol_classic::get_compression()
@@ -1612,7 +1579,6 @@ bool Protocol_classic::get_compression()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 bool
 Protocol_classic::start_result_metadata(uint num_cols, uint flags,
                                         const CHARSET_INFO *cs)
@@ -1777,7 +1743,6 @@ bool Protocol_classic::end_row()
                              packet->length()));
   DBUG_RETURN(0);
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 /**
@@ -1811,8 +1776,6 @@ bool store(Protocol *prot, I_List<i_string>* str_list)
   All data are sent as 'packed-string-length' followed by 'string-data'
 ****************************************************************************/
 
-#ifndef EMBEDDED_LIBRARY
-
 bool Protocol_classic::connection_alive()
 {
   return m_thd->net.vio != NULL;
@@ -1836,7 +1799,6 @@ bool Protocol_text::store_null()
   buff[0]= (char)251;
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
-#endif
 
 
 /**
@@ -2202,7 +2164,6 @@ bool Protocol_binary::start_result_metadata(uint num_cols, uint flags,
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 void Protocol_binary::start_row()
 {
   if (send_metadata)
@@ -2211,7 +2172,6 @@ void Protocol_binary::start_row()
   memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
-#endif
 
 
 bool Protocol_binary::store(const char *from, size_t length,
@@ -2490,8 +2450,6 @@ my_socket Protocol_classic::get_socket()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
-
 /**
   Read the length of the parameter data and return it back to
   the caller.
@@ -2553,7 +2511,6 @@ get_param_length(uchar *packet, ulong packet_left_len, ulong *header_len)
   */
   return (ulong) uint4korr(packet + 1);
 }
-#endif /*!EMBEDDED_LIBRARY*/
 
 
 /**
@@ -2594,11 +2551,7 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
     {
-#ifndef EMBEDDED_LIBRARY
       ulong param_length= get_param_length(packet, packet_len, header_len);
-#else
-      ulong param_length= packet_len;
-#endif
       /* in case of error ret is 0 and header size is 0 */
       *err= ((!param_length && !*header_len) ||
           (packet_len < *header_len + param_length));
@@ -2611,11 +2564,7 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
     case MYSQL_TYPE_BLOB:
     default:
     {
-#ifndef EMBEDDED_LIBRARY
       ulong param_length= get_param_length(packet, packet_len, header_len);
-#else
-      ulong param_length= packet_len;
-#endif
       /* in case of error ret is 0 and header size is 0 */
       *err= (!param_length && !*header_len);
       if (param_length > packet_len - *header_len)

@@ -1,7 +1,6 @@
 # This is the test for bug #54044. Special handle MYSQL_TYPE_NULL type
 # during create table, so it will not trigger assertion failure.
 
---source include/have_innodb.inc
 
 # This 'create table' operation no longer uses the NULL datatype.
 

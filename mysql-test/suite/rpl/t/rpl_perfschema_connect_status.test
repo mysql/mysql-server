@@ -34,7 +34,7 @@
 #
 source include/not_valgrind.inc;
 source include/master-slave.inc;
-source include/have_ssl_communication.inc;
+source include/have_ssl.inc;
 source include/have_binlog_format_mixed.inc;
 
 --let $assert_text= On master, the table should return an empty set.
@@ -76,24 +76,10 @@ source include/assert.inc;
 # IS. So to test count_received_heartbeats and last_heartbeat_timestamp
 # we compare values from IS and PS unlike SSS and PS for other fields in this
 # test.
-# To test on IS, show_compatibility_56 variable should be turned ON.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
-let $is_value= query_get_value(select Variable_Value from information_schema.global_status where Variable_name = 'slave_received_heartbeats', Variable_Value, 1);
-let $ps_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
-let $assert_text= IS and PS tables should both show that no heartbeats have been received.;
-let $assert_cond= "$is_value" = "$ps_value";
-source include/assert.inc;
-
-let $is_value= query_get_value(select Variable_Value from information_schema.global_status where Variable_name = 'slave_last_heartbeat', Variable_Value, 1);
 let $ps_value= query_get_value(select last_heartbeat_timestamp from performance_schema.replication_connection_status, last_heartbeat_timestamp, 1);
-let $assert_text= IS table should give an empty output and PS table should output 0000-00-00 00:00:00 both indicating no heartbeats have been received;
-let $assert_cond= "$is_value" = "" AND "$ps_value"= "0000-00-00 00:00:00";
+let $assert_text= PS table should output 0000-00-00 00:00:00 indicating no heartbeats have been received;
+let $assert_cond= "$ps_value"= "0000-00-00 00:00:00";
 source include/assert.inc;
-
-#Restoring the value of show_compatibility_56:
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
 let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);

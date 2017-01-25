@@ -15,7 +15,6 @@
 
 --source include/not_valgrind.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/have_log_bin.inc
 
 # Need to restart servers after this test because it closes the binary

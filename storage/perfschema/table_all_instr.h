@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,10 @@
   Abstract tables for all instruments (declarations).
 */
 
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
+#include "my_compiler.h"
 #include "pfs_engine_table.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**
@@ -35,43 +36,73 @@
 struct pos_all_instr : public PFS_double_index,
                        public PFS_instrument_view_constants
 {
-  pos_all_instr()
-    : PFS_double_index(FIRST_VIEW, 0)
-  {}
-
-  inline void reset(void)
+  pos_all_instr() : PFS_double_index(FIRST_VIEW, 0)
   {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 0;
   }
 
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = FIRST_VIEW;
+    m_index_2 = 0;
+  }
 
-  inline void next_view(void)
+  inline bool
+  has_more_view(void)
+  {
+    return (m_index_1 <= LAST_VIEW);
+  }
+
+  inline void
+  next_view(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
 class PFS_index_all_instr : public PFS_engine_index
 {
 public:
-  PFS_index_all_instr(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_all_instr(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
   ~PFS_index_all_instr()
-  {}
+  {
+  }
 
-  virtual bool match(PFS_mutex*) { return false; }
-  virtual bool match(PFS_rwlock*) { return false; }
-  virtual bool match(PFS_cond*) { return false; }
-  virtual bool match(PFS_file*) { return false; }
-  virtual bool match(PFS_socket*) { return false; }
+  virtual bool
+  match(PFS_mutex *)
+  {
+    return false;
+  }
+  virtual bool
+  match(PFS_rwlock *)
+  {
+    return false;
+  }
+  virtual bool
+  match(PFS_cond *)
+  {
+    return false;
+  }
+  virtual bool
+  match(PFS_file *)
+  {
+    return false;
+  }
+  virtual bool
+  match(PFS_socket *)
+  {
+    return false;
+  }
   /* All views match by default. */
-  virtual bool match_view(uint view MY_ATTRIBUTE((unused))) { return true; }
+  virtual bool
+  match_view(uint view MY_ATTRIBUTE((unused)))
+  {
+    return true;
+  }
 };
 
 /**
@@ -88,7 +119,11 @@ class table_all_instr : public PFS_engine_table
 public:
   static ha_rows get_row_count();
 
-  virtual int index_init(uint, bool) { return 0; }
+  virtual int
+  index_init(uint, bool)
+  {
+    return 0;
+  }
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
@@ -99,34 +134,35 @@ protected:
 
 public:
   ~table_all_instr()
-  {}
+  {
+  }
 
 protected:
   /**
     Build a row in the mutex instance view.
     @param pfs                        the mutex instance
   */
-  virtual void make_mutex_row(PFS_mutex *pfs)= 0;
+  virtual int make_mutex_row(PFS_mutex *pfs) = 0;
   /**
     Build a row in the rwlock instance view.
     @param pfs                        the rwlock instance
   */
-  virtual void make_rwlock_row(PFS_rwlock *pfs)= 0;
+  virtual int make_rwlock_row(PFS_rwlock *pfs) = 0;
   /**
     Build a row in the condition instance view.
     @param pfs                        the condition instance
   */
-  virtual void make_cond_row(PFS_cond *pfs)= 0;
+  virtual int make_cond_row(PFS_cond *pfs) = 0;
   /**
     Build a row in the file instance view.
     @param pfs                        the file instance
   */
-  virtual void make_file_row(PFS_file *pfs)= 0;
+  virtual int make_file_row(PFS_file *pfs) = 0;
   /**
     Build a row in the socket instance view.
     @param pfs                        the socket instance
   */
-  virtual void make_socket_row(PFS_socket *pfs)= 0;
+  virtual int make_socket_row(PFS_socket *pfs) = 0;
 
   /** Current position. */
   pos_all_instr m_pos;

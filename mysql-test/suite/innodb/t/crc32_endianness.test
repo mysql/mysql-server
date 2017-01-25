@@ -4,7 +4,6 @@
 # are precreated in crc32_endianness.zip which is extracted below.
 #
 
--- source include/have_innodb.inc
 # Since we import a pre-created tablespace with 16k page size, we would get
 # this on InnoDB configured with non-16k page size:
 # ALTER TABLE crc32_big_endian IMPORT TABLESPACE:

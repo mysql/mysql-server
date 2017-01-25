@@ -1,0 +1,39 @@
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--echo # Case-1: BINLOG_STMT_UNSAFE_SKIP_LOCKED
+--echo #   Statement is unsafe because it uses SKIP LOCKED.
+
+--echo # Step-1.1: Create and populate a table.
+--connection master
+CREATE TABLE t1( a INT PRIMARY KEY, b INT );
+INSERT INTO t1 VALUES (1, 1), (2, 1), (3, 1);
+
+CREATE TABLE t2( a INT, b INT );
+
+--echo # Step-1.2: Lock a row in said table.
+START TRANSACTION;
+SELECT * FROM t1 WHERE a = 2 FOR UPDATE;
+
+--echo # Step-1.3: Populate another table with the unlocked rows.
+--connect (conn, localhost, root,)
+--echo # [conn]
+INSERT INTO t2 SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+CREATE TABLE t3 SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+--disconnect conn
+--connection master
+--echo # [master]
+ROLLBACK;
+
+--sync_slave_with_master
+
+--let $diff_tables=master:t2, slave:t2
+--source include/diff_tables.inc
+
+--echo # Step-1.4: Cleanup
+--connection master
+DROP TABLE t1, t2;
+
+--source include/rpl_end.inc

@@ -1,5 +1,5 @@
 --source include/not_embedded.inc
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER

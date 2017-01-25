@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +28,7 @@ Created Aug 11, 2011 Vasil Dimov
 
 #include "univ.i"
 #include "buf0types.h"
+#include "page0size.h"
 
 /** Calculates the CRC32 checksum of a page. The value is stored to the page
 when it is written to a file and also checked for a match when reading from

@@ -1211,6 +1211,8 @@ END;
 DELETE FROM non_trans_table2;
 Got one of the listed errors
 DROP TRIGGER trigger1;
+include/sync_slave_sql_with_master.inc
+[connection master]
 include/diff_tables.inc [master:trans_table1, slave:trans_table1]
 include/diff_tables.inc [master:trans_table2, slave:trans_table2]
 include/diff_tables.inc [master:non_trans_table1, slave:non_trans_table1]

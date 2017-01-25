@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -23,8 +23,14 @@
   the file descriptior.
 */
 
-#include "vio_priv.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "mysql/service_my_snprintf.h"
+#include "vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>
@@ -857,7 +863,15 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   // Check if shutdown is in progress, if so return -1
   if (vio->poll_shutdown_flag.test_and_set())
     DBUG_RETURN(-1);
-  timespec ts= { timeout / 1000, (timeout % 1000) * 1000000 };
+
+  timespec ts;
+  timespec *ts_ptr= nullptr;
+
+  if (timeout >= 0)
+  {
+    ts= { timeout / 1000, (timeout % 1000) * 1000000 };
+    ts_ptr= &ts;
+  }
 #endif
 
   /*
@@ -867,7 +881,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   do
   {
 #ifdef USE_PPOLL_IN_VIO
-    ret= ppoll(&pfd, 1, &ts, &vio->signal_mask);
+    ret= ppoll(&pfd, 1, ts_ptr, &vio->signal_mask);
 #else
     ret= poll(&pfd, 1, timeout);
 #endif

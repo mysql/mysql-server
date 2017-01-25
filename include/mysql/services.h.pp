@@ -131,6 +131,25 @@ union COM_DATA {
   COM_FIELD_LIST_DATA com_field_list;
 };
 #include "mysql_time.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef char my_bool;
+typedef int myf;
 enum enum_mysql_timestamp_type
 {
   MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
@@ -144,7 +163,8 @@ typedef struct st_mysql_time
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 #include "decimal.h"
-C_MODE_START
+#include "my_inttypes.h"
+#include "my_macros.h"
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
@@ -359,7 +379,7 @@ typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
 struct PSI_memory_info_v1
@@ -369,16 +389,22 @@ struct PSI_memory_info_v1
   int m_flags;
 };
 typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
-typedef void (*register_memory_v1_t)
-  (const char *category, struct PSI_memory_info_v1 *info, int count);
-typedef PSI_memory_key (*memory_alloc_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
-typedef PSI_memory_key (*memory_realloc_v1_t)
-  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
-typedef PSI_memory_key (*memory_claim_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
-typedef void (*memory_free_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
+typedef void (*register_memory_v1_t)(const char *category,
+                                     struct PSI_memory_info_v1 *info,
+                                     int count);
+typedef PSI_memory_key (*memory_alloc_v1_t)(PSI_memory_key key,
+                                            size_t size,
+                                            struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
+                                              size_t old_size,
+                                              size_t new_size,
+                                              struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key,
+                                            size_t size,
+                                            struct PSI_thread **owner);
+typedef void (*memory_free_v1_t)(PSI_memory_key key,
+                                 size_t size,
+                                 struct PSI_thread *owner);
 struct PSI_memory_service_v1
 {
   register_memory_v1_t register_memory;

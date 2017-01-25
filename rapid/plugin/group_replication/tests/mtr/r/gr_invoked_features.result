@@ -56,14 +56,14 @@ SELECT table_name FROM information_schema.views WHERE table_schema='test';
 TABLE_NAME
 v11
 SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	event_manipulation	event_object_table
+TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_TABLE
 t11_tr1	INSERT	t11
 SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
-routine_type	routine_name
+ROUTINE_TYPE	ROUTINE_NAME
 FUNCTION	f1
 PROCEDURE	p11
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
-event_name	status
+EVENT_NAME	STATUS
 e1	DISABLED
 include/rpl_sync.inc
 include/diff_tables.inc [server1:t11, server2:t11]
@@ -79,14 +79,14 @@ SELECT table_name FROM information_schema.views WHERE table_schema='test';
 TABLE_NAME
 v11
 SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
-trigger_name	event_manipulation	event_object_table
+TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_TABLE
 t11_tr1	INSERT	t11
 SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
-routine_type	routine_name
+ROUTINE_TYPE	ROUTINE_NAME
 FUNCTION	f1
 PROCEDURE	p11
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
-event_name	status
+EVENT_NAME	STATUS
 e1	DISABLED
 DROP VIEW IF EXISTS v11;
 DROP TABLE IF EXISTS t11,t12,t13;

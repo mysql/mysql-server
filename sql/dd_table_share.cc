@@ -1187,16 +1187,11 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
   keypart->bin_cmp= ((field->real_type() != MYSQL_TYPE_VARCHAR &&
                       field->real_type() != MYSQL_TYPE_STRING) ||
                      (field->charset()->state & MY_CS_BINSORT));
-
   //
   // Read index order
   //
 
-  /*
-    Currently no SE supports descending index. Still we set HA_REVERSE_SORT
-    flag here based on the INDEX_COLUMN_USAGE.ORDER value to be future
-    proof.
-  */
+  // key part order
   if (idx_elem_obj->order() == dd::Index_element::ORDER_DESC)
     keypart->key_part_flag|= HA_REVERSE_SORT;
 
@@ -1207,8 +1202,7 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
 /** Fill KEY::key_part array according to metadata from dd::Index object. */
 static void fill_index_elements_from_dd(TABLE_SHARE *share,
                                         const dd::Index *idx_obj,
-                                        int key_nr,
-                                        bool use_extended_sk)
+                                        int key_nr)
 {
   //
   // Iterate through all index elements
@@ -1522,8 +1516,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
       fill_index_elements_from_dd(share,
                                   index_at_pos[key_nr],
-                                  key_nr,
-                                  use_extended_sk);
+                                  key_nr);
 
       key_part+=keyinfo->user_defined_key_parts;
       rec_per_key+=keyinfo->user_defined_key_parts;

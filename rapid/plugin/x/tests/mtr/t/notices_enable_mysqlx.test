@@ -483,6 +483,7 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 -->expecterror 1071
 -->recvresult
 
+-->expecterror 1193
 -->sql
 ## setting back to original value
 set global innodb_large_prefix=1;
@@ -536,15 +537,11 @@ use test;
 -->expecterror 1280
 -->recvresult
 
--->echo resetting mtr non-default value of show_compatibility_56 to OFF to check warnings returned by xplugin for below operations
--->stmtsql set @@global.show_compatibility_56='OFF';
--->recvresult
-
--->echo check with show variables like versio and expect warning related to GTID session when show_compatibility_56 OFF
+-->echo check with show variables like versio and expect warning related to GTID session
 -->stmtsql show variables like 'versio';
 -->recvresult
 
--->echo check with show variables like versio and expect warning related to GTID session when show_compatibility_56 OFF
+-->echo check with show variables like versio and expect warning related to GTID session
 -->stmtsql show session variables like 'max_join_size';
 -->recvresult
 
@@ -552,10 +549,6 @@ use test;
 -->recvresult
 
 -->stmtsql show session variables like 'default_storage_engine';
--->recvresult
-
--->echo resetting mtr default value of show_compatibility_56 to ON otherwise other tests might fail due to this
--->stmtsql set @@global.show_compatibility_56='ON';
 -->recvresult
 
 -->echo Try to enable fixed notice, should be ok
@@ -906,16 +899,16 @@ show status like 'Mysqlx%notice%';
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats 2>&1
 show status like 'Mysqlx%notice%';
 
-##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with show_compatibility_56=OFF which is default in 5.7
-let $restart_parameters = restart: --show_compatibility_56=OFF;
+##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT
+let $restart_parameters = restart: ;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 ##expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3 with both native and xconnection
 ##change result file once Bug#21777465 is fixed
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats_noti_no_err 2>&1
 show status like 'Mysqlx%notice%';
 
-##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with show_compatibility_56=ON with unprivileged user
-let $restart_parameters = restart: --show_compatibility_56=ON;
+##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with unprivileged user
+let $restart_parameters = restart: ;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 create user noti@localhost identified by 'noti';
 ##expect MYSQLX_NOTICE_OTHER_SENT=2,MYSQLX_NOTICE_WARNING_SENT=3 with both native and xconnection

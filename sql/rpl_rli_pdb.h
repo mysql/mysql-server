@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,6 @@
 
 #ifndef RPL_RLI_PDB_H
 #define RPL_RLI_PDB_H
-
-#ifdef HAVE_REPLICATION
 
 #include <stdarg.h>
 #include <sys/types.h>
@@ -201,7 +199,7 @@ class circular_buffer_queue
 {
 public:
 
-  Prealloced_array<Element_type, 1, true> m_Q;
+  Prealloced_array<Element_type, 1> m_Q;
   ulong size;           // the Size of the queue in terms of element
   ulong avail;          // first Available index to append at (next to tail)
   ulong entry;          // the head index or the entry point to the queue.
@@ -280,7 +278,7 @@ public:
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
-  Slave_committed_queue (const char *log, ulong max, uint n);
+  Slave_committed_queue(ulong max, uint n);
 
   ~Slave_committed_queue ()
   {
@@ -699,5 +697,4 @@ inline Slave_worker* get_thd_worker(THD *thd)
 
 int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 
-#endif // HAVE_REPLICATION
 #endif

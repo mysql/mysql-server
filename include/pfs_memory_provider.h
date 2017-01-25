@@ -16,6 +16,8 @@
 #ifndef PFS_MEMORY_PROVIDER_H
 #define PFS_MEMORY_PROVIDER_H
 
+#include "my_psi_config.h"
+
 /**
   @file include/pfs_memory_provider.h
   Performance schema instrumentation (declarations).
@@ -23,10 +25,14 @@
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include <stddef.h>
+
+#include "my_macros.h"
 #include "mysql/psi/psi_memory.h"
+
+struct PSI_thread;
 
 #define PSI_MEMORY_CALL(M) pfs_ ## M ## _v1
 
@@ -49,7 +55,6 @@ void pfs_memory_free_v1
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,19 +22,24 @@
   MySQL Configuration Utility
 */
 
-/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-#include "my_config.h"
-#include <welcome_copyright_notice.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
-#include <my_dir.h>
-#include <my_rnd.h>
-#include "my_aes.h"
+#include <stdlib.h>
+
 #include "client_priv.h"
+#include "my_aes.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_default_priv.h"
+#include "my_dir.h"
+#include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
-#define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096
 #define MAX_COMMAND_LIMIT 100
 /*
@@ -86,7 +91,6 @@ static void my_perror(const char *msg);
 
 static void verbose_msg(const char *fmt, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
-static void print_version(void);
 static void usage_program(void);
 static void usage_command(int command);
 extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
@@ -1483,12 +1487,5 @@ static void usage_program(void)
                                  login path.\n\
        reset [command options]   Deletes the contents of the login file.\n\
        help                      Display this usage/help information.\n");
-}
-
-
-static void print_version(void) {
-  printf ("%s Ver %s Distrib %s, for %s on %s\n", my_progname,
-          MYSQL_CONFIG_EDITOR_VERSION, MYSQL_SERVER_VERSION,
-          SYSTEM_TYPE, MACHINE_TYPE);
 }
 

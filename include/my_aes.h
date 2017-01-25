@@ -22,7 +22,8 @@
   Wrapper to give simple interface for MySQL to AES standard encryption.
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 C_MODE_START
 

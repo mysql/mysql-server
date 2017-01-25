@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,12 +19,14 @@
 */
 
 #include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else
 #include <stddef.h>
 #endif
-#include <queues.h>
+#include "queues.h"
 
 /* static variables */
 
@@ -934,7 +936,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   strpos=(uchar*) sort_keys;
   sort_length=info->key_length;
 
-  if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
+  if (init_queue(&queue,key_memory_QUEUE,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
                  (int (*)(void*, uchar *,uchar*)) info->key_cmp,
                  (void*) info))
     DBUG_RETURN(1); /* purecov: inspected */

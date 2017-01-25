@@ -11,7 +11,6 @@ perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collection
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=partitions --vardir=var-parts      --suite=parts
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=stress     --vardir=var-stress     --suite=stress
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=jp         --vardir=var-jp         --suite=jp
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=embedded   --vardir=var-embedded                    --embedded-server --skip-rpl
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist       --vardir=var-nist       --suite=nist
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist+ps    --vardir=var-nist_ps    --suite=nist     --ps-protocol
 perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --retry=0 --suite=memcached

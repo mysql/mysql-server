@@ -16,8 +16,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #ifndef MYSQL_RWLOCK_SCOPED_LOCK_H
 #define MYSQL_RWLOCK_SCOPED_LOCK_H
 
-#include <my_sys.h>
-
 #include "mysql/psi/mysql_rwlock.h"
 
 /**

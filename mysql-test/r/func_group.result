@@ -52,25 +52,25 @@ sum(all a)	count(all a)	avg(all a)	std(all a)	variance(all a)	bit_or(all a)	bit_
 21	6	3.50000	1.707825127659933	2.9166666666666665	7	0	1	6		E
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 grp	sum(a)	count(a)	avg(a)	std(a)	variance(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
-NULL	NULL	0	NULL	NULL	NULL	0	18446744073709551615	NULL	NULL		
 1	1	1	1.00000	0	0	1	1	1	1	a	a
 2	5	2	2.50000	0.5	0.25	3	2	2	3	b	c
 3	15	3	5.00000	0.816496580927726	0.6666666666666666	7	4	4	6	C	E
+NULL	NULL	0	NULL	NULL	NULL	0	18446744073709551615	NULL	NULL		
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 grp	sum
-NULL	NULL
 1	7
 2	20.25
 3	45.48316324759439
+NULL	NULL
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 replace into t2 select grp, a, c from t1 limit 2,1;
 select * from t2;
 grp	a	c
-NULL	NULL	
 1	2	a
 2	5	c
 3	9	E
+NULL	NULL	
 2	3	c
 drop table t1,t2;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
@@ -172,8 +172,8 @@ sum(num)
 147.58
 select sum(num) from t1 group by user;
 sum(num)
-50.15
 45.63
+50.15
 51.80
 drop table t1;
 create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
@@ -320,7 +320,7 @@ a3 char(3),
 a4 real,
 a5 date,
 key k1(a2,a3),
-key k2(a4 desc,a1),
+key k2(a4,a1),
 key k3(a5,a1)
 );
 create table t2(
@@ -1013,9 +1013,9 @@ INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.000
 insert into t1 select * from t1;
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 col1	count(col1)	sum(col1)	avg(col1)
--5.000000000030	2	-10.000000000060	-5.00000000003000000
--5.000000000020	4	-20.000000000080	-5.00000000002000000
 -5.000000000010	4	-20.000000000040	-5.00000000001000000
+-5.000000000020	4	-20.000000000080	-5.00000000002000000
+-5.000000000030	2	-10.000000000060	-5.00000000003000000
 -5.000000000000	2	-10.000000000000	-5.00000000000000000
 DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
@@ -1080,19 +1080,19 @@ v	a
 3.00000	3
 SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
 v	SUM(a)
-0.33333	6
-0.50000	6
-0.66667	6
 1.00000	18
-1.50000	6
+0.50000	6
+0.33333	6
 2.00000	6
+0.66667	6
 3.00000	6
+1.50000	6
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 SUM(a)
-6
-6
-6
 18
+6
+6
+6
 6
 6
 6
@@ -1515,7 +1515,7 @@ INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
 EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 1) AS `y` from `test`.`t1` group by (`test`.`t1`.`a` + 1)

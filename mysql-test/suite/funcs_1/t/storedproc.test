@@ -22,7 +22,6 @@ if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 
 # It is assumed that the storage engine used for some tables has no impact on
 # the outcome of this test.
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc

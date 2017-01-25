@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,13 @@
 #ifndef DD_CACHE__ELEMENT_MAP_INCLUDED
 #define DD_CACHE__ELEMENT_MAP_INCLUDED
 
-#include "my_global.h"                    // DBUG_ASSERT() etc.
-#include "malloc_allocator.h"             // Malloc_allocator.
-
 #include <cstddef>                        // size_t
 #include <map>                            // std::map
 #include <set>                            // std::set
+
+#include "malloc_allocator.h"             // Malloc_allocator.
+#include "my_dbug.h"
+#include "my_global.h"                    // DBUG_ASSERT() etc.
 
 namespace dd {
 namespace cache {

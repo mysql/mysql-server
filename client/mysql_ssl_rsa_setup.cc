@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,38 +15,35 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* C Headers */
+#include <my_config.h>
+#include <my_default.h>
+#include <my_dir.h>
+#include <my_getopt.h>
+#include <my_global.h>
+#include <my_sys.h>
+#include <mysql_version.h>
+#include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <stdint.h>
-
-/* C++ Headers */
-#include <iostream>
-#include <cstdlib>
-#include <cstdio>
-#include <string>
-#include <sstream>
-#include <fstream>
-#include <algorithm>
-
-/* MySQL Headers */
-#include <my_sys.h>
-#include <my_dir.h>
-#include <my_default.h>
-#include <my_global.h>
-#include <my_config.h>
-#include <my_getopt.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-#include <mysql_version.h>
-#include "path.h"
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+
 #include "logger.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
+#include "path.h"
 
 #if HAVE_CHOWN
 #include <pwd.h>
 #endif
-/* Utility Version */
-#define MY_VERSION      "1.0.0"
 
 /* Forward declarations */
 
@@ -345,16 +342,6 @@ public:
 protected:
   uint32_t m_validity;
 };
-
-
-static
-void print_version(void)
-{
-  cout << my_progname << " Version : " << MY_VERSION
-       << " Distribution : " << MYSQL_SERVER_VERSION
-       << " For : " << SYSTEM_TYPE << " On : " << MACHINE_TYPE << endl;
-}
-
 
 static
 void usage(void)

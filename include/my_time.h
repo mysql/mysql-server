@@ -13,12 +13,6 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  @file include/my_time.h
-  This is a private header of sql-common library, containing
-  declarations for my_time.c
-*/
-
 #ifndef _my_time_h_
 #define _my_time_h_
 #include <limits.h>
@@ -26,7 +20,8 @@
 #include <sys/types.h>
 
 #include "my_config.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql_time.h"
 
 struct timeval;

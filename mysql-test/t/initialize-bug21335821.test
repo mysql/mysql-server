@@ -82,11 +82,7 @@ disconnect root_con;
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo # delete the bootsrap file
 remove_file $BOOTSTRAP_SQL;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,11 +23,11 @@
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
 #include "dd/impl/dictionary_impl.h"
 #include "dd/impl/object_key.h"
-#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
 #include "dd/impl/raw/raw_table.h"           // Raw_table
+#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/tables/character_sets.h"   // create_name_key()
 #include "dd/impl/tables/collations.h"       // create_name_key()
 #include "dd/impl/tables/events.h"           // create_name_key()
@@ -36,9 +36,9 @@
 #include "dd/impl/tables/schemata.h"         // create_name_key()
 #include "dd/impl/tables/spatial_reference_systems.h" // create_name_key()
 #include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
+#include "dd/impl/tables/table_stats.h"      // dd::Table_stats
 #include "dd/impl/tables/tables.h"           // create_name_key()
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
-#include "dd/impl/tables/table_stats.h"      // dd::Table_stats
 #include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
 #include "dd/impl/tables/view_routine_usage.h" // create_name_key
 #include "dd/impl/tables/view_table_usage.h" // create_name_key
@@ -58,8 +58,8 @@
 #include "dd/types/schema.h"                 // Schema
 #include "dd/types/spatial_reference_system.h" // Spatial_reference_system
 #include "dd/types/table.h"                  // Table
-#include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/table_stat.h"             // Table_stat
+#include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/view.h"                   // View
 #include "dd/types/view_routine.h"           // View_routine
 #include "dd/types/view_table.h"             // View_table
@@ -67,13 +67,14 @@
 #include "handler.h"
 #include "log.h"                             // sql_print_warning()
 #include "m_ctype.h"
-#include "mdl.h"
 #include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
 #include "my_global.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
-#include "mysqld.h"
 #include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
 #include "shared_dictionary_cache.h"         // get(), release(), ...
 #include "sql_class.h"                       // THD
 #include "sql_plugin_ref.h"
@@ -580,15 +581,10 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   {
     // We should either have reported an error or have removed all
     // uncommitted objects (typically committed them to the shared cache).
-    /*
-      TODO:
-      Disabling the assert until the removal of uncommitted
-      objects is done implicitly on commit/rollback.
-
     DBUG_ASSERT(m_client->m_thd->is_error() ||
                 m_client->m_thd->killed ||
                 m_client->m_registry_uncommitted.size_all() == 0);
-    */
+
     m_client->m_registry_uncommitted.erase_all();
 
     // Delete any objects retrieved by acquire_uncached() or
@@ -2104,15 +2100,6 @@ void Dictionary_client::register_uncommitted_object(T* object)
 template <typename T>
 void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 {
-  // Check that we actually have some uncommitted objects.
-  /*
-    TODO:
-    Disabling the assert until the removal of uncommitted
-    objects is done implicitly on commit/rollback.
-
-  DBUG_ASSERT(m_registry_uncommitted.size<typename T::cache_partition_type>()
-              > 0);
-  */
   if (commit_to_shared_cache)
   {
     typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
@@ -2176,6 +2163,32 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
     }
   } // commit_to_shared_cache
   m_registry_uncommitted.erase<typename T::cache_partition_type>();
+}
+
+
+void Dictionary_client::rollback_modified_objects()
+{
+  remove_uncommitted_objects<Abstract_table>(false);
+  remove_uncommitted_objects<Schema>(false);
+  remove_uncommitted_objects<Tablespace>(false);
+  remove_uncommitted_objects<Charset>(false);
+  remove_uncommitted_objects<Collation>(false);
+  remove_uncommitted_objects<Event>(false);
+  remove_uncommitted_objects<Routine>(false);
+  remove_uncommitted_objects<Spatial_reference_system>(false);
+}
+
+
+void Dictionary_client::commit_modified_objects()
+{
+  remove_uncommitted_objects<Abstract_table>(true);
+  remove_uncommitted_objects<Schema>(true);
+  remove_uncommitted_objects<Tablespace>(true);
+  remove_uncommitted_objects<Charset>(true);
+  remove_uncommitted_objects<Collation>(true);
+  remove_uncommitted_objects<Event>(true);
+  remove_uncommitted_objects<Routine>(true);
+  remove_uncommitted_objects<Spatial_reference_system>(true);
 }
 
 

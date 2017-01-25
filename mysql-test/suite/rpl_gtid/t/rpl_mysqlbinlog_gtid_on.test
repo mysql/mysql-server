@@ -37,10 +37,8 @@
 #
 # WL#3584 Global Transaction Identifiers (GTIDs)
 
---source include/have_gtid.inc
 # Output from mysqlbinlog is replayed on the slave server.
 --source include/master-slave.inc
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed.inc
 
 --connection slave

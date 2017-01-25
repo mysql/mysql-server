@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,9 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
@@ -81,14 +84,12 @@
 #include "partition_element.h"
 #include "partition_info.h"           // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "psi_memory_key.h"           // key_memory_gdl
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
 #include "rpl_gtid.h"
-#include "sdi_utils.h"                // create_serialized_meta_data
 #include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
@@ -124,15 +125,6 @@
 #include "trigger.h"
 #include "typelib.h"
 #include "xa.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_stage.h"
-
-#include "pfs_table_provider.h"  // IWYU pragma: keep
-#include "mysql/psi/mysql_table.h"
 
 using std::max;
 using std::min;
@@ -2276,25 +2268,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       }
     }
   }
-  if (flags & WSDI_COMPRESS_SDI)
-  {
-    /*
-      We need to compress the serialized dictionary information.
-      This is only used for handlers that have the main version of
-      the SDI stored in the handler.
-    */
-    uchar *data;
-    size_t length;
-    if (create_serialized_meta_data(lpt->db, shadow_name, &data, &length) ||
-        compress_serialized_meta_data(data, length, &lpt->pack_frm_data,
-                                      &lpt->pack_frm_len))
-    {
-      my_free(data);
-      my_free(lpt->pack_frm_data);
-      mem_alloc_error(length);
-      DBUG_RETURN(true);
-    }
-  }
 
   if (old_part_info)
   {
@@ -3764,13 +3737,14 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
          key_part++, k_part++)
     {
       /*
-        Key definition is different if we are using a different field or
-        if the used key part length is different. Note since both KEY
-        objects come from mysql_prepare_create_table() we can compare
-        field numbers directly.
+        Key definition is different if we are using a different field,
+        if the used key part length is different or key parts has different
+        direction. Note since both KEY objects come from
+        mysql_prepare_create_table() we can compare field numbers directly.
       */
       if ((key_part->length != k_part->length) ||
-          (key_part->fieldnr != k_part->fieldnr))
+          (key_part->fieldnr != k_part->fieldnr) ||
+          (key_part->key_part_flag != k_part->key_part_flag))
       {
         all_columns_are_identical= false;
         break;
@@ -3844,10 +3818,10 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field)
 
   for (uint i= 0; i < sql_field->interval->count; i++)
   {
-    if (sql_field->charset->coll->instr(sql_field->charset,
-                                        sql_field->interval->type_names[i],
-                                        sql_field->interval->type_lengths[i],
-                                        comma_buf, comma_length, NULL, 0))
+    if (sql_field->charset->coll->strstr(sql_field->charset,
+                                         sql_field->interval->type_names[i],
+                                         sql_field->interval->type_lengths[i],
+                                         comma_buf, comma_length, NULL, 0))
     {
       ErrConvString err(sql_field->interval->type_names[i],
                         sql_field->interval->type_lengths[i],
@@ -4211,12 +4185,14 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[out] key_parts    Returned number of key segments (excluding FK).
    @param[out] fk_key_count Returned number of foreign keys.
    @param[in,out] redundant_keys  Array where keys to be ignored will be marked.
+   @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
                        uint *key_count, uint *key_parts,
                        uint *fk_key_count,
-                       Mem_root_array<bool> *redundant_keys)
+                       Mem_root_array<bool> *redundant_keys,
+                       bool is_ha_has_desc_index)
 {
   *key_count= 0;
   *key_parts= 0;
@@ -4261,6 +4237,7 @@ static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
         break;
       }
     }
+
     if (!redundant_keys->at(key_counter))
     {
       if (key->type == KEYTYPE_FOREIGN)
@@ -4269,9 +4246,19 @@ static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
       {
         (*key_count)++;
         (*key_parts)+= key->columns.size();
+        for (uint i= 0; i < key->columns.size(); i++)
+        {
+          const Key_part_spec *kp= key->columns[i];
+          if (!kp->is_ascending && !is_ha_has_desc_index)
+          {
+            my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "descending indexes");
+            return true;
+          }
+        }
       }
     }
   }
+  return false;
 }
 
 
@@ -4498,6 +4485,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   key_part_info->fieldnr= field;
   key_part_info->offset=  static_cast<uint16>(sql_field->offset);
+  key_part_info->key_part_flag|= column->is_ascending ? 0 : HA_REVERSE_SORT;
 
   size_t key_part_length= sql_field->key_length;
 
@@ -4632,6 +4620,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         key_part_length == MAX_LEN_GEOM_POINT_FIELD))
   {
     key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+    key_part_info->key_part_flag|= HA_PART_KEY_SEG;
   }
 
   key_info->key_length+= key_part_length;
@@ -4704,6 +4693,7 @@ static const char* generate_fk_name(const char *table_name,
   Prepare FOREIGN_KEY struct with info about a foreign key.
 
   @param thd                 Thread handle.
+  @param create_info         Create info from parser.
   @param table_name          Table name.
   @param create_list         New columns.
   @param existing_fks        Array of pre-existing FKs.
@@ -4717,6 +4707,7 @@ static const char* generate_fk_name(const char *table_name,
 */
 
 static bool prepare_foreign_key(THD *thd,
+                                HA_CREATE_INFO *create_info,
                                 const char *table_name,
                                 List<Create_field> *create_list,
                                 FOREIGN_KEY *existing_fks,
@@ -4728,7 +4719,14 @@ static bool prepare_foreign_key(THD *thd,
 {
   DBUG_ENTER("prepare_foreign_key");
 
-  if (fk_key->validate(thd, *create_list))
+  // FKs are not supported for temporary tables.
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), table_name);
+    DBUG_RETURN(true);
+  }
+
+  if (fk_key->validate(thd, table_name, *create_list))
     DBUG_RETURN(true);
 
   if (fk_key->name.str)
@@ -4788,7 +4786,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
                         List<Create_field> *create_list, const Key_spec *key,
                         KEY **key_info_buffer, KEY *key_info,
                         KEY_PART_INFO **key_part_info,
-                        Mem_root_array<const KEY *, true> &keys_to_check,
+                        Mem_root_array<const KEY *> &keys_to_check,
                         uint key_number, const handler *file,
                         int *auto_increment)
 {
@@ -5258,8 +5256,10 @@ bool mysql_prepare_create_table(THD *thd,
   uint key_parts;
   Mem_root_array<bool> redundant_keys(thd->mem_root,
                                       alter_info->key_list.size(), false);
-  count_keys(alter_info->key_list, key_count, &key_parts,
-             fk_key_count, &redundant_keys);
+  if (count_keys(alter_info->key_list, key_count, &key_parts,
+                 fk_key_count, &redundant_keys,
+                 (file->ha_table_flags() & HA_DESCENDING_INDEX)))
+    DBUG_RETURN(true);
   if (*key_count > file->max_keys())
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0), file->max_keys());
@@ -5281,7 +5281,7 @@ bool mysql_prepare_create_table(THD *thd,
   if (!*key_info_buffer || !key_part_info || !fk_key_info)
     DBUG_RETURN(true);				// Out of memory
 
-  Mem_root_array<const KEY *, true> keys_to_check(thd->mem_root);
+  Mem_root_array<const KEY *> keys_to_check(thd->mem_root);
   if (keys_to_check.reserve(*key_count))
     DBUG_RETURN(true);				// Out of memory
 
@@ -5307,7 +5307,7 @@ bool mysql_prepare_create_table(THD *thd,
 
     if (key->type == KEYTYPE_FOREIGN)
     {
-      if (prepare_foreign_key(thd, error_table_name,
+      if (prepare_foreign_key(thd, create_info, error_table_name,
                               &alter_info->create_list,
                               existing_fks, existing_fks_count,
                               fk_key_info_buffer, fk_number,
@@ -6025,7 +6025,7 @@ bool create_table_impl(THD *thd,
     DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
                 *tmp_table_def == NULL);
 
-    init_tmp_table_share(thd, &share, db, 0, table_name, path);
+    init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
 
     bool result= (open_table_def(thd, &share, false, NULL) ||
                   open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
@@ -6742,7 +6742,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     for the case general ALTER TABLE.
   */
   table_list->mdl_request.set_type(MDL_EXCLUSIVE);
-  table_list->lock_type= TL_WRITE;
+  table_list->set_lock({TL_WRITE, THR_DEFAULT});
   /* Do not open views. */
   table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
@@ -7008,12 +7008,15 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   {
     /*
       Key definition has changed if we are using a different field or
-      if the used key part length is different. It makes sense to
-      check lengths first as in case when fields differ it is likely
-      that lengths differ too and checking fields is more expensive
-      in general case.
+      if the used key part length is different, or key part direction has
+      changed. It makes sense to check lengths first as in case when fields
+      differ it is likely that lengths differ too and checking fields is more
+      expensive in general case.
+
     */
-    if (key_part->length != new_part->length)
+    if (key_part->length != new_part->length ||
+        (key_part->key_part_flag & HA_REVERSE_SORT) !=
+        (new_part->key_part_flag & HA_REVERSE_SORT))
       return true;
 
     new_field= get_field_by_index(alter_info, new_part->fieldnr);
@@ -8254,11 +8257,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     dd::Schema_MDL_locker mdl_locker(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *new_dd_tab= nullptr;
     dd::Table *altered_table_def= nullptr;
     if (mdl_locker.ensure_locked(alter_ctx->new_db) ||
-        thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
-                                  &new_dd_tab) ||
         thd->dd_client()->acquire_for_modification(alter_ctx->new_db, alter_ctx->tmp_name,
                                   &altered_table_def))
       goto cleanup;
@@ -8278,7 +8278,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     if (thd->dd_client()->update(altered_table_def))
       goto rollback;
     // TODO: Remove this call in WL#7743?
-    thd->dd_client()->remove_uncommitted_objects<dd::Table>(true);
+    thd->dd_client()->commit_modified_objects();
   }
 
   /*
@@ -9171,8 +9171,11 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
 	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
-      key_parts.push_back(new Key_part_spec(to_lex_cstring(cfield->field_name),
-                                            key_part_length));
+      key_parts.push_back(
+        new Key_part_spec(to_lex_cstring(cfield->field_name),
+                          key_part_length,
+                          key_part->key_part_flag & HA_REVERSE_SORT ?
+                            ORDER_DESC : ORDER_ASC));
     }
     if (key_parts.elements)
     {
@@ -10551,8 +10554,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     version of table is created in COPY algorithm or when values of
     virtual columns are evaluated in INPLACE algorithm.
   */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields= 0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
 
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
@@ -10711,7 +10714,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     inplace_supported, &target_mdl_request,
                                     &alter_ctx))
       {
-        thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+        thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
         DBUG_RETURN(true);
       }
 
@@ -10899,7 +10902,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
     {
-      thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+      thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
       DBUG_RETURN(true);
     }
     goto end_temporary;
@@ -11048,7 +11051,7 @@ end_inplace:
   if (update_referencing_views_metadata(thd, table_list, new_db, new_name))
     goto err_with_mdl;
 
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
@@ -11081,7 +11084,7 @@ end_inplace:
   }
 
 end_temporary:
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER_THD(thd, ER_INSERT_INFO),
@@ -11092,7 +11095,7 @@ end_temporary:
 
 err_new_table_cleanup:
   delete tmp_table_def;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   if (new_table)
   {
@@ -11135,7 +11138,7 @@ err_new_table_cleanup:
   DBUG_RETURN(true);
 
 err_with_mdl:
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
   /*
     An error happened while we were holding exclusive name metadata lock
@@ -11471,7 +11474,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   DBUG_ENTER("mysql_recreate_table");
   DBUG_ASSERT(!table_list->next_global);
   /* Set lock type which is appropriate for ALTER TABLE. */
-  table_list->lock_type= TL_READ_NO_INSERT;
+  table_list->set_lock({TL_READ_NO_INSERT, THR_DEFAULT});
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
@@ -11535,7 +11538,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     /* Remember old 'next' pointer and break the list.  */
     save_next_global= table->next_global;
     table->next_global= NULL;
-    table->lock_type= TL_READ;
+    table->set_lock({TL_READ, THR_DEFAULT});
     /* Allow to open real tables only. */
     table->required_type= dd::enum_table_type::BASE_TABLE;
 

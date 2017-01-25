@@ -36,7 +36,6 @@ Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
                    &err_lock, MY_MUTEX_INIT_FAST);
 }
 
-#if !defined(EMBEDDED_LIBRARY)
 /**
   Check if the current error is of temporary nature or not.
   Some errors are temporary in nature, such as
@@ -110,7 +109,6 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
   }
   DBUG_RETURN(0);
 }
-#endif // EMBEDDED_LIBRARY
 
 
 void
@@ -128,7 +126,6 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
                                       const char *prefix_msg,
                                       const char *msg, va_list args) const
 {
-#if !defined(EMBEDDED_LIBRARY)
   THD *thd= current_thd;
   void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
@@ -177,7 +174,6 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
                   m_thread_name, get_for_channel_str(false), pbuff,
                   (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
                   err_code);
-#endif
 }
 
 Slave_reporting_capability::~Slave_reporting_capability()

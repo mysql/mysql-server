@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,6 +80,9 @@
 #endif
 
 #include <algorithm>
+
+#include "print_version.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using std::min;
 
@@ -1582,7 +1585,7 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
     tz_tabs[i].table_name_length= tz_tables_names[i].length;
     tz_tabs[i].db= tz_tables_db_name.str;
     tz_tabs[i].db_length= tz_tables_db_name.length;
-    tz_tabs[i].lock_type= TL_READ;
+    tz_tabs[i].set_lock({TL_READ, THR_DEFAULT});
 
     if (i != MY_TZ_TABLES_COUNT - 1)
       tz_tabs[i].next_global= tz_tabs[i].next_local= &tz_tabs[i+1];
@@ -1723,7 +1726,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_tables[0].table_name_length= 21;
   tz_tables[0].db= db.str;
   tz_tables[0].db_length= sizeof(db)-1;
-  tz_tables[0].lock_type= TL_READ;
+  tz_tables[0].set_lock({TL_READ, THR_DEFAULT});
 
   tz_init_table_list(tz_tables+1);
   tz_tables[0].next_global= tz_tables[0].next_local= &tz_tables[1];
@@ -2600,6 +2603,8 @@ main(int argc, char **argv)
 
   if (argc != 2 && argc != 3)
   {
+    print_version();
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2004"));
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s timezonedir\n", argv[0]);
     fprintf(stderr, " %s timezonefile timezonename\n", argv[0]);

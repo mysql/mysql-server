@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ struct row_socket_instances
   /** Column SOCKET_ID */
   uint m_fd;
   /** Socket ip address, IPV4 or IPV6 */
-  char m_ip[INET6_ADDRSTRLEN+1];
+  char m_ip[INET6_ADDRSTRLEN + 1];
   /** Length in bytes of @c m_ip. */
   uint m_ip_length;
   /** Column PORT */
@@ -54,38 +54,42 @@ struct row_socket_instances
   /** Socket state: ACTIVE or IDLE */
   PSI_socket_state m_state;
 
-  row_socket_instances() {m_thread_id_set= false;}
+  row_socket_instances()
+  {
+    m_thread_id_set = false;
+  }
 };
 
 class PFS_index_socket_instances : public PFS_engine_index
 {
 public:
-  PFS_index_socket_instances(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_socket_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
-  PFS_index_socket_instances(PFS_engine_key *key_1,
-                             PFS_engine_key *key_2)
+  PFS_index_socket_instances(PFS_engine_key *key_1, PFS_engine_key *key_2)
     : PFS_engine_index(key_1, key_2)
-  {}
+  {
+  }
 
   ~PFS_index_socket_instances()
-  {}
+  {
+  }
 
   virtual bool match(const PFS_socket *pfs) = 0;
 };
 
-class PFS_index_socket_instances_by_instance
-  : public PFS_index_socket_instances
+class PFS_index_socket_instances_by_instance : public PFS_index_socket_instances
 {
 public:
   PFS_index_socket_instances_by_instance()
-    : PFS_index_socket_instances(&m_key),
-      m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_socket_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_socket_instances_by_instance()
-  {}
+  {
+  }
 
   bool match(const PFS_socket *pfs);
 
@@ -93,17 +97,17 @@ private:
   PFS_key_object_instance m_key;
 };
 
-class PFS_index_socket_instances_by_thread
-  : public PFS_index_socket_instances
+class PFS_index_socket_instances_by_thread : public PFS_index_socket_instances
 {
 public:
   PFS_index_socket_instances_by_thread()
-    : PFS_index_socket_instances(&m_key),
-      m_key("THREAD_ID")
-  {}
+    : PFS_index_socket_instances(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_socket_instances_by_thread()
-  {}
+  {
+  }
 
   bool match(const PFS_socket *pfs);
 
@@ -111,17 +115,17 @@ private:
   PFS_key_thread_id m_key;
 };
 
-class PFS_index_socket_instances_by_socket
-  : public PFS_index_socket_instances
+class PFS_index_socket_instances_by_socket : public PFS_index_socket_instances
 {
 public:
   PFS_index_socket_instances_by_socket()
-    : PFS_index_socket_instances(&m_key),
-      m_key("SOCKET_ID")
-  {}
+    : PFS_index_socket_instances(&m_key), m_key("SOCKET_ID")
+  {
+  }
 
   ~PFS_index_socket_instances_by_socket()
-  {}
+  {
+  }
 
   bool match(const PFS_socket *pfs);
 
@@ -129,17 +133,19 @@ private:
   PFS_key_socket_id m_key;
 };
 
-class PFS_index_socket_instances_by_ip_port
-  : public PFS_index_socket_instances
+class PFS_index_socket_instances_by_ip_port : public PFS_index_socket_instances
 {
 public:
   PFS_index_socket_instances_by_ip_port()
     : PFS_index_socket_instances(&m_key_1, &m_key_2),
-      m_key_1("IP"), m_key_2("PORT")
-  {}
+      m_key_1("IP"),
+      m_key_2("PORT")
+  {
+  }
 
   ~PFS_index_socket_instances_by_ip_port()
-  {}
+  {
+  }
 
   bool match(const PFS_socket *pfs);
 
@@ -154,7 +160,7 @@ class table_socket_instances : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -174,10 +180,11 @@ private:
 
 public:
   ~table_socket_instances()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_socket *pfs);
+  int make_row(PFS_socket *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -186,8 +193,6 @@ protected:
 
   /** Current row. */
   row_socket_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

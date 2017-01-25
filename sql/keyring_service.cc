@@ -41,7 +41,7 @@ struct Key_data
   my_bool result;
 };
 
-static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
+static my_bool key_fetch(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -58,7 +58,7 @@ static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
+static my_bool key_store(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -75,7 +75,7 @@ static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
+static my_bool key_remove(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -91,7 +91,7 @@ static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
+static my_bool key_generate(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);

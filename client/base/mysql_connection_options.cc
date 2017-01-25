@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <mysys_err.h>
+#include <stdlib.h>
 #include <functional>
 #include <sstream>
 #include <vector>
 
 #include "abstract_options_provider.h"
-#include "mysql_connection_options.h"
 #include "abstract_program.h"
+#include "mysys_err.h"
+#include "mysql_connection_options.h"
 #include "typelib.h"
-#include <mysys_err.h>
 
 using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
@@ -97,7 +99,7 @@ void Mysql_connection_options::create_options()
       "The protocol to use for connection (tcp, socket, pipe, memory).")
     ->add_callback(new std::function<void(char*)>(
       std::bind(&Mysql_connection_options::protocol_callback, this, _1)));
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   this->create_new_option(&this->m_shared_memory_base_name,
     "shared-memory-base-name", "Base name of shared memory.");
 #endif
@@ -135,7 +137,7 @@ MYSQL* Mysql_connection_options::create_connection()
   if (!this->m_secure_auth)
     mysql_options(connection,MYSQL_SECURE_AUTH,
       (char*)&this->m_secure_auth);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (this->m_shared_memory_base_name.has_value())
     mysql_options(connection,MYSQL_SHARED_MEMORY_BASE_NAME,
       this->m_shared_memory_base_name.value().c_str());

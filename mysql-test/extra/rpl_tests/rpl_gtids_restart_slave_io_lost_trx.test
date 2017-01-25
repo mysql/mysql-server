@@ -11,8 +11,6 @@
 # thread again to fully retrieve the partially received transaction.
 #
 
---source include/have_gtid.inc
-
 # As this test depends on the use of a User_var_log_event in a DML statement
 # we have to use statement based replication.
 --source include/have_binlog_format_statement.inc

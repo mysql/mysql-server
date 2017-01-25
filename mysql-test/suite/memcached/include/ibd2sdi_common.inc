@@ -52,7 +52,7 @@ open (IN_FILE, "<", $in_file) or die $!;
 
 while(<IN_FILE>)
 {
-   s/^(.*)ibd2sdi(-debug)?(.*;)(\sVer\s\d\.\d\.\d+)(,\s+for.*)$/IBD2SDI$3 Ver #.#.#/;
+   s/^(.*)ibd2sdi(\s+)(Ver\s\d\.\d\.\d+(-.*))(\s+for.*)$/IBD2SDI Ver #.#.#/;
    print $_;
 }
 close(IN_FILE);
@@ -74,9 +74,9 @@ open (IN_FILE, "<", $in_file) or die $!;
 while(<IN_FILE>)
 {
    # Replacing path in Version output
-   s/^(.*)ibd2sdi(-debug)?(.*;)(\sVer\s\d\.\d\.\d+)(,\s+for.*)$/IBD2SDI$3 Ver #.#.#/;
+   s/^(.*)ibd2sdi(\s+)(Ver\s\d\.\d\.\d+(-.*))(\s+for.*)$/IBD2SDI Ver #.#.#/;
    # Replacing path in Other lines
-   s/^Usage:(\s+.*)ibd2sdi(-debug)?(.*)$/IBD2SDI$3/;
+   s/^Usage:(\s+.*)ibd2sdi(.*)$/IBD2SDI$2/;
    s/(Copyright\s\(c\))\s([0-9]*),\s([0-9]*)(.*)/$1 YEAR, YEAR$4/g;
 
    unless ($_=~ /^.*de?bug.*$/) {

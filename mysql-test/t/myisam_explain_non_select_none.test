@@ -3,10 +3,6 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
-# Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 
 {
@@ -33,4 +29,3 @@ set session default_storage_engine = MyISAM;
 set default_storage_engine= @save_storage_engine;
 
 set optimizer_switch=default;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

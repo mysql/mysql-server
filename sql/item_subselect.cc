@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -1429,7 +1430,7 @@ public:
 };
 
 
-bool Query_result_exists_subquery::send_data(List<Item> &items)
+bool Query_result_exists_subquery::send_data(List<Item>&)
 {
   DBUG_ENTER("Query_result_exists_subquery::send_data");
   Item_exists_subselect *it= (Item_exists_subselect *)item;
@@ -2839,7 +2840,7 @@ bool Item_subselect::inform_item_in_cond_of_tab(uchar *arg)
   Mark the subquery as optimized away, for EXPLAIN.
 */
 
-bool Item_subselect::subq_opt_away_processor(uchar *arg)
+bool Item_subselect::subq_opt_away_processor(uchar*)
 {
   unit->set_explain_marker(CTX_OPTIMIZED_AWAY_SUBQUERY);
   // Return false to continue marking all subqueries in the expression.
@@ -3123,7 +3124,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     item->collation.set(row[0]->collation);
 }
 
-void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
+void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache**)
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -3270,7 +3271,6 @@ bool subselect_indexsubquery_engine::scan_table()
 
   table->file->extra_opt(HA_EXTRA_CACHE,
                          item->unit->thd->variables.read_buff_size);
-  table->reset_null_row();
   for (;;)
   {
     error=table->file->ha_rnd_next(table->record[0]);
@@ -3280,7 +3280,7 @@ bool subselect_indexsubquery_engine::scan_table()
       break;
     }
     /* No more rows */
-    if (table->status)
+    if (!table->has_row())
       break;
 
     if (!cond || cond->val_int())
@@ -3401,7 +3401,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
        Error converting the left IN operand to the column type of the right
        IN operand. 
       */
-      tab->table()->status= STATUS_NOT_FOUND;
+      tab->table()->set_no_row();
       *convert_error= true;
       DBUG_VOID_RETURN;
     }
@@ -3481,9 +3481,8 @@ bool subselect_indexsubquery_engine::exec()
   TABLE_LIST *const tl= tab->table_ref;
   Item_in_subselect *const item_in= static_cast<Item_in_subselect*>(item);
   item_in->value= false;
-  table->status= 0;
 
-  if (tl && tl->uses_materialization() && !tab->materialized)
+  if (tl && tl->uses_materialization() && !table->materialized)
   {
     THD *const thd= table->in_use;
     bool err= tl->create_derived(thd);
@@ -3492,8 +3491,6 @@ bool subselect_indexsubquery_engine::exec()
     err|= tl->cleanup_derived();
     if (err)
       DBUG_RETURN(true);            /* purecov: inspected */
-
-    tab->materialized= true;
   }
 
   if (check_null)
@@ -3552,8 +3549,7 @@ bool subselect_indexsubquery_engine::exec()
     for (;;)
     {
       error= 0;
-      table->reset_null_row();
-      if (!table->status)
+      if (table->has_row())
       {
         if ((!cond || cond->val_int()) && (!having || having->val_int()))
         {
@@ -3674,7 +3670,7 @@ table_map subselect_union_engine::upper_select_const_tables() const
 void subselect_single_select_engine::print(String *str,
                                            enum_query_type query_type)
 {
-  select_lex->print(item->unit->thd, str, query_type);
+  item->unit->print(str, query_type);
 }
 
 
@@ -3803,17 +3799,14 @@ bool subselect_union_engine::change_query_result(Item_subselect *si,
 /**
   change query result emulation, never should be called.
 
-  @param si		new subselect Item
-  @param res		new Query_result object
-
   @retval
     FALSE OK
   @retval
     TRUE  error
 */
 
-bool subselect_indexsubquery_engine::change_query_result(Item_subselect *si,
-                                                   Query_result_subquery *res)
+bool subselect_indexsubquery_engine::change_query_result(Item_subselect*,
+                                                         Query_result_subquery*)
 {
   DBUG_ASSERT(0);
   return TRUE;
@@ -4203,7 +4196,7 @@ err:
         DBUG_RETURN(true);
       *tab->ref().null_ref_key= 0; // prepare for next searches of non-NULL
       mat_table_has_nulls=
-        (table->status == 0) ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+        table->has_row() ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
     }
     if (mat_table_has_nulls == NEX_TRUE)
     {

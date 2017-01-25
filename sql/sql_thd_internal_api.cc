@@ -39,7 +39,6 @@
 #include "mysql/thread_type.h"
 #include "mysqld.h"
 #include "mysqld_thd_manager.h"   // Global_THD_manager
-#include "pfs_thread_provider.h"
 #include "protocol_classic.h"
 #include "query_options.h"
 #include "rpl_filter.h"           // binlog_filter

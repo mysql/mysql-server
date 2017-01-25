@@ -6,7 +6,6 @@
 #               new wrapper t/cache_innodb.test
 #
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 # InnoDB supports FOREIGN KEYs
 let $test_foreign_keys= 1;

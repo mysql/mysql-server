@@ -372,7 +372,7 @@ public:
   void cleanup() override;
   uint field_count(List<Item> &) const override
   { return array_elements(func_items); }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
   { return result->prepare(list, u); }
   bool send_result_set_metadata(List<Item> &fields, uint flag) override;
   bool send_data(List<Item> &items) override;

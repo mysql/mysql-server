@@ -64,7 +64,8 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
 
   tables.open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
-  if (!open_n_lock_single_table(thd, &tables, tables.lock_type, m_flags))
+  if (!open_n_lock_single_table(thd, &tables, tables.lock_descriptor().type,
+                                m_flags))
   {
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);

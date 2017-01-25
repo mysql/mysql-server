@@ -386,7 +386,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1082,7 +1083,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1252,7 +1254,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a2
 test/child	a3
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1433,7 +1436,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1614,7 +1618,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a2
 test/child	a3
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN

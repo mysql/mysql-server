@@ -2,7 +2,6 @@
 --source include/not_crashrep.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 --echo #

@@ -24,7 +24,6 @@
 
 ##### Storage engine to be tested
 let $engine= 'InnoDB';
---source include/have_innodb.inc
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines

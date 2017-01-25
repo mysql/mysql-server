@@ -14,7 +14,6 @@
 
 # Restarting is not supported in embedded
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc

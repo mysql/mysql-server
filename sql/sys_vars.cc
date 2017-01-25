@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,14 +32,14 @@
 
 #include "sys_vars.h"
 
-#include "my_config.h"
-
 #include <assert.h>
-#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <limits>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -71,6 +71,7 @@
 #include "my_aes.h"                      // my_aes_opmode_names
 #include "my_command.h"
 #include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
@@ -195,7 +196,6 @@ static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
 #define export /* not static */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#ifndef EMBEDDED_LIBRARY
 
 #define PFS_TRAILING_PROPERTIES \
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
@@ -698,7 +698,6 @@ static Sys_var_long Sys_pfs_error_size(
        DEFAULT(PFS_MAX_SERVER_ERRORS),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -752,12 +751,10 @@ static Sys_var_uint Sys_default_password_lifetime(
        VALID_RANGE(0, UINT_MAX16), DEFAULT(0), BLOCK_SIZE(1),
        &Plock_default_password_lifetime);
 
-#ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
-#endif
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -829,13 +826,11 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!(thd->security_context()->check_access(SUPER_ACL)))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
     return true;
   }
-#endif
   return false;
 }
 
@@ -890,7 +885,6 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd, set_v
   return false;
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Check-function to @@GTID_NEXT system variable.
 
@@ -918,7 +912,6 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   }
   return check_has_super(self, thd, var);
 }
-#endif
 
 static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
@@ -1134,7 +1127,6 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   bool ret= FALSE;
   if (check_super_outside_trx_outside_sf(self, thd, var))
     return TRUE;
-#ifdef HAVE_REPLICATION
   Master_info *mi;
   int running= 0;
   const char *msg= NULL;
@@ -1211,7 +1203,6 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     unlock_slave_threads(mi);
   }
   channel_map.unlock();
-#endif
   return ret;
 }
 
@@ -1639,7 +1630,6 @@ static Sys_var_ulong Sys_delayed_queue_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-#ifndef EMBEDDED_LIBRARY
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
 static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -1695,7 +1685,6 @@ static Sys_var_enum Sys_event_scheduler(
        event_scheduler_names, DEFAULT(Events::EVENTS_OFF),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
-#endif
 
 static Sys_var_ulong Sys_expire_logs_days(
        "expire_logs_days",
@@ -1904,7 +1893,6 @@ static Sys_var_mybool Sys_log_bin(
 
 static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
 {
-#ifdef HAVE_REPLICATION
   // Can't change the algorithm when group replication is enabled.
   if (is_group_replication_running())
   {
@@ -1913,7 +1901,6 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
                " is running.", MYF(0));
     return true;
   }
-#endif
 
   if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
@@ -2347,7 +2334,6 @@ static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
-#ifdef HAVE_REPLICATION
   /*
     For multisource replication, this max size is set to all relay logs
     per channel. So, run through them
@@ -2365,7 +2351,6 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
     }
     channel_map.unlock();
   }
-#endif
   return false;
 }
 static Sys_var_ulong Sys_max_binlog_size(
@@ -2527,7 +2512,6 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
-#ifdef HAVE_REPLICATION
   Master_info *mi= NULL;
 
   channel_map.wrlock();
@@ -2540,7 +2524,6 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
                                       max_relay_log_size: max_binlog_size);
   }
   channel_map.unlock();
-#endif
   return false;
 }
 static Sys_var_ulong Sys_max_relay_log_size(
@@ -2708,11 +2691,6 @@ static Sys_var_mybool Sys_old_mode(
        "old", "Use compatible behavior",
        READ_ONLY GLOBAL_VAR(old_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static Sys_var_mybool Sys_show_compatibility_56(
-       "show_compatibility_56",
-       "SHOW commands / INFORMATION_SCHEMA tables compatible with MySQL 5.6",
-       GLOBAL_VAR(show_compatibility_56), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
-
 static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
@@ -2802,14 +2780,7 @@ limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-// Similar to what we do for the intptr typedef.
-#if SIZEOF_CHARP == SIZEOF_INT
-static unsigned int max_mem_sz = ~0;
-#elif SIZEOF_CHARP == SIZEOF_LONG
-static unsigned long max_mem_sz = ~0;
-#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
-static unsigned long long max_mem_sz = ~0;
-#endif
+constexpr size_t max_mem_sz= std::numeric_limits<size_t>::max();
 
 /*
   Need at least 400Kb to get through bootstrap.
@@ -3002,8 +2973,6 @@ static bool check_read_only(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if !defined(EMBEDDED_LIBRARY)
-
 static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var)
 {
 
@@ -3031,7 +3000,6 @@ static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var
 #endif
 }
 
-#endif
 
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3164,8 +3132,6 @@ static bool fix_super_read_only(sys_var *self, THD *thd, enum_var_type type)
     DBUG_RETURN(result);
 }
 
-#if !defined(EMBEDDED_LIBRARY)
-
 static Sys_var_mybool Sys_require_secure_transport(
   "require_secure_transport",
   "When this option is enabled, connections attempted using insecure "
@@ -3176,8 +3142,6 @@ static Sys_var_mybool Sys_require_secure_transport(
   DEFAULT(FALSE),
   NO_MUTEX_GUARD, NOT_IN_BINLOG,
   ON_CHECK(check_require_secure_transport), ON_UPDATE(0));
-
-#endif
 
 /**
   The read_only boolean is always equal to the opt_readonly boolean except
@@ -3275,7 +3239,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static Sys_var_mybool Sys_shared_memory(
        "shared_memory", "Enable the shared memory",
        READ_ONLY GLOBAL_VAR(opt_enable_shared_memory), CMD_LINE(OPT_ARG),
@@ -3356,7 +3320,6 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
-#ifndef EMBEDDED_LIBRARY
 static const char *thread_handling_names[]=
 {
   "one-thread-per-connection", "no-threads", "loaded-dynamically",
@@ -3368,7 +3331,6 @@ static Sys_var_enum Sys_thread_handling(
        "one-thread-per-connection, no-threads, loaded-dynamically"
        , READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
        CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
-#endif // !EMBEDDED_LIBRARY
 
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3466,11 +3428,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
-#ifndef EMBEDDED_LIBRARY
        CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
-#else
-       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR));
-#endif
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3506,7 +3464,6 @@ static Sys_var_mybool Sys_slave_compressed_protocol(
        GLOBAL_VAR(opt_slave_compressed_protocol), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
-#ifdef HAVE_REPLICATION
 static const char *slave_exec_mode_names[]=
        {"STRICT", "IDEMPOTENT", 0};
 static Sys_var_enum Slave_exec_mode(
@@ -3622,7 +3579,6 @@ static Sys_var_mybool Sys_slave_preserve_commit_order(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
-#endif
 
 bool Sys_var_charptr::global_update(THD *thd, set_var *var)
 {
@@ -3754,8 +3710,6 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
 #endif // HAVE_GTID_NEXT_LIST
 
 
-
-#ifdef HAVE_REPLICATION
 bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_mode::global_update");
@@ -3956,7 +3910,6 @@ err:
   gtid_mode_lock->unlock();
   DBUG_RETURN(ret);
 }
-#endif /* HAVE_REPLICATION */
 
 
 bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
@@ -4236,10 +4189,8 @@ static Sys_var_ulong Sys_max_execution_time(
        SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
-#else
-#define SSL_OPT(X) NO_CMD_LINE
 #endif
 
 /*
@@ -4411,14 +4362,12 @@ static Sys_var_ulong Sys_table_cache_instances(
        */
        sys_var::PARSE_EARLY);
 
-#ifndef EMBEDDED_LIBRARY
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
        GLOBAL_VAR(Per_thread_connection_handler::max_blocked_pthreads),
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
-#endif // !EMBEDDED_LIBRARY
 
 /**
   Can't change the 'next' tx_isolation if we are already in a
@@ -5098,7 +5047,6 @@ static Sys_var_charptr Sys_hostname(
        READ_ONLY GLOBAL_VAR(glob_hostname_ptr), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(glob_hostname));
 
-#ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_repl_report_host(
        "report_host",
        "Hostname or IP of the slave to be reported to the master during "
@@ -5133,7 +5081,6 @@ static Sys_var_uint Sys_repl_report_port(
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
-#endif
 
 static Sys_var_mybool Sys_keep_files_on_create(
        "keep_files_on_create",
@@ -5391,7 +5338,6 @@ static Sys_var_set Sys_log_output(
        log_output_names, DEFAULT(LOG_FILE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_not_empty_set), ON_UPDATE(fix_log_output));
 
-#ifdef HAVE_REPLICATION
 static Sys_var_mybool Sys_log_slave_updates(
        "log_slave_updates", "Tells the slave to log the updates from "
        "the slave thread to the binary log. You will need to turn it on if "
@@ -5589,7 +5535,6 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #else
        VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
 #endif /* DBUG_OFF */
-#endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(
        "sync_binlog", "Synchronously flush binary log to disk after"
@@ -5604,7 +5549,6 @@ static Sys_var_uint Sys_sync_masterinfo_period(
        GLOBAL_VAR(sync_masterinfo_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
-#ifdef HAVE_REPLICATION
 static Sys_var_ulong Sys_slave_trans_retries(
        "slave_transaction_retries", "Number of times the slave SQL "
        "thread will retry a transaction in case it failed with a deadlock "
@@ -5626,7 +5570,6 @@ static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
        GLOBAL_VAR(opt_mts_pending_jobs_size_max), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16 * 1024*1024),
        BLOCK_SIZE(1024), ON_CHECK(0));
-#endif
 
 static bool check_locale(sys_var *self, THD *thd, set_var *var)
 {
@@ -5785,19 +5728,15 @@ static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
   longlong val= (longlong) var->save_result.ulonglong_value;
   bool rli_fake= false;
 
-#ifndef EMBEDDED_LIBRARY
   rli_fake= thd->rli_fake ? true : false;
-#endif
 
   if (rli_fake)
   {
     if (!val)
     {
-#ifndef EMBEDDED_LIBRARY
       thd->rli_fake->end_info();
       delete thd->rli_fake;
       thd->rli_fake= NULL;
-#endif
     }
     else if (previous_val && val)
       goto ineffective;
@@ -5837,7 +5776,6 @@ static Sys_var_mybool Sys_pseudo_slave_mode(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_pseudo_slave_mode));
 
 
-#ifdef HAVE_REPLICATION
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
@@ -5912,7 +5850,6 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_purged::global_update");
-#ifdef HAVE_REPLICATION
   bool error= false;
 
   global_sid_lock->wrlock();
@@ -5974,9 +5911,6 @@ end:
   my_free(current_gtid_executed);
   my_free(current_gtid_purged);
   DBUG_RETURN(error);
-#else
-  DBUG_RETURN(true);
-#endif /* HAVE_REPLICATION */
 }
 
 Gtid_set *gtid_purged;
@@ -6014,8 +5948,6 @@ static Sys_var_gtid_mode Sys_gtid_mode(
        DEFAULT(GTID_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
-#endif // HAVE_REPLICATION
-
 static Sys_var_uint Sys_gtid_executed_compression_period(
        "gtid_executed_compression_period", "When binlog is disabled, "
        "a background thread wakes up to compress the gtid_executed table "
@@ -6032,7 +5964,6 @@ static Sys_var_mybool Sys_disconnect_on_expired_password(
        READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS 
 static Sys_var_mybool Sys_validate_user_plugins(
        "validate_user_plugins",
        "Turns on additional validation of authentication plugins assigned "
@@ -6040,7 +5971,6 @@ static Sys_var_mybool Sys_validate_user_plugins(
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(validate_user_plugins),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
-#endif
 
 static Sys_var_enum Sys_block_encryption_mode(
   "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",

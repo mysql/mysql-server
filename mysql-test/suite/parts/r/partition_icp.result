@@ -31,7 +31,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.61"
+      "query_cost": "2.06"
     },
     "table": {
       "table_name": "t1",
@@ -54,9 +54,9 @@ EXPLAIN
       "filtered": "100.00",
       "index_condition": "(`test`.`t1`.`a` % 2)",
       "cost_info": {
-        "read_cost": "5.81",
-        "eval_cost": "0.80",
-        "prefix_cost": "6.61",
+        "read_cost": "1.66",
+        "eval_cost": "0.40",
+        "prefix_cost": "2.06",
         "data_read_per_join": "160"
       },
       "used_columns": [

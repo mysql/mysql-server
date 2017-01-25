@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,14 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code
    added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */
 
-#include "ftdefs.h"
+#include <fcntl.h>
 #include <my_getopt.h>
+#include <stdlib.h>
+
+#include "ftdefs.h"
+#include "my_compiler.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 static void usage() MY_ATTRIBUTE((noreturn));
 static void complain(int val);
@@ -264,6 +270,9 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 
 static void usage()
 {
+  print_version();
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
+
   printf("Use: myisam_ftdump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);

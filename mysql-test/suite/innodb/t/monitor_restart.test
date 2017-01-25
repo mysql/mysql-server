@@ -1,4 +1,3 @@
-source include/have_innodb.inc;
 source include/not_embedded.inc;
 # Bug#22284224 - "REWRITE REPOPULATION OF CHARACTER SETS AND
 # COLLATIONS DURING STARTUP" causes purge activity on every

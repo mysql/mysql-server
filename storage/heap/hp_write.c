@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
 
 /* Write a record to heap-databas */
 
+#include <errno.h>
+#include <fcntl.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
 #ifdef _WIN32
 #include <fcntl.h>
 #endif

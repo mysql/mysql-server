@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ bool Sql_cmd_update::precheck(THD *thd)
       Ensure that we have UPDATE or SELECT privilege for each table
       The exact privilege is checked in mysql_multi_update()
     */
-    for (TABLE_LIST *tr= lex->query_tables; tr; tr= tr->next_local)
+    for (TABLE_LIST *tr= lex->query_tables; tr; tr= tr->next_global)
     {
       /*
         "uses_materialization()" covers the case where a prepared statement is
@@ -121,29 +121,8 @@ bool Sql_cmd_update::precheck(THD *thd)
                              0, 0) ||
                 check_grant(thd, SELECT_ACL, tr, false, 1, false)))
         DBUG_RETURN(true);
-
-      tr->table_in_first_from_clause= 1;
-    }
-
-    // Are there any tables in subqueries?
-    if (lex->select_lex == lex->all_selects_list)
-      DBUG_RETURN(false);
-
-    DBUG_PRINT("info",("Checking sub query list"));
-    for (TABLE_LIST *tr= lex->query_tables; tr; tr= tr->next_global)
-    {
-      if (!tr->table_in_first_from_clause)
-      {
-        if (check_access(thd, SELECT_ACL, tr->db,
-                         &tr->grant.privilege,
-                         &tr->grant.m_internal,
-                         0, 0) ||
-            check_grant(thd, SELECT_ACL, tr, false, 1, false))
-          DBUG_RETURN(true);
-      }
     }
   }
-
   DBUG_RETURN(false);
 }
 
@@ -486,7 +465,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       no_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
-                                 ORDER::ORDER_NOT_RELEVANT, &qep_tab,
+                                 ORDER_NOT_RELEVANT, &qep_tab,
                                  conds, &needed_reg_dummy, &qck) < 0;
       qep_tab.set_quick(qck);
       if (thd->is_error())
@@ -527,13 +506,15 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
-        
   bool need_sort;
   bool reverse= false;
   bool used_key_is_modified= false;
-
-  uint used_index= get_index_for_order(order, &qep_tab, limit,
-                                       &need_sort, &reverse);
+  uint used_index;
+  {
+    ORDER_with_src order_src(order, ESC_ORDER_BY);
+    used_index= get_index_for_order(&order_src, &qep_tab, limit,
+                                    &need_sort, &reverse);
+  }
   if (need_sort)
   { // Assign table scan index to check below for modified key fields:
     used_index= table->file->key_used_on_scan;
@@ -765,8 +746,8 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       Generate an error (in TRADITIONAL mode) or warning
       when trying to set a NOT NULL field to NULL.
     */
-    thd->count_cuted_fields= CHECK_FIELD_WARN;
-    thd->cuted_fields=0L;
+    thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+    thd->num_truncated_fields= 0L;
     THD_STAGE_INFO(thd, stage_updating);
 
     bool will_batch;
@@ -1090,7 +1071,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
           found_rows : updated_rows, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated_rows));
   }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   thd->current_found_rows= found_rows;
   thd->current_changed_rows= updated_rows;
   // Following test is disabled, as we get RQG errors that are hard to debug
@@ -1239,8 +1220,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 
   bool apply_semijoin;
 
-  Mem_root_array<Item_exists_subselect *, true>
-    sj_candidates_local(thd->mem_root);
+  Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -1346,10 +1326,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   thd->want_privilege= SELECT_ACL;
   enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
   thd->mark_used_columns= MARK_COLUMNS_READ;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
     tr->set_want_privilege(SELECT_ACL);
-#endif
   if (select->setup_conds(thd))
     DBUG_RETURN(true);
 
@@ -1357,10 +1335,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   // Check the fields to be updated (assume that all tables may be updated)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
     tr->set_want_privilege(UPDATE_ACL);
-#endif
 
   if (setup_fields(thd, Ref_item_array(), *update_fields,
                    UPDATE_ACL, NULL, false, true))
@@ -1379,10 +1355,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 
   DBUG_ASSERT(update_table_count_local > 0);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
     tr->set_want_privilege(SELECT_ACL);
-#endif
   if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL, NULL,
                    false, false))
     DBUG_RETURN(true);                          /* purecov: inspected */
@@ -1461,10 +1435,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
         is ignored, as prelocking placeholder will never be set here.
       */
       DBUG_ASSERT(tl->prelocking_placeholder == false);
-      tl->lock_type= read_lock_type_for_table(thd, lex, tl, true);
+      tl->set_lock({read_lock_type_for_table(thd, lex, tl, true), THR_DEFAULT});
       /* Update TABLE::lock_type accordingly. */
       if (!tl->is_placeholder() && !using_lock_tables)
-        tl->table->reginfo.lock_type= tl->lock_type;
+        tl->table->reginfo.lock_type= tl->lock_descriptor().type;
     }
   }
 
@@ -1513,14 +1487,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Downgrade desired privileges for updated tables to SELECT
   for (TABLE_LIST *tl= table_list; tl; tl= tl->next_local)
   {
     if (tl->updating)
       tl->set_want_privilege(SELECT_ACL);
   }
-#endif
 
   /* @todo: downgrade the metadata locks here. */
 
@@ -1589,7 +1561,7 @@ bool Sql_cmd_update::execute_inner(THD *thd)
   Connect fields with tables and create list of tables that are updated
 */
 
-int Query_result_update::prepare(List<Item> &not_used_values,
+bool Query_result_update::prepare(List<Item> &not_used_values,
                                  SELECT_LEX_UNIT *u)
 {
   SQL_I_List<TABLE_LIST> update;
@@ -1602,8 +1574,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
   SELECT_LEX *const select= unit->first_select();
   TABLE_LIST *const leaves= select->leaf_tables;
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields=0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
   THD_STAGE_INFO(thd, stage_updating_main_table);
 
   const table_map tables_to_update= get_table_map(fields);
@@ -1626,7 +1598,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     // Resolving may be needed for subsequent executions
     if (tr->check_option && !tr->check_option->fixed &&
         tr->check_option->fix_fields(thd, NULL))
-      DBUG_RETURN(1);        /* purecov: inspected */
+      DBUG_RETURN(true);        /* purecov: inspected */
   }
 
   for (TABLE_LIST *tr= leaves; tr; tr= tr->next_leaf)
@@ -1654,7 +1626,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     {
       TABLE_LIST *dup= (TABLE_LIST*) thd->memdup(tr, sizeof(*dup));
       if (dup == NULL)
-	DBUG_RETURN(1);
+	DBUG_RETURN(true);
 
       TABLE *const table= tr->table;
 
@@ -1681,25 +1653,33 @@ int Query_result_update::prepare(List<Item> &not_used_values,
   update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->mem_calloc(sizeof(TABLE *) * update_table_count);
+  if (tmp_tables == NULL)
+    DBUG_RETURN(true);
   tmp_table_param= new (thd->mem_root) Temp_table_param[update_table_count];
+  if (tmp_table_param == NULL)
+    DBUG_RETURN(true);
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      update_table_count);
+  if (fields_for_table == NULL)
+    DBUG_RETURN(true);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      update_table_count);
+  if (values_for_table == NULL)
+    DBUG_RETURN(true);
 
   DBUG_ASSERT(update_operations == NULL);
   update_operations= (COPY_INFO**) thd->mem_calloc(sizeof(COPY_INFO*) *
                                                update_table_count);
 
-  if (thd->is_error())
-    DBUG_RETURN(1);
+  if (update_operations == NULL)
+    DBUG_RETURN(true);
   for (uint i= 0; i < update_table_count; i++)
   {
     fields_for_table[i]= new List_item;
     values_for_table[i]= new List_item;
   }
   if (thd->is_error())
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
@@ -1712,8 +1692,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     fields_for_table[offset]->push_back(field);
     values_for_table[offset]->push_back(value);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(1);
+  if (thd->is_error())
+    DBUG_RETURN(true);
 
   /* Allocate copy fields */
   uint max_fields= 0;
@@ -1736,7 +1716,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
         new (thd->mem_root) COPY_INFO(COPY_INFO::UPDATE_OPERATION, cols, vals);
       if (update == NULL ||
           update->add_function_default_columns(table, table->write_set))
-        DBUG_RETURN(1);
+        DBUG_RETURN(true);
 
       update_operations[position]= update;
 
@@ -1757,7 +1737,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     }
   }
 
-  DBUG_RETURN(thd->is_fatal_error != 0);
+  DBUG_ASSERT(!thd->is_error());
+  DBUG_RETURN(false);
 }
 
 
@@ -1833,8 +1814,8 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
 }
 
 
-/*
-  Initialize table for multi table
+/**
+  Set up data structures for multi-table UPDATE
 
   IMPLEMENTATION
     - Update first table in join on the fly, if possible
@@ -1842,13 +1823,17 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
       that are updated (and main_table if the above doesn't hold).
 */
 
-bool Query_result_update::initialize_tables(JOIN *join)
+bool Query_result_update::optimize()
 {
   TABLE_LIST *table_ref;
-  DBUG_ENTER("initialize_tables");
+  DBUG_ENTER("Query_result_update::optimize");
+
+  SELECT_LEX *const select= unit->first_select();
+  JOIN *const join= select->join;
+
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
-  TABLE_LIST *leaves= unit->first_select()->leaf_tables;
+  TABLE_LIST *leaves= select->leaf_tables;
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
@@ -1931,7 +1916,7 @@ bool Query_result_update::initialize_tables(JOIN *join)
         }
       }
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref,
-                             unit->first_select()->get_table_list()))
+                             select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
 	table_to_update= table;			// Update table on the fly
@@ -1949,11 +1934,11 @@ bool Query_result_update::initialize_tables(JOIN *join)
       can be evaluated after the subselect was freed as independent
       (See full_local in JOIN::join_free()).
     */
-    if (table_ref->check_option && !join->select_lex->uncacheable)
+    if (table_ref->check_option && !select->uncacheable)
     {
       SELECT_LEX_UNIT *tmp_unit;
       SELECT_LEX *sl;
-      for (tmp_unit= join->select_lex->first_inner_unit();
+      for (tmp_unit= select->first_inner_unit();
            tmp_unit;
            tmp_unit= tmp_unit->next_unit())
       {
@@ -1961,7 +1946,7 @@ bool Query_result_update::initialize_tables(JOIN *join)
         {
           if (sl->master_unit()->item)
           {
-            join->select_lex->uncacheable|= UNCACHEABLE_CHECKOPTION;
+            select->uncacheable|= UNCACHEABLE_CHECKOPTION;
             goto loop_end;
           }
         }
@@ -2025,7 +2010,7 @@ loop_end:
 
     /* Make an unique key over the first field to avoid duplicated updates */
     memset(&group, 0, sizeof(group));
-    group.direction= ORDER::ORDER_ASC;
+    group.direction= ORDER_ASC;
     group.item= temp_fields.head_ref();
 
     tmp_param->quick_group=1;
@@ -2077,7 +2062,7 @@ void Query_result_update::cleanup()
   }
   if (copy_field)
     delete [] copy_field;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe ||
               updated_rows == 0 ||
               thd->get_transaction()->cannot_safely_rollback(
@@ -2110,12 +2095,12 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       The join algorithm guarantees that we will not find the a row in
       t1 several times.
     */
-    if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
+    if (table->has_null_row() || table->has_updated_row())
       continue;
 
     if (table == table_to_update)
     {
-      table->status|= STATUS_UPDATED;
+      table->set_updated_row();
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd,
                                                *fields_for_table[offset],
@@ -2247,7 +2232,7 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
                                          &tmp_table_param[offset].recinfo,
                                          error, TRUE, NULL))
         {
-          do_update= false;
+          update_completed= true;
           DBUG_RETURN(true);             // Not a table_is_full error
 	}
         found_rows++;
@@ -2296,13 +2281,9 @@ void Query_result_update::abort_result_set()
   {
     DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
       Transaction_ctx::STMT));
-    if (do_update && update_table_count > 1)
+    if (!update_completed && update_table_count > 1)
     {
-      /* Add warning here */
-      /* 
-         todo/fixme: do_update() is never called with the arg 1.
-         should it change the signature to become argless?
-      */
+      /* @todo: Add warning here */
       (void) do_updates();
     }
   }
@@ -2344,7 +2325,7 @@ bool Query_result_update::do_updates()
 
   DBUG_ENTER("Query_result_update::do_updates");
 
-  do_update= false;                     // Don't retry this function
+  update_completed= true;                     // Don't retry this function
 
   if (found_rows == 0)
   {
@@ -2470,7 +2451,7 @@ bool Query_result_update::do_updates()
         field_num++;
       } while((tbl= check_opt_it++));
 
-      table->status|= STATUS_UPDATED;
+      table->set_updated_row();
       store_record(table,record[1]);
 
       /* Copy data from temporary table to current table */

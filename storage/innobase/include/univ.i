@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -95,13 +95,6 @@ support cross-platform development and expose comonly used SQL names. */
 
 #include "my_psi_config.h"
 
-#ifdef HAVE_PSI_INTERFACE
-
-/** Define for performance schema registration key */
-using mysql_pfs_key_t = unsigned int;
-
-#endif /* HAVE_PFS_INTERFACE */
-
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 #include <sys/stat.h>
 
@@ -131,20 +124,13 @@ HAVE_PSI_INTERFACE is defined. */
 # define UNIV_PFS_MUTEX
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
+#if defined HAVE_PSI_RWLOCK_INTERFACE && defined UNIV_PFS_MUTEX
+/* For the rwlocks to be tracked UNIV_PFS_MUTEX has to be defined. If not
+defined, the rwlocks are simply not tracked. */
 # define UNIV_PFS_RWLOCK
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-/* For I/O instrumentation, performance schema rely
-on a native descriptor to identify the file, this
-descriptor could conflict with our OS level descriptor.
-Disable IO instrumentation on Windows until this is
-resolved */
-#ifdef HAVE_PSI_FILE_INTERFACE
-# ifndef _WIN32
 #  define UNIV_PFS_IO
-# endif
-#endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 # define UNIV_PFS_THREAD
@@ -153,15 +139,6 @@ resolved */
 # ifdef HAVE_PSI_MEMORY_INTERFACE
 #  define UNIV_PFS_MEMORY
 # endif /* HAVE_PSI_MEMORY_INTERFACE */
-
-/* There are mutexes/rwlocks that we want to exclude from
-instrumentation even if their corresponding performance schema
-define is set. And this PFS_NOT_INSTRUMENTED is used
-as the key value to identify those objects that would
-be excluded from instrumentation. */
-# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
-
-# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
 
 /* For PSI_MUTEX_CALL() and similar. */
 #include "pfs_thread_provider.h"
@@ -423,6 +400,7 @@ lu/llu, like in %03lu. */
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
 # define UINT32PF	"%lu"
+# define UINT32PFS	"lu"
 # define UINT64PF	"%llu"
 # define UINT64PFx	"%016llx"
 typedef unsigned __int64 ib_uint64_t;
@@ -430,6 +408,7 @@ typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
 # define UINT32PF	"%" PRIu32
+# define UINT32PFS	PRIu32
 # define UINT64PF	"%" PRIu64
 # define UINT64PFx	"%016" PRIx64
 typedef uint64_t ib_uint64_t;
@@ -485,6 +464,7 @@ typedef uint32			page_no_t;
 typedef uint32			space_id_t;
 
 #define SPACE_ID_PF UINT32PF
+#define SPACE_ID_PFS UINT32PFS
 #define PAGE_NO_PF UINT32PF
 #define PAGE_ID_PF "page " SPACE_ID_PF ":" PAGE_NO_PF
 

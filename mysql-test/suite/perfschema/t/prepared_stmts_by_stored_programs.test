@@ -3,7 +3,6 @@
 # can be used in stored procedures, but not stored functions or triggers.
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 

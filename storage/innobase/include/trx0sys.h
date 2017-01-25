@@ -37,7 +37,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "ut0lst.h"
-#include "read0types.h"
 #include "page0types.h"
 #include "ut0mutex.h"
 #include "trx0trx.h"
@@ -76,28 +75,12 @@ Creates and initializes the transaction system at the database creation. */
 void
 trx_sys_create_sys_pages(void);
 /*==========================*/
-/****************************************************************//**
-Looks for a free slot for a rollback segment in the trx system file copy.
+
+/** Look for a free slot for a rollback segment in the trx system file copy.
+@param[in,out]	mtr		mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint
-trx_sysf_rseg_find_free(
-/*====================*/
-	mtr_t*	mtr,			/*!< in/out: mtr */
-	bool	include_tmp_slots,	/*!< in: if true, report slots reserved
-					for temp-tablespace as free slots. */
-	ulint	nth_free_slots);	/*!< in: allocate nth free slot.
-					0 means next free slot. */
-/** Gets the pointer in the nth slot of the rseg array.
-@param[in]	sys		trx system
-@param[in]	n		index of slot
-@param[in]	is_redo_rseg	true if redo rseg.
-@return pointer to rseg object, NULL if slot not in use */
-UNIV_INLINE
-trx_rseg_t*
-trx_sys_get_nth_rseg(
-	trx_sys_t*	sys,
-	ulint		n,
-	bool		is_redo_rseg);
+trx_sysf_rseg_find_free(mtr_t*	mtr);
 
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
@@ -148,7 +131,7 @@ trx_sysf_rseg_set_space(
 	space_id_t	space,
 	mtr_t*		mtr);
 
-/** Sets the page number of the nth rollback segment slot in the trx system
+/** Set the page number of the nth rollback segment slot in the trx system
 file copy.
 @param[in]	sys_header	trx sys file copy
 @param[in]	i		slot index == rseg id
@@ -183,13 +166,6 @@ trx_sys_get_max_trx_id(void);
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 extern uint			trx_rseg_n_slots_debug;
 #endif
-
-/** Check if slot-id is reserved slot-id for noredo rsegs.
-@param[in]	slot_id	slot_id to check */
-UNIV_INLINE
-bool
-trx_sys_is_noredo_rseg_slot(
-	ulint	slot_id);
 
 /** Writes a trx id to an index page. In case that the id size changes in some
 future version, this function should be used instead of mach_write_...
@@ -290,16 +266,27 @@ Shutdown/Close the transaction system. */
 void
 trx_sys_close(void);
 /*===============*/
-/*********************************************************************
-Creates the rollback segments
-@return number of rollback segments that are active. */
+
+/** Create non-redo rollback segments residing in the temp-tablespace.
+Non-redo rollback segments don't perform redo logging and so they are
+used for undo logging of objects/tables that don't need to be recovered
+after a crash. Non-Redo rollback segments are created on every server
+startup.
+@return number of non-redo rollback segments created. */
 ulint
-trx_sys_create_rsegs(
-/*=================*/
-	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
-	ulint	n_rsegs,	/*!< number of rollback segments to create */
-	ulint	n_tmp_rsegs);	/*!< number of rollback segments reserved for
-				temp-tables. */
+trx_rsegs_create_in_temp_space();
+
+/** Create any more rollback segments above what was previously built
+in the system tablespace. During create_new_db, only one rollback segment
+was created initially so that the system tablespace would be backward
+compatible in its file segment ordering.
+When opening an existing db, the setting for srv_undo_tablespaces may
+have changed from >0 to =0 and/or the setting for srv_rollback_segments
+may have changed. If the TRX_SYS page does not track enough rollback
+segments, we will create the rest here.
+@return true if successful or not done.  false for failure. */
+bool
+trx_sys_create_additional_rsegs(bool recv_needed_recovery);
 
 /** Determine if there are incomplete transactions in the system.
 @return whether incomplete transactions need rollback */
@@ -340,6 +327,15 @@ trx_sys_validate_trx_list();
 /*========================*/
 #endif /* UNIV_DEBUG */
 
+/** Initialize trx_sys_undo_spaces, called once during srv_start(). */
+void
+trx_sys_undo_spaces_init();
+
+/** Free the resources occupied by trx_sys_undo_spaces,
+called once during thread de-initialization. */
+void
+trx_sys_undo_spaces_deinit();
+
 /** The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
@@ -375,10 +371,19 @@ byte, therefore 128; each slot is currently 8 bytes in size. If you want
 to raise the level to 256 then you will need to fix some assertions that
 impose the 7 bit restriction. e.g., mach_write_to_3() */
 #define	TRX_SYS_N_RSEGS			128
+
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
 rollback segment.  It initialized some arrays with this number of entries.
 We must remember this limit in order to keep file compatibility. */
 #define TRX_SYS_OLD_N_RSEGS		256
+
+/* The system temporary tablespace was originally allocated rseg_id slot
+numbers 1 through 32 in the TRX_SYS page.  But those slots were not used
+because those Rollback segments were recreated at startup and after any
+crash. These slots are now used for redo-enabled rollback segments.
+The default number of rollback segments in the temporary tablespace
+remains the same. */
+#define	TRX_SYS_OLD_TMP_RSEGS		32
 
 /** Maximum length of MySQL binlog file name, in bytes. */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
@@ -452,6 +457,30 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
 /* @} */
 
 #ifndef UNIV_HOTBACKUP
+
+/** List of undo tablespace IDs. */
+class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t>>
+{
+public:
+	void sort() {
+		std::sort(begin(), end());
+	}
+
+	bool contains(space_id_t id) {
+		if (size() == 0) {
+			return(false);
+		}
+
+		iterator	it = std::find(begin(), end(), id);
+
+		return(it != end());
+	}
+
+	iterator find(space_id_t id) {
+		return(std::find(begin(), end(), id));
+	}
+};
+
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
 
@@ -503,26 +532,27 @@ struct trx_sys_t {
 					consistent snapshot. */
 
 	char		pad3[64];	/*!< To avoid false sharing */
-	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
-					/*!< Pointer array to rollback
-					segments; NULL if slot not in use;
+
+	Rsegs		rsegs;		/*!< Vector of pointers to rollback
+					segments referenced in TRX_SYS page;
 					created and destroyed in
 					single-threaded mode; not protected
 					by any mutex, because it is read-only
 					during multi-threaded operation */
+
+	Rsegs		tmp_rsegs;	/*!< Vector of pointers to rollback
+					segments within the temp tablespace;
+					This vector is created and destroyed
+					in single-threaded mode so it is not
+					protected by any mutex because it is
+					read-only during multi-threaded
+					operation. */
+
 	ulint		rseg_history_len;
 					/*!< Length of the TRX_RSEG_HISTORY
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
-
-	trx_rseg_t*	const pending_purge_rseg_array[TRX_SYS_N_RSEGS];
-					/*!< Pointer array to rollback segments
-					between slot-1..slot-srv_tmp_undo_logs
-					that are now replaced by non-redo
-					rollback segments. We need them for
-					scheduling purge if any of the rollback
-					segment has pending records to purge. */
 
 	TrxIdSet	rw_trx_set;	/*!< Mapping from transaction id
 					to transaction instance */
@@ -530,6 +560,11 @@ struct trx_sys_t {
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
 };
+
+/** A list of undo tablespace IDs found in the TRX_SYS page.
+This cannot be part of the trx_sys_t object because it is initialized
+before that object is created. */
+extern	Space_Ids*	trx_sys_undo_spaces;
 
 /** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system

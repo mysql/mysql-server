@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -41,13 +41,13 @@
 #include "sql_const.h"
 #include "thr_malloc.h"
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 #include "log.h"                 // sql_print_warning
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"              // ER_*
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #include "mysqlbinlog.h"
 #endif
 
@@ -238,7 +238,7 @@ void Gtid_set::create_new_chunk(int size)
                                            MYF(MY_WME));
     if (new_chunk != NULL)
     {
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
       if (i > 0)
         sql_print_warning("Server overcomes the temporary 'out of memory' "
                           "in '%d' tries while allocating a new chunk of "

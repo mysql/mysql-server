@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
 
 #include "item.h"
 #include "item_func.h"
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include "my_dbug.h"
 #include "sql_get_diagnostics.h"
+#include "test_utils.h"
 
 namespace get_diagnostics_unittest {
 

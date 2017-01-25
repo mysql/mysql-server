@@ -74,7 +74,9 @@ static const char *json_extra_tags[ET_total]=
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
   "pushed_join",                        // ET_PUSHED_JOIN
-  "ft_hints"                            // ET_FT_HINTS
+  "ft_hints",                           // ET_FT_HINTS
+  "backward_index_scan",                // ET_BACKWARD_SCAN
+  "recursive"                           // ET_RECURSIVE
 };
 
 
@@ -105,6 +107,7 @@ static const char K_QUERY_SPECIFICATIONS[]=         "query_specifications";
 static const char K_REF[]=                          "ref";
 static const char K_SELECT_ID[]=                    "select_id";
 static const char K_SELECT_LIST_SUBQUERIES[]=       "select_list_subqueries";
+static const char K_SHARING_TMP_TABLE[]=            "sharing_temporary_table_with";
 static const char K_TABLE[]=                        "table";
 static const char K_TABLE_NAME[]=                   "table_name";
 static const char K_UNION_RESULT[]=                 "union_result";
@@ -408,6 +411,13 @@ private:
   {
     if (type == CTX_DERIVED)
     {
+      if (derived_clone_id)
+      {
+        Opt_trace_object(json, K_SHARING_TMP_TABLE).
+          add(K_SELECT_ID, derived_clone_id);
+        // Don't show underlying tables of derived table clone
+        return false;
+      }
       obj->add(K_USING_TMP_TABLE, true);
       obj->add(K_DEPENDENT, dependent());
       obj->add(K_CACHEABLE, cacheable());
@@ -426,22 +436,22 @@ private:
         Opt_trace_object tmp_table(json, K_TABLE);
 
         if (!col_table_name.is_empty())
-          obj->add_utf8(K_TABLE_NAME, col_table_name.str);
+          tmp_table.add_utf8(K_TABLE_NAME, col_table_name.str);
         if (!col_join_type.is_empty())
           tmp_table.add_alnum(K_ACCESS_TYPE, col_join_type.str);
         if (!col_key.is_empty())
           tmp_table.add_utf8(K_KEY, col_key.str);
         if (!col_key_len.is_empty())
-          obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
+          tmp_table.add_alnum(K_KEY_LENGTH, col_key_len.str);
         if (!col_rows.is_empty())
           tmp_table.add(K_ROWS, col_rows.value);
 
         if (is_materialized_from_subquery)
         {
           Opt_trace_object materialized(json, K_MATERIALIZED_FROM_SUBQUERY);
-          obj->add(K_USING_TMP_TABLE, true);
-          obj->add(K_DEPENDENT, dependent());
-          obj->add(K_CACHEABLE, cacheable());
+          materialized.add(K_USING_TMP_TABLE, true);
+          materialized.add(K_DEPENDENT, dependent());
+          materialized.add(K_CACHEABLE, cacheable());
           return format_query_block(json);
         }
       }
@@ -653,19 +663,7 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
     obj->add_utf8(K_FILTERED, buf);
   }
 
-  if (!col_extra.is_empty())
-  {
-    List_iterator<qep_row::extra> it(col_extra);
-    qep_row::extra *e;
-    while ((e= it++))
-    {
-      DBUG_ASSERT(json_extra_tags[e->tag] != NULL);
-      if (e->data)
-        obj->add_utf8(json_extra_tags[e->tag], e->data);
-      else
-        obj->add(json_extra_tags[e->tag], true);
-    }
-  }
+  format_extra(obj);
 
   if (!col_read_cost.is_empty())
   {
@@ -1285,6 +1283,9 @@ bool join_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 {
   if (type == CTX_JOIN)
     obj->add(K_SELECT_ID, id(true));
+
+  format_extra(obj);
+
   if (!col_read_cost.is_empty())
   {
     char buf[32];                         // 32 is enough for digits of a double
@@ -2086,3 +2087,17 @@ bool Explain_format_JSON::send_headers(Query_result *result)
                                           Protocol::SEND_EOF);
 }
 
+
+void qep_row::format_extra(Opt_trace_object *obj)
+{
+  List_iterator<qep_row::extra> it(col_extra);
+  qep_row::extra *e;
+  while ((e= it++))
+  {
+    DBUG_ASSERT(json_extra_tags[e->tag] != NULL);
+    if (e->data)
+      obj->add_utf8(json_extra_tags[e->tag], e->data);
+    else
+      obj->add(json_extra_tags[e->tag], true);
+  }
+}

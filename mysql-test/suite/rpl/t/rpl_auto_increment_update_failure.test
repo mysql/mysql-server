@@ -17,7 +17,6 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_mixed.inc;
-source include/have_innodb.inc;
 source include/master-slave.inc;
 
 --echo # Test case1: INVOKES A TRIGGER with after insert action

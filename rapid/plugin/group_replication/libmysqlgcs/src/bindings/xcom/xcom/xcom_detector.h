@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,13 @@
 #ifndef XCOM_DETECTOR_H
 #define XCOM_DETECTOR_H
 
+#include "xcom_limits.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#define DETECTOR_LIVE_TIMEOUT 5.0
 
 typedef double	detector_state[NSERVERS];
 struct site_def;

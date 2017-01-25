@@ -61,7 +61,7 @@ public:
   static bool update_name_key(name_key_type *key, Object_id schema_id,
                               const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(aux_key_type*) const
   { return true; }
 
 public:

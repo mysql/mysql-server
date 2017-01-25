@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,6 @@ int initialize_channel_service_interface()
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_REPLICATION
 
 static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 {
@@ -993,4 +992,3 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
   channel_map.unlock();
   DBUG_RETURN(ret);
 }
-#endif /* HAVE_REPLICATION */

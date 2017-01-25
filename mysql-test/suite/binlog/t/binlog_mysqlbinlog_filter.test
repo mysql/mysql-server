@@ -16,7 +16,6 @@
 #   BUG#11746146 - Before this bug, INTVAR, RAND, and USER_VAR events were printed 
 #                  even if the corresponding query_log_event was filtered out.
 
---source include/have_innodb.inc
 --source include/have_binlog_format_statement.inc
 
 RESET MASTER;

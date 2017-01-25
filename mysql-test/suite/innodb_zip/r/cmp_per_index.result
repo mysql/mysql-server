@@ -1,3 +1,5 @@
+select @@global.innodb_log_compressed_pages into @save_innodb_log_compressed_pages;
+SET @@global.innodb_log_compressed_pages=1;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SELECT * FROM information_schema.innodb_cmp_per_index;
 CREATE TABLE t (
@@ -70,6 +72,7 @@ index_name	PRIMARY
 compress_ops	65
 compress_ops_ok	65
 uncompress_ops	0
+SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
 # restart
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SELECT COUNT(*) FROM t;

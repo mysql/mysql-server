@@ -2,9 +2,6 @@
 ================================================================================
 SETUP
 ================================================================================
-# Save current SHOW_COMPATIBILITY_56 setting
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-SET @@global.show_compatibility_56=OFF;
 CREATE TABLE test.t1 (c1 INT);
 PREPARE stmt1 FROM "SELECT c1 FROM test.t1";
 EXECUTE stmt1;
@@ -40,5 +37,3 @@ SELECT @count_global_reprepare_after - @count_global_reprepare_before;
 CLEANUP
 ================================================================================
 DROP TABLE test.t1;
-# Restore SHOW_COMPATIBILITY_56 setting
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;

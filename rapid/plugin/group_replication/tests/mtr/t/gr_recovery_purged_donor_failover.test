@@ -19,7 +19,6 @@
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3
 --source ../inc/group_replication.inc
---source include/have_perfschema.inc
 
 --let $recovery_user= recovery_user
 --let $recovery_password= recovery_password
@@ -108,7 +107,7 @@ SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name";
 --enable_query_log
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 #give it time to fail several times
 --sleep 5

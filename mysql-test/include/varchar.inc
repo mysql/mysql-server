@@ -90,17 +90,17 @@ explain select * from t1 where v='a';
 
 # GROUP BY
 
-select v,count(*) from t1 group by v limit 10;
-select v,count(t) from t1 group by v limit 10;
-select v,count(c) from t1 group by v limit 10;
-select sql_big_result v,count(t) from t1 group by v limit 10;
-select sql_big_result v,count(c) from t1 group by v limit 10;
-select c,count(*) from t1 group by c limit 10;
-select c,count(t) from t1 group by c limit 10;
+select v,count(*) from t1 group by v asc limit 10;
+select v,count(t) from t1 group by v asc limit 10;
+select v,count(c) from t1 group by v asc limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
+select sql_big_result v,count(c) from t1 group by v asc limit 10;
+select c,count(*) from t1 group by c asc limit 10;
+select c,count(t) from t1 group by c asc limit 10;
 select sql_big_result c,count(t) from t1 group by c limit 10;
-select t,count(*) from t1 group by t limit 10;
-select t,count(t) from t1 group by t limit 10;
-select sql_big_result t,count(t) from t1 group by t limit 10;
+select t,count(*) from t1 group by t asc limit 10;
+select t,count(t) from t1 group by t asc limit 10;
+select sql_big_result t,count(t) from t1 group by t asc limit 10;
 
 #
 # Test varchar > 255 bytes
@@ -127,9 +127,9 @@ explain select * from t1 where v='a';
 
 # GROUP BY
 
-select v,count(*) from t1 group by v limit 10;
-select v,count(t) from t1 group by v limit 10;
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
+select v,count(t) from t1 group by v asc limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 
 #
 # Test varchar > 255 bytes, key < 255
@@ -156,9 +156,9 @@ explain select * from t1 where v='a';
 
 # GROUP BY
 
-select v,count(*) from t1 group by v limit 10;
-select v,count(t) from t1 group by v limit 10;
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
+select v,count(t) from t1 group by v asc limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 
 #
 # Test varchar > 512 (special case for GROUP BY becasue of
@@ -167,9 +167,9 @@ select sql_big_result v,count(t) from t1 group by v limit 10;
 
 alter table t1 modify v varchar(600), drop key v, add key v (v);
 show create table t1;
-select v,count(*) from t1 group by v limit 10;
-select v,count(t) from t1 group by v limit 10;
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
+select v,count(t) from t1 group by v asc limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 
 drop table t1;
 

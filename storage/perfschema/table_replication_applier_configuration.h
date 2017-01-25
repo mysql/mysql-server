@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_APPLIER_CONFIGURATION_H
 #define TABLE_REPLICATION_APPLIER_CONFIGURATION_H
 
@@ -27,68 +26,57 @@
 #include "pfs_engine_table.h"
 #include "table_helper.h"
 
-#ifdef HAVE_REPLICATION
-
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_msr.h"
-#include "rpl_info.h"  /*CHANNEL_NAME_LENGTH*/
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 
 class Master_info;
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-#ifdef HAVE_REPLICATION
 /** A row in the table*/
-struct st_row_applier_config {
+struct st_row_applier_config
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   time_t desired_delay;
   bool desired_delay_is_set;
 };
-#endif /* HAVE_REPLICATION */
 
 class PFS_index_rpl_applier_config : public PFS_engine_index
 {
 public:
   PFS_index_rpl_applier_config()
-    : PFS_engine_index(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_applier_config()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_configuration */
-class table_replication_applier_configuration: public PFS_engine_table
+class table_replication_applier_configuration : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
-  void make_row(Master_info *mi);
-#endif /* HAVE_REPLICATION */
+  int make_row(Master_info *mi);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_applier_config m_row;
-#endif /* HAVE_REPLICATION */
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -115,7 +103,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include "my_dbug.h"
 #include "my_global.h"
-#include "xpl_performance_schema.h"
 #include "replication.h"
+#include "xpl_performance_schema.h"
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -26,7 +27,7 @@
 #include <sys/utsname.h>
 #endif
 
-typedef struct st_Vio Vio;
+typedef struct st_vio Vio;
 
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;

@@ -2,11 +2,11 @@
 --disable_result_log
 
 select @init_server_epoch:=Variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where Variable_name ="ndb_last_commit_epoch_server";
 
 select @init_session_epoch:=Variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where Variable_name ="ndb_last_commit_epoch_session";
 
 --enable_query_log

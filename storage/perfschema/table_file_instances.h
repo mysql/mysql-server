@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,27 +48,28 @@ struct row_file_instances
 class PFS_index_file_instances : public PFS_engine_index
 {
 public:
-  PFS_index_file_instances(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_file_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
   ~PFS_index_file_instances()
-  {}
+  {
+  }
 
   virtual bool match(const PFS_file *pfs) = 0;
 };
 
-class PFS_index_file_instances_by_file_name
-  : public PFS_index_file_instances
+class PFS_index_file_instances_by_file_name : public PFS_index_file_instances
 {
 public:
   PFS_index_file_instances_by_file_name()
-    : PFS_index_file_instances(&m_key),
-      m_key("FILE_NAME")
-  {}
+    : PFS_index_file_instances(&m_key), m_key("FILE_NAME")
+  {
+  }
 
   ~PFS_index_file_instances_by_file_name()
-  {}
+  {
+  }
 
   bool match(const PFS_file *pfs);
 
@@ -76,17 +77,17 @@ private:
   PFS_key_file_name m_key;
 };
 
-class PFS_index_file_instances_by_event_name
-  : public PFS_index_file_instances
+class PFS_index_file_instances_by_event_name : public PFS_index_file_instances
 {
 public:
   PFS_index_file_instances_by_event_name()
-    : PFS_index_file_instances(&m_key),
-      m_key("EVENT_NAME")
-  {}
+    : PFS_index_file_instances(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_file_instances_by_event_name()
-  {}
+  {
+  }
 
   bool match(const PFS_file *pfs);
 
@@ -100,7 +101,7 @@ class table_file_instances : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -120,10 +121,11 @@ private:
 
 public:
   ~table_file_instances()
-  {}
+  {
+  }
 
 private:
-  void make_row(PFS_file *pfs);
+  int make_row(PFS_file *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -132,8 +134,6 @@ private:
 
   /** Current row. */
   row_file_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

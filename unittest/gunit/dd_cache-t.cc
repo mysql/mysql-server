@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,38 +13,34 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <vector>
+#include <gtest/gtest.h>
 #include <algorithm>
 #include <typeinfo>
-
-#include "my_config.h"
-#include <gtest/gtest.h>
-#include "test_utils.h"
-#include "mdl.h"
-#include "test_mdl_context_owner.h"
+#include <vector>
 
 #include "dd.h"
-
-// Avoid warning about deleting ptr to incomplete type on Win
-#include "dd/properties.h"
-
-#include "dd/dd.h"
-#include "dd/cache/element_map.h"
 #include "dd/cache/dictionary_client.h"
-
-#include "dd/impl/cache/free_list.h"
+#include "dd/cache/element_map.h"
+#include "dd/dd.h"
 #include "dd/impl/cache/cache_element.h"
-#include "dd/impl/cache/storage_adapter.h"
+#include "dd/impl/cache/free_list.h"
 #include "dd/impl/cache/shared_dictionary_cache.h"
-
+#include "dd/impl/cache/storage_adapter.h"
 #include "dd/impl/types/charset_impl.h"
 #include "dd/impl/types/collation_impl.h"
+#include "dd/impl/types/event_impl.h"
+#include "dd/impl/types/procedure_impl.h"
 #include "dd/impl/types/schema_impl.h"
 #include "dd/impl/types/table_impl.h"
 #include "dd/impl/types/tablespace_impl.h"
 #include "dd/impl/types/view_impl.h"
-#include "dd/impl/types/event_impl.h"
-#include "dd/impl/types/procedure_impl.h"
+// Avoid warning about deleting ptr to incomplete type on Win
+#include "dd/properties.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "test_mdl_context_owner.h"
+#include "test_utils.h"
 
 
 namespace dd {
@@ -142,6 +138,7 @@ protected:
     mysql->set_name("mysql");
     EXPECT_FALSE(thd()->dd_client()->store<dd::Schema>(mysql));
     EXPECT_LT(9999u, mysql->id());
+    thd()->dd_client()->commit_modified_objects();
 
     mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
     max_write_lock_count= ULONG_MAX;
@@ -543,7 +540,7 @@ void test_acquire_for_modification(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_FALSE(dc->drop(acquired));
 }
@@ -609,7 +606,7 @@ void test_acquire_for_modification_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(modified, acquired);
   EXPECT_EQ(*modified, *acquired);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &acquired));
   EXPECT_FALSE(dc->drop(acquired));
 }
@@ -680,7 +677,7 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire<Intrfc_type>("old_name", &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 }
@@ -756,7 +753,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire(tst->mysql->name(), "schema_old_name", &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 }
@@ -838,7 +835,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   EXPECT_FALSE(dc->acquire(tst->mysql->name(), created->name(), &old_const));
   EXPECT_EQ(nullp<Intrfc_type>(), old_const);
 
-  dc->remove_uncommitted_objects<Intrfc_type>(true);
+  dc->commit_modified_objects();
   EXPECT_FALSE(dc->acquire<Intrfc_type>(icreated->id(), &new_object));
   EXPECT_FALSE(dc->drop(new_object));
 
@@ -990,7 +987,8 @@ TEST_F(CacheStorageTest, CommitNewObject)
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
-  dc->remove_uncommitted_objects<dd::Table>(true);
+  dc->commit_modified_objects();
+  delete created;
 }
 
 

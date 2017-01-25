@@ -10,7 +10,6 @@
 #     calculation.
 ###############################################################################
 --source include/have_debug_sync.inc
---source include/have_gtid.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc

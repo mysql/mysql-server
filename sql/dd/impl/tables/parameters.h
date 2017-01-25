@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ public:
     FIELD_MODE,
     FIELD_NAME,
     FIELD_DATA_TYPE,
+    FIELD_DATA_TYPE_UTF8,
     FIELD_IS_ZEROFILL,
     FIELD_IS_UNSIGNED,
     FIELD_CHAR_LENGTH,

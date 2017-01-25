@@ -16,7 +16,6 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/have_perfschema.inc
 --source include/master-slave.inc
 
 --connection master

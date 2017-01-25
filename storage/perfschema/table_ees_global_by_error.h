@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,12 +37,13 @@ class PFS_index_ees_global_by_error : public PFS_engine_index
 {
 public:
   PFS_index_ees_global_by_error()
-    : PFS_engine_index(&m_key),
-    m_key("ERROR_NUMBER")
-  {}
+    : PFS_engine_index(&m_key), m_key("ERROR_NUMBER")
+  {
+  }
 
   ~PFS_index_ees_global_by_error()
-  {}
+  {
+  }
 
   virtual bool match_error_index(uint error_index);
 
@@ -65,27 +66,32 @@ struct row_ees_global_by_error
   PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR.
   Index 1 on error (0 based)
 */
-struct pos_ees_global_by_error
-: public PFS_simple_index
+struct pos_ees_global_by_error : public PFS_simple_index
 {
-  pos_ees_global_by_error()
-    : PFS_simple_index(0)
-  {}
-
-  inline void reset(void)
+  pos_ees_global_by_error() : PFS_simple_index(0)
   {
-    m_index= 0;
   }
 
-  inline void next(void)
+  inline void
+  reset(void)
+  {
+    m_index = 0;
+  }
+
+  inline void
+  next(void)
   {
     m_index++;
   }
 
-  inline bool has_more_error(void)
-  { return (m_index < max_server_errors); }
+  inline bool
+  has_more_error(void)
+  {
+    return (m_index < max_server_errors);
+  }
 
-  inline void next_error(void)
+  inline void
+  next_error(void)
   {
     m_index++;
   }
@@ -97,7 +103,7 @@ class table_ees_global_by_error : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -120,10 +126,11 @@ protected:
 
 public:
   ~table_ees_global_by_error()
-  {}
+  {
+  }
 
 protected:
-  void make_row(int error_index);
+  int make_row(int error_index);
 
 private:
   /** Table share lock. */
@@ -133,8 +140,6 @@ private:
 
   /** Current row. */
   row_ees_global_by_error m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_ees_global_by_error m_pos;
   /** Next position. */

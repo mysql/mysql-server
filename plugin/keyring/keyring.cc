@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <memory>
-
 #include <my_global.h>
 #include <mysql/plugin_keyring.h>
+#include <memory>
 
 #include "buffered_file_io.h"
 #include "keyring.h"
+#include "my_compiler.h"
 #include "my_psi_config.h"
 
 #ifdef _WIN32
@@ -119,6 +119,13 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
 {
   try
   {
+    SSL_library_init(); //always returns 1
+#ifndef HAVE_YASSL
+    ERR_load_BIO_strings();
+#endif
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
 #ifdef HAVE_PSI_INTERFACE
     keyring_init_psi_keys();
 #endif
@@ -166,6 +173,12 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework
+  ERR_remove_state(0);
+  ERR_free_strings();
+  EVP_cleanup();
+#ifndef HAVE_YASSL
+  CRYPTO_cleanup_all_ex_data();
+#endif
   keys.reset();
   logger.reset();
   keyring_file_data.reset();

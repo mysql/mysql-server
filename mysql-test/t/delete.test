@@ -831,3 +831,28 @@ eval $query;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25320909 ASSERTION `THD->LEX->CURRENT_SELECT() == UNIT->FIRST_SELECT()' WITH DELETE
+--echo #
+
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 (a,b) VALUES
+(10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+
+CREATE TABLE t2 (pk INT AUTO_INCREMENT PRIMARY KEY, c CHAR(8), d INT);
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+
+DELETE IGNORE FROM t1 WHERE b IS NOT NULL ORDER BY a LIMIT 1;
+--sorted_result
+SELECT a,b FROM t1;
+DELETE IGNORE t1.*, t2.* FROM t1, t2
+  WHERE c < b OR
+        a != ( SELECT 1 UNION SELECT 2 );
+--sorted_result
+SELECT a,b FROM t1;
+--sorted_result
+SELECT c,d FROM t2;
+
+DROP TABLE t1, t2;

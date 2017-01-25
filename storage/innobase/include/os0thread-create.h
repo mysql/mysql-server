@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -110,7 +110,8 @@ private:
 #ifdef UNIV_PFS_THREAD
 		PSI_thread*	psi;
 
-		psi = PSI_THREAD_CALL(new_thread)(m_pfs_key, nullptr, 0);
+		psi = PSI_THREAD_CALL(new_thread)(m_pfs_key.m_value, nullptr,
+						  0);
 
 		PSI_THREAD_CALL(set_thread_os_id)(psi);
 		PSI_THREAD_CALL(set_thread)(psi);

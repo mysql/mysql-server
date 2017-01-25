@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,10 +16,12 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
-#include "auth_common.h"     /* struct ACL_* */
-#include "my_thread_local.h" /* thread_local_key_t */
-#include "my_base.h"
+#include "auth_common.h" /* struct ACL_* */
 #include "key.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_thread_local.h" /* thread_local_key_t */
 
 class PFS_engine_key;
 class PFS_engine_index;
@@ -33,6 +35,7 @@ typedef struct st_table_field_def TABLE_FIELD_DEF;
 */
 
 #include "pfs_instr_class.h"
+
 extern thread_local_key_t THR_PFS_VG;   // global_variables
 extern thread_local_key_t THR_PFS_SV;   // session_variables
 extern thread_local_key_t THR_PFS_VBT;  // variables_by_thread

@@ -8,7 +8,6 @@
 --source include/not_embedded.inc
 
 # This test case needs InnoDB.
--- source include/have_innodb.inc
 
 --disable_query_log
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table `mysql`\..* in the cache');

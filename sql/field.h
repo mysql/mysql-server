@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-
 #include "binary_log_funcs.h"                   // my_time_binary_length
 #include "decimal.h"                            // E_DEC_OOM
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
+#include "my_dbug.h"
+#include "my_global.h"
 #include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysqld_error.h"                       // ER_*
@@ -252,6 +252,27 @@ DBUG_ASSERT(!table || (!table->write_set || \
                        bitmap_is_set(table->write_set, field_index)))
 
 
+/**
+  Tests if field type is an integer
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if integer type, false otherwise
+*/
+inline bool is_integer_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+    return true;
+  default:
+    return false;
+  }
+}
 /**
   Tests if field type is temporal, i.e. represents
   DATE, TIME, DATETIME or TIMESTAMP types in SQL.
@@ -653,10 +674,10 @@ private:
   bool m_is_tmp_null;
 
   /**
-    The value of THD::count_cuted_fields at the moment of setting
+    The value of THD::check_for_truncated_fields at the moment of setting
     m_is_tmp_null attribute.
   */
-  enum_check_fields m_count_cuted_fields_saved;
+  enum_check_fields m_check_for_truncated_fields_saved;
 
 protected:
   const uchar *get_null_ptr() const
@@ -1198,14 +1219,15 @@ public:
   type_conversion_status check_constraints(int mysql_errno);
 
   /**
-    Remember the value of THD::count_cuted_fields to handle possible
+    Remember the value of THD::check_for_truncated_fields to handle possible
     NOT-NULL constraint errors after BEFORE-trigger execution is finished.
-    We should save the value of THD::count_cuted_fields before starting
+    We should save the value of THD::check_for_truncated_fields before starting
     BEFORE-trigger processing since during triggers execution the
-    value of THD::count_cuted_fields could be changed.
+    value of THD::check_for_truncated_fields could be changed.
   */
-  void set_count_cuted_fields(enum_check_fields count_cuted_fields)
-  { m_count_cuted_fields_saved= count_cuted_fields; }
+  void set_check_for_truncated_fields(
+    enum_check_fields check_for_truncated_fields)
+  { m_check_for_truncated_fields_saved= check_for_truncated_fields; }
 
   bool maybe_null(void) const
   { return real_maybe_null() || table->is_nullable(); }
@@ -1464,14 +1486,15 @@ public:
 
     @note
       This function won't produce warning and increase cut fields counter
-      if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+      if check_for_truncated_fields == CHECK_FIELD_IGNORE for current thread.
 
-      if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+      if check_for_truncated_fields == CHECK_FIELD_IGNORE then we ignore notes.
       This allows us to avoid notes in optimization, like
       convert_constant_item().
 
     @retval
-      1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+      1 if check_for_truncated_fields == CHECK_FIELD_IGNORE and error level
+      is not NOTE
     @retval
       0 otherwise
   */
@@ -1886,8 +1909,7 @@ private:
                                                   bool count_spaces);
 protected:
   type_conversion_status
-    check_string_copy_error(const char *original_string,
-                            const char *well_formed_error_pos,
+    check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
                             const char *from_end_pos,
                             const char *end,
@@ -2684,11 +2706,11 @@ protected:
     @param[in] code            Warning code
     @param[in] val             Warning parameter
     @param[in] ts_type         Timestamp type (time, date, datetime, none)
-    @param[in] cut_increment   Incrementing of cut field counter
+    @param[in] truncate_increment  Incrementing of truncated field counter
   */
   void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString val,
-                            timestamp_type ts_type, int cut_increment);
+                            timestamp_type ts_type, int truncate_increment);
 public:
   /**
     Constructor for Field_temporal
@@ -3676,7 +3698,7 @@ class Field_blob :public Field_longstr {
   type_conversion_status store_to_mem(const char *from, size_t length,
                                       const CHARSET_INFO *cs,
                                       size_t max_length,
-                                      Blob_mem_storage *blob_storage);
+                                      Blob_mem_storage*);
 protected:
   /**
     The number of bytes used to represent the length of the blob.

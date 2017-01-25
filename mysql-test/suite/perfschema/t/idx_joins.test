@@ -4,7 +4,6 @@
 --echo ## Use 'irrational' joins to compare columns longer than the key length of the index.
 --echo ##
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 USE performance_schema;
 

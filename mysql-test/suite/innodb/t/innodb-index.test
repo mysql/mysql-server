@@ -1,5 +1,4 @@
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -1043,6 +1042,17 @@ create table t1(o1 varchar(10), o2 varchar(10), primary key(o1,o2)) engine = inn
 insert into t1 values('abd', 'acd'), ('acd', 'abd');
 alter table t1 drop primary key, add primary key(o2,o1), lock=none;
 drop table t1;
+
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY (a ASC)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a DESC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a ASC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
 
 # no skip sort cases
 --source suite/innodb/include/alter_table_pk_no_sort.inc

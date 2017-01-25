@@ -1,8 +1,8 @@
 # Author: Horst Hunger
 # Created: 2010-07-13
 
+# windows does not support symlink
 --source include/not_windows.inc
---source include/have_symlink.inc
 
 let $engine_table= INNODB;
 let $engine_part= INNODB;

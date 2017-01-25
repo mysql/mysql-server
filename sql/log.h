@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,9 +141,6 @@ class File_query_log
      Log given command to normal (not rotatable) log file.
 
      @param event_utime       Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user\@host info
-     @param user_host_len     Length of the user_host string. this is computed once
-                              and passed to all general log event handlers
      @param thread_id         Id of the thread that issued the query
      @param command_type      The type of the command being logged
      @param command_type_len  The length of the string above
@@ -152,8 +149,7 @@ class File_query_log
 
      @return true if error, false otherwise.
   */
-  bool write_general(ulonglong event_utime, const char *user_host,
-                     size_t user_host_len, my_thread_id thread_id,
+  bool write_general(ulonglong event_utime, my_thread_id thread_id,
                      const char *command_type, size_t command_type_len,
                      const char *sql_text, size_t sql_text_len);
 
@@ -162,7 +158,6 @@ class File_query_log
 
      @param thd               THD of the query
      @param current_utime     Current timestamp in micro seconds
-     @param query_start_arg   Command start timestamp
      @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
@@ -176,7 +171,7 @@ class File_query_log
 
      @return true if error, false otherwise.
 */
-  bool write_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
+  bool write_slow(THD *thd, ulonglong current_utime,
                   const char *user_host, size_t user_host_len,
                   ulonglong query_utime, ulonglong lock_utime, bool is_command,
                   const char *sql_text, size_t sql_text_len);
@@ -597,9 +592,6 @@ void log_slow_do(THD *thd);
 */
 void log_slow_statement(THD *thd);
 
-
-#ifdef MYSQL_SERVER // Security_context not defined otherwise.
-
 /**
   @class Log_throttle
   @brief Base class for rate-limiting a log (slow query log etc.)
@@ -836,8 +828,6 @@ public:
 
 
 extern Slow_log_throttle log_throttle_qni;
-
-#endif // MYSQL_SERVER
 
 ////////////////////////////////////////////////////////////
 //

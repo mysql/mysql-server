@@ -13,23 +13,23 @@ INSERT INTO xtest.xcoll (doc) VALUES
 ('{"_id": 4, "age": 7, "name": "foo"}'),
 ('{"_id": 5, "age": 17, "name": "buz"}');
 doc
+{"name": "foo"}
 {"name": "bar"}
 {"name": "baz"}
 {"name": "buz"}
-{"name": "foo"}
 command ok
 doc
 {"name": "bar", "count": 1}
 {"name": "baz", "count": 1}
-{"name": "buz", "count": 1}
 {"name": "foo", "count": 2}
+{"name": "buz", "count": 1}
 command ok
 doc
+{"age": 1, "name": "foo", "count": 1}
 {"age": 2, "name": "bar", "count": 1}
 {"age": 3, "name": "baz", "count": 1}
-{"age": 17, "name": "buz", "count": 1}
-{"age": 1, "name": "foo", "count": 1}
 {"age": 7, "name": "foo", "count": 1}
+{"age": 17, "name": "buz", "count": 1}
 command ok
 Got expected error: Invalid empty projection list for grouping (code 5114)
 doc

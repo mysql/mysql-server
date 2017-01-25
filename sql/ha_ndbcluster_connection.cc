@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,13 +17,15 @@
 
 #include "ha_ndbcluster_connection.h"
 
+#include <mysql/psi/mysql_thread.h>
+
 #include "ha_ndbcluster_glue.h"
 #include "kernel/ndb_limits.h"
+#include "my_dbug.h"
 #include "ndbapi/NdbApi.hpp"
 #include "portlib/NdbTick.h"
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
-#include <mysql/psi/mysql_thread.h>
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
@@ -153,11 +155,7 @@ ndbcluster_connect(int (*connect_callback)(void),
                    uint recv_thread_activation_threshold,
                    uint data_node_neighbour)
 {
-#ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
-#else
-  const char mysqld_name[]= "libmysqld";
-#endif
   int res;
   DBUG_ENTER("ndbcluster_connect");
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",
@@ -588,6 +586,7 @@ ndb_transid_mysql_connection_map_deinit(void *p)
 }
 
 #include <mysql/plugin.h>
+
 static struct st_mysql_information_schema i_s_info =
 {
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION

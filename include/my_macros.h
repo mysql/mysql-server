@@ -17,15 +17,15 @@
 #ifndef MY_MACROS_INCLUDED
 #define MY_MACROS_INCLUDED
 
-#ifndef MYSQL_ABI_CHECK
-#include <sys/types.h>
-#endif
-
 /**
   @file include/my_macros.h
   Some common macros. Note that some of these should probably be replaced
   with code from \<algorithm\> or similar.
 */
+
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
+#endif
 
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus

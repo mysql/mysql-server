@@ -115,7 +115,7 @@ private:
                             const char* param_table,  uint* counter);
   static int do_reset_info(uint nparam, const char* param_schema,
                            const char *param_table,
-                           const char *channel_name, uint channel_idx);
+                           const char *channel_name);
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
 

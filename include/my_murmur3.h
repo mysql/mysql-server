@@ -20,8 +20,10 @@
   @file include/my_murmur3.h
 */
 
-#include <my_global.h>
 #include <stddef.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 C_MODE_START
 

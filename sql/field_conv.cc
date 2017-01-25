@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ type_conversion_status set_field_to_null(Field *field)
     neither NULL-able nor temporary NULL-able (see setup_copy_fields()).
   */
   field->reset();
-  switch (field->table->in_use->count_cuted_fields) {
+  switch (field->table->in_use->check_for_truncated_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     /* fall through */
@@ -251,7 +251,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return TYPE_OK;
   }
 
-  switch (field->table->in_use->count_cuted_fields) {
+  switch (field->table->in_use->check_for_truncated_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
@@ -551,6 +551,15 @@ static size_t get_varstring_copy_length(Field_varstring *to,
   else
     bytes_to_copy= uint2korr(from->ptr);
 
+  if (from->pack_length() - from->length_bytes <= to_byte_length)
+  {
+    /*
+      There's room for everything in the destination buffer;
+      no need to truncate.
+    */
+    return bytes_to_copy;
+  }
+
   if (is_multibyte_charset)
   {
     int well_formed_error;
@@ -564,7 +573,7 @@ static size_t get_varstring_copy_length(Field_varstring *to,
                                 &well_formed_error);
     if (bytes_to_copy < from_byte_length)
     {
-      if (from->table->in_use->count_cuted_fields)
+      if (from->table->in_use->check_for_truncated_fields)
         to->set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
     }
@@ -574,7 +583,7 @@ static size_t get_varstring_copy_length(Field_varstring *to,
     if (bytes_to_copy > (to_byte_length))
     {
       bytes_to_copy= to_byte_length;
-      if (from->table->in_use->count_cuted_fields)
+      if (from->table->in_use->check_for_truncated_fields)
         to->set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
     }

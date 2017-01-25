@@ -6,7 +6,6 @@
 # columns of events_statements_current/history/history_long PS tables. 
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 

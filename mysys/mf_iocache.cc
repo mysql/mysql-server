@@ -166,7 +166,7 @@ init_functions(IO_CACHE* info)
 
 int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
                       enum cache_type type, my_off_t seek_offset,
-                      pbool use_async_io, myf cache_myflags,
+                      my_bool use_async_io, myf cache_myflags,
                       PSI_file_key file_key)
 {
   size_t min_cache;
@@ -314,7 +314,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
 
 int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
                   enum cache_type type, my_off_t seek_offset,
-                  pbool use_async_io, myf cache_myflags)
+                  my_bool use_async_io, myf cache_myflags)
 {
   return init_io_cache_ext(info, file, cachesize, type, seek_offset,
                            use_async_io, cache_myflags, key_file_io_cache);
@@ -329,8 +329,8 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
 
 my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
 			my_off_t seek_offset,
-			pbool use_async_io MY_ATTRIBUTE((unused)),
-			pbool clear_cache)
+			my_bool use_async_io MY_ATTRIBUTE((unused)),
+			my_bool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
   DBUG_PRINT("enter",("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",

@@ -391,4 +391,27 @@ drop table t1;
 
 set optimizer_switch=@old_opt_switch;
 set optimizer_prune_level=@old_opt_prune_level;
+
+--echo # Tracing of CTEs using the same tmp table: observe
+--echo # "reusing_tmp_table" and only one "creating_tmp_table".
+with q(a) as (select 1 union all select 2)
+select * from q, q q1 where q.a=1 and q1.a=2;
+select TRACE from information_schema.optimizer_trace;
+
+--echo # Tracing of repetitions of the recursive member
+--echo # can be silenced with repeated_subselect=off
+
+let $query=
+with recursive qn(n) as
+  (select 1 union all select n+1 from qn where n<4)
+select count(*) from qn;
+eval $query;
+SELECT show_json_object('"join_execution": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace_features="repeated_subselect=off";
+eval $query;
+SELECT show_json_object('"join_execution": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace_features=default;
+
 drop function show_json_object;

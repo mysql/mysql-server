@@ -15,7 +15,6 @@
 # Test spatial index with table have no auto_increment
 # Test spatial index with check constraint
 # **********************************************************
---source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 
 
@@ -25,10 +24,14 @@ c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 
 # Check spatial index functionality with Create Index clause options
-CREATE SPATIAL INDEX idx1 on tab(c2 ASC);
+CREATE SPATIAL INDEX idx1 on tab(c2);
+--error ER_WRONG_USAGE
+CREATE SPATIAL INDEX idx2 on tab(c3 ASC) COMMENT 'wl6968';
+--error ER_WRONG_USAGE
 CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
-CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=8 ;
-CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=4 
+CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=8 ;
+--error ER_WRONG_USAGE
+CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=4
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
@@ -410,10 +413,10 @@ c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 
 # Check spatial index functionality with Create Index clause options
-CREATE SPATIAL INDEX idx1 on tab(c2 ASC);
-CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
-CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=2 ;
-CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=8 
+CREATE SPATIAL INDEX idx1 on tab(c2);
+CREATE SPATIAL INDEX idx2 on tab(c3) COMMENT 'wl6968';
+CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=2 ;
+CREATE SPATIAL INDEX idx4 on tab(c5) KEY_BLOCK_SIZE=8 
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
@@ -783,10 +786,10 @@ c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 
 # Check spatial index functionality with Create Index clause options
-CREATE SPATIAL INDEX idx1 on tab(c2 ASC);
-CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
-CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=16 ;
-CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=16 
+CREATE SPATIAL INDEX idx1 on tab(c2);
+CREATE SPATIAL INDEX idx2 on tab(c3) COMMENT 'wl6968';
+CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=16 ;
+CREATE SPATIAL INDEX idx4 on tab(c5) KEY_BLOCK_SIZE=16 
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type

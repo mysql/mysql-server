@@ -20,7 +20,17 @@
   @file include/my_stacktrace.h
 */
 
-#include <my_global.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 C_MODE_START
 

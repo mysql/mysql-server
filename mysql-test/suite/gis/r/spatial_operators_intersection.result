@@ -638,7 +638,7 @@ POLYGON((15 25,5 0,15 5,25 0,15 25))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)))
@@ -646,7 +646,7 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 #====================================================================================
 # polygon,geomertycollection
 #====================================================================================
@@ -739,7 +739,7 @@ GEOMETRYCOLLECTION(MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')))
@@ -750,7 +750,7 @@ MULTIPOLYGON(((6.617647058823529 11.029411764705882,25 0,22 10,25.33333333333333
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 0,5 5,0 0)),((5 5,10 0,5 0,5 5)))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 0,5 5,0 0)),((5 5,10 0,5 0,5 5)))')))
-MULTIPOINT((5 0),(6.428571428571429 3.5714285714285716),(8.333333333333334 1.6666666666666667))
+POLYGON((6.428571428571429 3.571428571428571,5 0,8.333333333333334 1.6666666666666665,6.428571428571429 3.571428571428571))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3)),((9 9,9 15,15 15,15 9,9 9)))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))'),
@@ -766,18 +766,18 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=115;
 ST_ASTEXT(ST_INTERSECTION(g,g2))
 POLYGON((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
 GEOMETRYCOLLECTION EMPTY
@@ -861,7 +861,7 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
+MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))
@@ -915,27 +915,42 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)));
@@ -953,12 +968,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMT
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048576. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 GEOMETRYCOLLECTION EMPTY
@@ -1028,42 +1049,30 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)))
-LINESTRING(5 0,15 5,25 0,15 25,5 0)
+GEOMETRYCOLLECTION(MULTIPOLYGON(((8.870967741935484 9.67741935483871,25 0,19 15,11 15,8.870967741935484 9.67741935483871))),MULTILINESTRING((5 0,15 5,24.999999999999993 2.6645352591003757e-15),(19 15,15 25,11 15),(8.870967741935484 9.67741935483871,5 0)))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((15 25,5 0,15 5,25 0,15 25))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical)))
-LINESTRING(5 0,15 5,25 0,15 25,5 0)
+GEOMETRYCOLLECTION(MULTIPOLYGON(((8.870967741935484 9.67741935483871,25 0,19 15,11 15,8.870967741935484 9.67741935483871))),MULTILINESTRING((5 0,15 5,24.999999999999993 2.6645352591003757e-15),(19 15,15 25,11 15),(8.870967741935484 9.67741935483871,5 0)))
 # Invalig geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)))
-LINESTRING(5 0,15 5,25 0,15 25,5 0)
-# Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems)))
-MULTILINESTRING((5 0,15 5,25 0,15 25,5 0),(25 0,22 10,30 15,0 15,25 0))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((8.870967741935484 9.67741935483871,25 0,19 15,11 15,8.870967741935484 9.67741935483871))),MULTILINESTRING((5 0,15 5,24.999999999999993 2.6645352591003757e-15),(19 15,15 25,11 15),(8.870967741935484 9.67741935483871,5 0)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')))
-GEOMETRYCOLLECTION(MULTIPOINT((6.617647058823529 11.029411764705882),(9 15),(23 15),(25.333333333333332 12.083333333333334)),LINESTRING(5 0,15 5,25 0,15 25,5 0))
-# Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
-ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems)))
-MULTILINESTRING((5 0,15 5,25 0,15 25,5 0),(25 0,22 10,30 15,0 15,25 0))
-# Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-ST_ASTEXT(ST_INTERSECTION(g,g2))
-MULTILINESTRING((5 0,15 5,25 0,15 25,5 0),(25 0,22 10,30 15,0 15,25 0))
+GEOMETRYCOLLECTION(MULTIPOINT((6.617647058823529 11.029411764705882),(9 15),(23 15),(25.333333333333332 12.083333333333334)),MULTILINESTRING((5 0,15 5,24.999999999999993 2.6645352591003757e-15),(19 15,15 25,11 15),(8.870967741935484 9.67741935483871,5 0)),MULTIPOLYGON(((8.870967741935484 9.67741935483871,25 0,19 15,11 15,8.870967741935484 9.67741935483871))))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')))
-GEOMETRYCOLLECTION(MULTIPOINT((6.3 10.5),(9 15),(15 25),(23 15),(25.333333333333332 12.083333333333334)),LINESTRING(5 0,15 5,25 0))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,22 10,25.333333333333332 12.083333333333334,23 15,20 15,15 25))),MULTIPOINT((6.3 10.5),(9 15)))
 CREATE TABLE t1 (pk INT PRIMARY KEY, g GEOMETRY NOT NULL);
 INSERT INTO t1 VALUES (1, ST_GEOMFROMTEXT('POINT(1 1)'));
 INSERT INTO t1 VALUES (2, ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'));
@@ -1648,7 +1657,10 @@ ST_GEOMFROMTEXT('POINT(0 0)', 16000000)
 ))
 POINT(0 0)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 16000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 16000000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 16000000. Calculations in function st_intersection will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 16000000. The axis order is unknown.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

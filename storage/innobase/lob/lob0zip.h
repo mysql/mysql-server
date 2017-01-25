@@ -55,7 +55,7 @@ public:
   @param[in]	blob_j		the jth blob object of the record.
   @param[in]	field		the big record field.
   @return code as returned by the zlib. */
-  int write_first_page(ulint blob_j, big_rec_field_t &field);
+  int write_first_page(size_t blob_j, big_rec_field_t &field);
 
   /** Write the page type of the BLOB page and also generate the
   redo log record.
@@ -87,7 +87,7 @@ public:
   @param[in]	field		the big record field.
   @param[in]	nth_blob_page	count of the BLOB page (starting from 1).
   @return code as returned by the zlib. */
-  int write_single_blob_page(int blob_j, big_rec_field_t &field,
+  int write_single_blob_page(size_t blob_j, big_rec_field_t &field,
                              ulint nth_blob_page);
 
 #ifdef UNIV_DEBUG
@@ -140,7 +140,7 @@ private:
   /** Write one blob field data.
   @param[in]	blob_j	the blob field number
   @return DB_SUCCESS on success, error code on failure. */
-  dberr_t write_one_blob(ulint blob_j);
+  dberr_t write_one_blob(size_t blob_j);
 
   FitBlock m_fitblk;
 
@@ -167,7 +167,7 @@ struct CompressedReader {
 
   /** Get the payload size of the page.
   @return payload size in bytes.*/
-  ulint getPayloadSize() const {
+  uint getPayloadSize() const {
     return (m_rctx.m_page_size.physical() - ZLOB_PAGE_DATA);
   }
 
@@ -308,14 +308,14 @@ public:
   @param[in]	field		the big record field.
   @param[in]	nth_blob_page	count of the BLOB page (starting from 1).
   @return code as returned by the zlib. */
-  int write_single_blob_page(int blob_j, big_rec_field_t &field,
+  int write_single_blob_page(size_t blob_j, big_rec_field_t &field,
                              ulint nth_blob_page);
 
   /** Write first blob page.
   @param[in]	blob_j		the jth blob object of the record.
   @param[in]	field		the big record field.
   @return code as returned by the zlib. */
-  int write_first_page(ulint blob_j, big_rec_field_t &field);
+  int write_first_page(size_t blob_j, big_rec_field_t &field);
 
   /** Verify that all pointers to externally stored columns in the record
   is be valid.  If validation fails, this function doesn't return.
@@ -363,7 +363,7 @@ private:
   /** Write one blob field data.
   @param[in]	blob_j	the blob field number
   @return DB_SUCCESS on success, error code on failure. */
-  dberr_t write_one_blob(ulint blob_j);
+  dberr_t write_one_blob(size_t blob_j);
 
   mem_heap_t *m_heap;
   z_stream m_stream;

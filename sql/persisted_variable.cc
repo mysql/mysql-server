@@ -43,7 +43,6 @@
 #include "mysql_version.h"
 #include "mysqld.h"
 #include "mysqld_error.h"
-#include "pfs_mutex_provider.h"
 #include "set_var.h"
 #include "sql_class.h"
 #include "sql_lex.h"

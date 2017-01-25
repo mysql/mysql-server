@@ -129,7 +129,7 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 grant select on mysqltest.v5 to mysqltest_1@localhost;
 show create view mysqltest.v5;
 View	Create View	character_set_client	collation_connection
-v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v5` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v5` (`c`,`d`) AS select (`mysqltest`.`t1`.`a` + 1) AS `a+1`,(`mysqltest`.`t1`.`b` + 1) AS `b+1` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v1;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create view mysqltest.v1;
@@ -144,7 +144,7 @@ Warnings:
 Note	1003	/* select#1 */ select (`mysqltest`.`t1`.`a` + 1) AS `c` from `mysqltest`.`t1`
 show create view mysqltest.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` (`c`,`d`) AS select (`mysqltest`.`t1`.`a` + 1) AS `a+1`,(`mysqltest`.`t1`.`b` + 1) AS `b+1` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v2;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create view mysqltest.v2;
@@ -167,7 +167,7 @@ Warnings:
 Note	1003	/* select#1 */ select (`mysqltest`.`t1`.`a` + 1) AS `c` from `mysqltest`.`t1`
 show create view mysqltest.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` (`c`,`d`) AS select (`mysqltest`.`t1`.`a` + 1) AS `a+1`,(`mysqltest`.`t1`.`b` + 1) AS `b+1` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -176,17 +176,17 @@ Warnings:
 Note	1003	/* select#1 */ select `v2`.`c` AS `c` from `mysqltest`.`v2`
 show create view mysqltest.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v2` (`c`,`d`) AS select (`mysqltest`.`t1`.`a` + 1) AS `a+1`,(`mysqltest`.`t1`.`b` + 1) AS `b+1` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v3;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create view mysqltest.v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v3` (`c`,`d`) AS select (`mysqltest`.`t2`.`a` + 1) AS `a+1`,(`mysqltest`.`t2`.`b` + 1) AS `b+1` from `mysqltest`.`t2`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v4;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create view mysqltest.v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v4` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`	latin1	latin1_swedish_ci
+v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v4` (`c`,`d`) AS select (`mysqltest`.`t2`.`a` + 1) AS `a+1`,(`mysqltest`.`t2`.`b` + 1) AS `b+1` from `mysqltest`.`t2`	latin1	latin1_swedish_ci
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
@@ -1966,12 +1966,12 @@ SELECT * FROM (SELECT cs FROM test1.t1 WHERE cu = '0') AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs) AS dt;
 c
-4
 1
+4
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus) AS dt;
 c
-4
 1
+4
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn) AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY ci) AS dt;
@@ -2158,12 +2158,12 @@ SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cu = '0') AS dt;
 ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cs) AS dt;
 c
-8
 1
+8
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cus) AS dt;
 c
-8
 1
+8
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cn) AS dt;
 ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY ci) AS dt;
@@ -2323,12 +2323,12 @@ SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cu = '0') AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cs) AS dt;
 c
-12
 1
+12
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cus) AS dt;
 c
-12
 1
+12
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cn) AS dt;
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY ci) AS dt;

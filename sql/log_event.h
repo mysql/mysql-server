@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
 
 #ifndef _log_event_h
 #define _log_event_h
+
+#include <errno.h>
 
 #include <atomic>
 #include <list>
@@ -79,7 +81,7 @@ class Table_id;
 #include "xa.h"
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #include "rpl_tblmap.h"              // table_mapping
 #endif
 
@@ -94,7 +96,7 @@ class Table_id;
 #include "mysql/psi/mysql_stage.h"
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 class Format_description_log_event;
 
 typedef bool (*read_log_event_filter_function)(char** buf,
@@ -120,7 +122,7 @@ using binary_log::Format_description_event;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);
 #endif
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
@@ -370,7 +372,7 @@ template <class T> class List;
 
 class Relay_log_info;
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 enum enum_base64_output_mode {
   BASE64_OUTPUT_NEVER= 0,
   BASE64_OUTPUT_AUTO= 1,
@@ -791,7 +793,7 @@ public:
     EVENTS.
   */
   static void init_show_field_list(List<Item>* field_list);
-#ifdef HAVE_REPLICATION
+
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
 
   /**
@@ -803,7 +805,6 @@ public:
   */
   virtual int pack_info(Protocol *protocol);
 
-#endif /* HAVE_REPLICATION */
   virtual const char* get_db()
   {
     return thd ? thd->db().str : NULL;
@@ -954,7 +955,7 @@ public:
   const char* get_type_str();
   /* Return start of query time or current time */
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   /**
      Is called from get_mts_execution_mode() to
 
@@ -1410,9 +1411,7 @@ public:
 
   virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
 
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1443,7 +1442,7 @@ public:
   /* Writes derived event-specific part of post header. */
 
 public:        /* !!! Public in this patch to allow old usage */
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
@@ -1451,7 +1450,7 @@ public:        /* !!! Public in this patch to allow old usage */
   int do_apply_event(Relay_log_info const *rli,
                      const char *query_arg,
                      size_t q_len_arg);
-#endif /* HAVE_REPLICATION */
+#endif /* MYSQL_SERVER */
   /*
     If true, the event always be applied by slave SQL thread or be printed by
     mysqlbinlog
@@ -1531,9 +1530,7 @@ class Start_log_event_v3: public virtual binary_log::Start_event_v3, public Log_
 public:
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3()
   : Log_event(header(), footer())
@@ -1555,7 +1552,7 @@ public:
   }
 
 protected:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info*)
   {
@@ -1661,7 +1658,7 @@ public:
     return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
 protected:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -1707,9 +1704,7 @@ public:
   {
     is_valid_param= true;
   }
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1723,7 +1718,7 @@ public:
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -1770,9 +1765,7 @@ class Rand_log_event: public binary_log::Rand_event, public Log_event
       {
         is_valid_param= true;
       }
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1786,7 +1779,7 @@ class Rand_log_event: public binary_log::Rand_event, public Log_event
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -1818,7 +1811,7 @@ private:
                Xid_log_event
   @endinternal
 */
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
 
@@ -1839,7 +1832,7 @@ protected:
   : Log_event(header_arg, footer_arg) {}
   ~Xid_apply_log_event() {}
   virtual bool ends_group() const { return true; }
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_apply_event_worker(Slave_worker *rli);
@@ -1859,9 +1852,7 @@ class Xid_log_event: public binary_log::Xid_event, public Xid_apply_log_event
   {
     is_valid_param= true;
   }
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -1874,7 +1865,7 @@ class Xid_log_event: public binary_log::Xid_event, public Xid_apply_log_event
   bool write(IO_CACHE* file);
 #endif
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   bool do_commit(THD *thd_arg);
 #endif
 };
@@ -1925,7 +1916,7 @@ public:
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   int pack_info(Protocol* protocol);
   bool do_commit(THD *thd);
 #endif
@@ -1995,7 +1986,7 @@ public:
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -2034,7 +2025,7 @@ public:
   Log_event_type get_type_code() { return binary_log::STOP_EVENT;}
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info*)
   {
@@ -2081,9 +2072,7 @@ public:
   Rotate_log_event(const char* new_log_ident_arg,
 		   size_t ident_len_arg,
 		   ulonglong pos_arg, uint flags);
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2098,7 +2087,7 @@ public:
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
@@ -2137,10 +2126,8 @@ public:
 #ifdef MYSQL_SERVER
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
   virtual int get_create_or_append() const;
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2156,7 +2143,7 @@ public:
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
 #endif
 };
@@ -2197,9 +2184,7 @@ public:
 
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info,
@@ -2216,7 +2201,7 @@ public:
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
 #endif
 };
@@ -2266,17 +2251,15 @@ public:
   Begin_load_query_log_event(THD* thd_arg, const char *db_arg,
                              uchar* block_arg, uint block_len_arg,
                              bool using_trans);
-#ifdef HAVE_REPLICATION
   Begin_load_query_log_event(THD* thd);
   int get_create_or_append() const;
-#endif /* HAVE_REPLICATION */
 #endif
   Begin_load_query_log_event(const char* buf, uint event_len,
                              const Format_description_event
                              *description_event);
   ~Begin_load_query_log_event() {}
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
 };
@@ -2329,9 +2312,7 @@ public:
                                binary_log::enum_load_dup_handling dup_handling_arg,
                                bool using_trans, bool immediate,
                                bool suppress_use, int errcode);
-#ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
-#endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   /* Prints the query as LOAD DATA LOCAL and with rewritten filename */
@@ -2350,12 +2331,12 @@ public:
 #endif
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
 #endif
 };
 
-#if  defined MYSQL_SERVER && !defined EMBEDDED_LIBRARY
+#if  defined MYSQL_SERVER
 class Load_query_generator
 {
 public:
@@ -2380,7 +2361,7 @@ private:
   bool has_ignore;
 };
 #endif
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 /**
   @class Unknown_log_event
 
@@ -2476,14 +2457,12 @@ public:
   Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
                       bool is_transactional);
 #endif
-#ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len,
                       const Format_description_event *description_event);
-#endif
 
   virtual ~Table_map_log_event();
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   table_def *create_table_def()
   {
     DBUG_ASSERT(m_colcnt > 0);
@@ -2536,17 +2515,17 @@ public:
 
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
 
 private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -2743,11 +2722,11 @@ public:
 
   virtual Log_event_type get_general_type_code() = 0; /* General rows op type, no version */
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   /* not for direct call, each derived has its own ::print() */
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info)= 0;
   void print_verbose(IO_CACHE *file,
@@ -2845,7 +2824,7 @@ protected:
   Rows_log_event(const char *row_data, uint event_len,
 		 const Format_description_event *description_event);
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
 #endif
 
@@ -2857,7 +2836,7 @@ protected:
   TABLE *m_table;		/* The table the rows belong to */
 #endif
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
      Hash table that will hold the entries for while using HASH_SCAN
      algorithm to search and update/delete rows.
@@ -2896,7 +2875,7 @@ protected:
 
   /* helper functions */
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
@@ -2983,7 +2962,7 @@ private:
 
 private:
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -3148,7 +3127,7 @@ private:
     @returns 0 on success. Otherwise, the error code.
   */
   int do_scan_and_update(Relay_log_info const *rli);
-#endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
+#endif /* defined(MYSQL_SERVER) */
 
   friend class Old_rows_log_event;
 };
@@ -3204,10 +3183,8 @@ public:
 		       bool is_transactional,
                        const uchar* extra_row_info);
 #endif
-#ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len,
                        const Format_description_event *description_event);
-#endif
 #if defined(MYSQL_SERVER)
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
@@ -3229,11 +3206,11 @@ private:
     return (Log_event_type)TYPE_CODE;
   }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
   virtual int do_exec_row(const Relay_log_info *const);
@@ -3307,10 +3284,8 @@ public:
 
   virtual ~Update_rows_log_event();
 
-#ifdef HAVE_REPLICATION
   Update_rows_log_event(const char *buf, uint event_len,
 			const Format_description_event *description_event);
-#endif
 
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -3329,15 +3304,15 @@ protected:
     return (Log_event_type)TYPE_CODE;
   }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
   virtual int do_exec_row(const Relay_log_info *const);
-#endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
+#endif /* defined(MYSQL_SERVER) */
 };
 
 /**
@@ -3401,10 +3376,8 @@ public:
   Delete_rows_log_event(THD*, TABLE*, const Table_id&,
 			bool is_transactional, const uchar* extra_row_info);
 #endif
-#ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len,
 			const Format_description_event *description_event);
-#endif
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
@@ -3423,11 +3396,11 @@ protected:
     return (Log_event_type)TYPE_CODE;
   }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
   virtual int do_exec_row(const Relay_log_info *const);
@@ -3521,11 +3494,11 @@ public:
 
   virtual ~Incident_log_event();
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
 #endif
 
@@ -3571,7 +3544,7 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
                             public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F,
                   Log_event::EVENT_STMT_CACHE,
@@ -3587,11 +3560,11 @@ public:
                       const Format_description_event *descr_event);
   virtual ~Ignorable_log_event();
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
@@ -3634,7 +3607,7 @@ public:
 class Rows_query_log_event : public Ignorable_log_event,
                              public binary_log::Rows_query_event{
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Rows_query_log_event(THD *thd_arg, const char * query, size_t query_len)
     : Ignorable_log_event(thd_arg)
   {
@@ -3649,7 +3622,7 @@ public:
   }
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
 
@@ -3662,7 +3635,7 @@ public:
       my_free(m_rows_query);
     m_rows_query= NULL;
   }
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
   virtual bool write_data_body(IO_CACHE *file);
@@ -3672,7 +3645,7 @@ public:
   {
     return Binary_log_event::IGNORABLE_HEADER_LEN + 1 + strlen(m_rows_query);
   }
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
 #endif
 };
@@ -3747,7 +3720,7 @@ extern TYPELIB binlog_checksum_typelib;
 class Gtid_log_event : public binary_log::Gtid_event, public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Create a new event using the GTID owned by the given thread.
   */
@@ -3763,7 +3736,7 @@ public:
                  const Gtid_specification spec_arg);
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
   Gtid_log_event(const char *buffer, uint event_len,
@@ -3804,7 +3777,7 @@ private:
 #endif
 
 public:
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
@@ -3825,7 +3798,7 @@ public:
   }
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   int do_apply_event(Relay_log_info const *rli);
   int do_update_pos(Relay_log_info *rli);
   enum_skip_reason do_shall_skip(Relay_log_info *rli);
@@ -3935,11 +3908,11 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
                                  public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Previous_gtids_log_event(const Gtid_set *set);
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
 
@@ -3950,7 +3923,7 @@ public:
 
   size_t get_data_size() { return buf_size; }
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
@@ -4014,7 +3987,7 @@ public:
     return EVENT_SKIP_IGNORE;
   }
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   int do_apply_event(Relay_log_info const *) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
@@ -4054,7 +4027,7 @@ private:
   /// conflict detection.
   Gtid_set *snapshot_version;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
 
   bool write_data_body(IO_CACHE* file);
@@ -4072,7 +4045,7 @@ private:
 
 public:
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   Transaction_context_log_event(const char *server_uuid_arg,
                                 bool using_trans,
                                 my_thread_id thread_id_arg,
@@ -4080,22 +4053,21 @@ public:
 #endif
 
   Transaction_context_log_event(const char *buffer,
-                                uint event_len,
                                 const Format_description_event *descr_event);
 
   virtual ~Transaction_context_log_event();
 
   size_t get_data_size();
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   int do_apply_event(Relay_log_info const *) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
@@ -4185,7 +4157,7 @@ class View_change_log_event: public binary_log::View_change_event,
 private:
   size_t to_string(char *buf, ulong len) const;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
 
   bool write_data_body(IO_CACHE* file);
@@ -4200,22 +4172,21 @@ public:
   View_change_log_event(char* view_id);
 
   View_change_log_event(const char *buffer,
-                        uint event_len,
                         const Format_description_event *descr_event);
 
   virtual ~View_change_log_event();
 
   size_t get_data_size();
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   int pack_info(Protocol *protocol);
 #endif
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
   int do_apply_event(Relay_log_info const *rli);
   int do_update_pos(Relay_log_info *rli);
 #endif

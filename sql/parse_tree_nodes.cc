@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,13 @@
 
 #include <string.h>
 
+#include "dd/info_schema/show.h"             // build_show_...
 #include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
 #include "derror.h"         // ER_THD
 #include "key_spec.h"
 #include "m_string.h"
 #include "mdl.h"
+#include "my_dbug.h"
 #include "mysqld.h"         // global_system_variables
 #include "parse_tree_column_attrs.h" // PT_field_def_base
 #include "parse_tree_hints.h"
@@ -32,6 +34,7 @@
 #include "sp.h"             // sp_add_used_routine
 #include "sp_instr.h"       // sp_instr_set
 #include "sp_pcontext.h"
+#include "sql_base.h"                        // find_temporary_table
 #include "sql_call.h"       // Sql_cmd_call...
 #include "sql_data_change.h"
 #include "sql_delete.h"     // Sql_cmd_delete...
@@ -611,10 +614,10 @@ static bool multi_delete_link_tables(Parse_context *pc,
       target_tbl->table_name_length= walk->table_name_length;
     }
     walk->updating= target_tbl->updating;
-    walk->lock_type= target_tbl->lock_type;
+    walk->set_lock(target_tbl->lock_descriptor());
     /* We can assume that tables to be deleted from are locked for write. */
-    DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
-    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
+    DBUG_ASSERT(walk->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
+    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_descriptor().type));
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
   DBUG_RETURN(false);
@@ -650,6 +653,9 @@ bool PT_delete::contextualize(Parse_context *pc)
   select->init_order();
   if (opt_delete_options & DELETE_QUICK)
     select->add_base_options(OPTION_QUICK);
+
+  if (contextualize_safe(pc, m_with_clause))
+    return true;                                /* purecov: inspected */
 
   if (is_multitable())
   {
@@ -736,6 +742,9 @@ bool PT_update::contextualize(Parse_context *pc)
 
   lex->set_ignore(opt_ignore);
 
+  if (contextualize_safe(pc, m_with_clause))
+    return true;                                /* purecov: inspected */
+
   if (contextualize_array(pc, &join_table_list))
     return true;
   select->parsing_place= CTX_UPDATE_VALUE_LIST;
@@ -752,14 +761,6 @@ bool PT_update::contextualize(Parse_context *pc)
   select->parsing_place= CTX_NONE;
   multitable= select->table_list.elements > 1;
   lex->sql_command= multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
-
-  if (!multitable && select->get_table_list()->is_derived())
-  {
-    /* it is single table update and it is update of derived table */
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
-             select->get_table_list()->alias, "UPDATE");
-    return true;
-  }
 
   /*
     In case of multi-update setting write lock for all tables may
@@ -917,8 +918,8 @@ bool PT_insert::contextualize(Parse_context *pc)
     lex->duplicates= DUP_UPDATE;
     TABLE_LIST *first_table= lex->select_lex->table_list.first;
     /* Fix lock for ON DUPLICATE KEY UPDATE */
-    if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
-      first_table->lock_type= TL_WRITE_DEFAULT;
+    if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
+      first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
 
     pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;
 
@@ -1061,9 +1062,11 @@ bool PT_query_specification::contextualize(Parse_context *pc)
 
 
 PT_derived_table::PT_derived_table(PT_subquery *subquery,
-                                   LEX_STRING *table_alias)
+                                   LEX_STRING *table_alias,
+                                   Create_col_name_list *column_names)
   : m_subquery(subquery),
-    m_table_alias(table_alias)
+    m_table_alias(table_alias),
+    column_names(*column_names)
 {
   m_subquery->m_is_derived_table= true;
 }
@@ -1094,6 +1097,8 @@ bool PT_derived_table::contextualize(Parse_context *pc)
                                        TL_READ, MDL_SHARED_READ);
   if (value == NULL)
     return true;
+  if (column_names.size())
+    value->set_derived_column_names(&column_names);
   if (pc->select->add_joined_table(value))
     return true;
 
@@ -1233,6 +1238,22 @@ static bool setup_index(keytype key_type,
       contextualize_nodes(lock_and_algorithm_options, pc))
     return true;
 
+  if ((key_type == KEYTYPE_FULLTEXT || key_type == KEYTYPE_SPATIAL ||
+       lex->key_create_info.algorithm == HA_KEY_ALG_HASH))
+  {
+    List_iterator<Key_part_spec> li(*columns);
+    Key_part_spec *kp;
+    while((kp= li++))
+    {
+      if (kp->is_explicit)
+      {
+        my_error(ER_WRONG_USAGE, MYF(0),"spatial/fulltext/hash index",
+                 "explicit index order");
+        return TRUE;
+      }
+    }
+  }
+
   Key_spec *key=
     new Key_spec(thd->mem_root, key_type, to_lex_cstring(name),
                  &lex->key_create_info, false, true, *columns);
@@ -1334,6 +1355,105 @@ bool PT_foreign_key_definition::contextualize(Parse_context *pc)
     return true;
 
   return false;
+}
+
+
+bool PT_with_list::push_back(PT_common_table_expr *el)
+{
+  const LEX_STRING &n= el->name();
+  for (auto previous : m_elements)
+  {
+    const LEX_STRING &pn= previous->name();
+    if (pn.length == n.length &&
+        !memcmp(pn.str, n.str, n.length))
+    {
+      my_error(ER_NONUNIQ_TABLE, MYF(0), n.str);
+      return true;
+    }
+  }
+  return m_elements.push_back(el);
+}
+
+
+PT_common_table_expr::PT_common_table_expr(const LEX_STRING &name,
+                                           const LEX_STRING &subq_text,
+                                           uint subq_text_offs,
+                                           PT_subquery *subq_node,
+                                           const Create_col_name_list *column_names,
+                                           MEM_ROOT *mem_root)
+  : m_name(name), m_subq_text(subq_text), m_subq_text_offset(subq_text_offs),
+    m_subq_node(subq_node), m_column_names(*column_names),
+    m_postparse(mem_root)
+{
+  if (lower_case_table_names && m_name.length)
+    // Lowercase name, as in SELECT_LEX::add_table_to_list()
+    m_name.length= my_casedn_str(files_charset_info, m_name.str);
+}
+
+
+void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type)
+{
+  size_t len1= str->length();
+  str->append("with ");
+  if (m_recursive)
+    str->append("recursive ");
+  size_t len2= str->length(), len3= len2;
+  for (auto el : m_list.elements())
+  {
+    if (str->length() != len3)
+    {
+      str->append(", ");
+      len3= str->length();
+    }
+    el->print(thd, str, query_type);
+  }
+  if (str->length() == len2)
+    str->length(len1);                   // don't print an empty WITH clause
+  else
+    str->append(" ");
+}
+
+
+void PT_common_table_expr::print(THD *thd, String *str,
+                                 enum_query_type query_type)
+{
+  size_t len= str->length();
+  append_identifier(thd, str, m_name.str, m_name.length);
+  if (m_column_names.size())
+    print_derived_column_names(thd, str, &m_column_names);
+  str->append(" as ");
+
+  /*
+    Printing the raw text (this->m_subq_text) would lack:
+    - expansion of '||' (which can mean CONCAT or OR, depending on
+    sql_mode's PIPES_AS_CONCAT (the effect would be that a view containing
+    a CTE containing '||' would change behaviour if sql_mode was
+    changed between its creation and its usage).
+    - quoting of table identifiers
+    - expansion of the default db.
+    So, we rather locate one resolved query expression for this CTE; for
+    it to be intact this query expression must be non-merged. And we print
+    it.
+    If query expression has been merged everywhere, its SELECT_LEX_UNIT is
+    gone and printing this CTE can be skipped. Note that when we print the
+    view's body to the data dictionary, no merging is done.
+  */
+  bool found= false;
+  for (auto *tl : m_postparse.references)
+  {
+    if (!tl->is_merged() &&
+        // If 2+ references exist, show the one which is shown in EXPLAIN
+        tl->query_block_id_for_explain() == tl->query_block_id())
+    {
+      str->append('(');
+      tl->derived_unit()->print(str, query_type);
+      str->append(')');
+      found= true;
+      break;
+    }
+  }
+  if (!found)
+    str->length(len);          // don't print a useless CTE definition
 }
 
 
@@ -1462,6 +1582,43 @@ bool PT_create_table_default_collation::contextualize(Parse_context *pc)
 
   create_info->default_table_charset= value;
   create_info->used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+    return false;
+}
+
+
+bool PT_locking_clause::contextualize(Parse_context *pc)
+{
+  LEX *lex= pc->thd->lex;
+
+  if (lex->is_explain())
+    return false;
+
+  if (m_locked_row_action == Locked_row_action::SKIP)
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SKIP_LOCKED);
+
+  if (m_locked_row_action == Locked_row_action::NOWAIT)
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NOWAIT);
+
+  lex->safe_to_cache_query= false;
+
+  return set_lock_for_tables(pc);
+}
+
+
+bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc)
+{
+  Local_tables_list local_tables(pc->select->table_list.first);
+  for (TABLE_LIST *table_list : local_tables)
+    if (!table_list->is_derived())
+    {
+      if (table_list->lock_descriptor().type != TL_READ_DEFAULT)
+      {
+        my_error(ER_DUPLICATE_TABLE_LOCK, MYF(0), table_list->alias);
+        return true;
+      }
+
+      pc->select->set_lock_for_table(get_lock_descriptor(), table_list);
+    }
   return false;
 }
 
@@ -1648,4 +1805,115 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd)
   if (contextualize(&pc))
     return NULL;
   return &cmd;
+}
+
+
+bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc)
+{
+  DBUG_ASSERT(!m_tables.empty());
+  for (Table_ident *table_ident : m_tables)
+  {
+    SELECT_LEX *select= pc->select;
+
+    SQL_I_List<TABLE_LIST> tables= select->table_list;
+    TABLE_LIST *table_list= select->find_table_by_name(table_ident);
+
+    THD *thd= pc->thd;
+
+    if (table_list == NULL)
+      return raise_error(thd, table_ident, ER_UNRESOLVED_TABLE_LOCK);
+
+    if (table_list->lock_descriptor().type != TL_READ_DEFAULT)
+      return raise_error(thd, table_ident, ER_DUPLICATE_TABLE_LOCK);
+
+    select->set_lock_for_table(get_lock_descriptor(), table_list);
+  }
+
+  return false;
+}
+
+
+Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  return &m_sql_cmd;
+}
+
+
+bool PT_show_fields_and_keys::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+
+  // Create empty query block and add user specfied table.
+  TABLE_LIST **query_tables_last= lex->query_tables_last;
+  SELECT_LEX *schema_select_lex= lex->new_empty_query_block();
+  if (schema_select_lex == nullptr)
+    return true;
+  TABLE_LIST *tbl= schema_select_lex->add_table_to_list(thd, m_table_ident,
+                                                        0, 0, TL_READ,
+                                                        MDL_SHARED_READ);
+  if (tbl == nullptr)
+    return true;
+  lex->query_tables_last= query_tables_last;
+
+  if (m_wild.str && lex->set_wild(m_wild))
+    return true; // OOM
+
+  // If its a temporary table then use schema_table implementation.
+  if (find_temporary_table(thd, tbl) != nullptr)
+  {
+    SELECT_LEX *select_lex= lex->current_select();
+
+    if (m_where_condition != nullptr)
+    {
+      m_where_condition->itemize(pc, &m_where_condition);
+      select_lex->set_where_cond(m_where_condition);
+    }
+
+    enum enum_schema_tables schema_table=
+      (m_type == SHOW_FIELDS) ? SCH_TMP_TABLE_COLUMNS :
+                                SCH_TMP_TABLE_KEYS;
+    if (make_schema_select(thd, select_lex, schema_table))
+      return true;
+
+    TABLE_LIST *table_list= select_lex->table_list.first;
+    table_list->schema_select_lex= schema_select_lex;
+    table_list->schema_table_reformed= 1;
+  }
+  else // Use implementation of I_S as system views.
+  {
+    SELECT_LEX *sel= nullptr;
+    switch(m_type) {
+    case SHOW_FIELDS:
+      sel= dd::info_schema::build_show_columns_query(m_pos, thd, m_table_ident,
+                                                     thd->lex->wild,
+                                                     m_where_condition);
+      break;
+    case SHOW_KEYS:
+      sel= dd::info_schema::build_show_keys_query(m_pos, thd, m_table_ident,
+                                                  m_where_condition);
+      break;
+    }
+
+    if (sel == nullptr)
+      return true;
+
+    TABLE_LIST *table_list= sel->table_list.first;
+    table_list->schema_select_lex= schema_select_lex;
+  }
+
+  return false;
+}
+
+
+bool PT_show_fields::contextualize(Parse_context *pc)
+{
+  pc->thd->lex->verbose= m_verbose;
+  return super::contextualize(pc);
 }

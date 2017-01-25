@@ -37,9 +37,9 @@
 #include "sql_servers.h"
 #include "table.h"
 #include "thr_lock.h"
+#include "sql_user_table.h"
 
 class THD;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool trans_commit_stmt(THD *thd);
 void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt);
 extern Granted_roles_graph *g_granted_roles;
@@ -113,6 +113,10 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   DBUG_ENTER("modify_role_edges_in_table");
   int ret= 0;
   uchar user_key[MAX_KEY_LENGTH];
+  Acl_table_intact table_intact(thd);
+
+  if (table_intact.check(thd, table, &mysql_role_edges_table_def))
+    DBUG_RETURN(true);
 
   if (!table->key_info)
   {
@@ -181,6 +185,10 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
   DBUG_ENTER("modify_default_roles_in_table");
   int ret= 0;
   uchar user_key[MAX_KEY_LENGTH];
+  Acl_table_intact table_intact(thd);
+
+  if (table_intact.check(thd, table, &mysql_default_roles_table_def))
+    DBUG_RETURN(true);
 
   if (!table->key_info)
   {
@@ -390,5 +398,3 @@ bool roles_init_from_tables(THD *thd)
   close_all_role_tables(thd);
   DBUG_RETURN(false);
 }
-#endif
-

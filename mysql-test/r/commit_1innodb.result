@@ -14,6 +14,7 @@ drop procedure if exists dummy;
 create table t1 (a int);
 create table t2 (a int unique);
 create table t3 (a int);
+create trigger trg before insert on t1 for each row set @a:=1;
 set sql_mode=default;
 insert into t1 (a) values (1), (2);
 insert into t3 (a) values (1), (2);
@@ -392,7 +393,7 @@ flush status;
 #
 select * from t1;
 a
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 SUCCESS
 
 commit;
@@ -582,7 +583,7 @@ SUCCESS
 select f1();
 f1()
 2
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 SUCCESS
 
 commit;
@@ -843,7 +844,7 @@ call p_verify_status_increment(<commit_count>, 0, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
-call p_verify_status_increment(6, 0, 2, 0);
+call p_verify_status_increment(5, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
@@ -886,7 +887,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 drop view v1;
-call p_verify_status_increment(6, 0, 3, 0);
+call p_verify_status_increment(5, 0, 3, 0);
 SUCCESS
 
 #

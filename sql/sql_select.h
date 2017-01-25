@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@
 #include "sql_alloc.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                // THD
+#include "sql_opt_exec_shared.h"      // join_type
+#include "opt_explain_format.h"       // Explain_sort_clause
 #include "sql_cmd_dml.h"              // Sql_cmd_dml
 #include "sql_const.h"
 #include "sql_lex.h"
@@ -75,12 +77,6 @@ protected:
   virtual bool precheck(THD *thd);
 
   virtual bool prepare_inner(THD *thd);
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query);
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed);
-#endif
-
 };
 
 /**
@@ -694,7 +690,7 @@ public:
     method (but not 'index' for some reason), i.e. this matches method which
     E(#records) is in found_records.
   */
-  ha_rows       read_time;
+  double       read_time;
   /**
     The set of tables that this table depends on. Used for outer join and
     straight join dependencies.
@@ -951,15 +947,16 @@ public:
   {
     enum store_key_result result;
     THD *thd= to_field->table->in_use;
-    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
+    enum_check_fields saved_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
     sql_mode_t sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
     result= copy_inner();
 
-    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->check_for_truncated_fields= saved_check_for_truncated_fields;
     thd->variables.sql_mode= sql_mode;
 
     return result;
@@ -1139,8 +1136,6 @@ void calc_used_field_length(THD *thd,
                             bool *p_used_null_fields,
                             bool *p_used_uneven_bit_fields);
 
-uint get_index_for_order(ORDER *order, QEP_TAB *tab,
-                         ha_rows limit, bool *need_sort, bool *reverse);
 ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
@@ -1184,10 +1179,13 @@ static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item)
 
 uint actual_key_parts(const KEY *key_info);
 
-int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-                         uint *used_key_parts= NULL);
+class ORDER_with_src;
+uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab,
+                         ha_rows limit, bool *need_sort, bool *reverse);
+int test_if_order_by_key(ORDER_with_src *order, TABLE *table, uint idx,
+                         uint *used_key_parts, bool *skip_quick);
 bool test_if_cheaper_ordering(const JOIN_TAB *tab,
-                              ORDER *order, TABLE *table,
+                              ORDER_with_src *order, TABLE *table,
                               Key_map usable_keys, int key,
                               ha_rows select_limit,
                               int *new_key, int *new_key_direction,

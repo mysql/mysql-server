@@ -2162,7 +2162,7 @@ show status like 'Mysqlx%client%';
 Variable_name	Value
 Mysqlx_stmt_kill_client	72
 Mysqlx_stmt_list_clients	26
-# restart: --show_compatibility_56=OFF
+# restart: 
 drop user abc@localhost;
 drop user xplugin@localhost;
 drop user process@localhost;

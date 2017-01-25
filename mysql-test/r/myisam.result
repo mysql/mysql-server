@@ -404,7 +404,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` FORCE INDEX (`c`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	5	80.00	Using where
+1	SIMPLE	t1	NULL	range	a	a	4	NULL	4	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 0) or (`test`.`t1`.`a` = 2))
 explain select * from t1 force index (a) where a=0 or a=2;
@@ -1345,7 +1345,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v,v_2	#	13	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
 v	count(*)
 a	1
 a	10
@@ -1357,7 +1357,7 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
+select v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1369,7 +1369,7 @@ f	10
 g	10
 h	10
 i	10
-select v,count(c) from t1 group by v limit 10;
+select v,count(c) from t1 group by v asc limit 10;
 v	count(c)
 a	1
 a	10
@@ -1381,7 +1381,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1393,7 +1393,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(c) from t1 group by v limit 10;
+select sql_big_result v,count(c) from t1 group by v asc limit 10;
 v	count(c)
 a	1
 a	10
@@ -1405,7 +1405,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(*) from t1 group by c limit 10;
+select c,count(*) from t1 group by c asc limit 10;
 c	count(*)
 a	1
 a	10
@@ -1417,7 +1417,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(t) from t1 group by c limit 10;
+select c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
 a	10
@@ -1441,7 +1441,7 @@ f	10
 g	10
 h	10
 i	10
-select t,count(*) from t1 group by t limit 10;
+select t,count(*) from t1 group by t asc limit 10;
 t	count(*)
 a	1
 a	10
@@ -1453,7 +1453,7 @@ f	10
 g	10
 h	10
 i	10
-select t,count(t) from t1 group by t limit 10;
+select t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
 a	10
@@ -1465,7 +1465,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result t,count(t) from t1 group by t limit 10;
+select sql_big_result t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
 a	10
@@ -1531,7 +1531,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	303	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
 v	count(*)
 a	1
 a	10
@@ -1543,7 +1543,7 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
+select v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1555,7 +1555,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1621,7 +1621,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	33	const	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
 v	count(*)
 a	1
 a	10
@@ -1633,7 +1633,7 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
+select v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1645,7 +1645,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1668,7 +1668,7 @@ t1	CREATE TABLE `t1` (
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
 v	count(*)
 a	1
 a	10
@@ -1680,7 +1680,7 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
+select v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -1692,7 +1692,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10

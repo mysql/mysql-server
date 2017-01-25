@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,22 +24,25 @@ Created 2011-05-26 Marko Makela
 *******************************************************/
 
 #include "row0log.h"
-#include "row0row.h"
-#include "row0ins.h"
-#include "row0upd.h"
-#include "row0merge.h"
-#include "row0ext.h"
-#include "data0data.h"
-#include "que0que.h"
-#include "srv0mon.h"
-#include "handler0alter.h"
-#include "ut0new.h"
-#include "ut0stage.h"
-#include "trx0rec.h"
-#include "lob0lob.h"
 
+#include <fcntl.h>
 #include <algorithm>
 #include <map>
+
+#include "data0data.h"
+#include "handler0alter.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
+#include "que0que.h"
+#include "row0ext.h"
+#include "row0ins.h"
+#include "row0merge.h"
+#include "row0row.h"
+#include "row0upd.h"
+#include "srv0mon.h"
+#include "trx0rec.h"
+#include "ut0new.h"
+#include "ut0stage.h"
 
 /** Table row modification operations during online table rebuild.
 Delete-marked records are not copied to the rebuilt table. */
@@ -376,11 +379,12 @@ row_log_online_op(
 			goto err_exit;
 		}
 
-		err = os_file_write(
+		err = os_file_write_int_fd(
 			request,
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
+
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
@@ -494,11 +498,12 @@ row_log_table_close_func(
 			goto err_exit;
 		}
 
-		err = os_file_write(
+		err = os_file_write_int_fd(
 			request,
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
+
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
@@ -2185,8 +2190,9 @@ func_exit_committed:
 		goto func_exit_committed;
 	}
 
-	dtuple_t*	entry	= row_build_index_entry(
-		row, NULL, index, heap);
+	/** It allows to create tuple with virtual column information. */
+	dtuple_t*	entry	= row_build_index_entry_low(
+		row, NULL, index, heap, ROW_BUILD_FOR_INSERT);
 	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
 		false, NULL, heap, dup->table);
@@ -2768,6 +2774,7 @@ row_log_table_apply_ops(
 	const ulint	new_trx_id_col	= dict_col_get_clust_pos(
 		new_table->get_sys_col(DATA_TRX_ID), new_index);
 	trx_t*		trx		= thr_get_trx(thr);
+	dberr_t         err;
 
 	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
@@ -2872,9 +2879,9 @@ all_done:
 
 		IORequest	request;
 
-		dberr_t	err = os_file_read_no_error_handling(
+		err = os_file_read_no_error_handling_int_fd(
 			request,
-			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size,
 			NULL);
@@ -3702,10 +3709,9 @@ all_done:
 		}
 
 		IORequest	request;
-
-		dberr_t	err = os_file_read_no_error_handling(
+		dberr_t	err = os_file_read_no_error_handling_int_fd(
 			request,
-			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size,
 			NULL);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
   replication slave.
 */
 
-#ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
 
 #include "my_config.h"
@@ -75,6 +74,7 @@
 #include "my_dir.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread_local.h"                   // thread_local_key_t
 #include "mysql.h"                             // MYSQL
 #include "mysql/plugin.h"
@@ -91,7 +91,6 @@
 #include "mysqld.h"                            // ER
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h"                // Global_THD_manager
-#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"
@@ -1154,7 +1153,7 @@ static void recover_relay_log(Master_info *mi)
 
    If there is an error, it returns (1), otherwise returns (0).
  */
-int init_recovery(Master_info* mi, const char** errmsg)
+int init_recovery(Master_info* mi)
 {
   DBUG_ENTER("init_recovery");
 
@@ -4353,30 +4352,60 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   return ret;
 }
 
-static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
-                        bool *suppress_warnings)
+
+/**
+  Callback function for mysql_binlog_open().
+
+  Sets gtid data in the command packet.
+
+  @param rpl              Replication stream information.
+  @param packet_gtid_set  Pointer to command packet where gtid
+                          data should be stored.
+*/
+static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set)
+{
+  Gtid_set *gtid_set= (Gtid_set *) rpl->gtid_set_arg;
+
+  gtid_set->encode(packet_gtid_set);
+}
+
+
+static int request_dump(THD *thd, MYSQL* mysql, MYSQL_RPL *rpl,
+                        Master_info* mi, bool *suppress_warnings)
 {
   DBUG_ENTER("request_dump");
-
-  const size_t BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
-  int error= 1;
-  size_t command_size= 0;
   enum_server_command command= mi->is_auto_position() ?
-    COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
-  uchar* command_buffer= NULL;
-  ushort binlog_flags= 0;
+      COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
+  /*
+    Note: binlog_flags is always 0.  However, in versions up to 5.6
+    RC, the master would check the lowest bit and do something
+    unexpected if it was set; in early versions of 5.6 it would also
+    use the two next bits.  Therefore, for backward compatibility,
+    if we ever start to use the flags, we should leave the three
+    lowest bits unused.
+  */
+  uint binlog_flags= 0;
 
   *suppress_warnings= false;
   if (RUN_HOOK(binlog_relay_io,
                before_request_transmit,
                (thd, mi, binlog_flags)))
-    goto err;
+    DBUG_RETURN(1);
+
+  rpl->server_id= server_id;
+  rpl->flags= binlog_flags;
+
+  Sid_map sid_map(NULL); /* No lock needed */
+  /*
+    Note: should be declared at the same level as the mysql_binlog_open() call,
+    as the latter might call fix_gtid_set() which in turns calls
+    gtid_executed->encode().
+  */
+  Gtid_set gtid_executed(&sid_map);
 
   if (command == COM_BINLOG_DUMP_GTID)
   {
     // get set of GTIDs
-    Sid_map sid_map(NULL/*no lock needed*/);
-    Gtid_set gtid_executed(&sid_map);
     global_sid_lock->wrlock();
     gtid_state->dbug_print();
 
@@ -4385,77 +4414,25 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
-      goto err;
+      DBUG_RETURN(1);
     }
     global_sid_lock->unlock();
-     
-    // allocate buffer
-    size_t encoded_data_size= gtid_executed.get_encoded_length();
-    size_t allocation_size= 
-      ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
-      ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
-      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
-      encoded_data_size + 1;
-    if (!(command_buffer= (uchar *) my_malloc(key_memory_rpl_slave_command_buffer,
-                                              allocation_size, MYF(MY_WME))))
-      goto err;
-    uchar* ptr_buffer= command_buffer;
 
-    DBUG_PRINT("info", ("Do I know something about the master? (binary log's name %s - auto position %d).",
-               mi->get_master_log_name(), mi->is_auto_position()));
-    /*
-      Note: binlog_flags is always 0.  However, in versions up to 5.6
-      RC, the master would check the lowest bit and do something
-      unexpected if it was set; in early versions of 5.6 it would also
-      use the two next bits.  Therefore, for backward compatibility,
-      if we ever start to use the flags, we should leave the three
-      lowest bits unused.
-    */
-    int2store(ptr_buffer, binlog_flags);
-    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-    int4store(ptr_buffer, server_id);
-    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
-    ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-    memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
-    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-    int8store(ptr_buffer, 4LL);
-    ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-
-    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
-    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-    gtid_executed.encode(ptr_buffer);
-    ptr_buffer+= encoded_data_size;
-
-    command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    rpl->file_name= NULL; /* No need to set rpl.file_name_length */
+    rpl->start_position= 4;
+    rpl->flags|= MYSQL_RPL_GTID;
+    rpl->gtid_set_encoded_size= gtid_executed.get_encoded_length();
+    rpl->fix_gtid_set= fix_gtid_set;
+    rpl->gtid_set_arg= (void *) &gtid_executed;
   }
   else
   {
-    size_t allocation_size= ::BINLOG_POS_OLD_INFO_SIZE +
-      BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
-      ::BINLOG_SERVER_ID_INFO_SIZE + 1;
-    if (!(command_buffer= (uchar *) my_malloc(key_memory_rpl_slave_command_buffer,
-                                              allocation_size, MYF(MY_WME))))
-      goto err;
-    uchar* ptr_buffer= command_buffer;
-  
-    int4store(ptr_buffer, DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
-                                           static_cast<uint32>(mi->get_master_log_pos())));
-    ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
-    // See comment regarding binlog_flags above.
-    int2store(ptr_buffer, binlog_flags);
-    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-    int4store(ptr_buffer, server_id);
-    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    memcpy(ptr_buffer, mi->get_master_log_name(), BINLOG_NAME_INFO_SIZE);
-    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-
-    command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    rpl->file_name_length= 0;
+    rpl->file_name= mi->get_master_log_name();
+    rpl->start_position= DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
+                                         mi->get_master_log_pos());
   }
-
-  if (simple_command(mysql, command, command_buffer, command_size, 1))
+  if (mysql_binlog_open(mysql, rpl))
   {
     /*
       Something went wrong, so we will just reconnect and retry later
@@ -4469,36 +4446,31 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
                       command_name[command].str,
                       mysql_errno(mysql), mysql_error(mysql),
                       mi->connect_retry);
-    goto err;
+    DBUG_RETURN(1);
   }
-  error= 0;
 
-err:
-  my_free(command_buffer);
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 
-/*
-  Read one event from the master
+/**
+  Read one event from the master.
 
-  SYNOPSIS
-    read_event()
-    mysql               MySQL connection
-    mi                  Master connection information
-    suppress_warnings   TRUE when a normal net read timeout has caused us to
-                        try a reconnect.  We do not want to print anything to
-                        the error log in this case because this a anormal
-                        event in an idle server.
+  @param mysql               MySQL connection.
+  @param rpl                 Replication stream information.
+  @param mi                  Master connection information.
+  @param suppress_warnings   TRUE when a normal net read timeout has caused us
+                             to try a reconnect. We do not want to print
+                             anything to the error log in this case because
+                             this an abnormal event in an idle server.
 
-    RETURN VALUES
-    'packet_error'      Error
-    number              Length of packet
+  @retval 'packet_error'     Error.
+  @retval  number            Length of packet.
 */
 
-static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
+static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
+                        bool *suppress_warnings)
 {
-  ulong len;
   DBUG_ENTER("read_event");
 
   *suppress_warnings= FALSE;
@@ -4511,8 +4483,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
     DBUG_RETURN(packet_error);
 #endif
 
-  len= cli_safe_read(mysql, NULL);
-  if (len == packet_error || (long) len < 1)
+  if (mysql_binlog_fetch(mysql, rpl))
   {
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
     {
@@ -4523,20 +4494,17 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
       */
       *suppress_warnings= TRUE;
     }
-    else
+    else if (!mi->abort_slave)
     {
-      if (!mi->abort_slave)
-      {
-        sql_print_error("Error reading packet from server%s: %s (server_errno=%d)",
-                        mi->get_for_channel_str(), mysql_error(mysql),
-                        mysql_errno(mysql));
-      }
+      sql_print_error("Error reading packet from server%s: %s (server_errno=%d)",
+                      mi->get_for_channel_str(), mysql_error(mysql),
+                      mysql_errno(mysql));
     }
     DBUG_RETURN(packet_error);
   }
 
   /* Check if eof packet */
-  if (len < 8 && mysql->net.read_pos[0] == 254)
+  if (rpl->size == 0)
   {
      sql_print_information("Slave%s: received end packet from server due to dump "
                            "thread being killed on master. Dump threads are "
@@ -4550,8 +4518,8 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   }
 
   DBUG_PRINT("exit", ("len: %lu  net->read_pos[4]: %d",
-                      len, mysql->net.read_pos[4]));
-  DBUG_RETURN(len - 1);
+                      rpl->size, mysql->net.read_pos[4]));
+  DBUG_RETURN(rpl->size - 1);
 }
 
 
@@ -5259,6 +5227,16 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
                       }
                     };);
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                    {
+                      if (ev->get_type_code() == binary_log::ROTATE_EVENT && ev->is_artificial_event())
+                      {
+                      const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act)));
+                      }
+                    };);
       /*
         Format_description_log_event should not be deleted because it will be
         used to read info about the relay log's format; it will be deleted when
@@ -5622,9 +5600,14 @@ connected:
                     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
                     {
-                      /* Fake that thread started 3 mints ago */
+                      /* Fake that thread started 3 minutes ago */
                       thd->start_time.tv_sec-=180;
                     };);
+  DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                  {
+                    /* Fake that thread started 3 minutes ago */
+                    thd->start_time.tv_sec-=180;
+                  };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   mysql_mutex_unlock(&mi->run_lock);
@@ -5693,8 +5676,10 @@ connected:
   DBUG_PRINT("info",("Starting reading binary log from master"));
   while (!io_slave_killed(thd,mi))
   {
+    MYSQL_RPL rpl;
+
     THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
-    if (request_dump(thd, mysql, mi, &suppress_warnings))
+    if (request_dump(thd, mysql, &rpl, mi, &suppress_warnings))
     {
       sql_print_error("Failed on request_dump()%s", mi->get_for_channel_str());
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
@@ -5728,7 +5713,7 @@ requesting master dump") ||
          we're in fact receiving nothing.
       */
       THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
-      event_len= read_event(mysql, mi, &suppress_warnings);
+      event_len= read_event(mysql, &rpl, mi, &suppress_warnings);
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
 reading event"))
         goto err;
@@ -6121,7 +6106,7 @@ static void *handle_slave_worker(void *arg)
   thd->rli_slave= w;
   thd->init_query_mem_roots();
   if ((w->deferred_events_collecting= rpl_filter->is_on()))
-    w->deferred_events= new Deferred_log_events(w);
+    w->deferred_events= new Deferred_log_events();
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 
   /* Set applier thread InnoDB priority */
@@ -6327,8 +6312,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     Gathers information on valuable workers and stores it in 
     above_lwm_jobs in asc ordered by the master binlog coordinates.
   */
-  Prealloced_array<Slave_job_group, 16, true>
-    above_lwm_jobs(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<Slave_job_group, 16> above_lwm_jobs(PSI_NOT_INSTRUMENTED);
   above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
   /*
@@ -6866,8 +6850,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
      Notice, the size matters for mts_checkpoint_routine's progress loop.
   */
 
-  rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
-                                      rli->checkpoint_group, n);
+  rli->gaq= new Slave_committed_queue(rli->checkpoint_group, n);
   if (!rli->gaq->inited)
     return 1;
 
@@ -7164,7 +7147,7 @@ extern "C" void *handle_slave_sql(void *arg)
   }
   thd->init_query_mem_roots();
   if ((rli->deferred_events_collecting= rpl_filter->is_on()))
-    rli->deferred_events= new Deferred_log_events(rli);
+    rli->deferred_events= new Deferred_log_events();
   thd->rli_slave= rli;
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 
@@ -9667,13 +9650,13 @@ bool start_slave(THD* thd,
   if (connection_param->user ||
       connection_param->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
     if (!thd->get_protocol()->get_ssl())
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
 #endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if !defined(HAVE_OPENSSL)
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_PLAIN_TEXT,
                  ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
@@ -10337,13 +10320,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 
   if (lex_mi->user || lex_mi->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
     if (!thd->get_protocol()->get_ssl())
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
 #endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if !defined(HAVE_OPENSSL)
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_PLAIN_TEXT,
                  ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
@@ -11261,9 +11244,6 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
 
   return 0;
 }
-
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @} (end of group Replication)

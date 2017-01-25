@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "xplatform/my_xp_util.h"
+
+#include <errno.h>
+
 #include "gcs_logging.h"
 
 void My_xp_util::sleep_seconds(unsigned int seconds)
@@ -91,7 +94,7 @@ int My_xp_socket_util_impl::disable_nagle_in_socket(int fd)
     int optval= 1;
     /* Casting optval to char * so Windows does not complain. */
     ret= setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &optval,
-                    sizeof(int));
+                    static_cast<socklen_t>(sizeof(int)));
   }
   if (ret < 0)
     MYSQL_GCS_LOG_ERROR("Error manipulating a connection's socket. Error: "

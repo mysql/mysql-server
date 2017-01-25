@@ -55,7 +55,6 @@ let $more_pk_ui_tests= 0;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 ##### Execute the test of "table" files

@@ -73,7 +73,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_cleanup';
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 --echo #
 --echo # Give time for server 2 to fail the connection once

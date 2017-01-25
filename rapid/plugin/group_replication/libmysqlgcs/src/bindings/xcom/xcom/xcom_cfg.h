@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@ typedef struct cfg_app_xcom
   */
   unsigned int m_poll_spin_loops;
 
+  /*
+   cache size limit and interval
+  */
+  size_t cache_limit;
 } cfg_app_xcom_st;
 
 /*

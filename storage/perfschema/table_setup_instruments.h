@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,36 +45,41 @@ struct row_setup_instruments
 struct pos_setup_instruments : public PFS_double_index,
                                public PFS_instrument_view_constants
 {
-  pos_setup_instruments()
-    : PFS_double_index(FIRST_INSTRUMENT, 1)
-  {}
-
-  inline void reset(void)
+  pos_setup_instruments() : PFS_double_index(FIRST_INSTRUMENT, 1)
   {
-    m_index_1= FIRST_INSTRUMENT;
-    m_index_2= 1;
   }
 
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_INSTRUMENT); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = FIRST_INSTRUMENT;
+    m_index_2 = 1;
+  }
 
-  inline void next_view(void)
+  inline bool
+  has_more_view(void)
+  {
+    return (m_index_1 <= LAST_INSTRUMENT);
+  }
+
+  inline void
+  next_view(void)
   {
     m_index_1++;
-    m_index_2= 1;
+    m_index_2 = 1;
   }
 };
 
 class PFS_index_setup_instruments : public PFS_engine_index
 {
 public:
-  PFS_index_setup_instruments()
-    : PFS_engine_index(&m_key),
-    m_key("NAME")
-  {}
+  PFS_index_setup_instruments() : PFS_engine_index(&m_key), m_key("NAME")
+  {
+  }
 
   ~PFS_index_setup_instruments()
-  {}
+  {
+  }
 
   bool match_view(uint view);
   bool match(PFS_instr_class *klass);
@@ -89,7 +94,7 @@ class table_setup_instruments : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -115,10 +120,11 @@ protected:
 
 public:
   ~table_setup_instruments()
-  {}
+  {
+  }
 
 private:
-  void make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed);
+  int make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,11 @@
 #include "my_config.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -36,6 +38,13 @@
 #include "mysys_err.h"
 #if defined(_WIN32)
 #include "mysys_priv.h"
+#endif
+
+
+#ifndef _WIN32
+// Mock away pwrite() for unit testing.
+ssize_t (*mock_pwrite)(int fd, const void *buf,
+                       size_t count, off_t offset)= nullptr;
 #endif
 
 
@@ -163,7 +172,10 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
 #if defined (_WIN32)
     writtenbytes= my_win_pwrite(Filedes, Buffer, Count, offset);
 #else
-    writtenbytes= pwrite(Filedes, Buffer, Count, offset);
+    if (mock_pwrite)
+      writtenbytes= mock_pwrite(Filedes, Buffer, Count, offset);
+    else
+      writtenbytes= pwrite(Filedes, Buffer, Count, offset);
 #endif
     if(writtenbytes == Count)
     {

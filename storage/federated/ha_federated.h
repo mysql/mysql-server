@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,11 +20,13 @@
   that you can implement.
 */
 
-#include "my_global.h"
 #include <mysql.h>
-#include "thr_lock.h"
+
 #include "handler.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "prealloced_array.h"
+#include "thr_lock.h"
 
 /* 
   handler::print_error has a case statement for error numbers.
@@ -87,7 +89,7 @@ class ha_federated: public handler
   /**
     Array of all stored results we get during a query execution.
   */
-  Prealloced_array<MYSQL_RES*, 4, true> results;
+  Prealloced_array<MYSQL_RES*, 4> results;
   bool position_called;
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;

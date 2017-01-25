@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,9 +264,7 @@
     st_service_ref
 */
 
-#ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"       // Srv_session::check_for_stale_threads()
-#endif
 
 #include <algorithm>
 #include <new>
@@ -332,12 +330,6 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
-
-#ifdef EMBEDDED_LIBRARY
-// Dummy implementations for embedded
-static int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
-static int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
-#endif
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -1246,9 +1238,7 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
   }
   plugin->state= PLUGIN_IS_UNINITIALIZED;
 
-#ifndef EMBEDDED_LIBRARY
   Srv_session::check_for_stale_threads(plugin);
-#endif
   /*
     We do the check here because NDB has a worker THD which doesn't
     exit until NDB is shut down.
@@ -1899,9 +1889,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   int error;
   THD *new_thd= &thd;
   bool result;
-#ifdef EMBEDDED_LIBRARY
-  No_such_table_error_handler error_handler;
-#endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
   new_thd->thread_stack= (char*) &tables;
@@ -1911,21 +1898,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   thd.get_protocol_classic()->wipe_net();
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
-#ifdef EMBEDDED_LIBRARY
-  /*
-    When building an embedded library, if the mysql.plugin table
-    does not exist, we silently ignore the missing table
-  */
-  new_thd->push_internal_handler(&error_handler);
-#endif /* EMBEDDED_LIBRARY */
-
   result= open_trans_system_tables_for_read(new_thd, &tables);
-
-#ifdef EMBEDDED_LIBRARY
-  new_thd->pop_internal_handler();
-  if (error_handler.safely_trapped_errors())
-    DBUG_VOID_RETURN;
-#endif /* EMBEDDED_LIBRARY */
 
   if (result)
   {
@@ -2283,10 +2256,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
     */
-#ifndef EMBEDDED_LIBRARY
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                               MYSQL_AUDIT_GENERAL_ALL);
-#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
@@ -2411,10 +2382,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
   */
-#ifndef EMBEDDED_LIBRARY
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                                    MYSQL_AUDIT_GENERAL_ALL);
-#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||
@@ -2448,7 +2417,6 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     goto err;
   }
 
-#ifdef HAVE_REPLICATION
   /* Block Uninstallation of semi_sync plugins (Master/Slave)
      when they are busy
    */
@@ -2490,7 +2458,6 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
              "Stop any active semisynchronous I/O threads on this slave first.");
     goto err;
   }
-#endif
 
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)
@@ -2541,8 +2508,7 @@ err:
   DBUG_RETURN(true);
 }
 
-
-bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                               int type, uint state_mask, void *arg)
 {
   size_t idx, total;
@@ -2582,20 +2548,23 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
   }
   mysql_mutex_unlock(&LOCK_plugin);
 
-  for (idx= 0; idx < total; idx++)
+  for (;*funcs != NULL; ++funcs)
   {
-    if (unlikely(version != plugin_array_version))
+    for (idx= 0; idx < total; idx++)
     {
-      mysql_mutex_lock(&LOCK_plugin);
-      for (size_t i=idx; i < total; i++)
-        if (plugins[i] && plugins[i]->state & state_mask)
-          plugins[i]=0;
-      mysql_mutex_unlock(&LOCK_plugin);
+      if (unlikely(version != plugin_array_version))
+      {
+        mysql_mutex_lock(&LOCK_plugin);
+        for (size_t i=idx; i < total; i++)
+          if (plugins[i] && plugins[i]->state & state_mask)
+            plugins[i]=0;
+        mysql_mutex_unlock(&LOCK_plugin);
+      }
+      plugin= plugins[idx];
+      /* It will stop iterating on first engine error when "func" returns TRUE */
+      if (plugin && (*funcs)(thd, plugin_int_to_ref(plugin), arg))
+          goto err;
     }
-    plugin= plugins[idx];
-    /* It will stop iterating on first engine error when "func" returns TRUE */
-    if (plugin && func(thd, plugin_int_to_ref(plugin), arg))
-        goto err;
   }
 
   DBUG_RETURN(FALSE);
@@ -2603,6 +2572,13 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+                              int type, uint state_mask, void *arg)
+{
+  plugin_foreach_func *funcs[]= { func, NULL };
+
+  return plugin_foreach_with_mask(thd, funcs, type, state_mask, arg);
+}
 
 /****************************************************************************
   Internal type declarations for variables support
@@ -4660,9 +4636,7 @@ bool Sql_cmd_install_plugin::execute(THD *thd)
   bool st= mysql_install_plugin(thd, &m_comment, &m_ident);
   if (!st)
     my_ok(thd);
-#ifndef EMBEDDED_LIBRARY
   mysql_audit_release(thd);
-#endif
   return st;
 }
 
@@ -4672,8 +4646,6 @@ bool Sql_cmd_uninstall_plugin::execute(THD *thd)
   bool st= mysql_uninstall_plugin(thd, &m_comment);
   if (!st)
     my_ok(thd);
-#ifndef EMBEDDED_LIBRARY
   mysql_audit_release(thd);
-#endif
   return st;
 }

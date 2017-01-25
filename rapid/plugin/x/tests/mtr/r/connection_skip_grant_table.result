@@ -37,12 +37,12 @@ Mysqlx.Ok {
 }
 ok
 FLUSH PRIVILEGES;
-in main, line 0:ERROR: Invalid user or password (code 1045)
+Application terminated with expected error: Invalid user or password (code 1045)
 not ok
 # restart: --skip-grant-tables --plugin-load=mysqlx.so
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
-in main, line 3:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }

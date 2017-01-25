@@ -1,5 +1,4 @@
 # Session connect attributes test
---source include/have_perfschema.inc
 
 # although the connection attributes transfer code works
 # with embedded P_S is not active, so the test won't run.

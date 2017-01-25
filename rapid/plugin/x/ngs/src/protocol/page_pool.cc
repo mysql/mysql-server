@@ -18,14 +18,14 @@
  */
 
 #include <stdint.h>
-#include <list>
 #include <algorithm>
-
-#include "ngs/protocol/page_pool.h"
-#include "ngs/memory.h"
+#include <list>
+#include <new>
 
 #include "my_global.h"
 #include "ngs/log.h"
+#include "ngs/memory.h"
+#include "ngs/protocol/page_pool.h"
 
 using namespace ngs;
 

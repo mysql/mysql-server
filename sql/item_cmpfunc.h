@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "item_func.h"       // Item_int_func
 #include "item_row.h"        // Item_row
 #include "mem_root_array.h"  // Mem_root_array
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
@@ -183,7 +184,7 @@ public:
   Item_bool_func(THD *thd, Item_bool_func *item) : Item_int_func(thd, item),
     m_created_by_in2exists(item->m_created_by_in2exists) {}
   bool is_bool_func() const override { return true; }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     decimals= 0;
     max_length= 1;
@@ -1109,8 +1110,6 @@ public:
                          SELECT_LEX *removed_select) override;
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
-private:
-  void cache_type_info(Item *source);
 };
 
 
@@ -1197,7 +1196,7 @@ public:
     vector in form of Item_xxx constants without creating Item_xxx object
     for every array element you get (i.e. this implements "FlyWeight" pattern)
   */
-  virtual Item* create_item() { return NULL; }
+  virtual Item* create_item() const { return nullptr; }
   
   /*
     Store the value at position #pos into provided item object
@@ -1207,47 +1206,44 @@ public:
         item  Constant item to store value into. The item must be of the same
               type that create_item() returns.
   */
-  virtual void value_to_item(uint pos, Item *item) { }
-  
+  virtual void value_to_item(uint pos MY_ATTRIBUTE((unused)),
+                             Item *item MY_ATTRIBUTE((unused)))
+  { }
+
   /* Compare values number pos1 and pos2 for equality */
   virtual bool compare_elems(uint pos1, uint pos2) const = 0;
 
-  virtual Item_result result_type()= 0;
+  virtual Item_result result_type() const= 0;
 };
 
-class in_string :public in_vector
+class in_string final : public in_vector
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
-  // DTOR is not trivial, but we manage memory ourselves.
-  Mem_root_array<String, true> base_objects;
+  Mem_root_array<String> base_objects;
   // String objects are not sortable, sort pointers instead.
-  Mem_root_array<String*, true> base_pointers;
+  Mem_root_array<String*> base_pointers;
 
   qsort2_cmp compare;
   const CHARSET_INFO *collation;
 public:
   in_string(THD *thd,
             uint elements, qsort2_cmp cmp_func, const CHARSET_INFO *cs);
-  ~in_string();
-  void set(uint pos,Item *item);
-  uchar *get_value(Item *item);
-  Item* create_item()
-  { 
-    return new Item_string(collation);
-  }
-  void value_to_item(uint pos, Item *item)
-  {    
+  void set(uint pos, Item *item) override;
+  uchar *get_value(Item *item) override;
+  Item* create_item() const override { return new Item_string(collation); }
+  void value_to_item(uint pos, Item *item) override
+  {
     String *str= base_pointers[pos];
     item->str_value= *str;
   }
-  Item_result result_type() { return STRING_RESULT; }
+  Item_result result_type() const override { return STRING_RESULT; }
 
-  virtual void shrink_array(size_t n) { base_pointers.resize(n); }
+  void shrink_array(size_t n) override { base_pointers.resize(n); }
 
-  virtual void sort();
-  virtual bool find_value(const void *value) const;
-  virtual bool compare_elems(uint pos1, uint pos2) const;
+  void sort() override;
+  bool find_value(const void *value) const override;
+  bool compare_elems(uint pos1, uint pos2) const override;
 };
 
 class in_longlong :public in_vector
@@ -1266,64 +1262,64 @@ protected:
   */
   packed_longlong tmp;
 
-  Mem_root_array<packed_longlong, true> base;
+  Mem_root_array<packed_longlong> base;
 
 public:
   in_longlong(THD *thd, uint elements);
-  void set(uint pos,Item *item);
-  uchar *get_value(Item *item);
-  
-  Item* create_item()
-  { 
-    /* 
-      We're created a signed INT, this may not be correct in 
+  void set(uint pos, Item *item) override;
+  uchar *get_value(Item *item) override;
+
+  Item* create_item() const override
+  {
+    /*
+      We've created a signed INT, this may not be correct in the
       general case (see BUG#19342).
     */
     return new Item_int((longlong)0);
   }
-  void value_to_item(uint pos, Item *item)
+  void value_to_item(uint pos, Item *item) override
   {
     ((Item_int*) item)->value= base[pos].val;
     ((Item_int*) item)->unsigned_flag= (my_bool)
       base[pos].unsigned_flag;
   }
-  Item_result result_type() { return INT_RESULT; }
+  Item_result result_type() const override { return INT_RESULT; }
 
-  virtual void shrink_array(size_t n) { base.resize(n); }
+  void shrink_array(size_t n) override { base.resize(n); }
 
-  virtual void sort();
-  virtual bool find_value(const void *value) const;
-  virtual bool compare_elems(uint pos1, uint pos2) const;
+  void sort() override;
+  bool find_value(const void *value) const override;
+  bool compare_elems(uint pos1, uint pos2) const override;
 };
 
 
-class in_datetime_as_longlong :public in_longlong
+class in_datetime_as_longlong final :public in_longlong
 {
 public:
   in_datetime_as_longlong(THD *thd, uint elements)
     : in_longlong(thd, elements)
   {};
-  Item *create_item()
+  Item *create_item() const override
   {
     return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
-  void set(uint pos, Item *item);
-  uchar *get_value(Item *item);
+  void set(uint pos, Item *item) override;
+  uchar *get_value(Item *item) override;
 };
 
 
-class in_time_as_longlong :public in_longlong
+class in_time_as_longlong final :public in_longlong
 {
 public:
   in_time_as_longlong(THD *thd, uint elements)
     : in_longlong(thd, elements)
   {};
-  Item *create_item()
+  Item *create_item() const override
   {
     return new Item_temporal(MYSQL_TYPE_TIME, 0LL);
   }
-  void set(uint pos, Item *item);
-  uchar *get_value(Item *item);
+  void set(uint pos, Item *item) override;
+  uchar *get_value(Item *item) override;
 };
 
 
@@ -1333,7 +1329,7 @@ public:
   If the left item is a constant one then its value is cached in the
   lval_cache variable.
 */
-class in_datetime :public in_longlong
+class in_datetime final :public in_longlong
 {
 public:
   /* An item used to issue warnings. */
@@ -1345,67 +1341,67 @@ public:
     : in_longlong(thd_arg, elements), warn_item(warn_item_arg),
       lval_cache(0)
   {};
-  void set(uint pos,Item *item);
-  uchar *get_value(Item *item);
+  void set(uint pos,Item *item) override;
+  uchar *get_value(Item *item) override;
 
-  Item* create_item()
-  { 
-    return new Item_temporal(MYSQL_TYPE_DATETIME, (longlong) 0);
+  Item* create_item() const override
+  {
+    return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
 };
 
 
-class in_double :public in_vector
+class in_double final :public in_vector
 {
   double tmp;
-  Mem_root_array<double, true> base;
+  Mem_root_array<double> base;
 public:
   in_double(THD *thd, uint elements);
-  void set(uint pos,Item *item);
-  uchar *get_value(Item *item);
-  Item *create_item()
-  { 
+  void set(uint pos,Item *item) override;
+  uchar *get_value(Item *item) override;
+  Item *create_item() const override
+  {
     return new Item_float(0.0, 0);
   }
-  void value_to_item(uint pos, Item *item)
+  void value_to_item(uint pos, Item *item) override
   {
     ((Item_float*)item)->value= base[pos];
   }
-  Item_result result_type() { return REAL_RESULT; }
+  Item_result result_type() const override { return REAL_RESULT; }
 
-  virtual void shrink_array(size_t n) { base.resize(n); }
+  void shrink_array(size_t n) override { base.resize(n); }
 
-  virtual void sort();
-  virtual bool find_value(const void *value) const;
-  virtual bool compare_elems(uint pos1, uint pos2) const;
+  void sort() override;
+  bool find_value(const void *value) const override;
+  bool compare_elems(uint pos1, uint pos2) const override;
 };
 
 
-class in_decimal :public in_vector
+class in_decimal final :public in_vector
 {
   my_decimal val;
-  Mem_root_array<my_decimal, true> base;
+  Mem_root_array<my_decimal> base;
 public:
   in_decimal(THD *thd, uint elements);
-  void set(uint pos, Item *item);
-  uchar *get_value(Item *item);
-  Item *create_item()
-  { 
-    return new Item_decimal(0, FALSE);
+  void set(uint pos, Item *item) override;
+  uchar *get_value(Item *item) override;
+  Item *create_item() const override
+  {
+    return new Item_decimal(0, false);
   }
-  void value_to_item(uint pos, Item *item)
+  void value_to_item(uint pos, Item *item) override
   {
     my_decimal *dec= &base[pos];
     Item_decimal *item_dec= (Item_decimal*)item;
     item_dec->set_decimal_value(dec);
   }
-  Item_result result_type() { return DECIMAL_RESULT; }
+  Item_result result_type() const override { return DECIMAL_RESULT; }
 
-  virtual void shrink_array(size_t n) { base.resize(n); }
+  void shrink_array(size_t n) override { base.resize(n); }
 
-  virtual void sort();
-  virtual bool find_value(const void *value) const;
-  virtual bool compare_elems(uint pos1, uint pos2) const;
+  void sort() override;
+  bool find_value(const void *value) const override;
+  bool compare_elems(uint pos1, uint pos2) const override;
 };
 
 
@@ -1428,7 +1424,7 @@ public:
   virtual int compare(const cmp_item *item) const= 0;
   static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
-  virtual void store_value_by_template(cmp_item *tmpl, Item *item)
+  virtual void store_value_by_template(cmp_item*, Item *item)
   {
     store_value(item);
   }
@@ -1442,7 +1438,7 @@ protected:
   void set_null_value(bool nv) { m_null_value= nv; }
 };
 
-class cmp_item_string : public cmp_item_scalar
+class cmp_item_string final : public cmp_item_scalar
 {
 private:
   String *value_res;
@@ -1490,27 +1486,27 @@ public:
 };
 
 
-class cmp_item_int : public cmp_item_scalar
+class cmp_item_int final : public cmp_item_scalar
 {
   longlong value;
 public:
   cmp_item_int() {}                           /* Remove gcc warning */
-  void store_value(Item *item)
+  void store_value(Item *item) override
   {
     value= item->val_int();
     set_null_value(item->null_value);
   }
-  int cmp(Item *arg)
+  int cmp(Item *arg) override
   {
     const bool rc= value != arg->val_int();
     return (m_null_value || arg->null_value) ? UNKNOWN : rc;
   }
-  int compare(const cmp_item *ci) const
+  int compare(const cmp_item *ci) const override
   {
     const cmp_item_int *l_cmp= down_cast<const cmp_item_int*>(ci);
     return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
-  cmp_item *make_same();
+  cmp_item *make_same() override;
 };
 
 /*
@@ -1529,10 +1525,10 @@ public:
   Item *lval_cache;
 
   cmp_item_datetime(Item *warn_item_arg);
-  void store_value(Item *item);
-  int cmp(Item *arg);
-  int compare(const cmp_item *ci) const;
-  cmp_item *make_same();
+  void store_value(Item *item) override;
+  int cmp(Item *arg) override;
+  int compare(const cmp_item *ci) const override;
+  cmp_item *make_same() override;
 };
 
 class cmp_item_real : public cmp_item_scalar
@@ -1540,22 +1536,22 @@ class cmp_item_real : public cmp_item_scalar
   double value;
 public:
   cmp_item_real() {}                          /* Remove gcc warning */
-  void store_value(Item *item)
+  void store_value(Item *item) override
   {
     value= item->val_real();
     set_null_value(item->null_value);
   }
-  int cmp(Item *arg)
+  int cmp(Item *arg) override
   {
     const bool rc= value != arg->val_real();
     return (m_null_value || arg->null_value) ? UNKNOWN : rc;
   }
-  int compare(const cmp_item *ci) const
+  int compare(const cmp_item *ci) const override
   {
     const cmp_item_real *l_cmp= down_cast<const cmp_item_real*>(ci);
     return (value < l_cmp->value)? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
-  cmp_item *make_same();
+  cmp_item *make_same() override;
 };
 
 
@@ -1778,26 +1774,24 @@ public:
 };
 
 
-class in_row :public in_vector
+class in_row final : public in_vector
 {
   cmp_item_row tmp;
-  // DTOR is not trivial, but we manage memory ourselves.
-  Mem_root_array<cmp_item_row, true> base_objects;
+  Mem_root_array<cmp_item_row> base_objects;
   // Sort pointers, rather than objects.
-  Mem_root_array<cmp_item_row*, true> base_pointers;
+  Mem_root_array<cmp_item_row*> base_pointers;
 public:
-  in_row(THD *thd, uint elements, Item *);
-  ~in_row();
-  void set(uint pos,Item *item);
-  uchar *get_value(Item *item);
+  in_row(THD *thd, uint elements);
+  void set(uint pos, Item *item) override;
+  uchar *get_value(Item *item) override;
   friend bool Item_func_in::resolve_type(THD *thd);
-  Item_result result_type() { return ROW_RESULT; }
+  Item_result result_type() const override { return ROW_RESULT; }
 
-  virtual void shrink_array(size_t n) { base_pointers.resize(n); }
+  void shrink_array(size_t n) override { base_pointers.resize(n); }
 
-  virtual void sort();
-  virtual bool find_value(const void *value) const;
-  virtual bool compare_elems(uint pos1, uint pos2) const;
+  void sort() override;
+  bool find_value(const void *value) const override;
+  bool compare_elems(uint pos1, uint pos2) const override;
 };
 
 /* Functions used by where clause */

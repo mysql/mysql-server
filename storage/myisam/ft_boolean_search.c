@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,11 @@
 */
 
 #define FT_CORE
+#include <fcntl.h>
+
 #include "ftdefs.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 /* search with boolean queries */
 
@@ -615,7 +619,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
                                               (ftb->queue.max_elements + 1) *
                                               sizeof(void *))))
     goto err;
-  reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
+  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
                          (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0);
   for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);

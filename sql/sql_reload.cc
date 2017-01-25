@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
     THD *tmp_thd= 0;
@@ -125,6 +124,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       */
       if (check_engine_type_for_acl_table(thd))
         result= 1;
+
+      /*
+        Check all the ACL tables are intact and output warning message in
+        case any of the ACL tables are corrupted.
+      */
+      if (check_acl_tables_intact(thd))
+        result= 1;
     }
 
     reset_mqh(thd, (LEX_USER *)NULL, TRUE);
@@ -134,7 +140,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       thd= 0;
     }
   }
-#endif
+
   if (options & REFRESH_LOG)
   {
     /*
@@ -194,10 +200,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
     if (options & REFRESH_RELAY_LOG)
     {
-#ifdef HAVE_REPLICATION
       if (flush_relay_logs_cmd(thd))
         *write_to_binlog= -1;
-#endif
     }
     if (tmp_thd)
     {
@@ -327,12 +331,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
-    refresh_status(thd);
-#ifndef EMBEDDED_LIBRARY
+    refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();
-#endif
-#ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
     DBUG_ASSERT(thd);
@@ -343,7 +344,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       result= 1;
     }
   }
-#endif
 #ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
@@ -356,7 +356,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
   if (options & REFRESH_OPTIMIZER_COSTS)
     reload_optimizer_cost_constants();
-#ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
@@ -366,7 +365,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
      result= 1;
    }
  }
-#endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd, nullptr, 0);             /* purecov: inspected */
  if (*write_to_binlog != -1)

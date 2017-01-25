@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,6 @@
 
 #ifndef PLUGIN_SERVER_INCLUDE
 #define PLUGIN_SERVER_INCLUDE
-
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
 
 /*
   Includes only from server include folder.

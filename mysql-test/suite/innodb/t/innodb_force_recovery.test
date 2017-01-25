@@ -2,7 +2,6 @@
 --source include/not_embedded.inc
 
 # This test case needs InnoDB.
--- source include/have_innodb.inc
 
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 

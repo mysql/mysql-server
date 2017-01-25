@@ -122,6 +122,14 @@ static void check_foreign_key(TABLE *table, THD *thd,
   LEX_STRING *f_info;
   while ((f_key_info=foreign_key_iterator++))
   {
+    /*
+      If referenced_key_name is NULL it means that the parent table
+      was dropped using foreign_key_checks= 0, on that case we
+      cannot check foreign key and need to skip it.
+    */
+    if (f_key_info->referenced_key_name == NULL)
+      continue;
+
     std::string temporary_pke;
     List_iterator_fast<LEX_STRING> foreign_fields_iterator(f_key_info->foreign_fields);
 
@@ -141,7 +149,6 @@ static void check_foreign_key(TABLE *table, THD *thd,
                                 length_table, MYF(0));
     char *char_length_table= my_safe_itoa(10, length_table, &buffer_table[length_table-1]);
 
-    DBUG_ASSERT(f_key_info->referenced_key_name);
     /*
       Prefix the hash keys with the referenced index name.
     */

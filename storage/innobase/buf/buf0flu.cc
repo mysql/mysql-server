@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3148,6 +3148,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
 
+	my_thread_init();
+
 #ifdef UNIV_LINUX
 	/* linux might be able to set different setting for each thread.
 	worth to try to set high priority for page cleaner threads */
@@ -3499,6 +3501,8 @@ thread_exit:
 	buf_flush_page_cleaner_close();
 
 	buf_page_cleaner_is_active = false;
+
+	my_thread_end();
 }
 
 /** Worker thread of page_cleaner. */
@@ -3506,6 +3510,7 @@ static
 void
 buf_flush_page_cleaner_thread()
 {
+	my_thread_init();
 	mutex_enter(&page_cleaner->mutex);
 	++page_cleaner->n_workers;
 	mutex_exit(&page_cleaner->mutex);
@@ -3536,6 +3541,7 @@ buf_flush_page_cleaner_thread()
 	mutex_enter(&page_cleaner->mutex);
 	--page_cleaner->n_workers;
 	mutex_exit(&page_cleaner->mutex);
+	my_thread_end();
 }
 
 /*******************************************************************//**

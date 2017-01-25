@@ -17,7 +17,6 @@ if (`SELECT VERSION() LIKE '%embedded%'`)
 
 
 let $engine_type= InnoDB;
---source include/have_innodb.inc
 --vertical_results
 eval SELECT * FROM information_schema.engines
 WHERE ENGINE = '$engine_type';

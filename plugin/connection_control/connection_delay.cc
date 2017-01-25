@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_SERVER  "We need security context"
-#include <m_ctype.h>                    /* my_charset_bin */
-#include <sql_class.h>                  /* THD, Security context */
+
 #include <current_thd.h>                /* current_thd */
 #include <item_cmpfunc.h>
+#include <m_ctype.h>                    /* my_charset_bin */
 #include <mysql/psi/mysql_thread.h>
+#include <sql_class.h>                  /* THD, Security context */
 
-#include "connection_delay.h"
 #include "connection_control.h"
+#include "connection_delay.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "security_context_wrapper.h"
 
 
@@ -528,7 +531,6 @@ namespace connection_control
                                             ulonglong wait_time)
   {
     DBUG_ENTER("Connection_delay_action::conditional_wait");
-    const char * category= "connection_delay";
 
     /** mysql_cond_timedwait requires wait time in timespec format */
     struct timespec abstime;
@@ -542,6 +544,7 @@ namespace connection_control
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
+    const char * category= "conn_delay";
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {

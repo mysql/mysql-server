@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef HAVE_REPLICATION
 #include "rpl_mi.h"
 
 #include <stdlib.h>
@@ -640,5 +639,3 @@ void Master_info::wait_until_no_reference(THD *thd)
 
   THD_STAGE_INFO(thd, *old_stage);
 }
-
-#endif /* HAVE_REPLICATION */

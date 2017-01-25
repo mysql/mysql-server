@@ -109,34 +109,20 @@ private:
   Query_result_delete data interceptor objects to implement EXPLAIN for INSERT,
   REPLACE and multi-table UPDATE and DELETE queries.
   Query_result_explain class object initializes tables like Query_result_insert,
-  Query_result_update or Query_result_delete data interceptor do, but it suppress
-  table data modification by the underlying interceptor object.
+  Query_result_update or Query_result_delete data interceptor do, but it
+  suppresses table data modification by the underlying interceptor object.
   Thus, we can use Query_result_explain object in the context of EXPLAIN INSERT/
   REPLACE/UPDATE/DELETE query like we use Query_result_send in the context of
   EXPLAIN SELECT command:
-    1) in presence of lex->describe flag we pass Query_result_explain object to the
-       handle_query() function,
-    2) it call prepare(), prepare2() and initialize_tables() functions to
-       mark modified tables etc.
-
+  1) in presence of lex->describe flag, pass Query_result_explain object to
+     execution function,
+  2) it calls prepare(), optimize() and start_execution() functions
+     to mark modified tables etc.
 */
 
-class Query_result_explain final : public Query_result_send {
+class Query_result_explain final : public Query_result_send
+{
 protected:
-  /*
-    As far as we use Query_result_explain object in a place of Query_result_send,
-    Query_result_explain have to pass multiple invocation of its prepare(),
-    prepare2() and initialize_tables() functions, since JOIN::exec() of
-    subqueries runs these functions of Query_result_send multiple times by design.
-    Query_result_insert, Query_result_update and Query_result_delete class
-    functions are not intended for multiple invocations, so "prepared",
-    "prepared2" and "initialized" flags guard data interceptor object from
-    function re-invocation.
-  */
-  bool prepared;    ///< prepare() is done
-  bool prepared2;   ///< prepare2() is done
-  bool initialized; ///< initialize_tables() is done
-
   /**
     Pointer to underlying Query_result_insert, Query_result_update or
     Query_result_delete object.
@@ -146,35 +132,24 @@ protected:
 public:
   Query_result_explain(THD *thd, SELECT_LEX_UNIT *unit_arg,
                        Query_result *interceptor_arg)
-  : Query_result_send(thd),
-    prepared(false), prepared2(false), initialized(false),
-    interceptor(interceptor_arg)
+  : Query_result_send(thd), interceptor(interceptor_arg)
   { unit= unit_arg; }
 
 protected:
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override
   {
-    if (prepared)
-      return false;
-    prepared= true;
     return Query_result_send::prepare(list, u) || interceptor->prepare(list, u);
   }
 
-  int prepare2() override
+  bool start_execution(void) override
   {
-    if (prepared2)
-      return false;
-    prepared2= true;
-    return Query_result_send::prepare2() || interceptor->prepare2();
+    return Query_result_send::start_execution() ||
+           interceptor->start_execution();
   }
 
-  bool initialize_tables(JOIN *join) override
+  bool optimize() override
   {
-    if (initialized)
-      return false;
-    initialized= true;
-    return Query_result_send::initialize_tables(join) ||
-           interceptor->initialize_tables(join);
+    return Query_result_send::optimize() || interceptor->optimize();
   }
 
   void cleanup() override

@@ -2,7 +2,6 @@
 # These test make sure that tables are visible after rebooting
 #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 # Embedded server does not support crashing

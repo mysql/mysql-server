@@ -1,14 +1,9 @@
---source include/have_perfschema.inc
 --source include/is_embedded.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 flush status;
 
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-
-set global show_compatibility_56 = ON;
-
 --disable_result_log
 SHOW SESSION STATUS;
 SHOW GLOBAL STATUS;
@@ -19,21 +14,5 @@ SHOW GLOBAL VARIABLES;
 SHOW SESSION STATUS like "Com_help";
 SHOW GLOBAL STATUS like "Com_help";
 SHOW SESSION VARIABLES like "autocommit";
-SHOW GLOBAL VARIABLES like "show_compatibility_56";
-
-set global show_compatibility_56 = OFF;
-
---disable_result_log
-SHOW SESSION STATUS;
-SHOW GLOBAL STATUS;
-SHOW SESSION VARIABLES;
-SHOW GLOBAL VARIABLES;
---enable_result_log
-
-SHOW SESSION STATUS like "Com_help";
-SHOW GLOBAL STATUS like "Com_help";
-SHOW SESSION VARIABLES like "autocommit";
-SHOW GLOBAL VARIABLES like "show_compatibility_56";
-
-set @@global.show_compatibility_56 = @show_compatibility_56_save;
+SHOW GLOBAL VARIABLES like "autocommit";
 

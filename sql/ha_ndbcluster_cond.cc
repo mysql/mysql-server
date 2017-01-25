@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,11 @@
   This file defines the NDB Cluster handler engine_condition_pushdown
 */
 
-#include "ha_ndbcluster_glue.h"
 #include <ndbapi/NdbApi.hpp>
+
 #include "ha_ndbcluster_cond.h"
+#include "ha_ndbcluster_glue.h"
+#include "my_dbug.h"
 
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;

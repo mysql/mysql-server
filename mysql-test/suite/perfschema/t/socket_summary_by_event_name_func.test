@@ -17,7 +17,6 @@
 --source include/not_embedded.inc
 
 # Not much can happen without the performance schema
---source include/have_perfschema.inc
 
 # Wait for any clients from previous tests to disconnect
 --source ../include/wait_for_pfs_thread_count.inc

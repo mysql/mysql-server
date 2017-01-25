@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,12 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
+#include "binary_log_types.h" // enum_field_types
 #include "my_base.h"          // ha_rows
 #include "my_byteorder.h"     // uint2korr
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"            // mysql_com.h needs my_socket
-#include "binary_log_types.h" // enum_field_types
 #include "mysql_com.h"        // Item_result
 #include "sql_alloc.h"        // sql_alloc
 #include "sql_array.h"        // Bounds_checked_array
@@ -31,6 +32,38 @@ class Filesort;
 class Item;
 struct TABLE;
 
+enum class Addon_fields_status
+{
+  unknown_status,
+  using_heap_table,
+  fulltext_searched,
+  keep_rowid,
+  row_not_packable,
+  row_contains_blob,
+  max_length_for_sort_data,
+  row_too_large,
+  skip_heuristic,
+  using_priority_queue
+};
+
+
+inline const char *addon_fields_text(Addon_fields_status afs)
+{
+  switch (afs) {
+  default: return "unknown";
+  case Addon_fields_status::using_heap_table: return "using_heap_table";
+  case Addon_fields_status::fulltext_searched: return "fulltext_searched";
+  case Addon_fields_status::keep_rowid: return "keep_rowid";
+  case Addon_fields_status::row_not_packable: return "row_not_packable";
+  case Addon_fields_status::row_contains_blob: return "row_contains_blob";
+  case Addon_fields_status::max_length_for_sort_data:
+    return "max_length_for_sort_data";
+  case Addon_fields_status::row_too_large: return "row_too_large";
+  case Addon_fields_status::skip_heuristic: return "skip_heuristic";
+  case Addon_fields_status::using_priority_queue: return "using_priority_queue";
+  }
+}
+
 
 /* Structs used when sorting */
 
@@ -40,10 +73,10 @@ struct st_sort_field {
   Item  *item;                   ///< Item if not sorting fields
   uint  length;                  ///< Length of sort field
   uint  suffix_length;           ///< Length suffix (0-4)
-  Item_result result_type;       ///< Type of item
+  Item_result result_type;       ///< Type of item (not used for fields)
   enum_field_types field_type;   ///< Field type of the field or item
   bool reverse;                  ///< if descending sort
-  bool need_strxnfrm;            ///< If we have to use strxnfrm()
+  bool need_strnxfrm;            ///< If we have to use strnxfrm()
   bool is_varlen;                ///< If key part has variable length
   bool maybe_null;               ///< If key part is nullable
 };
@@ -234,11 +267,11 @@ class Sort_param {
   uint m_fixed_sort_length;   ///< Maximum number of bytes used for sorting.
 public:
   uint ref_length;            // Length of record ref.
-  uint addon_length;          // Length of added packed fields.
+  uint m_addon_length;        // Length of added packed fields.
   uint fixed_res_length;      // Length of records in final sorted file/buffer.
-  uint max_keys_per_buffer;   // Max keys / buffer.
+  uint max_rows_per_buffer;   // Max (unpacked) rows / buffer.
   ha_rows max_rows;           // Select limit, or HA_POS_ERROR if unlimited.
-  ha_rows examined_rows;      // Number of examined rows.
+  ha_rows num_examined_rows;  // Number of examined rows.
   TABLE *sort_form;           // For quicker make_sortkey.
   bool use_hash;              // Whether to use hash to distinguish cut JSON
 
@@ -364,6 +397,16 @@ public:
     @param [out] resl   Store result length here.
    */
   void get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl);
+
+  enum enum_sort_algorithm {
+    FILESORT_ALG_NONE,
+    FILESORT_ALG_RADIX,
+    FILESORT_ALG_STD_SORT,
+    FILESORT_ALG_STD_STABLE
+  };
+  enum_sort_algorithm m_sort_algorithm;
+
+  Addon_fields_status m_addon_fields_status;
 
   static const uint size_of_varlength_field= 4;
 

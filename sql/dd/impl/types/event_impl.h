@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -256,7 +256,10 @@ public:
   { return m_last_executed; }
 
   virtual void set_last_executed(my_time_t last_executed)
-  { m_last_executed= last_executed; }
+  {
+    m_is_last_executed_null= false;
+    m_last_executed= last_executed;
+  }
 
   virtual void set_last_executed_null(bool is_null)
   { m_is_last_executed_null= is_null; }

@@ -20,7 +20,9 @@
   @file include/base64.h
 */
 
-#include "my_global.h"
+#include <stddef.h>
+
+#include "my_inttypes.h"
 
 #ifdef __cplusplus
 extern "C" {

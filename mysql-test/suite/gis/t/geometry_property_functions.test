@@ -1750,9 +1750,6 @@ BEGIN
                                        'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))', srid);
 
     # GIS geometry property functions that do not depend on any SRS
-    DO ST_ASWKT(@pt_geom);
-    DO ST_ASTEXT(@pt_geom);
-
     DO ST_SRID(@pt_geom);
     DO ST_ISEMPTY(@pt_geom);
     DO ST_DIMENSION(@pt_geom);
@@ -1795,6 +1792,7 @@ CALL geom_prop_func(19000000);
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
 VALUES (44444444, 1, 'TEST44444444', 'Foo', 44444444, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
 CALL geom_prop_func(44444444);
 
 # clean up

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,7 +124,7 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // Truncates time
   {
@@ -183,7 +183,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroRestrictions)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   for (int i= 0; i < no_modes; i++)
   {
@@ -231,7 +231,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroDate)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
   for (int i= 0; i < no_modes; i++)
@@ -293,7 +293,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok
   for (int i= 0; i < no_modes; i++)

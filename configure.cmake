@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -271,6 +271,20 @@ IF(UNIX)
       hosts_access(0);
     }"
     HAVE_LIBWRAP)
+
+    IF(HAVE_LIBWRAP)
+      CHECK_CXX_SOURCE_COMPILES(
+      "
+      #include <tcpd.h>
+      int main()
+      {
+        struct request_info req;
+        if (req.sink)
+          (req.sink)(req.fd);
+      }"
+      HAVE_LIBWRAP_PROTOTYPES)
+    ENDIF()
+
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
     IF(HAVE_LIBWRAP)
       SET(LIBWRAP "wrap")
@@ -494,7 +508,6 @@ FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
 ENDFUNCTION()
 
 # We are only interested in presence for these
-MY_CHECK_TYPE_SIZE(uint UINT)
 MY_CHECK_TYPE_SIZE(ulong ULONG)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
 SET(CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -35,6 +35,8 @@
 #include "dummy_stream.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include "my_global.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include "my_loglevel.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
@@ -56,7 +58,6 @@
 #endif
 
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
-const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
 
 #include <mysql/service_my_snprintf.h>
@@ -85,7 +86,7 @@ static Message_by_id client_msgs_by_id;
 bool OPT_quiet = false;
 bool OPT_bindump = false;
 bool OPT_show_warnings = false;
-bool OPT_fatal_errors = false;
+bool OPT_fatal_errors = true;
 bool OPT_verbose = false;
 bool OPT_query = true;
 #ifndef _WIN32
@@ -1411,9 +1412,8 @@ private:
     catch (mysqlx::Error &err)
     {
       context.connection()->pop_local_notice_handler();
-      dumpx(err);
-      if (OPT_fatal_errors)
-        return Stop_with_success;
+      if (!OPT_expect_error->check_error(err))
+        return Stop_with_failure;
     }
 
     return Continue;
@@ -2331,38 +2331,28 @@ std::string get_field_value(ngs::shared_ptr<mysqlx::Row> &row, const int field, 
     switch (col.type)
     {
     case mysqlx::SINT:
-      return get_object_value(row->sInt64Field(field));
+      return ngs::to_string(row->sInt64Field(field));
 
     case mysqlx::UINT:
-      return get_object_value(row->uInt64Field(field));
+      return ngs::to_string(row->uInt64Field(field));
 
     case mysqlx::DOUBLE:
-      if (col.fractional_digits >= 31)
-      {
-        char buffer[100];
-        my_gcvt(row->doubleField(field), MY_GCVT_ARG_DOUBLE, sizeof(buffer)-1, buffer, NULL);
-        return buffer;
-      }
-      else
+      if (col.fractional_digits < 31)
       {
         char buffer[100];
         my_fcvt(row->doubleField(field), col.fractional_digits, buffer, NULL);
         return buffer;
       }
+      return ngs::to_string(row->doubleField(field));
 
     case mysqlx::FLOAT:
-      if (col.fractional_digits >= 31)
-      {
-        char buffer[100];
-        my_gcvt(row->floatField(field), MY_GCVT_ARG_FLOAT, sizeof(buffer)-1, buffer, NULL);
-        return buffer;
-      }
-      else
+      if (col.fractional_digits < 31)
       {
         char buffer[100];
         my_fcvt(row->floatField(field), col.fractional_digits, buffer, NULL);
         return buffer;
       }
+      return ngs::to_string(row->floatField(field));
 
     case mysqlx::BYTES:
     {
@@ -3021,12 +3011,15 @@ public:
 
   void print_version()
   {
-    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, MYSQLXTEST_VERSION,
-        MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    ::print_version();
   }
 
   void print_help()
   {
+
+    print_version();
+    std::cout << (ORACLE_WELCOME_COPYRIGHT_NOTICE("2015")) << endl;
+
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
@@ -3062,7 +3055,7 @@ public:
     std::cout << "--connect-expired-password Allow expired password\n";
     std::cout << "--quiet               Don't print out messages sent\n";
     std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from command line\n";
-    std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error\n";
+    std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error (default: 1)\n";
     std::cout << "-B, --bindump         Dump binary representation of messages sent, in format suitable for\n";
     std::cout << "--verbose             Enable extra verbose messages\n";
     std::cout << "--daemon              Work as a daemon (unix only)\n";

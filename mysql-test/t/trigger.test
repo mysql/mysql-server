@@ -2384,6 +2384,12 @@ DROP TABLE t1,t2;
 --echo #
 --echo # Bug#50755: Crash if stored routine def contains version comments
 --echo #
+--echo # With WL#9494, the SHOW TRIGGERS no more parses
+--echo # the underlaying trigger, and hence it would not
+--echo # report parse error. This means that the code
+--echo # causing this issue is removed now with WL#9494.
+--echo # This test case is kept for reference.
+--echo #
 
 --disable_warnings
 DROP DATABASE IF EXISTS db1;
@@ -2398,7 +2404,7 @@ CREATE TABLE t1 (b INT);
 CREATE TABLE t2 (a INT);
 
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
---echo # Used to crash
+--replace_column 6 #
 SHOW TRIGGERS IN db1;
 --error ER_PARSE_ERROR
 INSERT INTO t2 VALUES (1);

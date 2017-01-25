@@ -1,7 +1,6 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 # This is a test on max daemon_memcached_w_batch_size configure option (1048576)
 # The read configure option daemon_memcached_r_batch_size is also configured

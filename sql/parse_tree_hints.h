@@ -43,8 +43,8 @@ struct Hint_param_table
 };
 
 
-typedef Mem_root_array_YY<LEX_CSTRING, true> Hint_param_index_list;
-typedef Mem_root_array_YY<Hint_param_table, true> Hint_param_table_list;
+typedef Mem_root_array_YY<LEX_CSTRING> Hint_param_index_list;
+typedef Mem_root_array_YY<Hint_param_table> Hint_param_table_list;
 
 
 /**
@@ -94,7 +94,7 @@ class PT_hint_list : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
-  Mem_root_array<PT_hint *, true> hints;
+  Mem_root_array<PT_hint *> hints;
 
 public:
   explicit PT_hint_list(MEM_ROOT *mem_root) : hints(mem_root) {}

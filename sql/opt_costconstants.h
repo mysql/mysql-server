@@ -558,7 +558,7 @@ private:
     Cost constants for storage engines
     15 should be enough for most use cases, see PREALLOC_NUM_HA.
   */
-  Prealloced_array<Cost_model_se_info, 15, false> m_engines;
+  Prealloced_array<Cost_model_se_info, 15> m_engines;
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;

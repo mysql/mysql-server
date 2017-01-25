@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,10 +158,13 @@ public:
   {
     init();
   }
+
+#ifndef DBUG_OFF
   ~my_decimal()
   {
     sanity_check();
   }
+#endif // DBUG_OFF
 
   void sanity_check() const
   {
@@ -182,7 +185,7 @@ public:
 
   // Error reporting in server code only.
   int check_result(uint mask, int result) const
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   {
     return result;
   }

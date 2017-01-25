@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,9 @@
 #define _mysql_com_h
 
 #include "my_command.h"
-/*
-  FIXME: #include something that gives us my_bool, but without breaking
-  the ABI checker.
-*/
+#include "my_inttypes.h"
+#include "my_io.h"
+
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
@@ -787,10 +786,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1; /**< Please remove with the next incompatible ABI change */
-  my_bool unused2; /**< Please remove with the next incompatible ABI change */
   my_bool compress;
-  my_bool unused3; /**< Please remove with the next incompatible ABI change. */
   /**
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
@@ -800,8 +796,6 @@ typedef struct st_net {
   unsigned char *unused;
   unsigned int last_errno;
   unsigned char error; 
-  my_bool unused4; /**< Please remove with the next incompatible ABI change. */
-  my_bool unused5; /**< Please remove with the next incompatible ABI change. */
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
@@ -960,11 +954,9 @@ my_bool	net_write_command(NET *net,unsigned char command,
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-#ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 void my_net_set_retry_count(NET *net, uint retry_count);
-#endif
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -1060,12 +1052,12 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 my_bool my_thread_init(void);
 void my_thread_end(void);
 
-#ifdef MY_GLOBAL_INCLUDED
+#ifdef STDCALL
 ulong STDCALL net_field_length(uchar **packet);
+#endif
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);
 unsigned int net_length_size(ulonglong num);
-#endif
 
 #ifdef __cplusplus
 }

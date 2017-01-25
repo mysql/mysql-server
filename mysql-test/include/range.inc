@@ -2561,3 +2561,33 @@ CREATE TABLE t1 (
 SELECT * FROM t1 WHERE a IS NULL OR a NOT IN ( 'foo', 'bar' );
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25229315: ASSERTION TABLE->M_RECORD_BUFFER.RECORD_SIZE() ==
+--echo #               RECORD_PREFIX_SIZE(TAB)' FAIL
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, vc VARCHAR(1)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, NULL), (2, 'w');
+
+# The primary key needs to come after the other columns accessed by
+# the query in order to reproduce the bug.
+CREATE TABLE t2 (
+  i INT,
+  vc VARCHAR(1),
+  pk INT PRIMARY KEY,
+  KEY (i),
+  KEY (vc)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1, 'p', 1), (9, 'w', 2), (NULL, 'r', 3);
+
+ANALYZE TABLE t1, t2;
+
+# The query should use dynamic ranges on t2 ("Range checked for each record").
+--let $query= SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk
+--eval EXPLAIN $query
+--eval $query
+
+DROP TABLE t1, t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,7 +120,6 @@ static bool remove_dup_with_hash_index(THD *thd,TABLE *table,
 static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
-static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
 
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
@@ -931,8 +930,10 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab)
     If this is an index merge, the primary key columns may be required
     for positioning in a later stage, even though they are not in the
     read_set here. Allocate space for them in case they are needed.
+    Also allocate space for them for dynamic ranges, because they can
+    switch to index merge for a subsequent scan.
   */
-  if (qep_tab->type() == JT_INDEX_MERGE &&
+  if ((qep_tab->type() == JT_INDEX_MERGE || qep_tab->dynamic_range()) &&
       !table->s->is_missing_primary_key() &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
@@ -986,6 +987,20 @@ static bool set_record_buffer(const QEP_TAB *tab)
   ha_rows max_rows= 0;
   if (!table->file->ha_is_record_buffer_wanted(&max_rows) || max_rows == 0)
     return false;
+
+  // If we already have a buffer, reuse it.
+  if (table->m_record_buffer.max_records() > 0)
+  {
+    /*
+      Assume that the existing buffer has the shape we want. That is, the
+      record size shouldn't change for a table during execution.
+    */
+    DBUG_ASSERT(table->m_record_buffer.record_size() ==
+                record_prefix_size(tab));
+    table->m_record_buffer.reset();
+    table->file->ha_set_record_buffer(&table->m_record_buffer);
+    return false;
+  }
 
   // How many rows do we expect to fetch?
   double rows_to_fetch= tab->position()->rows_fetched;
@@ -1174,32 +1189,36 @@ do_select(JOIN *join)
     }
   }
 
+  if (error != NESTED_LOOP_OK)
+    rc= -1;
+
+  if (!join->select_lex->is_recursive() ||
+      join->select_lex->master_unit()->got_all_recursive_rows)
   {
     /*
       The following will unlock all cursors if the command wasn't an
       update command
     */
     join->join_free();			// Unlock all cursors
+    if (error == NESTED_LOOP_OK)
+    {
+      /*
+        Sic: this branch works even if rc != 0, e.g. when
+        send_data above returns an error.
+      */
+      if (join->select_lex->query_result()->send_eof())
+        rc= 1;                                  // Don't send error
+      DBUG_PRINT("info",("%ld records output", (long) join->send_records));
+    }
   }
-  if (error == NESTED_LOOP_OK)
-  {
-    /*
-      Sic: this branch works even if rc != 0, e.g. when
-      send_data above returns an error.
-    */
-    if (join->select_lex->query_result()->send_eof())
-      rc= 1;                                  // Don't send error
-    DBUG_PRINT("info",("%ld records output", (long) join->send_records));
-  }
-  else
-    rc= -1;
+
+  rc= join->thd->is_error() ? -1 : rc;
 #ifndef DBUG_OFF
   if (rc)
   {
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  rc= join->thd->is_error() ? -1 : rc;
   DBUG_RETURN(rc);
 }
 
@@ -1402,7 +1421,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
 
-  qep_tab->table()->reset_null_row();
+  TABLE *const table= qep_tab->table();
 
   if (end_of_records)
   {
@@ -1448,13 +1467,35 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
   join->thd->get_stmt_da()->reset_current_row_for_condition();
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool in_first_read= true;
   const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
   if (pfs_batch_update)
-    qep_tab->table()->file->start_psi_batch_mode();
+    table->file->start_psi_batch_mode();
+
+  bool in_first_read= true;
+  const bool is_recursive_ref= qep_tab->table_ref->is_recursive_reference;
+  const ha_rows *recursive_row_count= nullptr;
+
+  if (is_recursive_ref)
+  {
+    // The with-recursive algorithm requires a table scan.
+    DBUG_ASSERT(qep_tab->type() == JT_ALL);
+    in_first_read= !table->file->inited;
+    // Tmp table which we're reading is bound to this result
+    recursive_row_count=
+      join->select_lex->master_unit()->recursive_result(join->select_lex)->row_count();
+  }
+
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
+
+    if (is_recursive_ref && // see Recursive_executor's documentation
+        qep_tab->m_fetched_rows >= *recursive_row_count)
+    {
+      error= -1;
+      break;
+    }
+
     if (in_first_read)
     {
       in_first_read= false;
@@ -1476,8 +1517,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     }
     else
     {
+      qep_tab->m_fetched_rows++;
       if (qep_tab->keep_current_rowid)
-        qep_tab->table()->file->position(qep_tab->table()->record[0]);
+        table->file->position(table->record[0]);
       rc= evaluate_join_record(join, qep_tab);
     }
   }
@@ -1488,7 +1530,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     rc= evaluate_null_complemented_join_record(join, qep_tab);
 
   if (pfs_batch_update)
-    qep_tab->table()->file->end_psi_batch_mode();
+    table->file->end_psi_batch_mode();
 
   DBUG_RETURN(rc);
 }
@@ -1508,18 +1550,18 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 bool QEP_TAB::prepare_scan()
 {
   // Check whether materialization is required.
-  if (!materialize_table || materialized)
+  if (!materialize_table || table()->materialized)
     return false;
 
   // Materialize table prior to reading it
   if ((*materialize_table)(this))
     return true;
 
-  materialized= true;
-
   // Bind to the rowid buffer managed by the TABLE object.
   if (copy_current_rowid)
     copy_current_rowid->bind_buffer(table()->file->ref);
+
+  table()->set_not_started();
 
   return false;
 }
@@ -1912,6 +1954,9 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
 
   DBUG_ENTER("evaluate_null_complemented_join_record");
 
+  bool matching= true;
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
+
   for ( ; qep_tab <= last_inner_tab ; qep_tab++)
   {
     // Make sure that the rowid buffer is bound, duplicates weedout needs it
@@ -1922,9 +1967,8 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     /* Change the the values of guard predicate variables. */
     qep_tab->found= true;
     qep_tab->not_null_compl= false;
-    /* The outer row is complemented by nulls for each inner tables */
-    restore_record(qep_tab->table(),s->default_values);  // Make empty record
-    qep_tab->table()->set_null_row();       // For group by without error
+    // Outer row is complemented by null values for each field from inner tables
+    qep_tab->table()->set_null_row();
     if (qep_tab->starts_weedout() && qep_tab > first_inner_tab)
     {
       // sub_select() has not performed a reset for this table.
@@ -1942,34 +1986,42 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
       /* check for errors */
       if (join->thd->is_error())
         DBUG_RETURN(NESTED_LOOP_ERROR);
-      else
-        DBUG_RETURN(NESTED_LOOP_OK);
+
+      matching= false;
+      break;
     }
   }
-  qep_tab= last_inner_tab;
-  /*
-    From the point of view of the rest of execution, this record matches
-    (it has been built and satisfies conditions, no need to do more evaluation
-    on it). See similar code in evaluate_join_record().
-  */
-  plan_idx f_u= QEP_AT(qep_tab, first_unmatched).first_upper();
-  if (f_u != NO_PLAN_IDX &&
-      join->qep_tab[f_u].last_inner() != qep_tab->idx())
-    f_u= NO_PLAN_IDX;
-  qep_tab->first_unmatched= f_u;
-  /*
-    The row complemented by nulls satisfies all conditions
-    attached to inner tables.
-    Finish evaluation of record and send it to be joined with
-    remaining tables.
-    Note that evaluate_join_record will re-evaluate the condition attached
-    to the last inner table of the current outer join. This is not deemed to
-    have a significant performance impact.
-  */
-  const enum_nested_loop_state rc= evaluate_join_record(join, qep_tab);
-
+  if (matching)
+  {
+    qep_tab= last_inner_tab;
+    /*
+      From the point of view of the rest of execution, this record matches
+      (it has been built and satisfies conditions, no need to do more evaluation
+      on it). See similar code in evaluate_join_record().
+    */
+    plan_idx f_u= QEP_AT(qep_tab, first_unmatched).first_upper();
+    if (f_u != NO_PLAN_IDX &&
+        join->qep_tab[f_u].last_inner() != qep_tab->idx())
+      f_u= NO_PLAN_IDX;
+    qep_tab->first_unmatched= f_u;
+    /*
+      The row complemented by nulls satisfies all conditions
+      attached to inner tables.
+      Finish evaluation of record and send it to be joined with
+      remaining tables.
+      Note that evaluate_join_record will re-evaluate the condition attached
+      to the last inner table of the current outer join. This is not deemed to
+      have a significant performance impact.
+    */
+    rc= evaluate_join_record(join, qep_tab);
+  }
   for (QEP_TAB *tab= first_inner_tab; tab <= last_inner_tab; tab++)
+  {
     tab->table()->reset_null_row();
+    // Restore NULL bits saved when reading row, @see join_read_key()
+    if (tab->type() == JT_EQ_REF)
+      tab->ref().restore_null_flags(tab->table());
+  }
 
   DBUG_RETURN(rc);
 }
@@ -1986,7 +2038,7 @@ int report_handler_error(TABLE *table, int error)
 {
   if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
   {
-    table->status= STATUS_GARBAGE;
+    table->set_no_row();
     return -1;					// key not found; ok
   }
   /*
@@ -2038,7 +2090,8 @@ int safe_index_read(QEP_TAB *tab)
   TABLE *table= tab->table();
   if ((error=table->file->ha_index_read_map(table->record[0],
                                             tab->ref().key_buff,
-                                            make_prev_keypart_map(tab->ref().key_parts),
+                                            make_prev_keypart_map(
+                                              tab->ref().key_parts),
                                             HA_READ_KEY_EXACT)))
     return report_handler_error(table, error);
   return 0;
@@ -2060,9 +2113,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   int error;
   DBUG_ENTER("join_read_const_table");
   TABLE *table=tab->table();
-  table->const_table=1;
-  table->reset_null_row();
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  table->const_table= 1;
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
   {
@@ -2084,7 +2135,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
         it is going to be updated.
         Another case is in multi-UPDATE and multi-DELETE, when the table has a
         trigger: bits of columns needed by the trigger are turned on in
-        result->initialize_tables(), which has not yet been called when we do
+        result->optimize(), which has not yet been called when we do
         the reading now, so we must read all columns.
       */
       bitmap_set_all(table->read_set);
@@ -2103,11 +2154,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	!table->no_keyread &&
         (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
     {
-      table->set_keyread(TRUE);
+      table->set_keyread(true);
       tab->set_index(tab->ref().key);
     }
     error= read_const(table, &tab->ref());
-    table->set_keyread(FALSE);
+    table->set_keyread(false);
   }
 
   if (error)
@@ -2169,23 +2220,32 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 static int read_system(TABLE *table)
 {
   int error;
-  if (table->status & STATUS_GARBAGE)		// If first read
+  if (!table->is_started())                     // If first read
   {
-    if ((error=table->file->read_first_row(table->record[0],
-					   table->s->primary_key)))
+    if ((error= table->file->ha_read_first_row(table->record[0],
+                                               table->s->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_handler_error(table, error);
       table->set_null_row();
-      empty_record(table);			// Make empty record
+      empty_record(table);                      // Make empty record
       return -1;
     }
     store_record(table,record[1]);
   }
-  else if (!table->status)			// Only happens with left join
-    restore_record(table,record[1]);			// restore old record
-  table->reset_null_row();
-  return table->status ? -1 : 0;
+  else if (table->has_row() && table->is_nullable())
+  {
+    /*
+      Row buffer contains a row, but it may have been partially overwritten
+      by a null-extended row. Restore the row from the saved copy.
+      @note this branch is currently unused.
+    */
+    DBUG_ASSERT(false);
+    table->set_found_row();
+    restore_record(table, record[1]);
+  }
+
+  return table->has_row() ? 0 : -1;
 }
 
 
@@ -2211,9 +2271,8 @@ static int read_const(TABLE *table, TABLE_REF *ref)
   int error;
   DBUG_ENTER("read_const");
 
-  if (table->status & STATUS_GARBAGE)		// If first read
+  if (!table->is_started())              // If first read
   {
-    table->status= 0;
     if (cp_buffer_from_ref(table->in_use, table, ref))
       error=HA_ERR_KEY_NOT_FOUND;
     else
@@ -2225,25 +2284,32 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     }
     if (error)
     {
-      table->status= STATUS_NOT_FOUND;
-      table->set_null_row();
-      empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
         const int ret= report_handler_error(table, error);
         DBUG_RETURN(ret);
       }
+      table->set_no_row();
+      table->set_null_row();
+      empty_record(table);
       DBUG_RETURN(-1);
     }
-    store_record(table,record[1]);
+    /*
+      read_const() may be called several times inside a nested loop join.
+      Save record in case it is needed when table is in "started" state.
+    */
+    store_record(table, record[1]);
   }
-  else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join
+  else if (table->has_row() && table->is_nullable())
   {
-    table->status=0;
-    restore_record(table,record[1]);			// restore old record
+    /*
+      Row buffer contains a row, but it may have been partially overwritten
+      by a null-extended row. Restore the row from the saved copy.
+    */
+    table->set_found_row();
+    restore_record(table, record[1]);
   }
-  table->reset_null_row();
-  DBUG_RETURN(table->status ? -1 : 0);
+  DBUG_RETURN(table->has_row() ? 0 : -1);
 }
 
 
@@ -2253,7 +2319,11 @@ static int read_const(TABLE *table, TABLE_REF *ref)
   @details
     This is the "read_first" function for the eq_ref access method.
     The difference from ref access function is that it has a one-element
-    lookup cache (see cmp_buffer_with_ref)
+    lookup cache, maintained in record[0]. Since the eq_ref access method
+    will always return the same row, it is not necessary to read the row
+    more than once, regardless of how many times it is needed in execution.
+    This cache element is used when a row is needed after it has been read once,
+    unless a key conversion error has occurred, or the cache has been disabled.
 
   @param tab   JOIN_TAB of the accessed table
 
@@ -2271,13 +2341,6 @@ join_read_key(QEP_TAB *tab)
 
   if (!table->file->inited)
   {
-    /*
-      Disable caching for inner table of outer join, since setting the NULL
-      property on the table will overwrite NULL bits and hence destroy the
-      current row for later use as a cached row.
-    */
-    if (tab->table_ref->is_inner_table_of_outer_join())
-      table_ref->disable_cache= true;
     DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
     if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {
@@ -2290,43 +2353,60 @@ join_read_key(QEP_TAB *tab)
     We needn't do "Late NULLs Filtering" because eq_ref is restricted to
     indices on NOT NULL columns (see create_ref_for_key()).
   */
-  if (cmp_buffer_with_ref(tab->join()->thd, table, table_ref) ||
-      (table->status & (STATUS_GARBAGE | STATUS_NULL_ROW)))
+
+  /*
+    Calculate if needed to read row. Always needed if
+    - no rows read yet, or
+    - cache is disabled, or
+    - previous lookup caused error when calculating key.
+  */
+  bool read_row= !table->is_started() ||
+                 table_ref->disable_cache ||
+                 table_ref->key_err;
+  if (!read_row)
+    // Last lookup found a row, copy its key to secondary buffer
+    memcpy(table_ref->key_buff2, table_ref->key_buff, table_ref->key_length);
+
+  // Create new key for lookup
+  table_ref->key_err= cp_buffer_from_ref(table->in_use, table, table_ref);
+  if (table_ref->key_err)
   {
-    if (table_ref->key_err)
-    {
-      table->status=STATUS_NOT_FOUND;
-      return -1;
-    }
-    /*
+    table->set_no_row();
+    return -1;
+  }
+
+  // Re-use current row if keys are equal
+  if (!read_row &&
+    memcmp(table_ref->key_buff2, table_ref->key_buff,
+           table_ref->key_length) != 0)
+    read_row= true;
+
+  if (read_row)
+  {
+   /*
       Moving away from the current record. Unlock the row
       in the handler if it did not match the partial WHERE.
     */
-    if (table_ref->has_record && table_ref->use_count == 0)
-    {
+    if (table->has_row() && table_ref->use_count == 0)
       table->file->unlock_row();
-      table_ref->has_record= FALSE;
-    }
+
     error= table->file->ha_index_read_map(table->record[0],
                                           table_ref->key_buff,
                                           make_prev_keypart_map(table_ref->key_parts),
                                           HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    if (error)
       return report_handler_error(table, error);
 
-    if (! error)
-    {
-      table_ref->has_record= TRUE;
-      table_ref->use_count= 1;
-    }
+    table_ref->use_count= 1;
+    table_ref->save_null_flags(table);
   }
-  else if (table->status == 0)
+  else if (table->has_row())
   {
-    DBUG_ASSERT(table_ref->has_record);
+    DBUG_ASSERT(!table->has_null_row());
     table_ref->use_count++;
   }
-  table->reset_null_row();
-  return table->status ? -1 : 0;
+
+  return table->has_row() ? 0 : -1;
 }
 
 /**
@@ -2354,11 +2434,11 @@ join_read_key_unlock_row(QEP_TAB *tab)
   When the table access is performed as part of the pushed join,
   all 'linked' child colums are prefetched together with the parent row.
   The handler will then only format the row as required by MySQL and set
-  'table->status' accordingly.
+  table status accordingly.
 
   However, there may be situations where the prepared pushed join was not
   executed as assumed. It is the responsibility of the handler to handle
-  these situation by letting @c index_read_pushed() then effectively do a 
+  these situation by letting @c ha_index_read_pushed() then effectively do a
   plain old' index_read_map(..., HA_READ_KEY_EXACT);
   
   @param tab			Table to read
@@ -2378,6 +2458,7 @@ join_read_linked_first(QEP_TAB *tab)
   DBUG_ENTER("join_read_linked_first");
 
   DBUG_ASSERT(!tab->use_order()); // Pushed child can't be sorted
+
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref().key, tab->use_order())))
   {
@@ -2388,27 +2469,30 @@ join_read_linked_first(QEP_TAB *tab)
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   if (tab->ref().impossible_null_ref())
   {
+    table->set_no_row();
     DBUG_PRINT("info", ("join_read_linked_first null_rejected"));
     DBUG_RETURN(-1);
   }
 
   if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref()))
   {
-    table->status=STATUS_NOT_FOUND;
+    table->set_no_row();
     DBUG_RETURN(-1);
   }
 
   // 'read' itself is a NOOP: 
-  //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-  error=table->file->index_read_pushed(table->record[0],
-                                       tab->ref().key_buff,
-                                       make_prev_keypart_map(tab->ref().key_parts));
-  if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
-    DBUG_RETURN(report_handler_error(table, error));
-
-  table->reset_null_row();
-  int rc= table->status ? -1 : 0;
-  DBUG_RETURN(rc);
+  //  handler::ha_index_read_pushed() only unpack the prefetched row and
+  //  set 'status'
+  error=table->file->ha_index_read_pushed(table->record[0],
+                                          tab->ref().key_buff,
+                                          make_prev_keypart_map(
+                                            tab->ref().key_parts));
+  if (error)
+  {
+    const int ret= report_handler_error(table, error);
+    DBUG_RETURN(ret);
+  }
+  DBUG_RETURN(0);
 }
 
 static int
@@ -2417,13 +2501,11 @@ join_read_linked_next(READ_RECORD *info)
   TABLE *table= info->table;
   DBUG_ENTER("join_read_linked_next");
 
-  int error=table->file->index_next_pushed(table->record[0]);
+  int error=table->file->ha_index_next_pushed(table->record[0]);
   if (error)
   {
-    if (unlikely(error != HA_ERR_END_OF_FILE))
-      DBUG_RETURN(report_handler_error(table, error));
-    table->status= STATUS_GARBAGE;
-    DBUG_RETURN(-1);
+    const int ret= report_handler_error(table, error);
+    DBUG_RETURN(ret);
   }
   DBUG_RETURN(error);
 }
@@ -2436,9 +2518,9 @@ join_read_linked_next(READ_RECORD *info)
       tab  JOIN_TAB of the accessed table
 
   DESCRIPTION
-    This is "read_fist" function for the "ref" access method.
+    This is "read_first" function for the "ref" access method.
    
-    The functon must leave the index initialized when it returns.
+    The function must leave the index initialized when it returns.
     ref_or_null access implementation depends on that.
 
   RETURN
@@ -2463,20 +2545,22 @@ join_read_always_key(QEP_TAB *tab)
   if (ref->impossible_null_ref())
   {
     DBUG_PRINT("info", ("join_read_always_key null_rejected"));
+    table->set_no_row();
     return -1;
   }
 
   if (cp_buffer_from_ref(tab->join()->thd, table, ref))
+  {
+    table->set_no_row();
     return -1;
+  }
   if ((error= table->file->ha_index_read_map(table->record[0],
                                              tab->ref().key_buff,
-                                             make_prev_keypart_map(tab->ref().key_parts),
+                                             make_prev_keypart_map(
+                                               tab->ref().key_parts),
                                              HA_READ_KEY_EXACT)))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_handler_error(table, error);
-    return -1; /* purecov: inspected */
-  }
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2496,15 +2580,16 @@ join_read_last_key(QEP_TAB *tab)
                                    tab->ref().key, tab->use_order()))
     return 1;                                   /* purecov: inspected */
   if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref()))
+  {
+    table->set_no_row();
     return -1;
+  }
   if ((error=table->file->ha_index_read_last_map(table->record[0],
                                                  tab->ref().key_buff,
-                                                 make_prev_keypart_map(tab->ref().key_parts))))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_handler_error(table, error);
-    return -1; /* purecov: inspected */
-  }
+                                                 make_prev_keypart_map(
+                                                   tab->ref().key_parts))))
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2527,12 +2612,8 @@ join_read_next_same(READ_RECORD *info)
   if ((error= table->file->ha_index_next_same(table->record[0],
                                               tab->ref().key_buff,
                                               tab->ref().key_length)))
-  {
-    if (error != HA_ERR_END_OF_FILE)
-      return report_handler_error(table, error);
-    table->status= STATUS_GARBAGE;
-    return -1;
-  }
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2559,7 +2640,7 @@ join_read_prev_same(READ_RECORD *info)
   if (key_cmp_if_same(table, tab->ref().key_buff, tab->ref().key,
                       tab->ref().key_length))
   {
-    table->status=STATUS_NOT_FOUND;
+    table->set_no_row();
     error= -1;
   }
   return error;
@@ -2611,7 +2692,7 @@ join_init_quick_read_record(QEP_TAB *tab)
                                   0,          // empty table map
                                   HA_POS_ERROR,
                                   false,      // don't force quick range
-                                  ORDER::ORDER_NOT_RELEVANT, tab,
+                                  ORDER_NOT_RELEVANT, tab,
                                   tab->condition(), &needed_reg_dummy, &qck);
   DBUG_ASSERT(old_qck == NULL || old_qck != qck) ;
   tab->set_quick(qck);
@@ -2685,7 +2766,7 @@ int join_init_read_record(QEP_TAB *tab)
   if (tab->quick() && (error= tab->quick()->reset()))
   {
     /* Ensures error status is propageted back to client */
-    report_handler_error(tab->table(), error);
+    (void) report_handler_error(tab->table(), error);
     return 1;
   }
   if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab,
@@ -2708,7 +2789,7 @@ int join_materialize_derived(QEP_TAB *tab)
   THD *const thd= tab->table()->in_use;
   TABLE_LIST *const derived= tab->table_ref;
 
-  DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
+  DBUG_ASSERT(derived->uses_materialization() && !tab->table()->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
@@ -2766,6 +2847,7 @@ join_materialize_semijoin(QEP_TAB *tab)
   }
 #endif
 
+  tab->table()->materialized= true;
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -2841,8 +2923,7 @@ join_read_first(QEP_TAB *tab)
   int error;
   TABLE *table=tab->table();
   if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
-    table->set_keyread(TRUE);
-  table->status=0;
+    table->set_keyread(true);
   tab->read_record.table=table;
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
@@ -2851,11 +2932,8 @@ join_read_first(QEP_TAB *tab)
                                    tab->index(), tab->use_order()))
     return 1;
   if ((error= table->file->ha_index_first(tab->table()->record[0])))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      report_handler_error(table, error);
-    return -1;
-  }
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2877,7 +2955,6 @@ join_read_last(QEP_TAB *tab)
   int error;
   if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
     table->set_keyread(TRUE);
-  table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
   tab->read_record.record=table->record[0];
@@ -2914,7 +2991,7 @@ join_ft_read_first(QEP_TAB *tab)
   }
   table->file->ft_init();
 
-  if ((error= table->file->ft_read(table->record[0])))
+  if ((error= table->file->ha_ft_read(table->record[0])))
     return report_handler_error(table, error);
   return 0;
 }
@@ -2923,7 +3000,7 @@ static int
 join_ft_read_next(READ_RECORD *info)
 {
   int error;
-  if ((error= info->table->file->ft_read(info->table->record[0])))
+  if ((error= info->table->file->ha_ft_read(info->table->record[0])))
     return report_handler_error(info->table, error);
   return 0;
 }
@@ -3585,7 +3662,6 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
                                     &tmp_tbl->recinfo,
 				    error, TRUE, NULL))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
-	table->s->uniques=0;			// To ensure rows are the same
       }
       if (++qep_tab->send_records >=
             tmp_tbl->end_write_records &&
@@ -3854,7 +3930,6 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                              sizeof(IO_CACHE),
                                              MYF(MY_WME | MY_ZEROFILL));
-  table->status=0;				// May be wrong if quick_select
 
   // If table has a range, move it to select
   if (tab->quick() && tab->ref().key >= 0)
@@ -4199,58 +4274,12 @@ err:
 }
 
 
-/*
-  eq_ref: Create the lookup key and check if it is the same as saved key
-
-  SYNOPSIS
-    cmp_buffer_with_ref()
-      tab      Join tab of the accessed table
-      table    The table to read.  This is usually tab->table(), except for 
-               semi-join when we might need to make a lookup in a temptable
-               instead.
-      tab_ref  The structure with methods to collect index lookup tuple. 
-               This is usually table->ref, except for the case of when we're 
-               doing lookup into semi-join materialization table.
-
-  DESCRIPTION 
-    Used by eq_ref access method: create the index lookup key and check if 
-    we've used this key at previous lookup (If yes, we don't need to repeat
-    the lookup - the record has been already fetched)
-
-  RETURN 
-    TRUE   No cached record for the key, or failed to create the key (due to
-           out-of-domain error)
-    FALSE  The created key is the same as the previous one (and the record 
-           is already in table->record)
-*/
-
-static bool
-cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref)
-{
-  bool no_prev_key;
-  if (!tab_ref->disable_cache)
-  {
-    if (!(no_prev_key= tab_ref->key_err))
-    {
-      /* Previous access found a row. Copy its key */
-      memcpy(tab_ref->key_buff2, tab_ref->key_buff, tab_ref->key_length);
-    }
-  }
-  else 
-    no_prev_key= TRUE;
-  if ((tab_ref->key_err= cp_buffer_from_ref(thd, table, tab_ref)) ||
-      no_prev_key)
-    return 1;
-  return memcmp(tab_ref->key_buff2, tab_ref->key_buff, tab_ref->key_length)
-    != 0;
-}
-
-
 bool
 cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 {
-  enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  enum enum_check_fields save_check_for_truncated_fields=
+    thd->check_for_truncated_fields;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   bool result= false;
 
@@ -4272,7 +4301,7 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       break;
     }
   }
-  thd->count_cuted_fields= save_count_cuted_fields;
+  thd->check_for_truncated_fields= save_check_for_truncated_fields;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   return result;
 }
@@ -4723,13 +4752,6 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
   {
     QEP_TAB *const tab= join->qep_tab + tableno;
     TABLE *const table= tab->table();
-    /*
-      table->status and table->null_row must be in sync: either both set
-      or none set. Otherwise, an additional table_map parameter is
-      needed to save/restore_const_null_info() these separately
-    */
-    DBUG_ASSERT(table->has_null_row() ? (table->status & STATUS_NULL_ROW) :
-                                        !(table->status & STATUS_NULL_ROW));
 
     if (!table->has_null_row())
       *save_nullinfo|= tab->table_ref->map();

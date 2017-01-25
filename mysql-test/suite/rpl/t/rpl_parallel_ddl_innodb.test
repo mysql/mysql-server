@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+--source include/not_valgrind.inc
 
 # Separated testcases for MyISAM and InnoDB because
 # result file differs.

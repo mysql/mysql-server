@@ -1,7 +1,6 @@
 
 # Tests for setting innodb-page-size=16k; default value
 --source include/big_test.inc
---source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 SET default_storage_engine=InnoDB;
 
@@ -44,6 +43,7 @@ SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
 	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;

@@ -2,7 +2,6 @@
 # Basic test for innodb_disable_background_merge.
 #
 
--- source include/have_innodb.inc
 
 # The config variable is a debug variable
 -- source include/have_debug.inc

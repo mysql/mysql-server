@@ -889,17 +889,8 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM g
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
 --echo # Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems)));
-
---echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),
                                  ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
-
---echo # Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
-
---echo # Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 --echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),

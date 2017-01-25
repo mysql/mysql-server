@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <list>
+#include <random>                     // std::uniform_real_distribution
 #include <string>
 
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
@@ -59,6 +60,7 @@
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -66,6 +68,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
@@ -77,9 +80,7 @@
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "opt_costmodel.h"
 #include "opt_hints.h"
-#include "pfs_table_provider.h"
 #include "prealloced_array.h"
-#include "probes_mysql.h"             // IWYU pragma: keep
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -222,7 +223,7 @@ using std::log2;
   Remove when legacy_db_type is finally gone
 */
 static
-Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA, true>
+Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA>
 se_plugin_array(PSI_NOT_INSTRUMENTED);
 
 /**
@@ -230,7 +231,7 @@ se_plugin_array(PSI_NOT_INSTRUMENTED);
   acquiring LOCK_plugin.
 */
 static
-Prealloced_array<bool, PREALLOC_NUM_HA, true>
+Prealloced_array<bool, PREALLOC_NUM_HA>
 builtin_htons(PSI_NOT_INSTRUMENTED);
 
 st_plugin_int *hton2plugin(uint slot)
@@ -1768,14 +1769,13 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
-    }
 
-    if (rw_trans && stmt_has_updated_trans_table(ha_info)
-        && check_readonly(thd, true))
-    {
-      ha_rollback_trans(thd, all);
-      error= 1;
-      goto end;
+      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
+      {
+        ha_rollback_trans(thd, all);
+        error= 1;
+        goto end;
+      }
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -2806,7 +2806,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_ASSERT(table->s == table_share);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
-  DBUG_ASSERT(alloc_root_inited(&table->mem_root));
+  MEM_ROOT *mem_root= (test_if_locked & HA_OPEN_TMP_TABLE) ?
+    &table->s->mem_root : &table->mem_root;
+  DBUG_ASSERT(alloc_root_inited(mem_root));
 
   if ((error=open(name,mode,test_if_locked)))
   {
@@ -2827,16 +2829,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    /*
-      Do not call this for partitions handlers, since it may take too much
-      resources.
-      So only use the m_psi on table level, not for individual partitions.
-    */
-    if (!(test_if_locked & HA_OPEN_NO_PSI_CALL))
-    {
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
-    }
+    PSI_table_share *share_psi= ha_table_share_psi(table_share);
+    m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2844,7 +2838,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
     /* ref is already allocated for us if we're called from handler::clone() */
-    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
+    if (!ref && !(ref= (uchar*) alloc_root(mem_root,
                                           ALIGN_SIZE(ref_length)*2)))
     {
       ha_close();
@@ -3015,6 +3009,7 @@ int handler::ha_rnd_next(uchar *buf)
     result= update_generated_read_fields(buf, table);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3049,9 +3044,105 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
     result= update_generated_read_fields(buf, table);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
+
+int handler::ha_ft_read(uchar *buf)
+{
+  int result;
+  DBUG_ENTER("handler::ha_ft_read");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= ft_read(buf);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
+                            enum_sampling_method sampling_method)
+{
+  DBUG_ENTER("handler::ha_sample_init");
+  DBUG_ASSERT(sampling_percentage >= 0.0);
+  DBUG_ASSERT(sampling_percentage <= 100.0);
+  DBUG_ASSERT(inited == NONE);
+
+  // Initialise the random number generator.
+  m_random_number_engine.seed(sampling_seed);
+  m_sampling_percentage= sampling_percentage;
+
+  int result= sample_init();
+  inited= (result != 0) ? NONE : SAMPLING;
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_sample_end()
+{
+  DBUG_ENTER("handler::ha_sample_end");
+  DBUG_ASSERT(inited == SAMPLING);
+  inited= NONE;
+  int result= sample_end();
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_sample_next(uchar *buf)
+{
+  DBUG_ENTER("handler::ha_sample_next");
+  DBUG_ASSERT(inited == SAMPLING);
+
+  if (m_sampling_percentage == 0.0)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result;
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
+    { result= sample_next(buf); })
+
+  if (result == 0 && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+
+  DBUG_RETURN(result);
+}
+
+int handler::sample_init()
+{
+  return rnd_init(false);
+}
+
+
+int handler::sample_end()
+{
+  return rnd_end();
+}
+
+
+int handler::sample_next(uchar *buf)
+{
+  // Temporary set inited to RND, since we are calling rnd_next().
+  int res= rnd_next(buf);
+
+  std::uniform_real_distribution<double> rnd(0.0, 1.0);
+  while (!res && rnd(m_random_number_engine) > (m_sampling_percentage / 100.0))
+    res= rnd_next(buf);
+
+  return res;
+}
 
 /**
   Read [part of] row via [part of] index.
@@ -3062,11 +3153,11 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 
   @returns Operation status
     @retval  0                   Success (found a record, and function has
-                                 set table->status to 0)
-    @retval  HA_ERR_END_OF_FILE  Row not found (function has set table->status
-                                 to STATUS_NOT_FOUND). End of index passed.
-    @retval  HA_ERR_KEY_NOT_FOUND Row not found (function has set table->status
-                                 to STATUS_NOT_FOUND). Index cursor positioned.
+                                 set table status to "has row")
+    @retval  HA_ERR_END_OF_FILE  Row not found (function has set table status
+                                 to "no row"). End of index passed.
+    @retval  HA_ERR_KEY_NOT_FOUND Row not found (function has set table status
+                                 to "no row"). Index cursor positioned.
     @retval  != 0                Error
 
   @note Positions an index cursor to the index specified in the handle.
@@ -3099,6 +3190,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3122,6 +3214,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3152,6 +3245,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
     result= update_generated_read_fields(buf, table, index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3186,6 +3280,7 @@ int handler::ha_index_next(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3220,6 +3315,7 @@ int handler::ha_index_prev(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3254,6 +3350,7 @@ int handler::ha_index_first(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3288,6 +3385,7 @@ int handler::ha_index_last(uchar * buf)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3324,6 +3422,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
     result= update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields= false;
   }
+  table->set_row_status_from_handler(result);
   DBUG_RETURN(result);
 }
 
@@ -3333,8 +3432,15 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
+
+  @note Since there is only one implementation for this function, it is
+        non-virtual and does not call a protected inner function, like
+        most other handler functions.
+
+  @note Implementation only calls other handler functions, so there is no need
+        to update generated columns nor set table status.
 */
-int handler::read_first_row(uchar * buf, uint primary_key)
+int handler::ha_read_first_row(uchar *buf, uint primary_key)
 {
   int error;
   DBUG_ENTER("handler::read_first_row");
@@ -3371,6 +3477,43 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   }
   DBUG_RETURN(error);
 }
+
+int handler::ha_index_read_pushed(uchar *buf, const uchar *key,
+                                  key_part_map keypart_map)
+{
+  DBUG_ENTER("handler::ha_index_read_pushed");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result= index_read_pushed(buf, key, keypart_map);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_index_next_pushed(uchar *buf)
+{
+  DBUG_ENTER("handler::ha_index_next_pushed");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result= index_next_pushed(buf);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
 
 /**
   Generate the next auto-increment number based on increment and offset.
@@ -4437,6 +4580,13 @@ uint handler::get_dup_key(int error)
 }
 
 
+bool handler::get_foreign_dup_key(char *, uint, char *, uint )
+{
+  DBUG_ASSERT(false);
+  return(false);
+}
+
+
 /**
   Delete all files with extension from handlerton::file_extensions.
 
@@ -5041,10 +5191,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
     }
 
     if (key_cmp_if_same(table, key, active_index, keylen))
-    {
-      table->status=STATUS_NOT_FOUND;
-      error=HA_ERR_END_OF_FILE;
-    }
+      error= HA_ERR_END_OF_FILE;
 
     /* Move back if necessary. */
     if (ptrdiff)
@@ -5103,7 +5250,7 @@ int ha_create_table(THD *thd, const char *path,
 #endif
   DBUG_ENTER("ha_create_table");
   
-  init_tmp_table_share(thd, &share, db, 0, table_name, path);
+  init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
   if (open_table_def(thd, &share, false, table_def))
     goto err;
 
@@ -5184,19 +5331,11 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(2);
 
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
-  init_tmp_table_share(thd, &share, db, 0, name, path);
+  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
   if (open_table_def(thd, &share, false, NULL))
   {
     DBUG_RETURN(3);
   }
-
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  /*
-    Table discovery is not instrumented.
-    Once discovered, the table will be opened normally,
-    and instrumented normally.
-  */
-#endif
 
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
   {
@@ -6370,6 +6509,25 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 }
 
 
+int handler::ha_multi_range_read_next(char **range_info)
+{
+  int result;
+  DBUG_ENTER("handler::ha_multi_range_read_next");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= multi_range_read_next(range_info);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
 /**
   Get next record in MRR scan
 
@@ -6389,9 +6547,6 @@ int handler::multi_range_read_next(char **range_info)
   int range_res= 0;
   DBUG_ENTER("handler::multi_range_read_next");
 
-  // Set status for the need to update generated fields
-  m_update_generated_read_fields= table->has_gcol();
-
   if (!mrr_have_range)
   {
     mrr_have_range= TRUE;
@@ -6400,8 +6555,12 @@ int handler::multi_range_read_next(char **range_info)
 
   do
   {
-    /* Save a call if there can be only one row in range. */
-    if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
+    /*
+      Do not call read_range_next() if its equality on a unique
+      index.
+    */
+    if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
+          (mrr_cur_range.range_flag & EQ_RANGE)))
     {
       result= read_range_next();
       /* On success or non-EOF errors jump to the end. */
@@ -6432,13 +6591,6 @@ scan_it_again:
   while ((result == HA_ERR_END_OF_FILE) && !range_res);
 
   *range_info= mrr_cur_range.ptr;
-
-  /* Update virtual generated fields */
-  if (!result && m_update_generated_read_fields)
-  {
-    result= update_generated_read_fields(table->record[0], table, active_index);
-    m_update_generated_read_fields= false;
-  }
 
   DBUG_PRINT("exit",("handler::multi_range_read_next result %d", result));
   DBUG_RETURN(result);
@@ -6752,6 +6904,10 @@ int DsMrr_impl::dsmrr_fill_buffer()
   table->key_read= TRUE;
 
   rowids_buf_cur= rowids_buf;
+  /*
+    Do not use ha_multi_range_read_next() as it would call the engine's
+    overridden multi_range_read_next() but the default implementation is wanted.
+  */
   while ((rowids_buf_cur < rowids_buf_end) && 
          !(res= h2->handler::multi_range_read_next(&range_info)))
   {
@@ -7352,19 +7508,56 @@ int handler::read_range_first(const key_range *start_key,
 		? HA_ERR_END_OF_FILE
 		: result);
 
-  if (compare_key(end_range) <= 0)
-  {
-    DBUG_RETURN(0);
-  }
-  else
+  if (compare_key(end_range) > 0)
   {
     /*
       The last read row does not fall in the range. So request
       storage engine to release row lock if possible.
     */
     unlock_row();
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    result= HA_ERR_END_OF_FILE;
   }
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_read_range_first(const key_range *start_key,
+                                 const key_range *end_key,
+                                 bool eq_range, bool sorted)
+{
+  int result;
+  DBUG_ENTER("handler::ha_read_range_first");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= read_range_first(start_key, end_key, eq_range, sorted);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_read_range_next()
+{
+  int result;
+  DBUG_ENTER("handler::ha_read_range_next");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
+  result= read_range_next();
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+  table->set_row_status_from_handler(result);
+  DBUG_RETURN(result);
 }
 
 
@@ -7381,33 +7574,32 @@ int handler::read_range_first(const key_range *start_key,
 */
 int handler::read_range_next()
 {
-  int result;
   DBUG_ENTER("handler::read_range_next");
 
+  int result;
   if (eq_range)
   {
     /* We trust that index_next_same always gives a row in range */
-    DBUG_RETURN(ha_index_next_same(table->record[0],
-                                   end_range->key,
-                                   end_range->length));
-  }
-  result= ha_index_next(table->record[0]);
-  if (result)
-    DBUG_RETURN(result);
-
-  if (compare_key(end_range) <= 0)
-  {
-    DBUG_RETURN(0);
+    result= ha_index_next_same(table->record[0], end_range->key,
+                               end_range->length);
   }
   else
   {
-    /*
-      The last read row does not fall in the range. So request
-      storage engine to release row lock if possible.
-    */
-    unlock_row();
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    result= ha_index_next(table->record[0]);
+    if (result)
+      DBUG_RETURN(result);
+
+    if (compare_key(end_range) > 0)
+    {
+      /*
+        The last read row does not fall in the range. So request
+        storage engine to release row lock if possible.
+      */
+      unlock_row();
+      result= HA_ERR_END_OF_FILE;
+    }
   }
+  DBUG_RETURN(result);
 }
 
 
@@ -7427,10 +7619,15 @@ void handler::set_end_range(const key_range* range,
 
   /*
     Clear the out-of-range flag in the record buffer when a new range is
-    started.
+    started. Also set the in_range_check_pushed_down flag, since the
+    storage engine needs to do the evaluation of the end-range to avoid
+    filling the record buffer with out-of-range records.
   */
   if (m_record_buffer != nullptr)
+  {
     m_record_buffer->set_out_of_range(false);
+    in_range_check_pushed_down = true;
+  }
 
   range_scan_direction= direction;
 }
@@ -7516,12 +7713,8 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
 
 /**
   Check if the key in the given buffer (which is not necessarily
-  TABLE::record[0]) is within range. Called by the storage engine when
-  filling m_record_buffer to avoid reading too many rows.
-
-  Side-effect: This function sets the in_range_check_pushed_down flag
-  to prevent the handler from performing redundant range checks on the
-  rows returned by the storage engine.
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
 
   @param buf  the buffer that holds the key
   @retval -1 if the key is within the range
@@ -7529,23 +7722,17 @@ move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
              key_compare_result_on_equal is 0
   @retval  1 if the key is outside the range
 */
-int handler::compare_key_in_buffer(const uchar *buf)
+int handler::compare_key_in_buffer(const uchar *buf) const
 {
-  DBUG_ASSERT(m_record_buffer != nullptr &&
-              !m_record_buffer->is_out_of_range() &&
-              end_range != nullptr);
+  DBUG_ASSERT(end_range != nullptr &&
+	      (m_record_buffer == nullptr ||
+	       !m_record_buffer->is_out_of_range()));
 
   /*
     End range on descending scans is only checked with ICP for now, and then we
     check it with compare_key_icp() instead of this function.
   */
   DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
-
-  /*
-    Since we compare with the end range here, there is no need for the
-    handler to check the end range.
-  */
-  in_range_check_pushed_down= true;
 
   // Make the fields in the key point into the buffer instead of record[0].
   const my_ptrdiff_t diff= buf - table->record[0];
@@ -7935,22 +8122,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
 
-  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() && lock_type == F_RDLCK)
-  {
-    MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-  else if (MYSQL_HANDLER_WRLOCK_START_ENABLED() && lock_type == F_WRLCK)
-  {
-    MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-  else if (MYSQL_HANDLER_UNLOCK_START_ENABLED() && lock_type == F_UNLCK)
-  {
-    MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
-                               table_share->table_name.str);
-  }
-
   ha_statistic_increment(&System_status_var::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
@@ -7971,18 +8142,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     cached_table_flags= table_flags();
   }
 
-  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() && lock_type == F_RDLCK)
-  {
-    MYSQL_HANDLER_RDLOCK_DONE(error);
-  }
-  else if (MYSQL_HANDLER_WRLOCK_DONE_ENABLED() && lock_type == F_WRLCK)
-  {
-    MYSQL_HANDLER_WRLOCK_DONE(error);
-  }
-  else if (MYSQL_HANDLER_UNLOCK_DONE_ENABLED() && lock_type == F_UNLCK)
-  {
-    MYSQL_HANDLER_UNLOCK_DONE(error);
-  }
   DBUG_RETURN(error);
 }
 
@@ -8034,7 +8193,6 @@ int handler::ha_write_row(uchar *buf)
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
                   DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY); );
-  MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
@@ -8045,7 +8203,6 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
 
-  MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
 
@@ -8071,7 +8228,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
   DBUG_ASSERT(old_data == table->record[1]);
 
-  MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
@@ -8082,7 +8238,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
 
-  MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
@@ -8109,13 +8264,11 @@ int handler::ha_delete_row(const uchar *buf)
                   set_my_errno(HA_ERR_CRASHED);
                   return(HA_ERR_CRASHED););
 
-  MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_DELETE_ROW, active_index, error,
     { error= delete_row(buf);})
 
-  MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
   if (unlikely((error= binlog_log_row(table, buf, 0, log_func))))

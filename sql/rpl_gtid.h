@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -25,6 +25,7 @@
 #include "control_events.h"     // binary_log::Uuid
 #include "hash.h"               // HASH
 #include "my_atomic.h"          // my_atomic_add32
+#include "my_dbug.h"
 #include "my_global.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
@@ -44,7 +45,7 @@ struct TABLE_LIST;
   @param SERVER_ERROR arguments to my_error, including the function
   call parentheses.
 */
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) error MYSQLBINLOG_ERROR
 #else
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) my_error SERVER_ERROR
@@ -81,10 +82,10 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 */
 #undef NON_ERROR_GTID
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 class String;
 class THD;
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 
 
 /// Type of SIDNO (source ID number, first component of GTID)
@@ -764,7 +765,7 @@ private:
     Array that maps SIDNO to SID; the element at index N points to a
     Node with SIDNO N-1.
   */
-  Prealloced_array<Node*, 8, true>_sidno_to_sid;
+  Prealloced_array<Node*, 8>_sidno_to_sid;
   /**
     Hash that maps SID to SIDNO.  The keys in this array are of type
     rpl_sid.
@@ -776,7 +777,7 @@ private:
 
     @see Sid_map::get_sorted_sidno.
   */
-  Prealloced_array<rpl_sidno, 8, true> _sorted;
+  Prealloced_array<rpl_sidno, 8> _sorted;
 };
 
 
@@ -888,11 +889,11 @@ public:
     mysql_mutex_assert_owner(&mutex_cond->mutex);
     DBUG_RETURN(is_timeout(error));
   }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /// Execute THD::enter_cond for the n'th condition variable.
   void enter_cond(THD *thd, int n, PSI_stage_info *stage,
                   PSI_stage_info *old_stage) const;
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
   /// Return the greatest addressable index in this Mutex_cond_array.
   inline int get_max_index() const
   {
@@ -936,7 +937,7 @@ private:
   }
   /// Read-write lock that protects updates to the number of elements.
   mutable Checkable_rwlock *global_lock;
-  Prealloced_array<Mutex_cond*, 8, true> m_array;
+  Prealloced_array<Mutex_cond*, 8> m_array;
 };
 
 
@@ -1948,7 +1949,7 @@ private:
     Array where the N'th element contains the head pointer to the
     intervals of SIDNO N+1.
   */
-  Prealloced_array<Interval*, 8, true> m_intervals;
+  Prealloced_array<Interval*, 8> m_intervals;
   /// Linked list of free intervals.
   Interval *free_intervals;
   /// Linked list of chunks.
@@ -2268,7 +2269,7 @@ private:
   /// Return true iff this Owned_gtids object contains the given group.
   bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
-  Prealloced_array<HASH*, 8, true> sidno_to_hash;
+  Prealloced_array<HASH*, 8> sidno_to_hash;
 
 public:
   /**
@@ -2447,7 +2448,7 @@ public:
   */
   my_thread_id get_owner(const Gtid &gtid) const
   { return owned_gtids.get_owner(gtid); }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Acquires ownership of the given GTID, on behalf of the given thread.
 
@@ -2689,7 +2690,7 @@ public:
     return atomic_gtid_wait_count;
   }
 
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 private:
   /**
     Computes the next available GNO.
@@ -2767,7 +2768,7 @@ public:
   /// Assert that we own the given SIDNO.
   void assert_sidno_lock_owner(rpl_sidno sidno)
   { sid_locks.assert_owner(sidno); }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Wait for a signal on the given SIDNO.
 
@@ -2807,7 +2808,7 @@ public:
     thread was killed, the error has been generated.
    */
   bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -3323,7 +3324,7 @@ private:
     - global_sid_lock->wrlock when growing and cleaning up;
     - MYSQL_BIN_LOG::LOCK_commit when setting true/false on array items.
   */
-  Prealloced_array<bool, 8, true> commit_group_sidnos;
+  Prealloced_array<bool, 8> commit_group_sidnos;
   /**
     Ensure that commit_group_sidnos have room for the SIDNO passed as
     parameter.
@@ -3507,7 +3508,7 @@ struct Gtid_specification
   */
   bool equals(const Gtid &other_gtid) const
   { return type == GTID_GROUP && gtid.equals(other_gtid); }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Parses the given string and stores in this Gtid_specification.
 
@@ -3605,7 +3606,7 @@ enum enum_gtid_statement_status
 };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 /**
   Perform GTID-related checks before executing a statement:
 
@@ -3737,6 +3738,6 @@ inline void gtid_state_commit_or_rollback(THD *thd, bool needs_to,
   }
 }
 
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 
 #endif /* RPL_GTID_H_INCLUDED */

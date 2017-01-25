@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,21 +17,25 @@
 
 /* maintaince of mysql databases */
 
+#include <fcntl.h>
 #include <my_thread.h>				/* because of signal()	*/
 #include <mysql.h>
 #include <mysqld_error.h>                       /* to check server error codes */
 #include <signal.h>
 #include <sql_common.h>
+#include <stdlib.h>
 #include <sys/stat.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 
 #include "client_priv.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
 
-#define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -56,7 +60,7 @@ static uint opt_enable_cleartext_plugin= 0;
 static my_bool using_opt_enable_cleartext_plugin= 0;
 static my_bool opt_show_warnings= 0;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -74,7 +78,6 @@ static uint ex_var_count, max_var_length, max_val_length;
 
 #include <sslopt-vars.h>
 
-static void print_version(void);
 static void usage(void);
 extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
                                   char *argument);
@@ -199,7 +202,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -395,7 +398,7 @@ int main(int argc,char *argv[])
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -525,7 +528,7 @@ int main(int argc,char *argv[])
   mysql_close(&mysql);
   my_free(opt_password);
   my_free(user);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
@@ -1089,7 +1092,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
 
       /* Warn about password being set in non ssl connection */
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
       {
         uint ssl_mode= 0;
         if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
@@ -1250,13 +1253,6 @@ static char **mask_password(int argc, char ***argv)
   temp_argv[argc]= my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
   return(temp_argv);
 }
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s on %s\n",my_progname,ADMIN_VERSION,
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,10 +106,10 @@ public:
     bitmap_set_bit(m_fake_tbl->write_set, 0);
 
     /*
-      count_cuted_fields must be set in order for producing
+      check_for_truncated_fields must be set in order for producing
       warning/error for Item_string::save_in_field().
     */
-    m_fake_tbl->in_use->count_cuted_fields= CHECK_FIELD_WARN;
+    m_fake_tbl->in_use->check_for_truncated_fields= CHECK_FIELD_WARN;
   }
 
   ~Mock_field_string()
@@ -149,10 +149,10 @@ public:
     bitmap_set_bit(m_fake_tbl->write_set, 0);
 
     /*
-      count_cuted_fields must be set in order for producing
+      check_for_truncated_fields must be set in order for producing
       warning/error for Item_string::save_in_field().
     */
-    m_fake_tbl->in_use->count_cuted_fields= CHECK_FIELD_WARN;
+    m_fake_tbl->in_use->check_for_truncated_fields= CHECK_FIELD_WARN;
   }
 
   ~Mock_field_varstring()

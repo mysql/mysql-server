@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,21 @@
 /* Pack MyISAM file */
 
 #include <assert.h>
+#include <fcntl.h>
 #include <my_getopt.h>
 #include <my_tree.h>
-#include <queues.h>
+#include <stdlib.h>
+#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_pointer_arithmetic.h"
+#include "myisam_sys.h"
 #include "myisamdef.h"
 #include "mysys_err.h"
+#include "queues.h"
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64
@@ -157,7 +163,7 @@ static uint max_bit(uint value);
 static int compress_isam_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
 static char *make_new_name(char *new_name,char *old_name);
 static char *make_old_name(char *new_name,char *old_name);
-static void init_file_buffer(File file,pbool read_buffer);
+static void init_file_buffer(File file,my_bool read_buffer);
 static int flush_buffer(ulong neaded_length);
 static void end_file_buffer(void);
 static void write_bits(ulonglong value, uint bits);
@@ -296,13 +302,6 @@ static struct my_option my_long_options[] =
    &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s Ver 1.23 for %s on %s\n",
-              my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-}
 
 
 static void usage(void)
@@ -577,7 +576,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     Create a global priority queue in preparation for making 
     temporary Huffman trees.
   */
-  if (init_queue(&queue,256,0,0,compare_huff_elements,0))
+  if (init_queue(&queue,key_memory_QUEUE,256,0,0,compare_huff_elements,0))
     goto err;
 
   /*
@@ -1552,7 +1551,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   if (queue.max_elements < found)
   {
     delete_queue(&queue);
-    if (init_queue(&queue,found,0,0,compare_huff_elements,0))
+    if (init_queue(&queue,key_memory_QUEUE,found,0,0,compare_huff_elements,0))
       return -1;
   }
 
@@ -2836,7 +2835,7 @@ static char *make_old_name(char *new_name, char *old_name)
 
 	/* rutines for bit writing buffer */
 
-static void init_file_buffer(File file, pbool read_buffer)
+static void init_file_buffer(File file, my_bool read_buffer)
 {
   file_buffer.file=file;
   file_buffer.buffer= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,

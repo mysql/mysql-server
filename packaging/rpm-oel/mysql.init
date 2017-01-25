@@ -84,19 +84,20 @@ start(){
 	ret=0
     else
 	# prepare for start
-	touch "$errlogfile"
-	chown mysql:mysql "$errlogfile"
-	chmod 0640 "$errlogfile"
+	if [ ! -e "$errlogfile" -a ! -h "$errlogfile" -a "x$(dirname "$errlogfile")" = "x/var/log" ]; then
+	    install /dev/null -m0640 -omysql -gmysql "$errlogfile"
+	fi
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
 	    # First, make sure $datadir is there with correct permissions
-	    if [ ! -e "$datadir" -a ! -h "$datadir" ]
-	    then
-		mkdir -p "$datadir" || exit 1
+	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+		install -d -m0751 -omysql -gmysql "$datadir" || exit 1
 	    fi
-	    chown mysql:mysql "$datadir"
-	    chmod 0751 "$datadir"
-	    if [ -x /sbin/restorecon ] ; then
+	    if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+		chown mysql:mysql "$datadir"
+		chmod 0751 "$datadir"
+	    fi
+	    if [ -x /sbin/restorecon ]; then
 		/sbin/restorecon "$datadir"
 		for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
 		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
@@ -120,8 +121,10 @@ start(){
 		/usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
 	    fi
 	fi
-	chown mysql:mysql "$datadir"
-	chmod 0751 "$datadir"
+	if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+	    chown mysql:mysql "$datadir"
+	    chmod 0751 "$datadir"
+	fi
 	# Pass all the options determined above, to ensure consistent behavior.
 	# In many cases mysqld_safe would arrive at the same conclusions anyway
 	# but we need to be sure.  (An exception is that we don't force the

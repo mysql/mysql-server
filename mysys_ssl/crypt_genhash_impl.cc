@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,24 +23,30 @@
 #ifdef HAVE_OPENSSL
 
 #ifdef HAVE_YASSL
-#include <sha.hpp>
 #include <openssl/ssl.h>
+#include <sha.hpp>
 #else
-#include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #endif
 
-#include "crypt_genhash_impl.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
+#include "crypt_genhash_impl.h"
 #include "m_string.h"
 #include "mysql/service_my_snprintf.h"
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
-
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
+
+#include <errno.h>
+
+#ifdef _WIN32
+#include <malloc.h>
 #endif
 
 #ifndef HAVE_YASSL

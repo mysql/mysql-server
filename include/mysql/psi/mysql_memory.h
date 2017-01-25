@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
   Instrumentation helpers for memory allocation.
 */
 
+#include "my_compiler.h"
 #include "mysql/psi/psi_memory.h"
 
 #ifndef PSI_MEMORY_CALL
@@ -40,11 +41,10 @@
 #define mysql_memory_register(P1, P2, P3) \
   inline_mysql_memory_register(P1, P2, P3)
 
-static inline void inline_mysql_memory_register(
+static inline void
+inline_mysql_memory_register(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  const char *category,
-  PSI_memory_info *info,
-  int count)
+  const char *category, PSI_memory_info *info, int count)
 #else
   const char *category MY_ATTRIBUTE((unused)),
   void *info MY_ATTRIBUTE((unused)),
@@ -59,4 +59,3 @@ static inline void inline_mysql_memory_register(
 /** @} (end of group psi_api_memory) */
 
 #endif
-

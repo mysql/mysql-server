@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -118,6 +117,7 @@ SET @@session.innodb_table_locks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_table_locks = ÕN;
 
+--error ER_PARSE_ERROR
 SET @@session.innodb_table_locks = OF;
 SELECT @@session.innodb_table_locks;
 
@@ -139,6 +139,7 @@ SET @@global.innodb_table_locks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_table_locks = QN;
 
+--error ER_PARSE_ERROR
 SET @@global.innodb_table_locks = OF;
 SELECT @@global.innodb_table_locks;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,18 +17,17 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs_common/operations_factory.h"
+
+#include <errno.h>
+#include <fcntl.h>
+
 #include "ngs/memory.h"
 
 #ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#include <sys/types.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/un.h>
 #endif
 
 

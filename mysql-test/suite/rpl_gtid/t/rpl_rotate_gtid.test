@@ -16,8 +16,6 @@
 #               CAUSES A TRX TO LOG WITH A DIFFERENT GTID
 #
 --source include/have_binlog_format_statement.inc
---source include/have_innodb.inc
---source include/have_gtid.inc
 --source include/master-slave.inc
 # Test should run only on debug build
 source include/have_debug.inc;

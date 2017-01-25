@@ -3392,7 +3392,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "61.74"
+      "query_cost": "29.83"
     },
     "nested_loop": [
       {
@@ -3406,9 +3406,9 @@ EXPLAIN
           "rows_produced_per_join": 32,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.11",
-            "eval_cost": "6.40",
-            "prefix_cost": "8.51",
+            "read_cost": "0.53",
+            "eval_cost": "3.20",
+            "prefix_cost": "3.73",
             "data_read_per_join": "512"
           },
           "used_columns": [
@@ -3428,9 +3428,9 @@ EXPLAIN
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.03",
-            "eval_cost": "6.40",
-            "prefix_cost": "61.74",
+            "read_cost": "0.51",
+            "eval_cost": "3.20",
+            "prefix_cost": "29.84",
             "data_read_per_join": "512"
           },
           "used_columns": [
@@ -3510,7 +3510,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "50.25"
+      "query_cost": "24.11"
     },
     "nested_loop": [
       {
@@ -3521,9 +3521,9 @@ EXPLAIN
           "rows_produced_per_join": 11,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.02",
-            "eval_cost": "2.20",
-            "prefix_cost": "4.22",
+            "read_cost": "0.50",
+            "eval_cost": "1.10",
+            "prefix_cost": "1.60",
             "data_read_per_join": "88"
           },
           "used_columns": [
@@ -3541,9 +3541,9 @@ EXPLAIN
           "first_match": "t0",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.03",
-            "eval_cost": "2.20",
-            "prefix_cost": "50.25",
+            "read_cost": "0.51",
+            "eval_cost": "1.10",
+            "prefix_cost": "24.11",
             "data_read_per_join": "88"
           },
           "used_columns": [
@@ -3769,7 +3769,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1821.34"
+      "query_cost": "902.33"
     },
     "nested_loop": [
       {
@@ -3780,9 +3780,9 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "10.00",
           "cost_info": {
-            "read_cost": "3.82",
-            "eval_cost": "0.20",
-            "prefix_cost": "4.02",
+            "read_cost": "1.40",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.50",
             "data_read_per_join": "8"
           },
           "used_columns": [
@@ -3803,9 +3803,9 @@ EXPLAIN
           "filtered": "79.30",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "70.01",
-            "eval_cost": "158.60",
-            "prefix_cost": "232.63",
+            "read_cost": "27.85",
+            "eval_cost": "79.30",
+            "prefix_cost": "108.66",
             "data_read_per_join": "86K"
           },
           "used_columns": [
@@ -3826,9 +3826,9 @@ EXPLAIN
           "first_match": "t3",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.08",
-            "eval_cost": "158.60",
-            "prefix_cost": "1821.34",
+            "read_cost": "0.52",
+            "eval_cost": "79.30",
+            "prefix_cost": "902.34",
             "data_read_per_join": "6K"
           },
           "used_columns": [
@@ -5690,8 +5690,8 @@ EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	NULL
-1	SIMPLE	t2	NULL	index	vkey	vkey	4	NULL	5	20.00	Using where; Using index; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index; FirstMatch(t1)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
@@ -5699,10 +5699,10 @@ SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 vkey
 g
-n
+v
 t
 u
-v
+n
 DROP TABLE t0;
 # End of bug#46556
 
@@ -7087,7 +7087,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "36.88"
+      "query_cost": "11.91"
     },
     "nested_loop": [
       {
@@ -7102,9 +7102,9 @@ EXPLAIN
           "rows_produced_per_join": 12,
           "filtered": "75.00",
           "cost_info": {
-            "read_cost": "3.07",
-            "eval_cost": "2.40",
-            "prefix_cost": "5.47",
+            "read_cost": "0.97",
+            "eval_cost": "1.20",
+            "prefix_cost": "2.17",
             "data_read_per_join": "864"
           },
           "used_columns": [
@@ -7134,9 +7134,9 @@ EXPLAIN
           "first_match": "t2",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "26.52",
-            "eval_cost": "2.40",
-            "prefix_cost": "34.39",
+            "read_cost": "7.32",
+            "eval_cost": "1.20",
+            "prefix_cost": "10.69",
             "data_read_per_join": "576"
           },
           "used_columns": [
@@ -7168,9 +7168,9 @@ EXPLAIN
           "rows_produced_per_join": 11,
           "filtered": "95.45",
           "cost_info": {
-            "read_cost": "0.10",
-            "eval_cost": "2.29",
-            "prefix_cost": "36.89",
+            "read_cost": "0.03",
+            "eval_cost": "1.15",
+            "prefix_cost": "11.91",
             "data_read_per_join": "458"
           },
           "used_columns": [
@@ -7733,7 +7733,7 @@ WHERE user_id = 'nicke'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	14.29	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 SELECT t1.partner_id
@@ -7763,14 +7763,14 @@ EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	14.29	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	14.29	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 PREPARE stmt FROM
@@ -7969,7 +7969,7 @@ FROM t2
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	varchar_key	NULL	NULL	NULL	15	6.67	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	varchar_key	varchar_key	3	test.t1.varchar_nokey	2	6.67	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`varchar_key` = `test`.`t1`.`varchar_nokey`) and (`test`.`t2`.`varchar_nokey` = `test`.`t1`.`varchar_nokey`) and ((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t2`.`pk`))
 DROP TABLE t1, t2;
@@ -8966,7 +8966,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "3.35"
+            "query_cost": "0.99"
           },
           "nested_loop": [
             {
@@ -8988,9 +8988,9 @@ EXPLAIN
                 "rows_produced_per_join": 0,
                 "filtered": "9.09",
                 "cost_info": {
-                  "read_cost": "2.00",
-                  "eval_cost": "0.04",
-                  "prefix_cost": "2.40",
+                  "read_cost": "0.50",
+                  "eval_cost": "0.02",
+                  "prefix_cost": "0.70",
                   "data_read_per_join": "2"
                 },
                 "used_columns": [
@@ -9019,9 +9019,9 @@ EXPLAIN
                 "rows_produced_per_join": 0,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "0.36",
-                  "eval_cost": "0.07",
-                  "prefix_cost": "2.84",
+                  "read_cost": "0.09",
+                  "eval_cost": "0.04",
+                  "prefix_cost": "0.83",
                   "data_read_per_join": "5"
                 },
                 "used_columns": [
@@ -9052,9 +9052,9 @@ EXPLAIN
                 "using_index": true,
                 "first_match": "grandparent1",
                 "cost_info": {
-                  "read_cost": "0.37",
-                  "eval_cost": "0.04",
-                  "prefix_cost": "3.35",
+                  "read_cost": "0.09",
+                  "eval_cost": "0.02",
+                  "prefix_cost": "0.99",
                   "data_read_per_join": "2"
                 },
                 "used_columns": [
@@ -9288,11 +9288,11 @@ ON child1.pk < child2.col_int_nokey
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	grandparent1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	grandparent2	NULL	index	col_int_key	col_int_key	5	NULL	3	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	grandparent1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	parent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	8	12.50	Using where
 1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
-1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(grandparent2)
+1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(grandparent1)
+1	SIMPLE	grandparent2	NULL	ref	col_int_key	col_int_key	5	test.grandparent1.col_int_key	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t2` `child1` left join `test`.`t3` `child2` on((`test`.`child1`.`pk` < `test`.`child2`.`col_int_nokey`)) join `test`.`t2` `parent1`) join `test`.`t1` `grandparent2` where ((`test`.`grandparent2`.`col_int_key` = `test`.`grandparent1`.`col_int_key`) and (`test`.`parent1`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_key`) and (`test`.`child1`.`col_varchar_nokey` = `test`.`parent1`.`col_varchar_key`))
 SELECT grandparent1.col_varchar_nokey
@@ -10775,7 +10775,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16.87"
+      "query_cost": "6.92"
     },
     "nested_loop": [
       {
@@ -10786,9 +10786,9 @@ EXPLAIN
           "rows_produced_per_join": 6,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.03",
-            "eval_cost": "1.20",
-            "prefix_cost": "3.23",
+            "read_cost": "0.51",
+            "eval_cost": "0.60",
+            "prefix_cost": "1.11",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -10807,9 +10807,9 @@ EXPLAIN
           "first_match": "t2",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.03",
-            "eval_cost": "1.20",
-            "prefix_cost": "12.46",
+            "read_cost": "0.51",
+            "eval_cost": "0.60",
+            "prefix_cost": "5.21",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -10827,9 +10827,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "2.40",
-            "prefix_cost": "16.87",
+            "read_cost": "0.50",
+            "eval_cost": "1.20",
+            "prefix_cost": "6.92",
             "data_read_per_join": "96"
           },
           "used_columns": [
@@ -10934,7 +10934,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "53.68"
+      "query_cost": "22.71"
     },
     "nested_loop": [
       {
@@ -10945,15 +10945,16 @@ EXPLAIN
           "rows_produced_per_join": 7,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "10.35",
-            "eval_cost": "1.40",
-            "prefix_cost": "11.75",
+            "read_cost": "2.59",
+            "eval_cost": "0.70",
+            "prefix_cost": "3.29",
             "data_read_per_join": "112"
           },
           "used_columns": [
             "col_varchar_key",
             "col_varchar_nokey"
           ],
+          "attached_condition": "(`derived1`.`col_varchar_nokey` is not null)",
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
@@ -10961,7 +10962,7 @@ EXPLAIN
             "query_block": {
               "select_id": 2,
               "cost_info": {
-                "query_cost": "3.43"
+                "query_cost": "1.21"
               },
               "table": {
                 "table_name": "t2",
@@ -10970,9 +10971,9 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "3.43",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "1.21",
                   "data_read_per_join": "56"
                 },
                 "used_columns": [
@@ -10987,26 +10988,33 @@ EXPLAIN
       {
         "table": {
           "table_name": "derived2",
-          "access_type": "ALL",
+          "access_type": "ref",
           "possible_keys": [
             "col_varchar_key"
           ],
-          "rows_examined_per_scan": 7,
+          "key": "col_varchar_key",
+          "used_key_parts": [
+            "col_varchar_key"
+          ],
+          "key_length": "4",
+          "ref": [
+            "derived1.col_varchar_nokey"
+          ],
+          "rows_examined_per_scan": 2,
           "rows_produced_per_join": 7,
           "filtered": "14.29",
           "first_match": "derived1",
-          "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.03",
-            "eval_cost": "1.40",
-            "prefix_cost": "23.58",
+            "read_cost": "3.50",
+            "eval_cost": "0.70",
+            "prefix_cost": "8.19",
             "data_read_per_join": "56"
           },
           "used_columns": [
             "col_varchar_key",
             "col_varchar_nokey"
           ],
-          "attached_condition": "((`test`.`derived2`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`) and (`test`.`derived2`.`col_varchar_key` = `derived1`.`col_varchar_nokey`))"
+          "attached_condition": "(`test`.`derived2`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`)"
         }
       },
       {
@@ -11018,9 +11026,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.10",
-            "eval_cost": "28.00",
-            "prefix_cost": "53.68",
+            "read_cost": "0.52",
+            "eval_cost": "14.00",
+            "prefix_cost": "22.71",
             "data_read_per_join": "1K"
           },
           "used_columns": [
@@ -11083,7 +11091,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "137.69"
+      "query_cost": "57.82"
     },
     "nested_loop": [
       {
@@ -11094,9 +11102,9 @@ EXPLAIN
           "rows_produced_per_join": 20,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.04",
-            "eval_cost": "4.00",
-            "prefix_cost": "6.04",
+            "read_cost": "0.51",
+            "eval_cost": "2.00",
+            "prefix_cost": "2.51",
             "data_read_per_join": "320"
           },
           "used_columns": [
@@ -11125,9 +11133,9 @@ EXPLAIN
           "filtered": "10.00",
           "first_match": "grandparent1",
           "cost_info": {
-            "read_cost": "40.00",
-            "eval_cost": "4.00",
-            "prefix_cost": "55.64",
+            "read_cost": "10.00",
+            "eval_cost": "2.00",
+            "prefix_cost": "17.31",
             "data_read_per_join": "320"
           },
           "used_columns": [
@@ -11146,9 +11154,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.05",
-            "eval_cost": "80.00",
-            "prefix_cost": "137.69",
+            "read_cost": "0.51",
+            "eval_cost": "40.00",
+            "prefix_cost": "57.82",
             "data_read_per_join": "6K"
           },
           "used_columns": [
@@ -11297,7 +11305,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "356.85"
+      "query_cost": "151.21"
     },
     "nested_loop": [
       {
@@ -11311,9 +11319,9 @@ EXPLAIN
           "rows_produced_per_join": 20,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.12",
-            "eval_cost": "4.00",
-            "prefix_cost": "6.12",
+            "read_cost": "0.53",
+            "eval_cost": "2.00",
+            "prefix_cost": "2.53",
             "data_read_per_join": "480"
           },
           "used_columns": [
@@ -11342,9 +11350,9 @@ EXPLAIN
           "rows_produced_per_join": 20,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "20.00",
-            "eval_cost": "4.00",
-            "prefix_cost": "30.12",
+            "read_cost": "5.00",
+            "eval_cost": "2.00",
+            "prefix_cost": "9.53",
             "data_read_per_join": "480"
           },
           "used_columns": [
@@ -11361,9 +11369,9 @@ EXPLAIN
           "rows_produced_per_join": 20,
           "filtered": "5.00",
           "cost_info": {
-            "read_cost": "95.64",
-            "eval_cost": "4.00",
-            "prefix_cost": "61.57",
+            "read_cost": "37.24",
+            "eval_cost": "2.00",
+            "prefix_cost": "24.73",
             "data_read_per_join": "480"
           },
           "used_columns": [
@@ -11382,9 +11390,9 @@ EXPLAIN
           "filtered": "10.00",
           "first_match": "alias3",
           "cost_info": {
-            "read_cost": "42.30",
-            "eval_cost": "4.00",
-            "prefix_cost": "274.73",
+            "read_cost": "10.58",
+            "eval_cost": "2.00",
+            "prefix_cost": "110.68",
             "data_read_per_join": "480"
           },
           "used_columns": [
@@ -11402,9 +11410,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.12",
-            "eval_cost": "80.00",
-            "prefix_cost": "356.85",
+            "read_cost": "0.53",
+            "eval_cost": "40.00",
+            "prefix_cost": "151.21",
             "data_read_per_join": "9K"
           },
           "used_columns": [

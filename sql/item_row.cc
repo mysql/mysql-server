@@ -99,7 +99,7 @@ void Item_row::illegal_method_call(const char *method) const
   DBUG_VOID_RETURN;
 }
 
-bool Item_row::fix_fields(THD *thd, Item **ref)
+bool Item_row::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0);
   null_value= 0;

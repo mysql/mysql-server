@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Can only be set from the command line.
 # show the global and session values;

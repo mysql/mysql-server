@@ -15,8 +15,6 @@
 
 #include "vio_priv.h"
 
-#if !defined(EMBEDDED_LIBRARY)
-
 size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
 {
   size_t length;
@@ -221,6 +219,3 @@ int vio_shutdown_shared_memory(Vio * vio)
 
   DBUG_RETURN(0);
 }
-
-#endif /* #if !defined(!EMBEDDED_LIBRARY) */
-

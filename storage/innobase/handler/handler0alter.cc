@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,46 +21,43 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-/* Include necessary SQL headers */
-#include "ha_prototypes.h"
 #include <debug_sync.h>
+#include <key_spec.h>
 #include <log.h>
-#include <sql_lex.h>
+#include <mysql/plugin.h>
 #include <sql_class.h>
+#include <sql_lex.h>
 #include <sql_table.h>
 #include <sql_thd_internal_api.h>
-#include <mysql/plugin.h>
-#include <key_spec.h>
 
-/* Include necessary InnoDB headers */
 #include "btr0sea.h"
+#include "dd/types/table.h"           // dd::Table
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fsp0sysspace.h"
+#include "fts0plugin.h"
+#include "fts0priv.h"
+#include "ha_innodb.h"
+#include "ha_innopart.h"
+#include "ha_prototypes.h"
+#include "handler0alter.h"
 #include "log0log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "pars0pars.h"
+#include "partition_info.h"
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "handler0alter.h"
-#include "srv0mon.h"
-#include "fts0priv.h"
-#include "fts0plugin.h"
-#include "pars0pars.h"
 #include "row0sel.h"
-#include "ha_innodb.h"
+#include "srv0mon.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
 #include "ut0new.h"
 #include "ut0stage.h"
-
-/* For supporting Native InnoDB Partitioning. */
-#include "partition_info.h"
-#include "ha_innopart.h"
-
-#include "dd/types/table.h"           // dd::Table
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -1953,6 +1950,9 @@ innobase_create_index_field_def(
 		index_field->is_v_col = false;
 		index_field->col_no = key_part->fieldnr - num_v;
 	}
+	index_field->is_ascending
+		= !(key_part->key_part_flag & HA_REVERSE_SORT);
+
 
 	if (DATA_LARGE_MTYPE(col_type)
 	    || (key_part->length < field->pack_length()
@@ -2064,6 +2064,12 @@ innobase_create_index_def(
 		index->fields[0].col_no = key->key_part[0].fieldnr - num_v;
 		index->fields[0].prefix_len = 0;
 		index->fields[0].is_v_col = false;
+
+		/* Currently only ascending order is supported in spatial
+		index. */
+		ut_ad(!(key->key_part[0].key_part_flag & HA_REVERSE_SORT));
+		index->fields[0].is_ascending = true;
+
 		if (!key->key_part[0].field->stored_in_db
 		    && key->key_part[0].field->gcol_info) {
 			/* Currently, the spatial index cannot be created
@@ -2211,6 +2217,11 @@ innobase_fts_check_doc_id_index(
 
 			if ((key.flags & HA_NOSAME)
 			    && key.user_defined_key_parts == 1
+			    /* For now, we do not allow a descending index,
+			    because fts_doc_fetch_by_doc_id() uses the
+			    InnoDB SQL interpreter to look up FTS_DOC_ID. */
+			    && !(key.key_part[0].key_part_flag
+				 & HA_REVERSE_SORT)
 			    && !strcmp(key.name, FTS_DOC_ID_INDEX_NAME)
 			    && !strcmp(key.key_part[0].field->field_name,
 				       FTS_DOC_ID_COL_NAME)) {
@@ -2238,6 +2249,10 @@ innobase_fts_check_doc_id_index(
 
 		if (!dict_index_is_unique(index)
 		    || dict_index_get_n_unique(index) > 1
+		    /* For now, we do not allow a descending index,
+		    because fts_doc_fetch_by_doc_id() uses the
+		    InnoDB SQL interpreter to look up FTS_DOC_ID. */
+		    || !index->get_field(0)->is_ascending
 		    || strcmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
 			return(FTS_INCORRECT_DOC_ID_INDEX);
 		}
@@ -2289,6 +2304,10 @@ innobase_fts_check_doc_id_index_in_def(
 		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
 		if (!(key->flags & HA_NOSAME)
 		    || key->user_defined_key_parts != 1
+		    /* For now, we do not allow a descending index,
+		    because fts_doc_fetch_by_doc_id() uses the
+		    InnoDB SQL interpreter to look up FTS_DOC_ID. */
+		    || (key->key_part[0].key_part_flag & HA_REVERSE_SORT)
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {
@@ -2496,6 +2515,7 @@ created_clustered:
 		index->n_fields = 1;
 		index->fields->col_no = fts_doc_id_col;
 		index->fields->prefix_len = 0;
+		index->fields->is_ascending = true;
 		index->fields->is_v_col = false;
 		index->ind_type = DICT_UNIQUE;
 		ut_ad(!rebuild
@@ -3159,7 +3179,8 @@ columns are removed from the PK;
 (3) Changing the order of existing PK columns;
 (4) Decreasing the prefix length just like removing existing PK columns
 follows rule(1), Increasing the prefix length just like adding existing
-PK columns follows rule(2).
+PK columns follows rule(2);
+(5) Changing the ascending order of the existing PK columns.
 @param[in]	col_map		mapping of old column numbers to new ones
 @param[in]	old_clust_index	index to be compared
 @param[in]	new_clust_index index to be compared
@@ -3265,6 +3286,16 @@ innobase_pk_order_preserved(
 			if (old_field != old_n_uniq - 1) {
 				return(false);
 			}
+		}
+
+		/* Check new primary key field ascending or descending changes
+		compared to old primary key field. */
+		bool	change_asc =
+			(new_clust_index->fields[new_field].is_ascending
+			 == old_clust_index->fields[old_field].is_ascending);
+
+		if (!change_asc) {
+			return(false);
 		}
 	}
 
@@ -6279,15 +6310,6 @@ ok_exit:
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
 		ctx->m_stage, add_v, eval_table);
 
-	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
-		      || rebuild_templ);
-		dict_free_vc_templ(s_templ);
-		UT_DELETE(s_templ);
-
-		ctx->new_table->vc_templ = old_templ;
-	}
-
 #ifdef UNIV_DEBUG
 oom:
 #endif /* UNIV_DEBUG */
@@ -6296,6 +6318,15 @@ oom:
 		error = row_log_table_apply(
 			ctx->thr, m_prebuilt->table, altered_table,
 			ctx->m_stage);
+	}
+
+	if (s_templ) {
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
+		      || rebuild_templ);
+		dict_free_vc_templ(s_templ);
+		UT_DELETE(s_templ);
+
+		ctx->new_table->vc_templ = old_templ;
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -7507,10 +7538,30 @@ commit_try_rebuild(
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
 
+		dict_vcol_templ_t* s_templ  = NULL;
+
+		if (ctx->new_table->n_v_cols > 0) {
+			s_templ = UT_NEW_NOKEY(
+					dict_vcol_templ_t());
+			s_templ->vtempl = NULL;
+
+			innobase_build_v_templ(
+				altered_table, ctx->new_table, s_templ,
+				NULL, true, NULL);
+			ctx->new_table->vc_templ = s_templ;
+		}
+
 		error = row_log_table_apply(
 			ctx->thr, user_table, altered_table,
 			static_cast<ha_innobase_inplace_ctx*>(
 				ha_alter_info->handler_ctx)->m_stage);
+
+		if (s_templ) {
+			ut_ad(ctx->need_rebuild());
+			dict_free_vc_templ(s_templ);
+			UT_DELETE(s_templ);
+			ctx->new_table->vc_templ = NULL;
+		}
 
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 

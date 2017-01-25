@@ -220,7 +220,6 @@ struct st_service_ref
   void *service;
 };
 
-#ifndef EMBEDDED_LIBRARY
 static struct srv_session_service_st srv_session_service_handler= {
   srv_session_init_thread,
   srv_session_deinit_thread,
@@ -245,7 +244,6 @@ static struct srv_session_info_service_st srv_session_info_handler= {
   srv_session_info_session_count,
   srv_session_info_thread_count
 };
-#endif
 
 static struct my_snprintf_service_st my_snprintf_handler = {
   my_snprintf,
@@ -337,7 +335,6 @@ static struct mysql_locking_service_st locking_service_handler=
   mysql_release_locking_service_locks
 };
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static struct security_context_service_st security_context_handler={
   thd_get_security_context,
   thd_set_security_context,
@@ -348,7 +345,6 @@ static struct security_context_service_st security_context_handler={
   security_context_get_option,
   security_context_set_option
 };
-#endif
 
 static struct mysql_keyring_service_st mysql_keyring_handler= {
   my_key_store,
@@ -364,13 +360,11 @@ static struct plugin_registry_service_st plugin_registry_handler={
 
 static struct st_service_ref list_of_services[]=
 {
-#ifndef EMBEDDED_LIBRARY
   { "srv_session_service",
     VERSION_srv_session_service,&srv_session_service_handler },
   { "command_service",     VERSION_command, &command_handler },
   { "srv_session_info_service",
      VERSION_srv_session_info_service, &srv_session_info_handler },
-#endif
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
   { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler },
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
@@ -386,10 +380,8 @@ static struct st_service_ref list_of_services[]=
     VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
   { "transaction_write_set_service",
     VERSION_transaction_write_set_service, &transaction_write_set_handler },
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   { "security_context_service",
     VERSION_security_context_service, &security_context_handler },
-#endif
   { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
   { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler},
   { "plugin_registry_service", VERSION_plugin_registry_service, &plugin_registry_handler}

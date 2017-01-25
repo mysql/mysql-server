@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_dbug.h"
 #include "my_global.h"
 
 /**

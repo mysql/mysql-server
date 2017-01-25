@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <fcntl.h>
+
 #include "fulltext.h"
+#include "my_dbug.h"
 
 	/* if flag == HA_PANIC_CLOSE then all misam files are closed */
 	/* if flag == HA_PANIC_WRITE then all misam files are unlocked and
@@ -54,7 +57,7 @@ int mi_panic(enum ha_panic_function flag)
 	if (flush_io_cache(&info->rec_cache))
 	  error=my_errno();
 	reinit_io_cache(&info->rec_cache,READ_CACHE,0,
-		       (pbool) (info->lock_type != F_UNLCK),1);
+		       (my_bool) (info->lock_type != F_UNLCK),1);
       }
       if (info->lock_type != F_UNLCK && ! info->was_locked)
       {

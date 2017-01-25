@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,10 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "member_info.h"
-#include "plugin_psi.h"
+
 #include "my_byteorder.h"
+#include "my_dbug.h"
+#include "plugin_psi.h"
 
 using std::string;
 using std::vector;
@@ -443,7 +445,7 @@ Group_member_info_manager::~Group_member_info_manager()
   delete members;
 }
 
-int
+size_t
 Group_member_info_manager::get_number_of_members()
 {
   return members->size();

@@ -18,7 +18,6 @@ set ndb_table_temporary=0;
 -- enable_query_log
 
 -- connection slave
--- source include/have_innodb.inc
 
 # Remove any old ndb_apply_status from slaves datadir
 let $datadir= `SELECT @@datadir`;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "handler.h"
 #include "item_create.h"
 #include "m_string.h"
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -73,6 +74,15 @@ Item_splocal* create_item_for_sp_var(THD *thd,
   }
 
   DBUG_ASSERT(pctx && spv);
+
+  if (lex->reparse_common_table_expr_at != 0)
+  {
+    /*
+      This variable doesn't exist in the original query: shouldn't be
+      substituted for logging.
+    */
+    query_start_ptr= NULL;
+  }
 
   if (query_start_ptr)
   {
@@ -132,7 +142,6 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   if (pctx && var_with_base->var == Sys_autocommit_ptr)
     sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
-#ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
       ((var_with_base->var == Sys_gtid_next_ptr
 #ifdef HAVE_GTID_NEXT_LIST
@@ -145,7 +154,6 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
              var_with_base->var->name.str);
     return TRUE;
   }
-#endif
 
   if (val && val->type() == Item::FIELD_ITEM &&
       ((Item_field*)val)->table_name)

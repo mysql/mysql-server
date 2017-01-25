@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "pipeline_stats.h"
-#include "plugin_server_include.h"
-#include "plugin_log.h"
+
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "plugin.h"
+#include "plugin_log.h"
+#include "plugin_server_include.h"
 
 /*
   The QUOTA based flow control tries to calculate how many
@@ -495,16 +498,16 @@ Flow_control_module::flow_control_step()
                              ? min_certifier_capacity : min_applier_capacity;
 
         // Minimum capacity will never be less than lim_throttle.
-        int64 lim_throttle= 0.05 * std::min(flow_control_certifier_threshold_var,
-                                            flow_control_applier_threshold_var);
+        int64 lim_throttle= static_cast<int64>(0.05 * std::min(flow_control_certifier_threshold_var,
+                                            flow_control_applier_threshold_var));
         min_capacity= std::max(std::min(min_capacity, safe_capacity), lim_throttle);
-        quota_size= (min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota;
+        quota_size= static_cast<int64>((min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota);
         my_atomic_store64(&m_quota_size, quota_size > 1 ? quota_size : 1);
       }
       else
       {
         if (quota_size > 0 && (quota_size * RELEASE_FACTOR) < MAXTPS)
-          quota_size *= RELEASE_FACTOR;
+          quota_size= static_cast<int64>(quota_size * RELEASE_FACTOR);
         else
           quota_size= 0;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,8 @@ Instrumented memory allocator.
 Created May 26, 2014 Vasil Dimov
 *******************************************************/
 
+#include "my_compiler.h"
 #include "univ.i"
-
 #include "ut0new.h"
 
 /** Maximum number of retries to allocate memory. */
@@ -44,6 +44,7 @@ PSI_memory_key	mem_key_row_log_buf;
 PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+PSI_memory_key	mem_key_trx_sys_t_rsegs;
 PSI_memory_key	mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
@@ -74,6 +75,7 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
+	{&mem_key_trx_sys_t_rsegs, "trx_sys_t::rsegs", 0},
 	{&mem_key_ut_lock_free_hash_t, "ut_lock_free_hash_t", 0},
 	/* Please obey alphabetical order in the definitions above. */
 };

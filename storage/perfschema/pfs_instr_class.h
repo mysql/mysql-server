@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,16 +16,18 @@
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
 
+#include "lf.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "mysql_com.h" /* NAME_LEN */
-#include "lf.h"
-#include "pfs_global.h"
+#include "mysqld_error.h"
 #include "pfs_atomic.h"
-#include "prealloced_array.h"
+#include "pfs_column_types.h"
+#include "pfs_global.h"
 #include "pfs_lock.h"
 #include "pfs_stat.h"
-#include "pfs_column_types.h"
-#include "mysqld_error.h"
+#include "prealloced_array.h"
 
 struct TABLE_SHARE;
 

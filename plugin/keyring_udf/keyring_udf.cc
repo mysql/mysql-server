@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_SERVER
+
 #include <boost/optional/optional.hpp>
 #include <current_thd.h>
 #include <my_global.h>
 #include <sql_class.h> // THD
 #include <stdio.h>
+#include <new>
+
+#include "my_dbug.h"
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8

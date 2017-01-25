@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,30 +24,31 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <dd/properties.h>
+#include <dd/types/tablespace.h>
+#include <errno.h>
+#include <stdlib.h>
 
 #include "api0api.h"
 #include "api0misc.h"
-#include "srv0start.h"
-#include "dict0dict.h"
 #include "btr0pcur.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0priv.h"
+#include "fsp0fsp.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "lock0lock.h"
+#include "lock0types.h"
+#include "pars0pars.h"
+#include "rem0cmp.h"
 #include "row0ins.h"
+#include "row0merge.h"
+#include "row0sel.h"
 #include "row0upd.h"
 #include "row0vers.h"
+#include "srv0start.h"
 #include "trx0roll.h"
-#include "dict0crea.h"
-#include "row0merge.h"
-#include "pars0pars.h"
-#include "lock0types.h"
-#include "row0sel.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "dict0priv.h"
-#include "trx0roll.h"
-#include "fsp0fsp.h"
-#include <dd/types/tablespace.h>
-#include <dd/properties.h>
-#include "lob0lob.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
@@ -323,7 +324,7 @@ ib_read_tuple(
 		/* This is a case of "read upto" certain value. Used for
 		index scan for "<" or "<=" case */
 		cmp = cmp_dtuple_rec_with_match(
-			cmp_tuple->ptr, rec, offsets, &match);
+			cmp_tuple->ptr, rec, index, offsets, &match);
 
 		if ((mode == IB_CUR_LE && cmp < 0)
 		    || (mode == IB_CUR_L && cmp <= 0)) {

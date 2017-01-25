@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,24 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-#include <algorithm>
 #include <stddef.h>
+#include <algorithm>
 
 #include "bounded_queue.h"
+#include "bounded_queue_boost.cc"
+#include "bounded_queue_boost.h"
+#include "bounded_queue_c.h"
+#include "bounded_queue_std.h"
 #include "fake_costmodel.h"
 #include "filesort_utils.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"
 #include "test_utils.h"
-
-#include "bounded_queue_c.h"
-#include "bounded_queue_std.h"
-#include "bounded_queue_boost.h"
-#include "bounded_queue_boost.cc"
 
 namespace bounded_queue_unittest {
 

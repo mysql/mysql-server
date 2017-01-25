@@ -1,4 +1,4 @@
-/* Copyright (c) 2000-2003, 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
     record-cache-flags are set in myrg_rrnd when we are changing database.
 */
 
+#include "my_dbug.h"
 #include "myrg_def.h"
 
 int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,

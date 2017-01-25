@@ -35,30 +35,16 @@ SET(TESTS
   ut0new
 )
 
+SET(ALL_INNODB_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_INNODB_TESTS ${test}-t.cc)
+ENDFOREACH()
+
 IF (MERGE_UNITTESTS)
-  SET(MERGE_INNODB_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_innodb_tests-t.cc)
-  SET_SOURCE_FILES_PROPERTIES(MERGE_INNODB_TESTS PROPERTIES GENERATED 1)
-
-  ADD_COMPILE_FLAGS(
-    ${MERGE_INNODB_TESTS}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-  FILE(WRITE ${MERGE_INNODB_TESTS} "// Merging InnoDB unit tests\n")
-  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"my_config.h\"\n")
-  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"univ.i\"\n")
-
-  FOREACH(test ${TESTS})
-    FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-
-  SET(SRC_FILES ${MERGE_INNODB_TESTS})
   IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+    LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
   ENDIF()
-
-  ADD_EXECUTABLE(merge_innodb_tests-t ${SRC_FILES})
+  ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS})
 
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
     sql_main binlog rpl master slave sql_main sql_gis)
@@ -81,32 +67,34 @@ IF (MERGE_UNITTESTS)
 
   ADD_TEST(merge_innodb_tests merge_innodb_tests-t)
 
-ELSE()
+ENDIF(MERGE_UNITTESTS)
 
-  ADD_COMPILE_FLAGS(
-    ut0lock_free_hash-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  FOREACH(test ${TESTS})
-    SET(SRC_FILES ${test}-t.cc)
+FOREACH(test ${TESTS})
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+  ENDIF()
+  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_main)
+
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  ENDIF()
+
+  ADD_DEPENDENCIES(${test}-t GenError)
+
+  IF(MERGE_UNITTESTS)
+    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
     IF(WIN32)
-      LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
     ENDIF()
-    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
-
-    TARGET_LINK_LIBRARIES(${test}-t
-      sql_main binlog rpl master slave sql_main sql_gis)
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-    TARGET_LINK_LIBRARIES(${test}-t
-      sql_main binlog rpl master slave sql_main sql_gis sql_main)
-
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    ENDIF()
-
-    ADD_DEPENDENCIES(${test}-t GenError)
-
+  ELSE()
     ADD_TEST(${test} ${test}-t)
-  ENDFOREACH()
+  ENDIF()
 
-ENDIF()
+ENDFOREACH()

@@ -585,7 +585,7 @@ EXPLAIN SELECT * FROM t1 WHERE i IN
 --disable_warnings
 create temporary table row_counts_at_startup 
        select * 
-       from information_schema.session_status
+       from performance_schema.session_status
        WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 --enable_warnings
 
@@ -613,7 +613,7 @@ SELECT * FROM t1 WHERE i IN
 --disable_warnings
 create temporary table row_counts_at_end
        select * 
-       from information_schema.session_status
+       from performance_schema.session_status
        WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 --enable_warnings
 

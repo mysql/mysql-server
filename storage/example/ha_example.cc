@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,7 +88,8 @@
 */
 
 #include "ha_example.h"
-#include "probes_mysql.h"
+
+#include "my_dbug.h"
 #include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "sql_plugin.h"
 #include "typelib.h"
@@ -377,9 +378,7 @@ int ha_example::index_read_map(uchar*, const uchar*, key_part_map,
 {
   int rc;
   DBUG_ENTER("ha_example::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -393,9 +392,7 @@ int ha_example::index_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -409,9 +406,7 @@ int ha_example::index_prev(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_prev");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -430,9 +425,7 @@ int ha_example::index_first(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -451,9 +444,7 @@ int ha_example::index_last(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_last");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -502,10 +493,7 @@ int ha_example::rnd_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -555,10 +543,7 @@ int ha_example::rnd_pos(uchar*, uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -646,29 +631,6 @@ int ha_example::extra(enum ha_extra_function)
 int ha_example::delete_all_rows()
 {
   DBUG_ENTER("ha_example::delete_all_rows");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/**
-  @brief
-  Used for handler specific truncate table.  The table is locked in
-  exclusive mode and handler is responsible for reseting the auto-
-  increment counter.
-
-  @details
-  Called from Truncate_statement::handler_truncate.
-  Not used if the handlerton supports HTON_CAN_RECREATE, unless this
-  engine can be used as a partition. In this case, it is invoked when
-  a particular partition is to be truncated.
-
-  @see
-  Truncate_statement in sql_truncate.cc
-  Remarks in handler::truncate.
-*/
-int ha_example::truncate()
-{
-  DBUG_ENTER("ha_example::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 

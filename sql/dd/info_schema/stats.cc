@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -194,7 +194,7 @@ bool convert_table_name_case(char *db, char *table_name)
   Error handler class to convert ER_LOCK_DEADLOCK error to
   ER_WARN_I_S_SKIPPED_TABLE error.
 
-  Handler is pushed for opening a table or acquiring a MDL lock on 
+  Handler is pushed for opening a table or acquiring a MDL lock on
   tables for INFORMATION_SCHEMA views(system views) operations.
 */
 class MDL_deadlock_error_handler : public Internal_error_handler

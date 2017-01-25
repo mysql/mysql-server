@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,9 +125,6 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO  *create_info_arg, bool show_database);
 
-int copy_event_to_schema_table(THD *thd, TABLE *sch_table,
-                               const dd::Event &event_obj, const char *db);
-
 void append_identifier(THD *thd, String *packet, const char *name, size_t length,
                        const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);
 
@@ -216,7 +213,5 @@ bool
 try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern TYPELIB grant_types;
-#endif
 #endif /* SQL_SHOW_H */

@@ -1,6 +1,5 @@
 # Testing of "strict" mode
 
--- source include/have_innodb.inc
 
 set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';

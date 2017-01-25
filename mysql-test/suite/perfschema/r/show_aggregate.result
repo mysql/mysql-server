@@ -2,9 +2,6 @@
 ================================================================================
 SETUP
 ================================================================================
-# Save current SHOW_COMPATIBILITY_56 setting
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-SET @@global.show_compatibility_56=OFF;
 SET @@session.sql_log_bin=OFF;
 
 # CREATE 3 CLIENTS, 3 CONNECTIONS, RESULTS TABLE
@@ -519,6 +516,3 @@ DROP TABLE test.status_results;
 DROP USER 'user1'@localhost;
 DROP USER 'user2'@localhost;
 DROP USER 'user3'@localhost;
-
-# Restore SHOW_COMPATIBILITY_56 setting
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;

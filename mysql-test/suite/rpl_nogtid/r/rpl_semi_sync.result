@@ -330,8 +330,6 @@ create user rpl@127.0.0.1 identified by 'rpl';
 grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
 set sql_log_bin=1;
-SET @save_show_compatibility_56=@@global.show_compatibility_56;
-SET @@global.show_compatibility_56=OFF;
 [connection slave]
 create user rpl@127.0.0.1 identified by 'rpl';
 grant replication slave on *.* to rpl@127.0.0.1;
@@ -345,7 +343,6 @@ show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
 [connection master]
-SET @@global.show_compatibility_56=ON;
 [connection slave]
 include/stop_slave.inc
 [connection master]
@@ -362,7 +359,6 @@ show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
 [connection master]
-SET @@global.show_compatibility_56=@save_show_compatibility_56;
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
 Rpl_semi_sync_master_status	ON

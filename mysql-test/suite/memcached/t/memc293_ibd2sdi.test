@@ -5,7 +5,6 @@
 # Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
-source include/have_innodb.inc;
 # Memcached SDI APIs are enabled only for debug version
 source include/have_debug.inc;
 source include/have_ibd2sdi_debug.inc;
@@ -119,7 +118,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 ## header contains version/platform information
 --replace_result $IBD2SDI IBD2SDI
---replace_regex /; Ver 8.*$//
+--replace_regex / Ver [0-9].*$// /(Copyright \(c\)) [0-9]+, [0-9]+(.*)/\1 YEAR, YEAR\2/
 --error 1
 --exec $IBD2SDI 2>&1
 

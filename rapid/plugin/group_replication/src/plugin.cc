@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,14 @@
 
 #include <sstream>
 
+#include "my_dbug.h"
 #include "observer_server_actions.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
+#include "pipeline_stats.h"
 #include "plugin.h"
 #include "plugin_log.h"
 #include "sql_service_gr_user.h"
-#include "pipeline_stats.h"
 
 using std::string;
 

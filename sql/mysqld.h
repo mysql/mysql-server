@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,10 +96,8 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 /* Function prototypes */
-#ifndef EMBEDDED_LIBRARY
 void kill_mysql(void);
-#endif
-void refresh_status(THD *thd);
+void refresh_status();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 
@@ -126,7 +124,6 @@ enum enum_server_operational_state
 };
 enum_server_operational_state get_server_state();
 
-extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
 extern my_bool opt_log_slave_updates;
@@ -145,7 +142,7 @@ extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
 extern my_bool opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_local_infile, opt_myisam_use_mmap;
-extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
@@ -164,9 +161,7 @@ enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
 extern ulonglong slave_rows_search_algorithms_options;
 extern my_bool opt_require_secure_transport;
 
-#ifdef HAVE_REPLICATION
 extern my_bool opt_slave_preserve_commit_order;
-#endif
 
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
@@ -311,10 +306,8 @@ extern my_bool avoid_temporal_upgrade;
 extern my_bool dd_upgrade_flag;
 extern my_bool dd_upgrade_skip_se;
 extern LEX_STRING opt_init_connect, opt_init_slave;
-#ifndef EMBEDDED_LIBRARY
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
-#endif
 extern ulong log_warnings;
 extern bool  opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
@@ -326,8 +319,6 @@ extern char *opt_log_syslog_facility;
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
-/** System variable show_compatibility_56. */
-extern my_bool show_compatibility_56;
 extern my_bool persisted_globals_load;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
@@ -397,10 +388,8 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 extern PSI_mutex_key key_LOCK_group_replication_handler;
 
-#ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
-#endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
@@ -429,10 +418,8 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
-#ifdef HAVE_REPLICATION
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
-#endif
 extern PSI_thread_key key_thread_bootstrap;
 extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;
@@ -619,7 +606,6 @@ extern const char *log_error_dest;
 extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
-extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 
 extern long tc_heuristic_recover;
 

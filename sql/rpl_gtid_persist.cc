@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,9 +17,9 @@
 
 #include "rpl_gtid_persist.h"
 
-#include "my_config.h"
-
 #include <stddef.h>
+
+#include "my_config.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -36,6 +36,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_command.h"
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread.h"
@@ -171,7 +172,7 @@ THD *Gtid_table_access_context::create_thd()
 }
 
 
-void Gtid_table_access_context::before_open(THD* thd)
+void Gtid_table_access_context::before_open(THD *)
 {
   DBUG_ENTER("Gtid_table_access_context::before_open");
   /*

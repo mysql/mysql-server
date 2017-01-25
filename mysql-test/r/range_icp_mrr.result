@@ -3029,11 +3029,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE t7.a IN (t5.b, t6.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	28.57	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3056,11 +3056,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3682,4 +3682,32 @@ KEY a (a)
 SELECT * FROM t1 WHERE a IS NULL OR a NOT IN ( 'foo', 'bar' );
 a
 DROP TABLE t1;
+#
+# Bug#25229315: ASSERTION TABLE->M_RECORD_BUFFER.RECORD_SIZE() ==
+#               RECORD_PREFIX_SIZE(TAB)' FAIL
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, vc VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, NULL), (2, 'w');
+CREATE TABLE t2 (
+i INT,
+vc VARCHAR(1),
+pk INT PRIMARY KEY,
+KEY (i),
+KEY (vc)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 'p', 1), (9, 'w', 2), (NULL, 'r', 3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	i,vc	NULL	NULL	NULL	3	55.56	Range checked for each record (index map: 0x6)
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`vc` = `test`.`t1`.`vc`) or (`test`.`t2`.`i` = `test`.`t1`.`pk`))
+SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
+MIN(t1.pk)
+1
+DROP TABLE t1, t2;
 set optimizer_switch=default;

@@ -3,7 +3,6 @@
 --echo # and showing those files.
 --echo #
 
---source include/have_innodb.inc
 
 --disable_query_log
 # This can change during the test

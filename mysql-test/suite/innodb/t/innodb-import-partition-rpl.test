@@ -1,6 +1,5 @@
 # Testcase for import/export partition table with replication for InnoDB
 # Only hash partition table is used for sanity check
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 --disable_warnings
@@ -31,7 +30,7 @@ FLUSH TABLES t1,t2 FOR EXPORT;
 --echo # set MYSQLD_DATADIR with master datadir to copy idb and cfg files
 LET MYSQLD_DATADIR = $MYSQLD_MASTER_DATA_DIR;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_backup_tablespaces("test", "t2#P#p0", "t2#P#p1");
 EOF
@@ -54,7 +53,7 @@ ALTER TABLE t2 DISCARD PARTITION p0,p1 TABLESPACE;
 --echo # Copy back ibd and cfg files on master
 LET MYSQLD_DATADIR = $MYSQLD_MASTER_DATA_DIR;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_discard_tablespaces("test", "t2#P#p0", "t2#P#p1");
@@ -66,7 +65,7 @@ connection slave;
 LET $MYSQLD_SLAVE_DATA_DIR = `select @@datadir`;
 LET MYSQLD_DATADIR = $MYSQLD_SLAVE_DATA_DIR;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_discard_tablespaces("test", "t2#P#p0", "t2#P#p1");

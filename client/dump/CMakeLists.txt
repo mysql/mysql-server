@@ -13,23 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
-# we skip building the mysqlpump tool. The server, and mysqlpump, will be built
-# using gcc.
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
 )
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  IF (WITHOUT_SERVER)
-    MESSAGE(STATUS "Not building mysqlpump")
-    RETURN()
-  ENDIF()
-ENDIF()
-
-# Prevent Boost from including external precompiled Boost libraries, use
-# threading (not implemented for older Solaris Studio compilers)
+# Prevent Boost from including external precompiled Boost libraries,
 # and turn off unused functionality.
 IF(USING_LOCAL_BOOST)
   ADD_DEFINITIONS(
@@ -111,7 +99,7 @@ SET(MYSQLPUMP_LIB_SOURCES
   thread_specific_connection_provider.cc
   trigger.cc
   view.cc
-  ../../sql-common/my_user.c)
+)
 ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})

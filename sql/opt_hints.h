@@ -172,7 +172,7 @@ class Opt_hints : public Sql_alloc
   Opt_hints_map hints_map;   // Hint map
 
   /* Array of child objects. i.e. array of the lower level objects */
-  Mem_root_array<Opt_hints*, true> child_array;
+  Mem_root_array<Opt_hints*> child_array;
   /* true if hint is connected to the real object */
   bool resolved;
   /* Number of resolved children */
@@ -232,7 +232,7 @@ public:
   void set_resolved() { resolved= true; }
   bool is_resolved() const { return resolved; }
   void incr_resolved_children() { resolved_children++; }
-  Mem_root_array<Opt_hints*, true> *child_array_ptr() { return &child_array; }
+  Mem_root_array<Opt_hints*> *child_array_ptr() { return &child_array; }
 
   bool is_all_resolved() const
   {
@@ -352,7 +352,7 @@ class Opt_hints_qb : public Opt_hints
   PT_qb_level_hint *subquery_hint, *semijoin_hint;
 
   /// Array of join order hints
-  Mem_root_array<PT_qb_level_hint*, true> join_order_hints;
+  Mem_root_array<PT_qb_level_hint*> join_order_hints;
   /// Bit map of which hints are ignored.
   ulonglong join_order_hints_ignored;
 
@@ -477,7 +477,7 @@ private:
 class Opt_hints_table : public Opt_hints
 {
 public:
-  Mem_root_array<Opt_hints_key*, true> keyinfo_array;
+  Mem_root_array<Opt_hints_key*> keyinfo_array;
 
   Opt_hints_table(const LEX_CSTRING *table_name_arg,
                   Opt_hints_qb *qb_hints_arg,

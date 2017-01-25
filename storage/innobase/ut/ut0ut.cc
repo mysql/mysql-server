@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,8 @@ Various utilities for Innobase.
 
 Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
+
+#include <errno.h>
 
 #include "ha_prototypes.h"
 
@@ -503,6 +505,7 @@ ut_copy_file(
 
 #ifdef _WIN32
 # include <stdarg.h>
+
 /**********************************************************************//**
 A substitute for vsnprintf(3), formatted output conversion into
 a limited buffer. Note: this function DOES NOT return the number of
@@ -537,6 +540,10 @@ ut_strerr(
 		return("Success");
 	case DB_SUCCESS_LOCKED_REC:
 		return("Success, record lock created");
+	case DB_SKIP_LOCKED:
+		return("Skip locked records");
+	case DB_LOCK_NOWAIT:
+		return("Don't wait for locks");
 	case DB_ERROR:
 		return("Generic error");
 	case DB_READ_ONLY:

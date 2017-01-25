@@ -69,8 +69,7 @@ static unsigned long get_field_length(unsigned char **packet)
 Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
                                  const Format_description_event*
                                  description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version),
+  : Binary_log_event(&buf, description_event->binlog_version),
     m_table_id(0), m_flags(0), m_data_size(0),
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
     m_colcnt(0), m_field_metadata_size(0), m_field_metadata(0), m_null_bits(0)
@@ -166,8 +165,7 @@ Table_map_event::~Table_map_event()
 *****************************************************************************/
 Rows_event::Rows_event(const char *buf, unsigned int event_len,
                        const Format_description_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version),
+  : Binary_log_event(&buf, description_event->binlog_version),
     m_table_id(0), m_width(0), m_extra_row_data(0),
     columns_before_image(0), columns_after_image(0), row(0)
 {

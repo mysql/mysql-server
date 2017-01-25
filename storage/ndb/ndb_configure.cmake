@@ -1,5 +1,4 @@
-
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -228,7 +227,7 @@ IF(NOT DEFINED WITH_ZLIB)
   # Hardcode use of the bundled zlib if not set by MySQL
   MESSAGE(STATUS "Using bundled zlib (hardcoded)")
   SET(ZLIB_LIBRARY zlib)
-  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
+  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zlib)
 ENDIF()
 NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
 NDB_REQUIRE_VARIABLE(ZLIB_INCLUDE_DIR)

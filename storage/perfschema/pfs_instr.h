@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,7 +57,6 @@ class THD;
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;
 extern PFS_single_stat *thread_instr_class_waits_array_end;
-extern my_bool show_compatibility_56;
 
 /**
   @addtogroup performance_schema_buffers

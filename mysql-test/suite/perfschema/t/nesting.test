@@ -5,7 +5,6 @@
 -- source include/have_QC_Disabled.inc
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 # On windows, the socket instrumentation collects an extra "opt"
 # event, which changes the test output.
 --source include/not_windows.inc

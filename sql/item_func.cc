@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,10 +56,13 @@
 #include "log_event.h"
 #include "m_string.h"
 #include "mdl.h"
+#include "mutex_lock.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "my_user.h"             // parse_user
 #include "mysql/plugin.h"
@@ -237,9 +240,6 @@ bool Item_func::itemize(Parse_context *pc, Item **res)
   SYNOPSIS:
   fix_fields()
   thd		Thread object
-  ref		Pointer to where this object is used.  This reference
-		is used if we want to replace this object with another
-		one (for example in the summary functions).
 
   DESCRIPTION
     Call fix_fields() for all arguments to the function.  The main intention
@@ -264,7 +264,7 @@ bool Item_func::itemize(Parse_context *pc, Item **res)
 */
 
 bool
-Item_func::fix_fields(THD *thd, Item **ref)
+Item_func::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0 || basic_const_item());
 
@@ -2963,9 +2963,8 @@ template longlong Item_func_shift::eval_int_op<false>();
   Template function that evaluates the bitwise shift operation over binary
   string arguments.
   @tparam to_left True if left-shift, false if right-shift
-  @param str      String usable as scratch buffer
 */
-template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
+template<bool to_left> String *Item_func_shift::eval_str_op(String*)
 {
   DBUG_ASSERT(fixed);
 
@@ -3118,12 +3117,11 @@ template longlong Item_func_bit_two_param::eval_int_op
   Template function that evaluates the bitwise operation over binary arguments.
   Checks that both arguments have same length and applies the bitwise operation
 
-   @param str        Buffer
    @param char_func  The Bitwise function used to evaluate unsigned chars.
    @param int_func   The Bitwise function used to evaluate unsigned long longs.
 */
 template<class Char_func, class Int_func> String *
-Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
+Item_func_bit_two_param::eval_str_op(String*, Char_func char_func,
                                      Int_func int_func)
 {
   DBUG_ASSERT(fixed);
@@ -3476,8 +3474,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 
   if (dec_negative && std::isinf(tmp))
     tmp2= 0.0;
-  else if (!dec_negative &&
-           (std::isinf(value_mul_tmp) || std::isnan(value_mul_tmp)))
+  else if (!dec_negative && !std::isfinite(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {
@@ -3700,7 +3697,7 @@ double Item_func_units::val_real()
 }
 
 
-bool Item_func_min_max::resolve_type(THD *thd)
+bool Item_func_min_max::resolve_type(THD*)
 {
   uint string_arg_count= 0;
   uint unsigned_arg_count= 0;
@@ -4299,11 +4296,11 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return start + 1;
   
-  if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
-                                            a->ptr()+start,
-                                            (uint) (a->length()-start),
-                                            b->ptr(), b->length(),
-                                            &match, 1))
+  if (!cmp_collation.collation->coll->strstr(cmp_collation.collation,
+                                             a->ptr()+start,
+                                             (uint) (a->length()-start),
+                                             b->ptr(), b->length(),
+                                             &match, 1))
     return 0;
   return (longlong) match.mb_len + start0 + 1;
 }
@@ -4885,7 +4882,7 @@ String *udf_handler::val_str(String *str,String *save_str)
   For the moment, UDF functions are returning DECIMAL values as strings
 */
 
-my_decimal *udf_handler::val_decimal(my_bool *null_value, my_decimal *dec_buf)
+my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf)
 {
   char buf[DECIMAL_MAX_STR_LENGTH+1], *end;
   ulong res_length= DECIMAL_MAX_STR_LENGTH;
@@ -5092,7 +5089,6 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     return 0;
   }
-#ifdef HAVE_REPLICATION
   Master_info *mi;
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
@@ -5136,7 +5132,6 @@ longlong Item_master_pos_wait::val_int()
 
   if (mi != NULL)
     mi->dec_reference();
-#endif
   return event_count;
 }
 
@@ -5246,7 +5241,6 @@ longlong Item_master_gtid_set_wait::val_int()
 
   null_value=0;
 
-#if defined(HAVE_REPLICATION)
   String *gtid= args[0]->val_str(&value);
   THD* thd = current_thd;
   Master_info *mi= NULL;
@@ -5315,7 +5309,6 @@ longlong Item_master_gtid_set_wait::val_int()
 
   if (mi != NULL)
     mi->dec_reference();
-#endif
 
   gtid_state->end_gtid_wait();
 
@@ -5543,11 +5536,11 @@ public:
 
   bool got_timeout() const { return m_lock_wait_timeout; }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
     {
@@ -6337,7 +6330,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 }
 
 
-bool Item_func_set_user_var::resolve_type(THD *thd)
+bool Item_func_set_user_var::resolve_type(THD*)
 {
   maybe_null=args[0]->maybe_null;
   decimals=args[0]->decimals;
@@ -6564,7 +6557,7 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value) const
+double user_var_entry::val_real(bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0.0;
@@ -6593,7 +6586,7 @@ double user_var_entry::val_real(my_bool *null_value) const
 
 /** Get the value of a variable as an integer. */
 
-longlong user_var_entry::val_int(my_bool *null_value) const
+longlong user_var_entry::val_int(bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0LL;
@@ -6625,7 +6618,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 
 /** Get the value of a variable as a string. */
 
-String *user_var_entry::val_str(my_bool *null_value, String *str,
+String *user_var_entry::val_str(bool *null_value, String *str,
 				uint decimals) const
 {
   if ((*null_value= (m_ptr == 0)))
@@ -6658,7 +6651,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) const
+my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0;
@@ -7353,7 +7346,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 }
 
 
-void Item_func_get_user_var::print(String *str, enum_query_type query_type)
+void Item_func_get_user_var::print(String *str, enum_query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
   append_identifier(current_thd, str, name);
@@ -7361,7 +7354,7 @@ void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
+bool Item_func_get_user_var::eq(const Item *item, bool) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -7419,7 +7412,7 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
+void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO*)
 {
   entry->lock();
   entry->set_null_value(STRING_RESULT);
@@ -7451,21 +7444,21 @@ longlong Item_user_var_as_out_param::val_int()
 }
 
 
-String* Item_user_var_as_out_param::val_str(String *str)
+String* Item_user_var_as_out_param::val_str(String*)
 {
   DBUG_ASSERT(0);
   return 0;
 }
 
 
-my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
+my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal*)
 {
   DBUG_ASSERT(0);
   return 0;
 }
 
 
-void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
+void Item_user_var_as_out_param::print(String *str, enum_query_type)
 {
   str->append('@');
   append_identifier(current_thd, str, name);
@@ -7632,22 +7625,20 @@ enum_field_types Item_func_get_system_var::field_type() const
 }
 
 
-/*
-  Uses var, var_type, component, cache_present, used_query_id, thd,
-  cached_llval, null_value, cached_null_value
-*/
-#define get_sys_var_safe(type) \
-do { \
-  type value; \
-  mysql_mutex_lock(&LOCK_global_system_variables); \
-  value= *(type*) var->value_ptr(thd, var_type, &component); \
-  mysql_mutex_unlock(&LOCK_global_system_variables); \
-  cache_present |= GET_SYS_VAR_CACHE_LONG; \
-  used_query_id= thd->query_id; \
-  cached_llval= null_value ? 0 : (longlong) value; \
-  cached_null_value= null_value; \
-  return cached_llval; \
-} while (0)
+template <typename T>
+longlong Item_func_get_system_var::get_sys_var_safe(THD *thd)
+{
+  T value;
+  {
+    Mutex_lock lock(&LOCK_global_system_variables);
+    value= *pointer_cast<T *>(var->value_ptr(thd, var_type, &component));
+  }
+  cache_present|= GET_SYS_VAR_CACHE_LONG;
+  used_query_id= thd->query_id;
+  cached_llval= null_value ? 0LL : static_cast<longlong>(value);
+  cached_null_value= null_value;
+  return cached_llval;
+}
 
 
 longlong Item_func_get_system_var::val_int()
@@ -7685,46 +7676,53 @@ longlong Item_func_get_system_var::val_int()
 
   switch (var->show_type())
   {
-    case SHOW_INT:      get_sys_var_safe (uint);
-    case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_SIGNED_LONG: get_sys_var_safe (long);
-    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
-    case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
-    case SHOW_BOOL:     get_sys_var_safe (bool);
-    case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
-    case SHOW_DOUBLE:
+  case SHOW_INT:
+    return get_sys_var_safe<uint>(thd);
+  case SHOW_LONG:
+    return get_sys_var_safe<ulong>(thd);
+  case SHOW_SIGNED_LONG:
+    return get_sys_var_safe<long>(thd);
+  case SHOW_LONGLONG:
+    return get_sys_var_safe<ulonglong>(thd);
+  case SHOW_HA_ROWS:
+    return get_sys_var_safe<ha_rows>(thd);
+  case SHOW_BOOL:
+    return get_sys_var_safe<bool>(thd);
+  case SHOW_MY_BOOL:
+    return get_sys_var_safe<my_bool>(thd);
+  case SHOW_DOUBLE:
+    {
+      double dval= val_real();
+
+      used_query_id= thd->query_id;
+      cached_llval= (longlong) dval;
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+  case SHOW_CHAR:
+  case SHOW_CHAR_PTR:
+  case SHOW_LEX_STRING:
+    {
+      String *str_val= val_str(NULL);
+      // Treat empty strings as NULL, like val_real() does.
+      if (str_val && str_val->length())
+        cached_llval= longlong_from_string_with_check (system_charset_info,
+                                                       str_val->c_ptr(), 
+                                                       str_val->c_ptr() + 
+                                                       str_val->length());
+      else
       {
-        double dval= val_real();
-
-        used_query_id= thd->query_id;
-        cached_llval= (longlong) dval;
-        cache_present|= GET_SYS_VAR_CACHE_LONG;
-        return cached_llval;
-      }
-    case SHOW_CHAR:
-    case SHOW_CHAR_PTR:
-    case SHOW_LEX_STRING:
-      {
-        String *str_val= val_str(NULL);
-        // Treat empty strings as NULL, like val_real() does.
-        if (str_val && str_val->length())
-          cached_llval= longlong_from_string_with_check (system_charset_info,
-                                                          str_val->c_ptr(), 
-                                                          str_val->c_ptr() + 
-                                                          str_val->length());
-        else
-        {
-          null_value= TRUE;
-          cached_llval= 0;
-        }
-
-        cache_present|= GET_SYS_VAR_CACHE_LONG;
-        return cached_llval;
+        null_value= TRUE;
+        cached_llval= 0;
       }
 
-    default:            
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str); 
-      return 0;                               // keep the compiler happy
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+
+  default:            
+    my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str); 
+    return 0;                               // keep the compiler happy
   }
 }
 
@@ -7903,7 +7901,7 @@ double Item_func_get_system_var::val_real()
 }
 
 
-bool Item_func_get_system_var::eq(const Item *item, bool binary_cmp) const
+bool Item_func_get_system_var::eq(const Item *item, bool) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -8427,11 +8425,11 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag,
 class Silence_deprecation_warnings : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     return sql_errno == ER_WARN_DEPRECATED_SYNTAX;
   }
@@ -8492,7 +8490,6 @@ Item *get_system_var(Parse_context *pc,
   Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
                                                                component_name,
                                                                NULL, 0);
-#ifndef EMBEDDED_LIBRARY
   if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
   {
     String str;
@@ -8520,7 +8517,6 @@ Item *get_system_var(Parse_context *pc,
         return 0;
       }
   }
-#endif
 
   return item;
 }
@@ -8832,22 +8828,18 @@ Item_func_sp::execute_impl(THD *thd)
 {
   bool err_status= TRUE;
   Sub_statement_state statement_state;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_context();
-#endif
   enum enum_sp_data_access access=
     (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
      SP_DEFAULT_ACCESS_MAPPING : m_sp->m_chistics->daccess;
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (context->security_ctx)
   {
     /* Set view definer security context */
     thd->set_security_context(context->security_ctx);
   }
-#endif
   if (sp_check_access(thd))
     goto error;
 
@@ -8874,9 +8866,7 @@ Item_func_sp::execute_impl(THD *thd)
   thd->restore_sub_statement_state(&statement_state);
 
 error:
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->set_security_context(save_security_ctx);
-#endif
 
   DBUG_RETURN(err_status);
 }
@@ -8932,7 +8922,7 @@ longlong Item_func_found_rows::val_int()
 
 
 Field *
-Item_func_sp::tmp_table_field(TABLE *t_arg)
+Item_func_sp::tmp_table_field(TABLE*)
 {
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 
@@ -8960,11 +8950,9 @@ Item_func_sp::sp_check_access(THD *thd)
 {
   DBUG_ENTER("Item_func_sp::sp_check_access");
   DBUG_ASSERT(m_sp);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
     DBUG_RETURN(TRUE);
-#endif
 
   DBUG_RETURN(FALSE);
 }
@@ -8974,14 +8962,11 @@ bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_context();
-#endif
 
   DBUG_ENTER("Item_func_sp::fix_fields");
   DBUG_ASSERT(fixed == 0);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Checking privileges to execute the function while creating view and
     executing the function of select.
@@ -9012,7 +8997,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       DBUG_RETURN(res);
     }
   }
-#endif
 
   /*
     We must call init_result_field before Item_func::fix_fields() 
@@ -9047,7 +9031,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       the used stored procedure has SQL SECURITY DEFINER.
     */
     res= sp_check_access(thd);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       Try to set and restore the security context to see whether it's valid
     */
@@ -9055,8 +9038,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     res= m_sp->set_security_ctx(thd, &save_secutiry_ctx);
     if (!res)
       m_sp->m_security_ctx.restore_security_context(thd, save_secutiry_ctx);
-    
-#endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
 
   DBUG_RETURN(res);
@@ -9219,7 +9200,6 @@ longlong Item_func_can_access_database::val_int()
   if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
     DBUG_RETURN(FALSE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
     DBUG_RETURN(TRUE);
@@ -9234,14 +9214,80 @@ longlong Item_func_can_access_database::val_int()
   {
     DBUG_RETURN(FALSE);
   }
-#endif
 
   DBUG_RETURN(TRUE);
 }
 
+static
+bool check_table_and_trigger_access(Item **args,
+                                    bool check_trigger_acl,
+                                    bool *null_value)
+{
+  DBUG_ENTER("check_table_and_trigger_access");
+
+  // Read schema_name, table_name
+  String schema_name;
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  String table_name;
+  String *table_name_ptr= args[1]->val_str(&table_name);
+  if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
+  {
+    *null_value= true;
+    DBUG_RETURN(false);
+  }
+
+  // Make sure we have safe string to access.
+  schema_name_ptr->c_ptr_safe();
+  table_name_ptr->c_ptr_safe();
+
+  // Check if table is hidden.
+  THD *thd= current_thd;
+  if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(false);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()))
+    DBUG_RETURN(true);
+
+  // Check access
+  ulong db_access= 0;
+  if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
+                   &db_access, nullptr, false, true))
+    DBUG_RETURN(false);
+
+  TABLE_LIST table_list;
+  memset(&table_list, 0, sizeof (table_list));
+  table_list.db= schema_name_ptr->ptr();
+  table_list.db_length= schema_name_ptr->length();
+  table_list.table_name= table_name_ptr->ptr();
+  table_list.table_name_length= table_name_ptr->length();
+  table_list.grant.privilege= db_access;
+
+  if (check_trigger_acl == false)
+  {
+    if (db_access & TABLE_ACLS)
+      DBUG_RETURN(true);
+
+    // Check table access
+    if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+      DBUG_RETURN(false);
+  }
+  else // Trigger check.
+  {
+    // Check trigger access
+    if (check_trigger_acl &&
+        check_table_access(thd, TRIGGER_ACL, &table_list, false, 1, true))
+      DBUG_RETURN(false);
+  }
+#endif
+
+  DBUG_RETURN(true);
+}
+
 /**
   @brief
-    INFORMATION_SCHEMA picks metadata from DD using system views.
+    INFORMATION_SCHEMA picks metadata from new DD using system views.
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
@@ -9256,12 +9302,141 @@ longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
 
+  if (check_table_and_trigger_access(args, false, &null_value))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from new DD using system views. In
+    order for INFORMATION_SCHEMA to skip listing table for which the user
+    does not have rights on triggers, the following UDF's is used.
+
+  Syntax:
+    int CAN_ACCCESS_TRIGGER(schema_name, table_name);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+longlong Item_func_can_access_trigger::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_trigger::val_int");
+
+  if (check_table_and_trigger_access(args, true, &null_value))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views. In
+    order for INFORMATION_SCHEMA to skip listing routine for which the user
+    does not have rights, the following UDF's is used.
+
+  Syntax:
+    int CAN_ACCESS_ROUTINE(schema_name, name, type, user, definer,
+                           check_full_access);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+longlong Item_func_can_access_routine::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_routine::val_int");
+
   // Read schema_name, table_name
   String schema_name;
+  String routine_name;
+  String type;
+  String definer;
   String *schema_name_ptr= args[0]->val_str(&schema_name);
-  String table_name;
-  String *table_name_ptr= args[1]->val_str(&table_name);
-  if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
+  String *routine_name_ptr= args[1]->val_str(&routine_name);
+  String *type_ptr= args[2]->val_str(&type);
+  String *definer_ptr= args[3]->val_str(&definer);
+  bool check_full_access= args[4]->val_int();
+  if (schema_name_ptr == nullptr || routine_name_ptr == nullptr ||
+      type_ptr == nullptr || definer_ptr == nullptr || args[4]->null_value)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Make strings safe.
+  schema_name_ptr->c_ptr_safe();
+  routine_name_ptr->c_ptr_safe();
+  type_ptr->c_ptr_safe();
+  definer_ptr->c_ptr_safe();
+
+  bool is_procedure= (strcmp(type_ptr->ptr(), "PROCEDURE") == 0);
+
+  // Skip INFORMATION_SCHEMA database
+  if (is_infoschema_db(schema_name_ptr->ptr()) ||
+      !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
+    DBUG_RETURN(TRUE);
+
+  /*
+    Before WL#7897 changes, full access to routine information is provided to
+    the definer of routine and to the user having SELECT privilege on
+    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
+    definer user can not have full access on the routine. So backup of routine
+    or getting exact create string of stored routine is not possible with this
+    change.
+    So as workaround for this issue, currently full access on stored routine
+    provided to any user having global SELECT privilege.
+    Correct solution to this issue will be provided with the WL#8131
+    and WL#9049.
+  */
+  THD *thd= current_thd;
+  char sp_user[USER_HOST_BUFF_SIZE];
+  strxmov(sp_user, thd->security_context()->priv_user().str, "@",
+          thd->security_context()->priv_host().str, NullS);
+  bool full_access= (thd->security_context()->check_access(SELECT_ACL) ||
+                     !strcmp(sp_user, definer_ptr->ptr()));
+
+  if (check_full_access)
+  {
+    DBUG_RETURN(full_access ? TRUE : FALSE);
+  }
+  else if (!full_access &&
+           check_some_routine_access(thd,
+                                     schema_name_ptr->ptr(),
+                                     routine_name_ptr->ptr(),
+                                     is_procedure))
+  {
+    DBUG_RETURN(FALSE);
+  }
+
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views.
+    In order for INFORMATION_SCHEMA to skip listing event for which
+    the user does not have rights, the following internal functions are used.
+
+  Syntax:
+    int CAN_ACCCESS_EVENT(schema_name);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+
+longlong Item_func_can_access_event::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_event::val_int");
+
+  // Read schema_name
+  String schema_name;
+  String *schema_name_ptr= args[0]->val_str(&schema_name);
+  if (schema_name_ptr == nullptr)
   {
     null_value= TRUE;
     DBUG_RETURN(FALSE);
@@ -9269,41 +9444,21 @@ longlong Item_func_can_access_table::val_int()
 
   // Make sure we have safe string to access.
   schema_name_ptr->c_ptr_safe();
-  table_name_ptr->c_ptr_safe();
 
-  // Check if table is hidden.
+  // Check if schema is hidden.
   THD *thd= current_thd;
-  if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+  if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
     DBUG_RETURN(FALSE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
     DBUG_RETURN(TRUE);
 
   // Check access
-  ulong db_access= 0;
-  if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
-                   &db_access, nullptr, false, true))
-    DBUG_RETURN(FALSE);
-
-  if (!(db_access & TABLE_ACLS))
+  if (check_access(thd, EVENT_ACL, schema_name_ptr->ptr(), NULL, NULL, 0, 1))
   {
-    TABLE_LIST table_list;
-    memset(&table_list, 0, sizeof (table_list));
-    table_list.db= schema_name_ptr->ptr();
-    table_list.db_length= schema_name_ptr->length();
-    table_list.table_name= table_name_ptr->ptr();
-    table_list.table_name_length= table_name_ptr->length();
-    table_list.grant.privilege= db_access;
-
-    // Check access
-    if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
-    {
-      DBUG_RETURN(FALSE);
-    }
+    DBUG_RETURN(FALSE);
   }
-#endif
 
   DBUG_RETURN(TRUE);
 }
@@ -9347,7 +9502,6 @@ longlong Item_func_can_access_column::val_int()
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read column_name.
   String column_name;
   String *column_name_ptr= args[2]->val_str(&column_name);
@@ -9381,7 +9535,6 @@ longlong Item_func_can_access_column::val_int()
   {
     DBUG_RETURN(FALSE);
   }
-#endif
 
   DBUG_RETURN(TRUE);
 }
@@ -9471,7 +9624,6 @@ longlong Item_func_can_access_view::val_int()
                      sctx->priv_host().str))
     DBUG_RETURN(TRUE);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   //
   // Check for ACL's
   //
@@ -9490,7 +9642,6 @@ longlong Item_func_can_access_view::val_int()
   if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
       (SHOW_VIEW_ACL|SELECT_ACL))
     DBUG_RETURN(TRUE);
-#endif
 
   DBUG_RETURN(FALSE);
 }
@@ -9498,7 +9649,7 @@ longlong Item_func_can_access_view::val_int()
 static ulonglong get_statistics_from_cache(
                    Item** args,
                    dd::info_schema::enum_statistics_type stype,
-                   my_bool *null_value)
+                   bool *null_value)
 {
   DBUG_ENTER("get_statistics_from_cache");
   *null_value= FALSE;

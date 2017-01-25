@@ -1,7 +1,6 @@
 # test to see if replication can continue when master sporadically fails on
 # COM_BINLOG_DUMP and additionally limits the number of events per dump
 
-source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 create table t2(n int);

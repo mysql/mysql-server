@@ -1,4 +1,5 @@
---require r/case_sensitive_file_system.require
---disable_query_log
-show variables like 'lower_case_file_system';
---enable_query_log
+let $lcfs = query_get_value(SHOW VARIABLES LIKE 'lower_case_file_system', Value, 1);
+if ($lcfs != OFF)
+{
+  --skip Test requires 'case_sensitive_file_system'
+}

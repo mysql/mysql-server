@@ -121,10 +121,10 @@ STOP GROUP_REPLICATION;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Member 2 and 3 will be on recovery
 --let $rpl_connection_name= server2
@@ -150,7 +150,7 @@ SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
 
 STOP GROUP_REPLICATION;
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Member 1 will be on recovery, since all existent group members
 # are RECOVERING.

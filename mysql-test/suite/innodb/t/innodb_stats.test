@@ -2,7 +2,6 @@
 # Test the persistent stats feature
 #
 
--- source include/have_innodb.inc
 
 -- disable_warnings
 -- disable_query_log

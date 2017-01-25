@@ -1,5 +1,4 @@
-/*
-  Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -816,65 +815,6 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   ret= db_repository->load_named_event(thd, dbname, name, &et);
   if (!ret)
     ret= send_show_create_event(thd, &et, thd->get_protocol());
-
-  DBUG_RETURN(ret);
-}
-
-
-/**
-  Check access rights and fill INFORMATION_SCHEMA.events table.
-
-  @param[in,out]  thd     Thread context
-  @param[in]      tables  The temporary table to fill.
-
-  In MySQL INFORMATION_SCHEMA tables are temporary tables that are
-  created and filled on demand. In this function, we fill
-  INFORMATION_SCHEMA.events. It is a callback for I_S module, invoked from
-  sql_show.cc
-
-  @return Has to be integer, as such is the requirement of the I_S API
-  @retval  0  success
-  @retval  1  an error, pushed into the error stack
-*/
-
-int
-Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
-{
-  char *db= NULL;
-  int ret;
-  DBUG_ENTER("Events::fill_schema_events");
-
-  /*
-    If it's SHOW EVENTS then thd->lex->select_lex->db is guaranteed not to
-    be NULL. Let's do an assert anyway.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
-  {
-    db= thd->lex->select_lex->db;
-    DBUG_ASSERT(db != NULL);
-    /*
-      Nobody has EVENT_ACL for I_S and P_S,
-      even with a GRANT ALL to *.*,
-      because these schemas have additional ACL restrictions:
-      see ACL_internal_schema_registry.
-
-      Yet there are no events in I_S and P_S to hide either,
-      so this check voluntarily does not enforce ACL for
-      SHOW EVENTS in I_S or P_S,
-      to return an empty list instead of an access denied error.
-
-      This is more user friendly, in particular for tools.
-
-      EVENT_ACL is not fine grained enough to differentiate:
-      - creating / updating / deleting events
-      - viewing existing events
-    */
-    if (! is_infoschema_db(db) &&
-        ! is_perfschema_db(db) &&
-        check_access(thd, EVENT_ACL, db, NULL, NULL, 0, 0))
-      DBUG_RETURN(1);
-  }
-  ret= db_repository->fill_schema_events(thd, tables, db);
 
   DBUG_RETURN(ret);
 }

@@ -23,7 +23,6 @@
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
 # This test case does not depend on GTID
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 # Assert that the slave was started with server_id > 0

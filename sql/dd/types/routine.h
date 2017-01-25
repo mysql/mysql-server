@@ -74,7 +74,7 @@ public:
                                        Object_id schema_id,
                                        const String_type &name) const = 0;
 
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(aux_key_type*) const
   { return true; }
 
 public:

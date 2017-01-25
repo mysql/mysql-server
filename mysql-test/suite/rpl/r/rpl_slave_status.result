@@ -40,8 +40,6 @@ include/wait_for_slave_io_to_stop.inc
 ==== Verify that Slave IO thread stopped with error ====
 include/wait_for_slave_io_error.inc [errno=1045]
 [on master]
-SET @save_show_compatibility_56=@@global.show_compatibility_56;
-SET @@global.show_compatibility_56=off;
 CREATE USER rpluser_plain@127.0.0.1 IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO rpluser_plain@127.0.0.1;
 [on slave]
@@ -52,7 +50,6 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 [on master]
-SET @@global.show_compatibility_56=@save_show_compatibility_56;
 DROP USER rpluser_plain@127.0.0.1;
 FLUSH PRIVILEGES;
 [on slave]

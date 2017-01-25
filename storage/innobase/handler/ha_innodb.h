@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,6 +17,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
+
+#include "handler.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
@@ -107,7 +112,7 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	int open(const char *name, int, uint);
+	int open(const char *name, int, uint open_flags);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across

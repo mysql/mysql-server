@@ -2,7 +2,7 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -224,7 +224,9 @@ public:
     @param info  Create info.
     @return Number of default partitions.
   */
-  virtual int get_default_num_partitions(HA_CREATE_INFO *info) { return 1;}
+  virtual int
+    get_default_num_partitions(HA_CREATE_INFO *info MY_ATTRIBUTE((unused)))
+  { return 1;}
   /**
     Setup auto partitioning.
 
@@ -233,7 +235,9 @@ public:
 
     @param[in,out] part_info  Partition object to setup.
   */
-  virtual void set_auto_partitions(partition_info *part_info) { return; }
+  virtual void
+    set_auto_partitions(partition_info *part_info MY_ATTRIBUTE((unused)))
+  {}
   /**
     Get number of partitions for table in SE
 
@@ -244,8 +248,8 @@ public:
     @retval false for success
     @retval true for failure, for example table didn't exist in engine
   */
-  virtual bool get_num_parts(const char *name,
-                            uint *num_parts)
+  virtual bool get_num_parts(const char *name MY_ATTRIBUTE((unused)),
+                             uint *num_parts)
   {
     *num_parts= 0;
     return false;
@@ -303,7 +307,7 @@ public:
 
     @return Supported alter table flags.
   */
-  virtual uint alter_flags(uint flags) const
+  virtual uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const
   { return 0; }
 
 private:
@@ -334,10 +338,11 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int change_partitions_low(HA_CREATE_INFO *create_info,
-                                    const char *path,
-                                    ulonglong * const copied,
-                                    ulonglong * const deleted)
+  virtual int
+    change_partitions_low(HA_CREATE_INFO *create_info,
+                          const char *path MY_ATTRIBUTE((unused)),
+                          ulonglong * const copied MY_ATTRIBUTE((unused)),
+                          ulonglong * const deleted MY_ATTRIBUTE((unused)))
   {
     my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
     return HA_ERR_WRONG_COMMAND;
@@ -422,7 +427,7 @@ public:
       @retval false success.
       @retval true  failure.
   */
-  inline bool init_partitioning(MEM_ROOT *mem_root)
+  bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused)))
   {
 #ifndef DBUG_OFF
     m_key_not_found_partitions.bitmap= NULL;
@@ -854,7 +859,7 @@ private:
   /** Release auto_increment in all underlying partitions. */
   virtual void release_auto_increment_all_parts() {}
   /** Save or persist the current max auto increment. */
-  virtual void save_auto_increment(ulonglong nr) {}
+  virtual void save_auto_increment(ulonglong nr MY_ATTRIBUTE((unused))) {}
   /**
     Per partition equivalent of rnd_* and index_* functions.
 
@@ -921,7 +926,8 @@ private:
       @retval    0   Success.
       @retval != 0   Error code.
   */
-  virtual int init_record_priority_queue_for_parts(uint used_parts)
+  virtual int
+    init_record_priority_queue_for_parts(uint used_parts MY_ATTRIBUTE((unused)))
   {
     return 0;
   }
@@ -935,7 +941,8 @@ private:
 
     @param part_id  Partition to checksum.
   */
-  virtual ha_checksum checksum_in_part(uint part_id) const
+  virtual ha_checksum
+    checksum_in_part(uint part_id MY_ATTRIBUTE((unused))) const
   { DBUG_ASSERT(0); return 0; }
   /**
     Copy a cached row.

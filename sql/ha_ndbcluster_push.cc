@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,19 +23,19 @@
 */
 
 
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_push.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "abstract_query_plan.h"
-
+#include <ndb_version.h>
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
+
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
-
-#include <ndb_version.h>
+#include "abstract_query_plan.h"
+#include "ha_ndbcluster.h"
+#include "ha_ndbcluster_binlog.h"
+#include "ha_ndbcluster_cond.h"
+#include "ha_ndbcluster_glue.h"
+#include "ha_ndbcluster_push.h"
+#include "my_dbug.h"
 
 
 /*

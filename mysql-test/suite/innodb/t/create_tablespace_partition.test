@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # needed in sourced show_i_s_tablespaces.inc
 let $MYSQLD_DATADIR = `select @@datadir`;

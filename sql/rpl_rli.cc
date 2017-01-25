@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,10 @@
 #include "log_event.h"             // Log_event
 #include "m_ctype.h"
 #include "mdl.h"
+#include "my_dbug.h"
 #include "my_dir.h"                // MY_STAT
 #include "my_sqlcommand.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_stage.h"
@@ -296,7 +298,8 @@ void Relay_log_info::reset_notified_relay_log_change()
    @param shift          number of bits to shift by Worker due to the
                          current checkpoint change.
    @param new_ts         new seconds_behind_master timestamp value
-                         unless zero. Zero could be due to FD event.
+                         unless zero. Zero could be due to FD event
+                         or fake rotate event.
    @param need_data_lock False if caller has locked @c data_lock
 */
 void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
@@ -1437,7 +1440,7 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos)
   return error;
 }
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+
 void Relay_log_info::cleanup_context(THD *thd, bool error)
 {
   DBUG_ENTER("Relay_log_info::cleanup_context");
@@ -1649,7 +1652,6 @@ err:
 
   DBUG_RETURN(res);
 }
-#endif
 
 
 int Relay_log_info::rli_init_info()
@@ -1973,7 +1975,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       goto err;
     }
 
-    if (is_relay_log_recovery && init_recovery(mi, &msg))
+    if (is_relay_log_recovery && init_recovery(mi))
     {
       error= 1;
       goto err;

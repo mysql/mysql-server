@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,13 +23,14 @@ Doublwrite buffer module
 Created 2011/12/19
 *******************************************************/
 
-#include "ha_prototypes.h"
-#include "buf0dblwr.h"
 #include "buf0buf.h"
 #include "buf0checksum.h"
-#include "srv0start.h"
-#include "srv0srv.h"
+#include "buf0dblwr.h"
+#include "ha_prototypes.h"
+#include "my_compiler.h"
 #include "page0zip.h"
+#include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -346,7 +347,7 @@ recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
 dberr_t
 buf_dblwr_init_or_load_pages(
-	os_file_t	file,
+	pfs_os_file_t	file,
 	const char*	path)
 {
 	byte*		buf;
@@ -557,8 +558,7 @@ buf_dblwr_process(void)
 
 			/* Do not report the warning if the tablespace is
 			going to be truncated. */
-			if (!undo::Truncate::is_tablespace_truncated(
-				    space_id)) {
+			if (!undo::is_under_construction(space_id)) {
 				ib::warn() << "Page " << page_no_dblwr
 					<< " in the doublewrite buffer is"
 					" not within space bounds: page "

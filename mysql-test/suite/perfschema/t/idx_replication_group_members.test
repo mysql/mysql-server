@@ -1,7 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # There are no indexes on this table.
 

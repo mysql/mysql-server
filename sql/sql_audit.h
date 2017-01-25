@@ -55,7 +55,6 @@ static inline size_t make_user_name(Security_context *sctx, char *buf)
                              - buf);
 }
 
-#ifndef EMBEDDED_LIBRARY
 struct st_plugin_int;
 
 int initialize_audit_plugin(st_plugin_int *plugin);
@@ -291,5 +290,4 @@ int mysql_audit_notify(THD *thd,
                        const char *name,
                        void *parameters);
 
-#endif /* !EMBEDDED_LIBRARY */
 #endif /* SQL_AUDIT_INCLUDED */

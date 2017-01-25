@@ -638,7 +638,7 @@ static bool prepare_simple_select(THD *thd, Item *cond,
   QUICK_SELECT_I *qck;
   const bool impossible=
     test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
-                      ORDER::ORDER_NOT_RELEVANT, tab, cond,
+                      ORDER_NOT_RELEVANT, tab, cond,
                       &needed_reg_dummy, &qck) < 0;
   tab->set_quick(qck);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "sql_alloc.h"          // Sql_alloc
 
@@ -58,6 +59,7 @@ typedef struct st_table_ref : public Sql_alloc
   int           key;                      ///< key no
   uchar         *key_buff;                ///< value to look for with key
   uchar         *key_buff2;               ///< key_buff+key_length
+  uchar         *saved_null_flags;        ///< saved null flags
   /**
      Used to store the value from each keypart field. These values are
      used for ref access. If key_copy[key_part] == NULL it means that
@@ -104,7 +106,6 @@ typedef struct st_table_ref : public Sql_alloc
 
   st_table_ref()
     : key_err(TRUE),
-      has_record(FALSE),
       key_parts(0),
       key_length(0),
       key(-1),
@@ -158,6 +159,19 @@ typedef struct st_table_ref : public Sql_alloc
     }
     return false;
   }
+
+  void save_null_flags(TABLE *table)
+  {
+    if (table->s->null_bytes > 0)
+      memcpy(saved_null_flags, table->null_flags, table->s->null_bytes);
+  }
+
+  void restore_null_flags(TABLE *table)
+  {
+    if (table->s->null_bytes > 0)
+      memcpy(table->null_flags, saved_null_flags, table->s->null_bytes);
+  }
+
 } TABLE_REF;
 
 

@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "binary_log_types.h"   // enum_field_types
 #include "json_binary.h"        // json_binary::Value
 #include "malloc_allocator.h"   // Malloc_allocator
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
 #include "my_global.h"
@@ -42,7 +43,7 @@ class Json_wrapper;
 class String;
 class THD;
 
-typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
+typedef Prealloced_array<Json_wrapper, 16> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 
 /// The maximum number of nesting levels allowed in a JSON document.
@@ -262,7 +263,8 @@ public:
     @param[in,out] newv the new value to put in the container
   */
   /* purecov: begin deadcode */
-  virtual void replace_dom_in_container(Json_dom *oldv, Json_dom *newv)
+  virtual void replace_dom_in_container(Json_dom *oldv MY_ATTRIBUTE((unused)),
+                                        Json_dom *newv MY_ATTRIBUTE((unused)))
   {
     /*
       Array and object should override this method. Not expected to be
@@ -1122,13 +1124,14 @@ public:
   using Sql_alloc::operator delete;
 
   /** Placement new. */
-  void *operator new(size_t size, void *ptr,
-                     const std::nothrow_t &arg= std::nothrow) throw()
+  void *operator new(size_t, void *ptr,
+                     const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                     = std::nothrow) throw()
   { return ptr; }
 
   /** Placement delete. */
-  void operator delete(void *ptr1, void *ptr2,
-                       const std::nothrow_t &arg) throw ()
+  void operator delete(void*, void*,
+                       const std::nothrow_t&) throw ()
   {}
 
   /**
@@ -1232,6 +1235,20 @@ public:
     @return false formatting went well, else true
   */
   bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
+
+  /**
+    Format the JSON value to an external JSON string in buffer in the format of
+    ISO/IEC 10646. Add newlines and indentation for readability.
+
+    @param[in,out] buffer     the buffer that receives the formatted string
+                              (the string is appended, so make sure the length
+                              is set correctly before calling)
+    @param[in]     func_name  the name of the calling function
+
+    @retval false on success
+    @retval true on error
+  */
+  bool to_pretty_string(String *buffer, const char *func_name) const;
 
   // Accessors
 

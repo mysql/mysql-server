@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -24,6 +24,7 @@
 #include "auth_common.h"
 #include "auth_internal.h"
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
@@ -46,18 +47,15 @@ void Security_context::init()
   m_priv_user[0]= m_priv_host[0]= m_proxy_user[0]= '\0';
   m_priv_user_length= m_priv_host_length= m_proxy_user_length= 0;
   m_master_access= 0;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_db_access= NO_ACCESS;
   m_acl_map= 0;
   m_map_checkout_count= 0;
-#endif
   m_password_expired= false;
   DBUG_VOID_RETURN;
 }
 
 void Security_context::logout()
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (m_acl_map)
   {
     DBUG_PRINT("info",("(logout) Security_context for %s@%s returns Acl_map to cache. "
@@ -67,13 +65,11 @@ void Security_context::logout()
     m_acl_map= 0;
     clear_active_roles();
   }
-#endif
 }
 
 void Security_context::destroy()
 {
   DBUG_ENTER("Security_context::destroy");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (m_acl_map)
   {
     DBUG_PRINT("info",("(destroy) Security_context for %s@%s returns Acl_map to cache. "
@@ -83,7 +79,6 @@ void Security_context::destroy()
     clear_active_roles();
   }
   m_acl_map= 0;
-#endif
   if (m_user.length())
     m_user.set((const char *) 0, 0, system_charset_info);
 
@@ -147,14 +142,11 @@ void Security_context::copy_security_ctx (const Security_context &src_sctx)
   m_db_access= src_sctx.m_db_access;
   m_master_access= src_sctx.m_master_access;
   m_password_expired= src_sctx.m_password_expired;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_acl_map= 0; // acl maps are reference counted we can't copy or share them!
-#endif
   DBUG_VOID_RETURN;
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
@@ -250,7 +242,6 @@ Security_context::restore_security_context(THD *thd,
   if (backup)
     thd->set_security_context(backup);
 }
-#endif
 
 
 bool Security_context::user_matches(Security_context *them)
@@ -263,21 +254,15 @@ bool Security_context::user_matches(Security_context *them)
               !strcmp(m_user.ptr(), them_user));
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 bool Security_context::check_access(ulong want_access, bool match_any)
 {
   DBUG_ENTER("Security_context::check_access");
   DBUG_RETURN((match_any ? (m_master_access & want_access) :
               ((m_master_access & want_access) == want_access)));
 }
-#else
-bool Security_context::check_access(ulong want_access, bool match_any)
-{
-  return true;
-}
-#endif
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 /**
   This method pushes a role to the list of active roles. It requires
   Acl_cache_lock_guard.
@@ -556,8 +541,6 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db)
   return false;
 }
 
-
-#endif
 
 LEX_CSTRING Security_context::priv_user() const
 {

@@ -6,7 +6,6 @@
 #    1 - Creates tables and populates them through "LOAD DATA INFILE".
 #    2 - Compares the master and slave.
 ##########################################################################
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 ##########################################################################

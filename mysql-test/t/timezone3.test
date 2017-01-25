@@ -11,10 +11,7 @@
 # characters after colon in TZ variable as path to zoneinfo file.
 #
 # Check that we have successfully set time zone with leap seconds.
---require r/have_moscow_leap_timezone.require
-disable_query_log;
-select from_unixtime(1072904422);
-enable_query_log;
+--source include/have_moscow_leap_timezone.inc
 
 # Initial clean-up
 --disable_warnings

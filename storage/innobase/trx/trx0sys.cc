@@ -23,27 +23,28 @@ Transaction system
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <new>
 
 #include "current_thd.h"
-#include "trx0sys.h"
+#include "ha_prototypes.h"
 #include "sql_error.h"
+#include "trx0sys.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
+#include "fsp0sysspace.h"
+#include "log0log.h"
+#include "log0recv.h"
 #include "mtr0log.h"
 #include "mtr0log.h"
-#include "trx0trx.h"
-#include "trx0rseg.h"
-#include "trx0undo.h"
+#include "os0file.h"
+#include "read0read.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "log0log.h"
-#include "log0recv.h"
-#include "os0file.h"
-#include "read0read.h"
-#include "fsp0sysspace.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
@@ -215,54 +216,34 @@ trx_sys_print_mysql_binlog_offset(void)
 	mtr_commit(&mtr);
 }
 
-/****************************************************************//**
-Looks for a free slot for a rollback segment in the trx system file copy.
+/** Look for a free slot for a rollback segment in the trx system file copy.
+@param[in,out]	mtr		mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint
-trx_sysf_rseg_find_free(
-/*====================*/
-	mtr_t*	mtr,			/*!< in/out: mtr */
-	bool	include_tmp_slots,	/*!< in: if true, report slots reserved
-					for temp-tablespace as free slots. */
-	ulint	nth_free_slots)		/*!< in: allocate nth free slot.
-					0 means next free slot. */
+trx_sysf_rseg_find_free(mtr_t*	mtr)
 {
-	ulint		i;
-	trx_sysf_t*	sys_header;
+	trx_sysf_t*	sys_header = trx_sysf_get(mtr);
 
-	sys_header = trx_sysf_get(mtr);
+	for (ulint slot_no = 0; slot_no < TRX_SYS_N_RSEGS; slot_no++) {
+		page_no_t	page_no
+			= trx_sysf_rseg_get_page_no(sys_header, slot_no, mtr);
 
-	ulint	found_free_slots = 0;
-	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
-		ulint	page_no;
-
-		if (!include_tmp_slots && trx_sys_is_noredo_rseg_slot(i)) {
-			continue;
-		}
-
-		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
-
-		if (page_no == FIL_NULL
-		    || (include_tmp_slots
-			&& trx_sys_is_noredo_rseg_slot(i))) {
-
-			if (found_free_slots++ >= nth_free_slots) {
-				return(i);
-			}
+		if (page_no == FIL_NULL) {
+			return(slot_no);
 		}
 	}
 
 	return(ULINT_UNDEFINED);
 }
 
-/****************************************************************//**
-Looks for used slots for redo rollback segment.
+/** Look for used slots for redo rollback segment.
+We assume there may be gaps in the array.
+@param[in,out]	mtr		mtr
 @return number of used slots */
 static
 ulint
 trx_sysf_used_slots_for_redo_rseg(
-/*==============================*/
-	mtr_t*	mtr)			/*!< in: mtr */
+	mtr_t*	mtr)
 {
 	trx_sysf_t*	sys_header;
 	ulint		n_used = 0;
@@ -270,10 +251,6 @@ trx_sysf_used_slots_for_redo_rseg(
 	sys_header = trx_sysf_get(mtr);
 
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; i++) {
-
-		if (trx_sys_is_noredo_rseg_slot(i)) {
-			continue;
-		}
 
 		ulint	page_no;
 
@@ -353,7 +330,7 @@ trx_sysf_create(
 			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
+	slot_no = trx_sysf_rseg_find_free(mtr);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
 					 PAGE_NO_MAX, slot_no, mtr);
 
@@ -381,7 +358,9 @@ trx_sys_init_at_db_start(void)
 	ut_a(purge_queue != NULL);
 
 	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		trx_rseg_array_init(purge_queue);
+		/* Create the memory objects for all the rollback segments
+		referred to in the TRX_SYS page. */
+		trx_sys_rsegs_init(purge_queue);
 	}
 
 	/* VERY important: after the database is started, max_trx_id value is
@@ -469,6 +448,13 @@ trx_sys_create(void)
 			mem_key_trx_sys_t_rw_trx_ids));
 
 	new(&trx_sys->rw_trx_set) TrxIdSet();
+
+	new(&trx_sys->rsegs) Rsegs(ut_allocator<trx_rseg_t*>(
+			mem_key_trx_sys_t_rsegs));
+
+	new(&trx_sys->tmp_rsegs) Rsegs(ut_allocator<trx_rseg_t*>(
+			mem_key_trx_sys_t_rsegs));
+
 }
 
 /*****************************************************************//**
@@ -487,130 +473,142 @@ trx_sys_create_sys_pages(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
-Creates non-redo rollback segments.
+/** Create non-redo rollback segments residing in the temp-tablespace.
+Non-redo rollback segments don't perform redo logging and so they are
+used for undo logging of objects/tables that don't need to be recovered
+after a crash. Non-Redo rollback segments are created on every server
+startup.
 @return number of non-redo rollback segments created. */
-static
 ulint
-trx_sys_create_noredo_rsegs(
-/*========================*/
-	ulint	n_nonredo_rseg)	/*!< number of non-redo rollback segment
-				to create. */
+trx_rsegs_create_in_temp_space()
 {
 	ulint n_created = 0;
 
-	/* Create non-redo rollback segments residing in temp-tablespace.
-	non-redo rollback segments don't perform redo logging and so
-	are used for undo logging of objects/table that don't need to be
-	recover on crash.
-	(Non-Redo rollback segments are created on every server startup).
-	Slot-0: reserved for system-tablespace.
-	Slot-1....Slot-N: reserved for temp-tablespace.
-	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */
-	for (ulint i = 0; i < n_nonredo_rseg; i++) {
-		space_id_t space = srv_tmp_space.space_id();
-		if (trx_rseg_create(space, i) == NULL) {
+	for (ulint rseg_id = 0; rseg_id < srv_tmp_rollback_segments; rseg_id++) {
+		if (trx_rseg_create_in_temp_space(rseg_id) == NULL) {
 			break;
 		}
 		++n_created;
 	}
 
+	ib::info() << n_created
+		<< " rollback segment(s) are active in the temporary tablespace.";
+
 	return(n_created);
 }
 
-/*********************************************************************
-Creates the rollback segments.
-@return number of rollback segments that are active. */
-ulint
-trx_sys_create_rsegs(
-/*=================*/
-	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
-	ulint	n_rsegs,	/*!< number of rollback segments to create */
-	ulint	n_tmp_rsegs)	/*!< number of rollback segments reserved for
-				temp-tables. */
+/** Create any more rollback segments above what was previously built
+in the system tablespace. During create_new_db, only one rollback segment
+was created initially so that the system tablespace would be backward
+compatible in its file segment ordering.
+When opening an existing db, the setting for srv_rollback_segments
+may have changed. If the TRX_SYS page does not track enough rollback
+segments, we will create the rest here.
+@return true if successful or not done, false for failure */
+bool
+trx_sys_create_additional_rsegs(bool needed_recovery)
 {
-	mtr_t	mtr;
-	ulint	n_used;
-	ulint	n_noredo_created;
+	mtr_t		mtr;
+	ulint		initial_rsegs;
+	ulint		new_rsegs = 0;
+	ulint		rseg_id;
+	trx_rseg_t*	rseg;
 
-	ut_a(n_spaces < TRX_SYS_N_RSEGS);
-	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
-	ut_a(n_tmp_rsegs > 0 && n_tmp_rsegs < TRX_SYS_N_RSEGS);
+	ut_ad(srv_rollback_segments <= TRX_SYS_N_RSEGS);
 
-	if (srv_read_only_mode) {
-		return(ULINT_UNDEFINED);
+	if (trx_sys->rsegs.size() >= srv_rollback_segments) {
+		srv_available_rollback_segments = trx_sys->rsegs.size();
+		return(true);
 	}
-
-	/* Create non-redo rollback segments. */
-	n_noredo_created = trx_sys_create_noredo_rsegs(n_tmp_rsegs);
 
 	/* This is executed in single-threaded mode therefore it is not
-	necessary to use the same mtr in trx_rseg_create(). n_used cannot
-	change while the function is executing. */
-	mtr_start(&mtr);
-	n_used = trx_sysf_used_slots_for_redo_rseg(&mtr) + n_noredo_created;
-	mtr_commit(&mtr);
+	necessary to use the same mtr in trx_rseg_create(). */
+	mtr.start();
+	initial_rsegs = trx_sysf_used_slots_for_redo_rseg(&mtr);
+	mtr.commit();
 
-	ut_ad(n_used <= TRX_SYS_N_RSEGS);
+	ib::info() << initial_rsegs << " durable rollback segment(s)"
+		<< " found in the system tablespace.";
 
-	/* By default 1 redo rseg is always active that is hosted in
-	system tablespace. */
-	ulint	n_redo_active;
-	if (n_rsegs <= n_tmp_rsegs) {
-		n_redo_active = 1;
-	} else if (n_rsegs > n_used) {
-		n_redo_active = n_used - n_tmp_rsegs;
-	} else {
-		n_redo_active = n_rsegs - n_tmp_rsegs;
+	if (srv_read_only_mode || srv_force_recovery || needed_recovery) {
+		/* Set this global variable so it can be monitored. */
+		srv_available_rollback_segments = trx_sys->rsegs.size();
+
+		if (srv_available_rollback_segments < srv_rollback_segments) {
+			bool and2 = srv_read_only_mode && srv_force_recovery;
+			bool and3 = (srv_read_only_mode || srv_force_recovery)
+				    && needed_recovery;
+
+			ib::info() << "Did not create all "
+				<< srv_rollback_segments
+				<< " rollback segments because"
+				<< (srv_read_only_mode ?
+					" read-only mode is set" : "")
+				<< (and2 ? " and" : "")
+				<< (srv_force_recovery > 0 ?
+					" innodb_force_recovery is set": "")
+				<< (and3 ? " and" : "")
+				<< (needed_recovery ?
+					" the server needed recovery" : "")
+				<< ". Only "
+				<< srv_available_rollback_segments
+				<< " are available.";
+		}
+
+		/* We do not proceed to add any more rsegs under these
+		three conditions.  Just use what we have. */
+		return(true);
 	}
 
-	/* Do not create additional rollback segments if innodb_force_recovery
-	has been set and the database was not shutdown cleanly. */
-	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
-		ulint	i;
-		ulint	new_rsegs = n_rsegs - n_used;
+	/* These initial rsegs are in the system space and should
+	have already been loaded. */
+	ut_ad(initial_rsegs == trx_sys->rsegs.size());
+	ut_ad(initial_rsegs < srv_rollback_segments);
 
-		for (i = 0; i < new_rsegs; ++i) {
-			space_id_t	space_id;
-			space_id = (n_spaces == 0) ? 0
-				: (srv_undo_space_id_start + i % n_spaces);
+	new_rsegs = srv_rollback_segments - initial_rsegs;
 
-			ut_ad(n_spaces == 0
-			      || fsp_is_undo_tablespace(space_id));
+	ib::info() << " Adding " << new_rsegs
+		<< " more rollback segments.";
 
-			if (trx_rseg_create(space_id, 0) != NULL) {
-				++n_used;
-				++n_redo_active;
+	for (ulint i = 0; i < new_rsegs; i++) {
 
-				ulint	last_undo_space =
-					srv_undo_space_id_start
-					+ (srv_undo_tablespaces_active - 1);
+		mtr.start();
+		rseg_id = trx_sysf_rseg_find_free(&mtr);
+		mtr.commit();
 
-				/* Increase the number of active undo
-				tablespace in case new rollback segment
-				assigned to new undo tablespace. */
-				if (space_id > last_undo_space) {
+		/* Besides the initial rollback segment created in the
+		system tablespace, the rest will be created in the
+		external undo tablespaces in a round-robin fashion,
+		if they exist.  If not, they will be created in the
+		system tablespace. */
+		space_id_t	space_id = 0;
+		if (srv_undo_tablespaces > 0) {
+			space_id = trx_sys_undo_spaces->at(
+				i % srv_undo_tablespaces);
+		}
 
-					srv_undo_tablespaces_active++;
-
-					ut_ad(space_id == last_undo_space + 1);
-				}
-			} else {
-				break;
-			}
+		rseg = trx_rseg_create(space_id, rseg_id);
+		if (rseg != nullptr) {
+			trx_sys->rsegs.push_back(rseg);
 		}
 	}
 
-	ib::info() << n_used - srv_tmp_undo_logs
-		<< " redo rollback segment(s) found. "
-		<< n_redo_active
-		<< " redo rollback segment(s) are active.";
+	/* Set this global variable so it can be monitored. */
+	srv_available_rollback_segments = trx_sys->rsegs.size();
 
-	ib::info() << n_noredo_created << " non-redo rollback segment(s) are"
-		" active.";
+	if (srv_available_rollback_segments < srv_rollback_segments) {
+		ib::error() << "Could not create all "
+			<< srv_rollback_segments
+			<< " rollback segments. Only "
+			<< srv_available_rollback_segments
+			<< " are available."
+			" The disk may be running out of space";
+		return(false);
+	}
 
-	return(n_used);
+	return(true);
 }
+
 #else /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
@@ -684,30 +682,22 @@ trx_sys_close(void)
 	}
 
 	/* There can't be any active transactions. */
-	trx_rseg_t** rseg_array = static_cast<trx_rseg_t**>(
-		trx_sys->rseg_array);
-
-	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
-		trx_rseg_t*	rseg;
-
-		rseg = trx_sys->rseg_array[i];
-
-		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg, rseg_array);
-		}
+	Rseg_Iterator it;
+	for (it = trx_sys->rsegs.begin();
+	     it != trx_sys->rsegs.end(); ++it) {
+		ut_ad(*it != NULL);
+		trx_rseg_mem_free(*it);
 	}
+	trx_sys->rsegs.clear();
+	trx_sys->rsegs.~Rsegs();
 
-	rseg_array = ((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
-
-	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
-		trx_rseg_t*	rseg;
-
-		rseg = trx_sys->pending_purge_rseg_array[i];
-
-		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg, rseg_array);
-		}
+	for (it = trx_sys->tmp_rsegs.begin();
+	     it != trx_sys->tmp_rsegs.end(); ++it) {
+		ut_ad(*it != NULL);
+		trx_rseg_mem_free(*it);
 	}
+	trx_sys->tmp_rsegs.clear();
+	trx_sys->tmp_rsegs.~Rsegs();
 
 	UT_DELETE(trx_sys->mvcc);
 
@@ -848,4 +838,30 @@ trx_sys_validate_trx_list()
 	return(true);
 }
 #endif /* UNIV_DEBUG */
+
+/** A list of undo tablespace IDs found in the TRX_SYS page.
+This cannot be part of the trx_sys_t object because it is initialized
+before that object is created. */
+Space_Ids*	trx_sys_undo_spaces;
+
+/** Initialize trx_sys_undo_spaces, called once during srv_start(). */
+void
+trx_sys_undo_spaces_init()
+{
+	trx_sys_undo_spaces = UT_NEW(Space_Ids(), mem_key_trx_sys_t_rsegs);
+
+	trx_sys_undo_spaces->reserve(TRX_SYS_N_RSEGS);
+}
+
+/** Free the resources occupied by trx_sys_undo_spaces,
+called once during thread de-initialization. */
+void
+trx_sys_undo_spaces_deinit()
+{
+	trx_sys_undo_spaces->clear();
+
+	UT_DELETE(trx_sys_undo_spaces);
+
+	trx_sys_undo_spaces = NULL;
+}
 #endif /* !UNIV_HOTBACKUP */

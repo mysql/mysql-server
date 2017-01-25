@@ -48,13 +48,13 @@ typedef struct PSI_table_locker PSI_table_locker;
 enum PSI_table_io_operation
 {
   /** Row fetch. */
-  PSI_TABLE_FETCH_ROW= 0,
+  PSI_TABLE_FETCH_ROW = 0,
   /** Row write. */
-  PSI_TABLE_WRITE_ROW= 1,
+  PSI_TABLE_WRITE_ROW = 1,
   /** Row update. */
-  PSI_TABLE_UPDATE_ROW= 2,
+  PSI_TABLE_UPDATE_ROW = 2,
   /** Row delete. */
-  PSI_TABLE_DELETE_ROW= 3
+  PSI_TABLE_DELETE_ROW = 3
 };
 typedef enum PSI_table_io_operation PSI_table_io_operation;
 
@@ -148,7 +148,7 @@ struct PSI_table_bootstrap
     @sa PSI_TABLE_VERSION_2
     @sa PSI_CURRENT_TABLE_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_table_bootstrap PSI_table_bootstrap;
 
@@ -172,9 +172,9 @@ typedef struct PSI_table PSI_table;
 enum PSI_table_lock_operation
 {
   /** Table lock, in the server layer. */
-  PSI_TABLE_LOCK= 0,
+  PSI_TABLE_LOCK = 0,
   /** Table lock, in the storage engine layer. */
-  PSI_TABLE_EXTERNAL_LOCK= 1
+  PSI_TABLE_EXTERNAL_LOCK = 1
 };
 typedef enum PSI_table_lock_operation PSI_table_lock_operation;
 
@@ -184,8 +184,8 @@ typedef enum PSI_table_lock_operation PSI_table_lock_operation;
   @param share The SQL layer table share
   @return a table share instrumentation, or NULL
 */
-typedef struct PSI_table_share* (*get_table_share_v1_t)
-  (my_bool temporary, struct TABLE_SHARE *share);
+typedef struct PSI_table_share *(*get_table_share_v1_t)(
+  my_bool temporary, struct TABLE_SHARE *share);
 
 /**
   Release a table share.
@@ -201,9 +201,11 @@ typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
   @param table_name the table name
   @param table_name_length the table name length
 */
-typedef void (*drop_table_share_v1_t)
-  (my_bool temporary, const char *schema_name, int schema_name_length,
-   const char *table_name, int table_name_length);
+typedef void (*drop_table_share_v1_t)(my_bool temporary,
+                                      const char *schema_name,
+                                      int schema_name_length,
+                                      const char *table_name,
+                                      int table_name_length);
 
 /**
   Open an instrumentation table handle.
@@ -211,16 +213,15 @@ typedef void (*drop_table_share_v1_t)
   @param identity table handle identity
   @return a table handle, or NULL
 */
-typedef struct PSI_table* (*open_table_v1_t)
-  (struct PSI_table_share *share, const void *identity);
+typedef struct PSI_table *(*open_table_v1_t)(struct PSI_table_share *share,
+                                             const void *identity);
 
 /**
   Unbind a table handle from the current thread.
   This operation happens when an opened table is added to the open table cache.
   @param table the table to unbind
 */
-typedef void (*unbind_table_v1_t)
-  (struct PSI_table *table);
+typedef void (*unbind_table_v1_t)(struct PSI_table *table);
 
 /**
   Rebind a table handle to the current thread.
@@ -228,8 +229,9 @@ typedef void (*unbind_table_v1_t)
   is reused for a thread.
   @param table the table to unbind
 */
-typedef PSI_table* (*rebind_table_v1_t)
-  (PSI_table_share *share, const void *identity, PSI_table *table);
+typedef PSI_table *(*rebind_table_v1_t)(PSI_table_share *share,
+                                        const void *identity,
+                                        PSI_table *table);
 
 /**
   Close an instrumentation table handle.
@@ -248,21 +250,21 @@ typedef void (*close_table_v1_t)(struct TABLE_SHARE *server_share,
   @param src_file the source file name
   @param src_line the source line number
 */
-typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
-  (struct PSI_table_locker_state *state,
-   struct PSI_table *table,
-   enum PSI_table_io_operation op,
-   uint index,
-   const char *src_file, uint src_line);
+typedef struct PSI_table_locker *(*start_table_io_wait_v1_t)(
+  struct PSI_table_locker_state *state,
+  struct PSI_table *table,
+  enum PSI_table_io_operation op,
+  uint index,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a table instrumentation io wait end event.
   @param locker a table locker for the running thread
   @param numrows the number of rows involved in io
 */
-typedef void (*end_table_io_wait_v1_t)
-  (struct PSI_table_locker *locker,
-   ulonglong numrows);
+typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker,
+                                       ulonglong numrows);
 
 /**
   Record a table instrumentation lock wait start event.
@@ -273,12 +275,13 @@ typedef void (*end_table_io_wait_v1_t)
   @param src_file the source file name
   @param src_line the source line number
 */
-typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
-  (struct PSI_table_locker_state *state,
-   struct PSI_table *table,
-   enum PSI_table_lock_operation op,
-   ulong flags,
-   const char *src_file, uint src_line);
+typedef struct PSI_table_locker *(*start_table_lock_wait_v1_t)(
+  struct PSI_table_locker_state *state,
+  struct PSI_table *table,
+  enum PSI_table_lock_operation op,
+  ulong flags,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a table instrumentation lock wait end event.
@@ -342,4 +345,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_table_service_t *psi_table_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_TRANSACTION_H */
-

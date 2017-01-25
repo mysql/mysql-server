@@ -308,5 +308,93 @@ DROP TABLE data_table;
 DROP TABLE json_data;
 
 --source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # WL#9191: ADD JSON_PRETTY FUNCTION
+--echo #
+
+--echo [Connection Master]
+--connection master
+
+--echo # Create tables of various data types
+CREATE TABLE data (pkey INT PRIMARY KEY AUTO_INCREMENT,
+                         txt TEXT, vcol VARCHAR(20), num INT,
+                         gcol INT AS (num * 2) VIRTUAL,
+                         gcol2 JSON AS (JSON_PRETTY(JSON_OBJECT(num,gcol))));
+
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT, jcol TEXT, jgcol TEXT AS (JSON_PRETTY(jcol)));
+
+--echo # Insert values into the tables using the pretty function
+INSERT INTO data (txt, vcol, num) VALUES ('abc', 'namotgr', 150),
+                                         ('fwjh4', 'ucierov', 142),
+                                         ('8942rhkjh', 'roiu3r', 913),
+                                         ('imfmf', 'r3jr2', 15),
+                                         ('32rj2jr', 'r2ihrhr', 32);
+
+--disable_warnings
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey, gcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAYAGG(txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_PRETTY(gcol2)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECT(num , vcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey , txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAY(gcol)) FROM data;
+--enable_warnings
+
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether tables were created on the slave
+SELECT * FROM json_data;
+SELECT gcol2  FROM data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--let $diff_tables = master:data, slave:data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Update values in the table
+--disable_warnings
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_OBJECTAGG(pk,gcol)) FROM data) WHERE pk = 1;
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+
+--echo # Delete values from the table
+--disable_warnings
+DELETE FROM json_data WHERE JSON_PRETTY(jgcol)  = (SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey,txt)) FROM data);
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+DROP TABLE data;
+DROP TABLE json_data;
+
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
+
 # End:

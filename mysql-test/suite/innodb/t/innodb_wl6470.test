@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 ####################################################################
 # TC to test temp-table DML optimization changes for correctness   #

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_BINARY_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
+                    ${CMAKE_SOURCE_DIR}/extra/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${SSL_INCLUDE_DIRS})
 
@@ -286,7 +286,7 @@ table_replication_applier_status_by_worker.cc
 table_replication_group_member_stats.cc
 )
 
-MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE MANDATORY STATIC_ONLY RECOMPILE_FOR_EMBEDDED)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE MANDATORY STATIC_ONLY)
 IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)

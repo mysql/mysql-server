@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #ifndef SQL_CMD_INCLUDED
 #define SQL_CMD_INCLUDED
 
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "sql_alloc.h"
 
@@ -99,6 +100,12 @@ public:
   */
   virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {}
 
+   /// Set the owning prepared statement
+   void set_owner(Prepared_statement *stmt) { m_owner= stmt; }
+
+   /// Get the owning prepared statement
+   Prepared_statement *get_owner() { return m_owner; }
+
   /// @return true if SQL command is a DML statement
   virtual bool is_dml() const { return false; }
 
@@ -123,7 +130,7 @@ public:
   }
 
 protected:
-  Sql_cmd() : m_prepared(false), prepare_only(true)
+  Sql_cmd() : m_owner(nullptr), m_prepared(false), prepare_only(true)
   {}
 
   virtual ~Sql_cmd()
@@ -142,7 +149,7 @@ protected:
     that is prepared with a PREPARE statement and executed with an EXECUTE
     statement. False is returned for regular statements (non-preparable
     statements) that are executed directly.
-    @todo replace with "m_owner != NULL" when prepare-once is implemented
+    @todo replace with "m_owner != nullptr" when prepare-once is implemented
   */
   bool needs_explicit_preparation() const { return prepare_only; }
 
@@ -150,6 +157,7 @@ protected:
   void set_prepared() { m_prepared= true; }
 
 private:
+  Prepared_statement *m_owner; /// Owning prepared statement, nullptr if non-prep.
   bool m_prepared;             /// True when statement has been prepared
 protected:
   bool prepare_only;           /// @see needs_explicit_preparation

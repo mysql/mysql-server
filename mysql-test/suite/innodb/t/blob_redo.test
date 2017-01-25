@@ -1,6 +1,5 @@
 # Embedded server does not support restarting.
 --source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 --echo #

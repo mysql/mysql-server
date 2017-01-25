@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_global.h>
@@ -21,17 +22,21 @@
 #include <mysys_err.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <violite.h>
 
 #include "errmsg.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_pointer_arithmetic.h"
 #include "my_thread_local.h"
 #include "mysql.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "template_utils.h"
@@ -153,10 +158,6 @@ int STDCALL mysql_server_init(int argc MY_ATTRIBUTE((unused)),
 #if defined(SIGPIPE) && !defined(_WIN32)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
-#ifdef EMBEDDED_LIBRARY
-    if (argc > -1)
-       result= init_embedded_server(argc, argv, groups);
-#endif
   }
   else
     result= (int)my_thread_init();         /* Init if new thread */
@@ -183,9 +184,6 @@ void STDCALL mysql_server_end()
 
   mysql_client_plugin_deinit();
 
-#ifdef EMBEDDED_LIBRARY
-  end_embedded_server();
-#endif
   finish_client_errs();
   vio_end();
 
@@ -1074,15 +1072,6 @@ uint STDCALL mysql_thread_safe(void)
   return 1;
 }
 
-
-my_bool STDCALL mysql_embedded(void)
-{
-#ifdef EMBEDDED_LIBRARY
-  return 1;
-#else
-  return 0;
-#endif
-}
 
 /****************************************************************************
   Some support functions

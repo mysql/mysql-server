@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2016 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -186,31 +186,8 @@ CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP(6) NOT NULL DEFAULT
 -- Create slow_log
 CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, query_time TIME(6) NOT NULL, lock_time TIME(6) NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMBLOB NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log";
 
---
--- Only create the ndb_binlog_index table if the server is built with ndb.
---
-SET @have_ndb= (select count(engine) from information_schema.engines where engine='ndbcluster');
-SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
-  Position BIGINT UNSIGNED NOT NULL,
-  File VARCHAR(255) NOT NULL,
-  epoch BIGINT UNSIGNED NOT NULL,
-  inserts INT UNSIGNED NOT NULL,
-  updates INT UNSIGNED NOT NULL,
-  deletes INT UNSIGNED NOT NULL,
-  schemaops INT UNSIGNED NOT NULL,
-  orig_server_id INT UNSIGNED NOT NULL,
-  orig_epoch BIGINT UNSIGNED NOT NULL,
-  gci INT UNSIGNED NOT NULL,
-  next_position BIGINT UNSIGNED NOT NULL,
-  next_file VARCHAR(255) NOT NULL,
-  PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=INNODB STATS_PERSISTENT=0";
 
 CREATE TABLE IF NOT EXISTS component ( component_id int unsigned NOT NULL AUTO_INCREMENT, component_group_id int unsigned NOT NULL, component_urn text NOT NULL, PRIMARY KEY (component_id)) engine=INNODB DEFAULT CHARSET=utf8 COMMENT 'Components';
-
-SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.', 
@@ -357,6 +334,7 @@ CREATE TABLE IF NOT EXISTS column_stats (
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_bin
 COMMENT="Column statistics";
 
+
 --
 --
 -- INFORMATION SCHEMA VIEWS INSTALLATION
@@ -400,6 +378,18 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLLATION_C
   SELECT col.name AS COLLATION_NAME,
          cs.name AS CHARACTER_SET_NAME
   FROM mysql.character_sets cs JOIN mysql.collations col ON cs.id = col.character_set_id;
+
+--
+-- INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.ST_SPATIAL_REFERENCE_SYSTEMS AS
+  SELECT name AS SRS_NAME,
+         id AS SRS_ID,
+         organization AS ORGANIZATION,
+         organization_coordsys_id AS ORGANIZATION_COORDSYS_ID,
+         definition AS DEFINITION,
+         description AS DESCRIPTION
+  FROM mysql.st_spatial_reference_systems;
 
 --
 -- INFORMATION_SCHEMA.SCHEMATA
@@ -592,6 +582,28 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+--
+-- INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.ST_GEOMETRY_COLUMNS AS
+  SELECT TABLE_CATALOG,
+         TABLE_SCHEMA,
+         TABLE_NAME,
+         COLUMN_NAME,
+         NULL AS SRS_NAME,
+         NULL AS SRS_ID,
+	 DATA_TYPE AS GEOMETRY_TYPE_NAME
+  FROM information_schema.COLUMNS
+  WHERE DATA_TYPE IN (
+    'geometry',
+    'point',
+    'linestring',
+    'polygon',
+    'multipoint',
+    'multilinestring',
+    'multipolygon',
+    'geometrycollection');
 
 --
 -- INFORMATION_SCHEMA.STATISTICS
@@ -801,6 +813,226 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.VIEWS AS
        JOIN mysql.collations client_coll ON client_coll.id= vw.view_client_collation_id
        JOIN mysql.character_sets cs ON cs.id= client_coll.character_set_id
   WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
+-- INFORMATION_SCHEMA.TRIGGERS
+--
+SET @str=CONCAT("
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TRIGGERS AS
+SELECT cat.name AS TRIGGER_CATALOG,
+       sch.name AS TRIGGER_SCHEMA,
+       trg.name AS TRIGGER_NAME,
+       trg.event_type AS EVENT_MANIPULATION,
+       cat.name AS EVENT_OBJECT_CATALOG,
+       sch.name AS EVENT_OBJECT_SCHEMA,
+       tbl.name AS EVENT_OBJECT_TABLE,
+       trg.action_order AS ACTION_ORDER,
+       NULL AS ACTION_CONDITION,
+       trg.action_statement_utf8 AS ACTION_STATEMENT,
+       'ROW' AS ACTION_ORIENTATION,
+       trg.action_timing AS ACTION_TIMING,
+       NULL AS ACTION_REFERENCE_OLD_TABLE,
+       NULL AS ACTION_REFERENCE_NEW_TABLE,
+       'OLD' AS ACTION_REFERENCE_OLD_ROW,
+       'NEW' AS ACTION_REFERENCE_NEW_ROW,
+       trg.created AS CREATED,
+       trg.sql_mode AS SQL_MODE,
+       trg.definer AS DEFINER,
+       cs_client.name AS CHARACTER_SET_CLIENT,
+       coll_conn.name AS COLLATION_CONNECTION,
+       coll_db.name AS DATABASE_COLLATION
+  FROM mysql.triggers trg JOIN mysql.tables tbl ON tbl.id=trg.table_id
+       JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       JOIN mysql.collations coll_client ON coll_client.id=trg.client_collation_id
+       JOIN mysql.character_sets cs_client ON cs_client.id=coll_client.character_set_id
+       JOIN mysql.collations coll_conn ON coll_conn.id=trg.connection_collation_id
+       JOIN mysql.collations coll_db ON coll_db.id=trg.schema_collation_id
+  WHERE tbl.type != 'VIEW' AND CAN_ACCESS_TRIGGER(sch.name, tbl.name) AND NOT tbl.hidden");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
+-- INFORMATION_SCHEMA.ROUTINES
+--
+SET @str=CONCAT("
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.ROUTINES AS
+SELECT rtn.name AS SPECIFIC_NAME,
+    cat.name AS ROUTINE_CATALOG,
+    sch.name AS ROUTINE_SCHEMA,
+    rtn.name AS ROUTINE_NAME,
+    rtn.type AS ROUTINE_TYPE,
+    IF(rtn.type = 'PROCEDURE', '', 
+       SUBSTRING_INDEX(SUBSTRING_INDEX(
+                         rtn.result_data_type_utf8, '(', 1), ' ', 1)) AS DATA_TYPE,
+    INTERNAL_DD_CHAR_LENGTH(
+      rtn.result_data_type,
+      rtn.result_char_length, coll_result.name, 0) AS CHARACTER_MAXIMUM_LENGTH,
+    INTERNAL_DD_CHAR_LENGTH(
+      rtn.result_data_type,
+      rtn.result_char_length, coll_result.name, 1) AS CHARACTER_OCTET_LENGTH,
+    rtn.result_numeric_precision AS NUMERIC_PRECISION,
+    rtn.result_numeric_scale AS NUMERIC_SCALE,
+    rtn.result_datetime_precision AS DATETIME_PRECISION,
+    CASE rtn.result_data_type
+      WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_VAR_STRING' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      WHEN 'MYSQL_TYPE_SET' THEN (IF (cs_result.name='binary',NULL, cs_result.name))
+      ELSE NULL
+    END AS CHARACTER_SET_NAME,
+    CASE rtn.result_data_type
+      WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_VAR_STRING' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      WHEN 'MYSQL_TYPE_SET' THEN (IF (cs_result.name='binary',NULL, coll_result.name))
+      ELSE NULL
+    END AS COLLATION_NAME,
+    IF(rtn.type = 'PROCEDURE', NULL, rtn.result_data_type_utf8) AS DTD_IDENTIFIER,
+    'SQL' AS ROUTINE_BODY,
+    IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),
+        rtn.definition_utf8, NULL) AS ROUTINE_DEFINITION,
+    NULL AS EXTERNAL_NAME,
+    NULL AS EXTERNAL_LANGUAGE,
+    'SQL' AS PARAMETER_STYLE,
+    IF(rtn.is_deterministic=0, 'NO', 'YES') AS IS_DETERMINISTIC,
+    rtn.sql_data_access AS SQL_DATA_ACCESS,
+    NULL AS SQL_PATH,
+    rtn.security_type AS SECURITY_TYPE,
+    rtn.created AS CREATED,
+    rtn.last_altered AS LAST_ALTERED,
+    rtn.sql_mode AS SQL_MODE,
+    rtn.comment AS ROUTINE_COMMENT,
+    rtn.definer AS DEFINER,
+    cs_client.name AS CHARACTER_SET_CLIENT,
+    coll_conn.name AS COLLATION_CONNECTION,
+    coll_db.name AS DATABASE_COLLATION
+  FROM mysql.routines rtn
+       JOIN mysql.schemata sch ON rtn.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       JOIN mysql.collations coll_client ON coll_client.id=rtn.client_collation_id
+       JOIN mysql.character_sets cs_client ON cs_client.id=coll_client.character_set_id
+       JOIN mysql.collations coll_conn ON coll_conn.id=rtn.connection_collation_id
+       JOIN mysql.collations coll_db ON coll_db.id=rtn.schema_collation_id
+       LEFT JOIN mysql.collations coll_result ON coll_result.id=rtn.result_collation_id
+       LEFT JOIN mysql.character_sets cs_result ON cs_result.id=coll_result.character_set_id
+  WHERE CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
+-- INFORMATION_SCHEMA.PARAMETERS
+--
+SET @str=CONCAT("
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.PARAMETERS AS
+SELECT
+  cat.name AS SPECIFIC_CATALOG,
+  sch.name AS SPECIFIC_SCHEMA,
+  rtn.name AS SPECIFIC_NAME,
+  IF (rtn.type = 'FUNCTION',
+      prm.ordinal_position-1,
+      prm.ordinal_position) AS ORDINAL_POSITION,
+  IF (rtn.type = 'FUNCTION' AND prm.ordinal_position = 1, NULL, prm.mode) AS PARAMETER_MODE,
+  IF (rtn.type = 'FUNCTION' AND prm.ordinal_position = 1, NULL, prm.name) AS PARAMETER_NAME,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(prm.data_type_utf8, '(', 1), ' ', 1) AS DATA_TYPE,
+  INTERNAL_DD_CHAR_LENGTH(prm.data_type, prm.char_length, col.name, 0) AS CHARACTER_MAXIMUM_LENGTH,
+  INTERNAL_DD_CHAR_LENGTH(prm.data_type, prm.char_length, col.name, 1) AS CHARACTER_OCTET_LENGTH,
+  prm.numeric_precision AS NUMERIC_PRECISION,
+  IF(ISNULL(prm.numeric_precision), NULL, IFNULL(prm.numeric_scale, 0))   AS NUMERIC_SCALE,
+  prm.datetime_precision AS DATETIME_PRECISION,
+  CASE prm.data_type
+    WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_VAR_STRING' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs.name='binary',NULL, cs.name))
+    WHEN 'MYSQL_TYPE_SET' THEN (IF (cs.name='binary',NULL, cs.name))
+    ELSE NULL
+  END AS CHARACTER_SET_NAME,
+  CASE prm.data_type
+    WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_VAR_STRING' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs.name='binary',NULL, col.name))
+    WHEN 'MYSQL_TYPE_SET' THEN (IF (cs.name='binary',NULL, col.name))
+    ELSE NULL
+  END AS COLLATION_NAME,
+  prm.data_type_utf8 AS DTD_IDENTIFIER,
+  rtn.type AS ROUTINE_TYPE
+  FROM mysql.parameters prm JOIN mysql.routines rtn ON prm.routine_id=rtn.id
+       JOIN mysql.schemata sch ON rtn.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       JOIN mysql.collations col ON prm.collation_id=col.id
+       JOIN mysql.character_sets cs ON col.character_set_id=cs.id
+  WHERE CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
+-- INFORMATION_SCHEMA.EVENTS
+--
+SET @str=CONCAT("
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.EVENTS AS
+SELECT
+  cat.name AS EVENT_CATALOG,
+  sch.name AS EVENT_SCHEMA,
+  evt.name AS EVENT_NAME,
+  evt.definer AS DEFINER,
+  evt.time_zone AS TIME_ZONE,
+  'SQL' AS EVENT_BODY,
+  evt.definition_utf8 AS EVENT_DEFINITION,
+  IF (ISNULL(evt.interval_value),'ONE TIME','RECURRING') AS EVENT_TYPE,
+  CONVERT_TZ(evt.execute_at,'+00:00', evt.time_zone) AS EXECUTE_AT,
+  evt.interval_value AS INTERVAL_VALUE,
+  evt.interval_field AS INTERVAL_FIELD,
+  evt.sql_mode AS SQL_MODE,
+  CONVERT_TZ(evt.starts,'+00:00', evt.time_zone) AS STARTS,
+  CONVERT_TZ(evt.ends,'+00:00', evt.time_zone) AS ENDS,
+  evt.status AS STATUS,
+  IF (evt.on_completion='DROP', 'NOT PRESERVE', 'PRESERVE') AS ON_COMPLETION,
+  evt.created AS CREATED,
+  evt.last_altered AS LAST_ALTERED,
+  evt.last_executed AS LAST_EXECUTED,
+  evt.comment AS EVENT_COMMENT,
+  evt.originator AS ORIGINATOR,
+  cs_client.name AS CHARACTER_SET_CLIENT,
+  coll_conn.name AS COLLATION_CONNECTION,
+  coll_db.name AS DATABASE_COLLATION
+FROM mysql.events evt
+     JOIN mysql.schemata sch ON evt.schema_id=sch.id
+     JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+     JOIN mysql.collations coll_client ON coll_client.id=evt.client_collation_id
+     JOIN mysql.character_sets cs_client ON cs_client.id=coll_client.character_set_id
+     JOIN mysql.collations coll_conn ON coll_conn.id=evt.connection_collation_id
+     JOIN mysql.collations coll_db ON coll_db.id=evt.schema_collation_id
+WHERE CAN_ACCESS_EVENT(sch.name)");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3409,6 +3641,36 @@ CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NUL
 -- Remember for later if proxies_priv table already existed
 set @had_proxies_priv_table= @@warning_count != 0;
 
+
+--
+-- Only create the ndb_binlog_index table if the server is built with ndb.
+-- Create this table last among the tables in the mysql schema to make it
+-- easier to keep tests agnostic wrt. the existence of this table.
+--
+SET @have_ndb= (select count(engine) from information_schema.engines where engine='ndbcluster');
+SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
+  Position BIGINT UNSIGNED NOT NULL,
+  File VARCHAR(255) NOT NULL,
+  epoch BIGINT UNSIGNED NOT NULL,
+  inserts INT UNSIGNED NOT NULL,
+  updates INT UNSIGNED NOT NULL,
+  deletes INT UNSIGNED NOT NULL,
+  schemaops INT UNSIGNED NOT NULL,
+  orig_server_id INT UNSIGNED NOT NULL,
+  orig_epoch BIGINT UNSIGNED NOT NULL,
+  gci INT UNSIGNED NOT NULL,
+  next_position BIGINT UNSIGNED NOT NULL,
+  next_file VARCHAR(255) NOT NULL,
+  PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=INNODB STATS_PERSISTENT=0";
+
+SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# Generated by ndbinfo_sql # DO NOT EDIT! # Begin
+# TABLE definitions from src/kernel/vm/NdbinfoTables.cpp
+# VIEW definitions from tools/ndbinfo_sql.cpp
 #
 # SQL commands for creating the tables in MySQL Server which
 # are used by the NDBINFO storage engine to access system
@@ -4425,6 +4687,8 @@ SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0')
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+# Generated by ndbinfo_sql # DO NOT EDIT! # End
 
 --
 -- INFORMATION SCHEMA VIEWS implementing SHOW statements

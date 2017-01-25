@@ -1,7 +1,7 @@
 #ifndef RPL_MASTER_H_INCLUDED
 #define RPL_MASTER_H_INCLUDED
 
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#ifdef HAVE_REPLICATION
 
 #include <stddef.h>
 
@@ -110,7 +108,5 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                        Gtid_set* gtid_set, uint32 flags);
 
 bool reset_master(THD* thd);
-
-#endif /* HAVE_REPLICATION */
 
 #endif /* RPL_MASTER_H_INCLUDED */

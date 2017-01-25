@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_APPLIER_STATUS_BY_COORDINATOR_H
 #define TABLE_REPLICATION_APPLIER_STATUS_BY_COORDINATOR_H
 
@@ -27,8 +26,6 @@
 #include "pfs_engine_table.h"
 #include "table_helper.h"
 
-#ifdef HAVE_REPLICATION
-
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_msr.h"
@@ -36,21 +33,18 @@
 
 class Master_info;
 
-#endif /* HAVE_REPLICATION */
-
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-#ifdef HAVE_REPLICATION
-
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enum values for Service_State of coordinator thread */
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1, /* Service_State= on */
-  PS_RPL_NO /* Service_State= off */
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1, /* Service_State= on */
+  PS_RPL_NO       /* Service_State= off */
 };
 #endif
 
@@ -58,7 +52,8 @@ enum enum_rpl_yes_no {
   A row in coordinator's table. The fields with string values have an
   additional length field denoted by <field_name>_length.
 */
-struct st_row_coordinator {
+struct st_row_coordinator
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   ulonglong thread_id;
@@ -70,21 +65,19 @@ struct st_row_coordinator {
   ulonglong last_error_timestamp;
 };
 
-#endif /* HAVE_REPLICATION */
-
 class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index
 {
 public:
   PFS_index_rpl_applier_status_by_coord(PFS_engine_key *key)
     : PFS_engine_index(key)
-  {}
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_coord()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi) = 0;
-#endif
 };
 
 class PFS_index_rpl_applier_status_by_coord_by_channel
@@ -92,16 +85,16 @@ class PFS_index_rpl_applier_status_by_coord_by_channel
 {
 public:
   PFS_index_rpl_applier_status_by_coord_by_channel()
-    : PFS_index_rpl_applier_status_by_coord(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_coord_by_channel()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_name m_key;
 };
@@ -111,38 +104,32 @@ class PFS_index_rpl_applier_status_by_coord_by_thread
 {
 public:
   PFS_index_rpl_applier_status_by_coord_by_thread()
-    : PFS_index_rpl_applier_status_by_coord(&m_key),
-    m_key("THREAD_ID")
-  {}
+    : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_coord_by_thread()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_thread_id m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_coordinator */
-class table_replication_applier_status_by_coordinator: public PFS_engine_table
+class table_replication_applier_status_by_coordinator : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
-  void make_row(Master_info *mi);
-#endif /* HAVE_REPLICATION */
+  int make_row(Master_info *mi);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_coordinator m_row;
-#endif /* HAVE_REPLICATION */
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -169,7 +156,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

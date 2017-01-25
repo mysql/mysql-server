@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,12 +60,12 @@ extern "C" {
 
 #define my_strcasecmp(a, b) _stricmp(a, b) 
 
-#ifndef STDERR
-#define STDERR 2
-#endif
-
 typedef int mode_t;
 typedef SSIZE_T ssize_t;
+
+#define UINT64_MAX _UI64_MAX
+#define INT64_MAX _I64_MAX
+#define INT64_MIN _I64_MIN
 
 #define _SHUT_RDWR SD_BOTH
 
@@ -90,9 +90,11 @@ static inline void thread_yield() { SwitchToThread(); }
 
 #define my_strtok(b, d, c) strtok_r(b, d, c)
 
+
 #define my_strcasecmp(a, b) strcasecmp(a, b)
 
 #define _SHUT_RDWR (SHUT_RD|SHUT_WR)
+
 #define SOCKET_ERROR -1
 
 static inline void thread_yield() { sched_yield(); }

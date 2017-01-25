@@ -8,7 +8,6 @@
 # with innodb_buffer_pool_load_at_startup=ON
 # and innodb_buffer_pool_dump_at_shutdown=ON
 
---source include/have_innodb.inc
 # include/restart_mysqld.inc does not work in embedded mode
 --source include/not_embedded.inc
 
@@ -229,6 +228,5 @@ let $restart_parameters=;
 --source include/restart_mysqld.inc
 
 # Remove residue files and data folder
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/
 --remove_file $BOOTSTRAP_SQL

@@ -3,7 +3,6 @@
 # Note: We flush all dirty pages before applying any online log in bulk load.
 #
 
--- source include/have_innodb.inc
 -- source include/have_debug.inc
 
 # Create Insert Procedure

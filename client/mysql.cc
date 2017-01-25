@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,14 +30,19 @@
  *
  **/
 
+#include <errno.h>
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <violite.h>
 
 #include "client_priv.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_loglevel.h"
 #include "my_readline.h"
@@ -78,9 +83,12 @@
 #include <mysqld_error.h>
 #include <sql_common.h>
 #include <algorithm>
+#include <new>
 
 using std::min;
 using std::max;
+
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 const char *VER= "14.14";
 
@@ -104,6 +112,7 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
+#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "completion_hash.h"
@@ -196,7 +205,7 @@ static char delimiter[16]= DEFAULT_DELIMITER;
 static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -1125,11 +1134,6 @@ static COMMANDS commands[] = {
 
 static const char *load_default_groups[]= { "mysql","client",0 };
 
-static int         embedded_server_arg_count= 0;
-static char       *embedded_server_args[MAX_SERVER_ARGS];
-static const char *embedded_server_groups[]=
-{ "server", "embedded", "mysql_SERVER", 0 };
-
 #ifdef HAVE_READLINE
 /*
  HIST_ENTRY is defined for libedit, but not for the real readline
@@ -1314,8 +1318,7 @@ int main(int argc,char *argv[])
     my_end(0);
     exit(1);
   }
-  if (mysql_server_init(embedded_server_arg_count, embedded_server_args, 
-                        (char**) embedded_server_groups))
+  if (mysql_server_init(0, nullptr, nullptr))
   {
     put_error(NULL);
     free_defaults(defaults_argv);
@@ -1512,12 +1515,10 @@ void mysql_end(int sig)
   my_free(full_username);
   my_free(part_username);
   my_free(default_prompt);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   my_free(current_prompt);
-  while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count]);
   mysql_server_end();
   free_defaults(defaults_argv);
   my_end(my_end_arg);
@@ -1805,7 +1806,7 @@ static struct my_option my_long_options[] =
    &opt_reconnect, &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent. Print results with a tab as separator, "
    "each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1860,8 +1861,6 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -1906,20 +1905,8 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
-#if defined(USE_LIBEDIT_INTERFACE)
-  const char* readline= "";
-#else
-  const char* readline= "readline";
-#endif
 
-#ifdef HAVE_READLINE
-  printf("%s  Ver %s Distrib %s, for %s (%s) using %s %s\n",
-	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
-         readline, rl_library_version);
-#else
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, VER,
-	MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-#endif
+  print_version();
 
   if (version)
     return;
@@ -2008,10 +1995,8 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     }
     break;
   case OPT_MYSQL_PROTOCOL:
-#ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
-#endif
     break;
   case OPT_SECURE_AUTH:
     /* --secure-auth is a zombie option. */
@@ -2022,30 +2007,6 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     }
     else
       CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
-    break;
-  case OPT_SERVER_ARG:
-#ifdef EMBEDDED_LIBRARY
-    /*
-      When the embedded server is being tested, the client needs to be
-      able to pass command-line arguments to the embedded server so it can
-      locate the language files and data directory.
-    */
-    if (!embedded_server_arg_count)
-    {
-      embedded_server_arg_count= 1;
-      embedded_server_args[0]= (char*) "";
-    }
-    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
-        !(embedded_server_args[embedded_server_arg_count++]=
-          my_strdup(PSI_NOT_INSTRUMENTED,
-                    argument, MYF(MY_FAE))))
-    {
-        put_info("Can't use server argument", INFO_ERROR);
-        return 0;
-    }
-#else /*EMBEDDED_LIBRARY */
-    printf("WARNING: --server-arg option not supported in this configuration.\n");
-#endif
     break;
   case 'A':
     opt_rehash= 0;
@@ -5038,11 +4999,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   charset_info= mysql.charset;
   
   connected=1;
-#ifndef EMBEDDED_LIBRARY
   mysql.reconnect= debug_info_flag; // We want to know if this happens
-#else
-  mysql.reconnect= 1;
-#endif
 #ifdef HAVE_READLINE
   build_completion_hash(opt_rehash, 1);
 #endif
@@ -5080,7 +5037,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
@@ -5184,12 +5141,12 @@ com_status(String *buffer MY_ATTRIBUTE((unused)),
     mysql_free_result(result);
   }
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   if ((status_str= mysql_get_ssl_cipher(&mysql)))
     tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
                 status_str);
   else
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
     tee_puts("SSL:\t\t\tNot in use", stdout);
 
   if (skip_updates)
@@ -5234,14 +5191,12 @@ com_status(String *buffer MY_ATTRIBUTE((unused)),
     tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->csname);
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress)
     tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
-#endif
 
   if ((status_str= mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
@@ -5648,7 +5603,6 @@ static const char* construct_prompt()
       }
       case 'p':
       {
-#ifndef EMBEDDED_LIBRARY
 	if (!connected)
 	{
 	  processed_prompt.append("not_connected");
@@ -5668,7 +5622,6 @@ static const char* construct_prompt()
 	  char *pos=strrchr(mysql.unix_socket,'/');
  	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
 	}
-#endif
       }
 	break;
       case 'U':

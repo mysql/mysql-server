@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,41 +30,43 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "page0size.h"
-#include "buf0buf.h"
-#include "mem0mem.h"
 #include "btr0btr.h"
+#include "buf0buf.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
+#include "mem0mem.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "page0size.h"
 #ifndef UNIV_HOTBACKUP
+#include "btr0sea.h"
 #include "buf0buddy.h"
 #include "buf0stats.h"
-#include "lock0lock.h"
-#include "sync0rw.h"
-#include "btr0sea.h"
-#include "ibuf0ibuf.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "log0log.h"
 #include "dict0stats_bg.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "sync0rw.h"
+#include "trx0purge.h"
+#include "trx0undo.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "srv0srv.h"
-#include "srv0start.h"
+#include <errno.h>
+#include <map>
+#include <new>
+#include <sstream>
+
+#include "buf0checksum.h"
+#include "buf0dump.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "srv0mon.h"
-#include "fsp0sysspace.h"
-#include "page0zip.h"
-#include "buf0checksum.h"
-#include "sync0sync.h"
-#include "buf0dump.h"
-#include "ut0new.h"
 #include "os0thread-create.h"
-#include <new>
-#include <map>
-#include <sstream>
+#include "page0zip.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0sync.h"
+#include "ut0new.h"
 
 #ifdef HAVE_LIBNUMA
 #include <numa.h>
@@ -710,7 +712,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 
 # ifdef PFS_GROUP_BUFFER_SYNC
+
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern mysql_pfs_key_t	buffer_block_mutex_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 /********************************************************************//**
 This function registers mutexes and rwlocks in buffer blocks with
@@ -737,7 +742,11 @@ pfs_register_buffer_block(
 		BPageMutex*	mutex;
 
 		mutex = &block->mutex;
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		mutex->pfs_add(buffer_block_mutex_key);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
 #  endif /* UNIV_PFS_MUTEX */
 
 		rw_lock_t*	rwlock;
@@ -745,9 +754,16 @@ pfs_register_buffer_block(
 #  ifdef UNIV_PFS_RWLOCK
 		rwlock = &block->lock;
 		ut_a(!rwlock->pfs_psi);
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		rwlock->pfs_psi = (PSI_server)
 			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
 			: NULL;
+#else
+		rwlock->pfs_psi = (PSI_server)
+			? PSI_server->init_rwlock(PFS_NOT_INSTRUMENTED, rwlock)
+			: NULL;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 #   ifdef UNIV_DEBUG
 		rwlock = &block->debug_latch;
@@ -2406,6 +2422,7 @@ void
 buf_resize_thread()
 {
 	srv_buf_resize_thread_active = true;
+	my_thread_init();
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		os_event_wait(srv_buf_resize_event);
@@ -2430,6 +2447,8 @@ buf_resize_thread()
 	}
 
 	srv_buf_resize_thread_active = false;
+
+	my_thread_end();
 }
 
 /********************************************************************//**

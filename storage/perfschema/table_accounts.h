@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,12 +47,13 @@ class PFS_index_accounts_by_user_host : public PFS_index_accounts
 {
 public:
   PFS_index_accounts_by_user_host()
-    : PFS_index_accounts(&m_key_1, &m_key_2),
-    m_key_1("USER"), m_key_2("HOST")
-  {}
+    : PFS_index_accounts(&m_key_1, &m_key_2), m_key_1("USER"), m_key_2("HOST")
+  {
+  }
 
   ~PFS_index_accounts_by_user_host()
-  {}
+  {
+  }
 
   virtual bool match(PFS_account *pfs);
 
@@ -68,7 +69,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
 
 protected:
@@ -76,17 +77,19 @@ protected:
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
+
 protected:
   table_accounts();
 
 public:
   ~table_accounts()
-  {}
+  {
+  }
 
   int index_init(uint idx, bool sorted);
 
 private:
-  virtual void make_row(PFS_account *pfs);
+  virtual int make_row(PFS_account *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -95,8 +98,6 @@ private:
 
   /** Current row. */
   row_accounts m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */

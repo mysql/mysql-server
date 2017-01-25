@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_GROUP_MEMBERS_H
 #define TABLE_REPLICATION_GROUP_MEMBERS_H
 
@@ -26,27 +25,23 @@
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 
-#ifdef HAVE_REPLICATION
-
 #include "mysql_com.h"
 #include "rpl_info.h"
-#include "sql_const.h"                          // UUID_LENGTH
+#include "sql_const.h"  // UUID_LENGTH
 #include <mysql/plugin_group_replication.h>
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-#ifdef HAVE_REPLICATION
-
 /**
-  A row in connection nodes table. The fields with string values have an additional
+  A row in connection nodes table. The fields with string values have an
+  additional
   length field denoted by @<field_name@>_length.
 */
-struct st_row_group_members {
+struct st_row_group_members
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char member_id[UUID_LENGTH];
@@ -58,26 +53,18 @@ struct st_row_group_members {
   uint member_state_length;
 };
 
-#endif /* HAVE_REPLICATION */
-
 /** Table PERFORMANCE_SCHEMA.replication_group_members. */
-class table_replication_group_members: public PFS_engine_table
+class table_replication_group_members : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
-  void make_row(uint index);
-#endif /* HAVE_REPLICATION */
+  int make_row(uint index);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_group_members m_row;
-#endif /* HAVE_REPLICATION */
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -104,12 +91,11 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
-
 };
 
 /** @} */

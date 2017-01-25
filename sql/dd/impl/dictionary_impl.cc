@@ -71,9 +71,7 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
     Dictionary_impl::s_instance= d.release();
   }
 
-#ifndef EMBEDDED_LIBRARY
   acl_init(true);
-#endif
 
   /*
     Initialize the cost model, but delete it after the dd is initialized.
@@ -122,9 +120,7 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
   delete_optimizer_cost_module();
 
   // TODO: See above.
-#ifndef EMBEDDED_LIBRARY
   acl_free(true);
-#endif
   return result;
 }
 

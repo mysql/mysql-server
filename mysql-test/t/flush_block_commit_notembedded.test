@@ -7,7 +7,6 @@
 
 # And it requires InnoDB
 --source include/have_log_bin.inc
---source include/have_innodb.inc
 
 --echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

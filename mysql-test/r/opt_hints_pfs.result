@@ -36,7 +36,7 @@ digest	digest_text
 7644ea668183c5e0966124fac5ebb000	SELECT /*+ BKA ( `t1`@`qb1` ) BNL ( @`qb1` `t1` ) DUPSWEEDOUT FIRSTMATCH INTOEXISTS LOOSESCAN MATERIALIZATION MRR ( `t1` ) NO_BKA ( `t2` ) NO_BNL ( `t2` ) NO_ICP ( `t2` ) NO_MRR ( `t2` ) NO_RANGE_OPTIMIZATION ( `t2` ) NO_SEMIJOIN ( `t2` ) QB_NAME ( `qb1` ) SEMIJOIN ( `t1` ) SUBQUERY ( `t1` ) */ * FROM `t1` , `t2` 
 6d05afa5bad50f5e5fbf57e75df1fc3d	SELECT * FROM `t1` , `t2` 
 SELECT * FROM t2, t1;
-SELECT /*+ MAX_EXECUTION_TIME(10) */ * FROM t2, t1;
+SELECT /*+ MAX_EXECUTION_TIME(4294967295) */ * FROM t2, t1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
 edfef391abe51fdbb4195cb7e5c230a1	SELECT /*+ MAX_EXECUTION_TIME (?) */ * FROM `t2` , `t1` 

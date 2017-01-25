@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <errno.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
 
 static int keys_compare(const void *a, const void *b, const void *c);
@@ -35,7 +38,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
   ulong max_records= create_info->max_records;
   DBUG_ENTER("heap_create");
 
-  if (!create_info->internal_table)
+  if (!create_info->single_instance)
   {
     mysql_mutex_lock(&THR_LOCK_heap);
     share= hp_find_named_heap(name);
@@ -196,7 +199,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
       my_free(share);
       goto err;
     }
-    if (!create_info->internal_table)
+    if (!create_info->single_instance)
     {
       /*
         Do not initialize THR_LOCK object for internal temporary tables.
@@ -207,10 +210,9 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
       share->open_list.data= (void*) share;
       heap_share_list= list_add(heap_share_list,&share->open_list);
     }
-    else
-      share->delete_on_close= 1;
+    share->delete_on_close= create_info->delete_on_close;
   }
-  if (!create_info->internal_table)
+  if (!create_info->single_instance)
   {
     if (create_info->pin_share)
       ++share->open_count;
@@ -221,7 +223,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
   DBUG_RETURN(0);
 
 err:
-  if (!create_info->internal_table)
+  if (!create_info->single_instance)
     mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(1);
 } /* heap_create */

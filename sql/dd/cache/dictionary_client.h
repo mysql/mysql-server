@@ -384,6 +384,31 @@ private:
 
   template <typename T>
   void register_uncommitted_object(T* object);
+
+
+  /**
+    Remove the uncommitted objects from the client and (depending
+    on the parameter) put them into the shared cache,
+    thereby making them visible to other clients. Should be called
+    after commit to disk but before metadata locks are released.
+
+    Can also be called after rollback in order to explicitly throw
+    the modified objects away before making any actions to compensate
+    for a partially completed statement. Note that uncommitted objects
+    are automatically removed once the topmost stack-allocated auto
+    releaser goes out of scope, so calling this function in case of
+    abort is only needed to make acquire return the old object again
+    later in the same statement.
+
+    @param           commit_to_shared_cache
+                                If true, uncommitted objects will
+                                be put into the shared cache.
+    @tparam          T          Dictionary object type.
+  */
+
+  template <typename T>
+  void remove_uncommitted_objects(bool commit_to_shared_cache);
+
 public:
 
 
@@ -875,29 +900,28 @@ public:
 
 
   /**
-    Remove the uncommitted objects from the client and (depending
-    on the parameter) put them into the shared cache,
-    thereby making them visible to other clients. Should be called
-    after commit to disk but before metadata locks are released.
+    Remove the uncommitted objects from the client.
 
-    Can also be called after abort in order to explicitly throw
-    the modified objects away before making any actions to compensate
+    Can also be used to explicitly throw the modified objects
+    away before making any actions to compensate
     for a partially completed statement. Note that uncommitted objects
     are automatically removed once the topmost stack-allocated auto
     releaser goes out of scope, so calling this function in case of
     abort is only needed to make acquire return the old object again
     later in the same statement.
-
-    @param           commit_to_shared_cache
-                                If true, uncommitted objects will
-                                be put into the shared cache.
-    @tparam          T          Dictionary object type.
   */
 
-  template <typename T>
-  void remove_uncommitted_objects(bool commit_to_shared_cache);
+  void rollback_modified_objects();
 
 
+  /**
+    Remove the uncommitted objects from the client and put them into
+    the shared cache, thereby making them visible to other clients.
+    Should be called after commit to disk but before metadata locks
+    are released.
+  */
+
+  void commit_modified_objects();
 
 
   /**

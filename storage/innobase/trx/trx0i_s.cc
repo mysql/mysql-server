@@ -1310,7 +1310,7 @@ trx_i_s_create_lock_id(
 		/* record lock */
 		res_len = snprintf(lock_id, lock_id_size,
 				TRX_ID_FMT ":" SPACE_ID_PF ":"
-				PAGE_NO_PF ":%lu",
+				PAGE_NO_PF ":" ULINTPF,
 				row->lock_trx_id, row->lock_space,
 				row->lock_page, row->lock_rec);
 	} else {

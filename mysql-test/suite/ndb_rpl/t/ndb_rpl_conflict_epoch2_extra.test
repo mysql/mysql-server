@@ -17,22 +17,22 @@
 # Gather port + serverid
 
 select @primary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $PRIMARY_SERVER_ID= query_get_value('select @primary_server_id as v',v,1);
 select @primary_server_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $PRIMARY_SERVER_PORT= query_get_value('select @primary_server_port as v', v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Gather port + serverid
 select @secondary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $SECONDARY_SERVER_ID= query_get_value('select @secondary_server_id as v',v,1);
 select @secondary_server_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v', v,1);
 
@@ -854,9 +854,9 @@ while ($e_count)
 
 --disable_query_log
 --disable_result_log
-SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
-SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
-SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
 --enable_result_log
 --enable_query_log
 # SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
@@ -888,9 +888,9 @@ START SLAVE;
 
 --disable_query_log
 --disable_result_log
-SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
-SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
-SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
 --enable_result_log
 --enable_query_log
 #SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
@@ -918,9 +918,9 @@ delete from test.t1 where k >=10;
 
 --disable_query_log
 --disable_result_log
-SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
-SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
-SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
 --enable_result_log
 --enable_query_log
 #SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;

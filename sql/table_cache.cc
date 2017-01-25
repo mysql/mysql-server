@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "sql_test.h" // lock_descriptions[]
 #include "template_utils.h"
 #include "thr_lock.h"

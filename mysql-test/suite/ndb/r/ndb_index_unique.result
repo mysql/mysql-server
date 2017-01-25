@@ -940,7 +940,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on ix1 checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`col_int_unique`), true)))) is true)
 create temporary table row_counts_at_startup 
 select * 
-from information_schema.session_status
+from performance_schema.session_status
 WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 SELECT * FROM t1 WHERE i IN
 (SELECT t2.col_int_unique FROM t2) IS TRUE;
@@ -965,7 +965,7 @@ i
 1
 create temporary table row_counts_at_end
 select * 
-from information_schema.session_status
+from performance_schema.session_status
 WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 select row_counts_at_end.VARIABLE_NAME,
 row_counts_at_end.VARIABLE_VALUE - row_counts_at_startup.VARIABLE_VALUE 

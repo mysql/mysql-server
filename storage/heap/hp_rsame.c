@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 /* re-read current record */
 
 #include "heapdef.h"
+#include "my_dbug.h"
 
 	/* If inx != -1 the new record is read according to index
 	   (for next/prev). Record must in this case point to last record

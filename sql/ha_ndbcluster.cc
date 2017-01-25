@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,29 +23,36 @@
 
 #include "ha_ndbcluster.h"
 
+#include <errno.h>
+#include <mysql/psi/mysql_thread.h>
+
+#include "../storage/ndb/include/util/SparseBitmask.hpp"
+#include "../storage/ndb/src/common/util/parse_mask.hpp"
+#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "abstract_query_plan.h"
+#include "ha_ndb_index_stat.h"
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_cond.h"
 #include "ha_ndbcluster_connection.h"
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_tables.h"
-#include "ha_ndb_index_stat.h"
 #include "m_ctype.h"
 #include "mf_wcomp.h"
+#include "my_dbug.h"
 #include "mysql/plugin.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "ndb_anyvalue.h"
-#include "ndbapi/NdbApi.hpp"
-#include "ndbapi/NdbIndexStat.hpp"
-#include "ndbapi/NdbInterpretedCode.hpp"
 #include "ndb_binlog_extra_row_info.h"
+#include "ndb_bitmap.h"
 #include "ndb_component.h"
 #include "ndb_conflict.h"
 #include "ndb_dist_priv_util.h"
 #include "ndb_event_data.h"
 #include "ndb_global.h"
-#include "ndb_global_schema_lock_guard.h"
 #include "ndb_global_schema_lock.h"
+#include "ndb_global_schema_lock_guard.h"
 #include "ndb_local_connection.h"
 #include "ndb_local_schema.h"
 #include "ndb_log.h"
@@ -57,14 +64,10 @@
 #include "ndb_thd.h"
 #include "ndb_util_thread.h"
 #include "ndb_version.h"
+#include "ndbapi/NdbApi.hpp"
+#include "ndbapi/NdbIndexStat.hpp"
+#include "ndbapi/NdbInterpretedCode.hpp"
 #include "partition_info.h"
-#include "ndb_bitmap.h"
-#include <mysql/psi/mysql_thread.h>
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "../storage/ndb/include/util/SparseBitmask.hpp"
-#include "../storage/ndb/src/common/util/parse_mask.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "template_utils.h"
 
 using std::min;
@@ -3093,10 +3096,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
     DBUG_ASSERT(m_active_query!=NULL);
     if ((res = execute_no_commit_ie(m_thd_ndb, trans)) != 0 ||
         m_active_query->getNdbError().code) 
-    {
-      table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(ndb_err(trans));
-    }
 
     int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
@@ -3128,11 +3128,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
 
     if ((res = execute_no_commit_ie(m_thd_ndb, trans)) != 0 ||
         op->getNdbError().code) 
-    {
-      table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(ndb_err(trans));
-    }
-    table->status= 0;     
+
     DBUG_RETURN(0);
   }
 }
@@ -3420,25 +3417,16 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   last= trans->getLastDefinedOperation();
   if (first)
     res= execute_no_commit_ie(m_thd_ndb, trans);
-  else
-  {
-    // Table has no keys
-    table->status= STATUS_NOT_FOUND;
+  else                            // Table has no keys
     DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
-  }
   const NdbError ndberr= trans->getNdbError();
   error= ndberr.mysql_code;
   if ((error != 0 && error != HA_ERR_KEY_NOT_FOUND) ||
       check_all_operations_for_error(trans, first, last, 
                                      HA_ERR_KEY_NOT_FOUND))
-  {
-    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
-  } 
   else
-  {
     DBUG_PRINT("info", ("m_dupkey %d", m_dupkey));
-  }
   DBUG_RETURN(0);
 }
 
@@ -3472,10 +3460,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
     DBUG_ASSERT(m_active_query!=NULL);
     if (execute_no_commit_ie(m_thd_ndb, trans) != 0 ||
         m_active_query->getNdbError().code) 
-    {
-      table->status= STATUS_GARBAGE;
       DBUG_RETURN(ndb_err(trans));
-    }
 
     int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
@@ -3507,15 +3492,10 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
         op->getNdbError().code) 
     {
       int err= ndb_err(trans);
-      if(err==HA_ERR_KEY_NOT_FOUND)
-        table->status= STATUS_NOT_FOUND;
-      else
-        table->status= STATUS_GARBAGE;
 
       DBUG_RETURN(err);
     }
 
-    table->status= 0;
     DBUG_RETURN(0);
   }
 }
@@ -3661,14 +3641,12 @@ int ha_ndbcluster::fetch_next_pushed()
   {
     DBUG_ASSERT(m_next_row==NULL);
     DBUG_PRINT("info", ("No more records"));
-    table->status= STATUS_NOT_FOUND;
 //  m_thd_ndb->m_pushed_reads++;
 //  DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   else
   {
     DBUG_PRINT("info", ("Error from 'nextResult()'"));
-    table->status= STATUS_GARBAGE;
 //  DBUG_ASSERT(false);
     DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
@@ -3694,8 +3672,6 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   if (unlikely(!check_is_pushed()))
   {
     int res= index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT);
-    if (!res && Ndb_table_map::has_virtual_gcol(table))
-      res= update_generated_read_fields(buf, table);
     DBUG_RETURN(res);
   }
 
@@ -3712,7 +3688,6 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   else
   {
     DBUG_ASSERT(result!=NdbQuery::NextResult_gotRow);
-    table->status= STATUS_NOT_FOUND;
     DBUG_PRINT("info", ("No record found"));
 //  m_thd_ndb->m_pushed_reads++;
 //  DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -3736,8 +3711,6 @@ int ha_ndbcluster::index_next_pushed(uchar *buf)
   if (unlikely(!check_is_pushed()))
   {
     int res= index_next(buf);
-    if (!res && Ndb_table_map::has_virtual_gcol(table))
-      res= update_generated_read_fields(buf, table);
     DBUG_RETURN(res);
   }
 
@@ -3782,14 +3755,11 @@ inline int ha_ndbcluster::next_result(uchar *buf)
       DBUG_PRINT("info", ("One more record found"));    
 
       unpack_record(buf, m_next_row);
-      table->status= 0;
       DBUG_RETURN(0);
     }
     else if (res == 1)
     {
       // No more records
-      table->status= STATUS_NOT_FOUND;
-      
       DBUG_PRINT("info", ("No more records"));
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
@@ -7038,7 +7008,6 @@ void ha_ndbcluster::unpack_record_and_set_generated_fields(
   {
     update_generated_read_fields(dst_row, table);
   }
-  table->status= 0;
 }
 
 /**
@@ -7248,7 +7217,6 @@ int ha_ndbcluster::index_read(uchar *buf,
   const int error= read_range_first_to_buf(&start_key, end_key_p,
                                            descending,
                                            m_sorted, buf);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -7258,7 +7226,6 @@ int ha_ndbcluster::index_next(uchar *buf)
   DBUG_ENTER("ha_ndbcluster::index_next");
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   const int error= next_result(buf);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -7268,7 +7235,6 @@ int ha_ndbcluster::index_prev(uchar *buf)
   DBUG_ENTER("ha_ndbcluster::index_prev");
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
   const int error= next_result(buf);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -7281,7 +7247,6 @@ int ha_ndbcluster::index_first(uchar *buf)
 
   // Only HA_READ_ORDER indexes get called by index_first
   const int error= ordered_index_scan(0, 0, m_sorted, FALSE, buf, NULL);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -7291,7 +7256,6 @@ int ha_ndbcluster::index_last(uchar *buf)
   DBUG_ENTER("ha_ndbcluster::index_last");
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -7490,7 +7454,6 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   else
     error= full_table_scan(NULL, NULL, NULL, buf);
   
-  table->status= error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -7556,7 +7519,6 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
        */
       res= HA_ERR_RECORD_DELETED;
     }
-    table->status= res ? STATUS_NOT_FOUND: 0;
     DBUG_RETURN(res);
   }
 }
@@ -15952,12 +15914,8 @@ int ha_ndbcluster::write_ndb_file(const char *name) const
   DBUG_ENTER("write_ndb_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
-#ifndef EMBEDDED_LIBRARY
   (void)strxnmov(path, FN_REFLEN-1, 
                  mysql_data_home,"/",name,ha_ndb_ext,NullS);
-#else
-  (void)strxnmov(path, FN_REFLEN-1, name,ha_ndb_ext, NullS);
-#endif
 
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
@@ -17384,8 +17342,6 @@ void Ndb_util_thread::do_wakeup()
   mysql_mutex_unlock(&LOCK);
 }
 
-
-#include "ndb_log.h"
 
 void
 Ndb_util_thread::do_run()

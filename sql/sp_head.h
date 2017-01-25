@@ -904,7 +904,6 @@ public:
   */
   bool check_show_access(THD *thd, bool *full_access);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /**
     Change routine security context, and check if there is an EXECUTE privilege in
     new context. If there is no EXECUTE privilege, change the context back and
@@ -920,7 +919,6 @@ public:
     @return Error status.
   */
   bool set_security_ctx(THD *thd, Security_context **save_ctx);
-#endif
 
 private:
   /// Use sp_start_parsing() to create instances of sp_head.
@@ -936,7 +934,7 @@ private:
   sp_pcontext *m_root_parsing_ctx;
 
   /// The SP-instructions.
-  Mem_root_array<sp_instr *, true> m_instructions;
+  Mem_root_array<sp_instr *> m_instructions;
 
   /**
     Multi-set representing optimized list of tables to be locked by this

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,12 @@
   @file mysys/posix_timers.cc
 */
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <signal.h>
 #include <string.h>         /* memset */
 #include <sys/time.h>
+
+#include "my_config.h"
 #ifdef __linux__
 #include <syscall.h>
 #endif
@@ -31,6 +31,7 @@
 #include <unistd.h>
 #endif
 
+#include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"         /* my_message_local */
 #include "my_thread.h"      /* my_thread_init, my_thread_end */

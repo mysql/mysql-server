@@ -10,7 +10,6 @@
 #               main code went into include/unsafe_binlog.inc
 #
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 
 SET @old_lock_wait_timeout= @@global.innodb_lock_wait_timeout;

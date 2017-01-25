@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
   it's most likely my_time.h. See also "C API Handling of Date
   and Time Values" chapter in documentation.
 */
+
+#include "my_inttypes.h"
 
 enum enum_mysql_timestamp_type
 {

@@ -1,4 +1,5 @@
--- require r/have_nodebug.require
-disable_query_log;
-select (version() like '%debug%') as debug;
-enable_query_log;
+let $have_debug = `SELECT (VERSION() LIKE '%debug%')`;
+if ($have_debug)
+{
+  --skip Test requires 'have_nodebug'
+}

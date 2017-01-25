@@ -53,10 +53,6 @@
 # Test SQLCOM_REPAIR  needs MyISAM for execution. 
 --source include/have_myisam.inc
 
-# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 --disable_warnings
 drop temporary table if exists t1, t2, t3;
 drop table if exists t1, t2, t3;
@@ -72,7 +68,7 @@ begin
   declare old_reprepare_count int default @reprepare_count;
 
   select variable_value from
-  information_schema.session_status where
+  performance_schema.session_status where
   variable_name='com_stmt_reprepare'
   into @reprepare_count;
 
@@ -2227,5 +2223,3 @@ EXECUTE stmt3;
 EXECUTE stmt3;
 DEALLOCATE PREPARE stmt3;
 DROP TEMPORARY TABLES tm, t1;
-# Restore the value of show_compatiblity_56
-set @@global.show_compatibility_56=@show_compatibility_56_save;

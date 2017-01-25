@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include <rwlock_scoped_lock.h>
 #include <scope_guard.h>
+#include <string.h>
 #include <map>
 #include <string>
 #include <unordered_set>

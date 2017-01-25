@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 
 #include <limits.h>
 #include <stdlib.h>
-#include "xcom_proto_enum.h"
+#include "xcom_vp.h"
 #include "node_connection.h"
 
 #ifndef WIN
@@ -54,6 +54,9 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#ifdef __sun
+#include <procfs.h>
+#endif
 
 #include "task_debug.h"
 #include "task_net.h"

@@ -7,7 +7,6 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
---source include/have_gtid.inc
 --let $rpl_topology= 1->2
 --let $rpl_skip_change_master= 1
 --let $rpl_skip_start_slave= 1

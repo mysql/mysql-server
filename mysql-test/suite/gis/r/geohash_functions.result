@@ -489,108 +489,178 @@ POINT(-158 -68)
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("z", 1));
 ST_ASTEXT(ST_POINTFROMGEOHASH("z", 1))
 POINT(158 68)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0z", 10));
 ST_ASTEXT(ST_POINTFROMGEOHASH("0z", 10))
 POINT(-141 -48)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("xbpb", 100));
 ST_ASTEXT(ST_POINTFROMGEOHASH("xbpb", 100))
 POINT(180 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("8000", 1000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("8000", 1000))
 POINT(-180 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("s000", 10000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("s000", 10000))
 POINT(0 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789", 100000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789", 100000))
 POINT(-179.55743 -82.774507)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("9876543210", 1000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("9876543210", 1000000))
 POINT(-107.79609 1.770175)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("bcdefghjkmnpqrstuvwxyz", 1));
 ST_ASTEXT(ST_POINTFROMGEOHASH("bcdefghjkmnpqrstuvwxyz", 1))
 POINT(-142.6078415216915 54.11408847964353)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zyxwvutsrqpnmkjhgfedcb", 1));
 ST_ASTEXT(ST_POINTFROMGEOHASH("zyxwvutsrqpnmkjhgfedcb", 1))
 POINT(179.55743439816956 82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", 25));
 ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", 25))
 POINT(180 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 25. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("bpbpbpbpbpbpbpbpbpbp", 25));
 ST_ASTEXT(ST_POINTFROMGEOHASH("bpbpbpbpbpbpbpbpbpbp", 25))
 POINT(-180 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 25. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("pbpbpbpbpbpbpbpbpbpb", 25));
 ST_ASTEXT(ST_POINTFROMGEOHASH("pbpbpbpbpbpbpbpbpbpb", 25))
 POINT(180 -90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 25. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", 25));
 ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", 25))
 POINT(-180 -90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 25. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("gzzzzzzzzzzzzzzzzzzz", 5000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("gzzzzzzzzzzzzzzzzzzz", 5000))
 POINT(0 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 5000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("5bpbpbpbpbpbpbpbpbpb", 5000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("5bpbpbpbpbpbpbpbpbpb", 5000))
 POINT(0 -90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 5000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzzzzzzzzzzzz", 5000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzzzzzzzzzzzz", 5000))
 POINT(0 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 5000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("rzzzzzzzzzzzzzzzzzzz", 12345));
 ST_ASTEXT(ST_POINTFROMGEOHASH("rzzzzzzzzzzzzzzzzzzz", 12345))
 POINT(180 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 12345. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("2pbpbpbpbpbpbpbpbpbp", 67890));
 ST_ASTEXT(ST_POINTFROMGEOHASH("2pbpbpbpbpbpbpbpbpbp", 67890))
 POINT(-180 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 67890. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0000000000zzzzzzzzzz", 1234567890));
 ST_ASTEXT(ST_POINTFROMGEOHASH("0000000000zzzzzzzzzz", 1234567890))
 POINT(-179.999989271164 -89.999994635582)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1234567890. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzz0000000000", 1234567890));
 ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzz0000000000", 1234567890))
 POINT(179.999989271164 89.999994635582)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1234567890. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("s000000001z7wsg7zzm6", 1234567890));
 ST_ASTEXT(ST_POINTFROMGEOHASH("s000000001z7wsg7zzm6", 1234567890))
 POINT(0.00001 0.00001)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1234567890. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("ebpbpbpbpcbe9kuebp6d", 1000000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("ebpbpbpbpcbe9kuebp6d", 1000000000))
 POINT(-0.00001 0.00001)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("kpbpbpbpbnpkqe5kpbtm", 1000000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("kpbpbpbpbnpkqe5kpbtm", 1000000000))
 POINT(0.00001 -0.00001)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzy0s37hs00dt", 1000000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzy0s37hs00dt", 1000000000))
 POINT(-0.00001 -0.00001)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("tzzzzzzzzzzzzzzzzzzz", 4294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("tzzzzzzzzzzzzzzzzzzz", 4294967295))
 POINT(90 45)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("9zzzzzzzzzzzzzzzzzzz", 4294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("9zzzzzzzzzzzzzzzzzzz", 4294967295))
 POINT(-90 45)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("jzzzzzzzzzzzzzzzzzzz", 4294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("jzzzzzzzzzzzzzzzzzzz", 4294967295))
 POINT(90 -45)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("1zzzzzzzzzzzzzzzzzzz", 4294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("1zzzzzzzzzzzzzzzzzzz", 4294967295))
 POINT(-90 -45)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zbzurypzpgxczbzurypz", 429496729));
 ST_ASTEXT(ST_POINTFROMGEOHASH("zbzurypzpgxczbzurypz", 429496729))
 POINT(180 50)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 429496729. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("5zpgxczbzurypzpgxczb", 429496729));
 ST_ASTEXT(ST_POINTFROMGEOHASH("5zpgxczbzurypzpgxczb", 429496729))
 POINT(0 -50)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 429496729. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z", 04294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z", 04294967295))
 POINT(-145.16129032258067 -49.35483870967742)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789bcdefghjkmnpqrstuvwxyz", 04294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789bcdefghjkmnpqrstuvwxyz", 04294967295))
 POINT(-179.55743439816956 -82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789BCDEFGHJKMNPQRSTUVWXYZ", 04294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789BCDEFGHJKMNPQRSTUVWXYZ", 04294967295))
 POINT(-179.55743439816956 -82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zyxwvutsrqpnmkjhgfedcb9876543210", 04294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("zyxwvutsrqpnmkjhgfedcb9876543210", 04294967295))
 POINT(179.55743439816956 82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("ZYXWVUTSRQPNMKJHGFEDCB9876543210", 04294967295));
 ST_ASTEXT(ST_POINTFROMGEOHASH("ZYXWVUTSRQPNMKJHGFEDCB9876543210", 04294967295))
 POINT(179.55743439816956 82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("1e1", " "));
 ST_ASTEXT(ST_POINTFROMGEOHASH("1e1", " "))
 POINT(-110 -72)
@@ -601,18 +671,25 @@ ST_ASTEXT(ST_POINTFROMGEOHASH("100", "1 2 3"))
 POINT(-134 -89)
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '1 2 3'
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(CAST(100 AS CHAR), 1));
 ST_ASTEXT(ST_POINTFROMGEOHASH(CAST(100 AS CHAR), 1))
 POINT(-134 -89)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("10111000110001111001", "0"));
 ST_ASTEXT(ST_POINTFROMGEOHASH("10111000110001111001", "0"))
 POINT(-133.549761770805 -89.8242133801793)
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("11111111111111111111", "1234567890"));
 ST_ASTEXT(ST_POINTFROMGEOHASH("11111111111111111111", "1234567890"))
 POINT(-133.548387096774 -84.1935483870967)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1234567890. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("99999999999999999999", "4294967295"));
 ST_ASTEXT(ST_POINTFROMGEOHASH("99999999999999999999", "4294967295"))
 POINT(-110.3225806451612 8.7096774193548)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", " ***** "));
 ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", " ***** "))
 POINT(-180 -90)
@@ -623,9 +700,12 @@ ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", " 1.23 "))
 POINT(-180 -90)
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ' 1.23 '
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", (CAST(100 AS CHAR))));
 ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", (CAST(100 AS CHAR))))
 POINT(180 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(NULL, 200));
 ST_ASTEXT(ST_POINTFROMGEOHASH(NULL, 200))
 NULL
@@ -730,6 +810,8 @@ ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789BCDEFGHJKMNPQRSTUVWXYZ0123456789BC"
                                      "DEFGHJKMNPQRSTUVWXYZ0123456789BCDEFGHJKMNPQR"
                                      "STUVWXYZ0123456789BCDEFGHJKMNPQRSTUVWXYZ", 10000))
 POINT(-179.55743439816956 -82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zyxwvutsrqpnmkjhgfedcb9876543210zyxwvutsrqpn"
                                      "mkjhgfedcb9876543210zyxwvutsrqpnmkjhgfedcb98"
                                      "76543210zyxwvutsrqpnmkjhgfedcb9876543210", 1234567890));
@@ -737,6 +819,8 @@ ST_ASTEXT(ST_POINTFROMGEOHASH("zyxwvutsrqpnmkjhgfedcb9876543210zyxwvutsrqpn"
                                      "mkjhgfedcb9876543210zyxwvutsrqpnmkjhgfedcb98"
                                      "76543210zyxwvutsrqpnmkjhgfedcb9876543210", 1234567890))
 POINT(179.55743439816956 82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1234567890. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("ZYXWVUTSRQPNMKJHGFEDCB9876543210ZYXWVUTSRQPN"
                                      "MKJHGFEDCB9876543210ZYXWVUTSRQPNMKJHGFEDCB98"
                                      "76543210ZYXWVUTSRQPNMKJHGFEDCB9876543210", 4294967295));
@@ -744,6 +828,8 @@ ST_ASTEXT(ST_POINTFROMGEOHASH("ZYXWVUTSRQPNMKJHGFEDCB9876543210ZYXWVUTSRQPN"
                                      "MKJHGFEDCB9876543210ZYXWVUTSRQPNMKJHGFEDCB98"
                                      "76543210ZYXWVUTSRQPNMKJHGFEDCB9876543210", 4294967295))
 POINT(179.55743439816956 82.77450549262497)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789bcdefghjkmnpqrstuvwxyz0123456789bc"
                                      "defghjkmnpqrstuvwxyz0123456789bcdefghjkmnpqr"
                                      "stuvwxyz0123456789bcdefghjkmnpqrstuvwxyz0123"
@@ -759,7 +845,7 @@ ST_ASTEXT(ST_POINTFROMGEOHASH("0123456789bcdefghjkmnpqrstuvwxyz0123456789bc"
                                      "defghjkmnpqrstuvwxyz0123456789bcdefghjkmnpqr"
                                      "stuvwxyz0123456789bcdefghjkmnpqrstuvwxyz0123"
           
-POINT(-179.55743439816956 -82.77450549262497)
+POINT(-82.77450549262497 -179.55743439816956)
 # different random geohash values
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(hash_value,1000)) FROM geohashes;
 ST_ASTEXT(ST_POINTFROMGEOHASH(hash_value,1000))
@@ -781,6 +867,24 @@ POINT(102.7417962437673 29.763254995923)
 POINT(60.7886982739903 83.7602082514146)
 POINT(128.908488386749 31.8700305354552)
 POINT(-37.292723368146 19.7074618731612)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
 # Test create table from SELECT statement
 CREATE TABLE t1 AS SELECT ST_POINTFROMGEOHASH("0123", 4326);
 EXPLAIN t1;
@@ -1285,81 +1389,133 @@ ST_LATFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(20 -20)'),10))
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,90,20),10))
 POINT(180 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,-90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,-90,20),10))
 POINT(180 -90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-180,90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-180,90,20),10))
 POINT(-180 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-180,-90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-180,-90,20),10))
 POINT(-180 -90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,0,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,0,20),10))
 POINT(180 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-180,0,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-180,0,20),10))
 POINT(-180 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,90,20),10))
 POINT(0 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,-90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,-90,20),10))
 POINT(0 -90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,0,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,0,20),10))
 POINT(0 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-0,0,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-0,0,20),10))
 POINT(0 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,-0,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,-0,20),10))
 POINT(0 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0.10,90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0.10,90,20),10))
 POINT(0.1 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(100,45,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(100,45,20),10))
 POINT(100 45)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(179.999999,90,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(179.999999,90,20),10))
 POINT(179.999999 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-179.999999,0,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(-179.999999,0,20),10))
 POINT(-179.999999 0)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,89.999999,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(180,89.999999,20),10))
 POINT(180 89.999999)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,-89.999999,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(0,-89.999999,20),10))
 POINT(0 -89.999999)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(18*10,900/10,20),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(18*10,900/10,20),10))
 POINT(180 90)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(100 50)'),10),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(100 50)'),10),10))
 POINT(100 50)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),100));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),100))
 POINT(10 10)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(-10 10)'),10),1000));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(-10 10)'),10),1000))
 POINT(-10 10)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(1.000 1.00010)'),10),10000));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(1.000 1.00010)'),10),10000))
 POINT(1 1.0001)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(-1.000 -1.1010)'),10),100000));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(-1.000 -1.1010)'),10),100000))
 POINT(-1 -1.101)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(1.00101 1.000)'),10),1000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(1.00101 1.000)'),10),1000000))
 POINT(1.00101 1)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(-1.00101 -1.0000)'),20),10000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(-1.00101 -1.0000)'),20),10000000))
 POINT(-1.00101 -1)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(20 20)'),10),100000000));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(20 20)'),10),100000000))
 POINT(20 20)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100000000. The axis order is unknown.
 #=============================================================
 # ST_GEOHASH()
 #=============================================================
@@ -1524,7 +1680,7 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 4326
 )
 )
-POINT(-179.55743439816956 -82.77450549262497)
+POINT(-82.77450549262497 -179.55743439816956)
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1540,7 +1696,7 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 4326
 )
 )
-POINT(-179.55743439816956 -82.77450549262497)
+POINT(-82.77450549262497 -179.55743439816956)
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1556,7 +1712,7 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 4326
 )
 )
-POINT(-179.55743439816956 -82.77450549262497)
+POINT(-82.77450549262497 -179.55743439816956)
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1572,7 +1728,7 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 4326
 )
 )
-POINT(-179.55743439816956 -82.77450549262497)
+POINT(-82.77450549262497 -179.55743439816956)
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1588,7 +1744,7 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 4326
 )
 )
-POINT(-179.55743439816956 -82.77450549262497)
+POINT(-82.77450549262497 -179.55743439816956)
 CREATE TABLE t1 (val DOUBLE);
 INSERT INTO t1 (val) VALUES (12.2);
 SELECT val INTO @double FROM t1;
@@ -1621,19 +1777,23 @@ PREPARE stmt FROM "SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(?, 1))";
 EXECUTE stmt USING @geohash;
 ST_ASTEXT(ST_POINTFROMGEOHASH(?, 1))
 POINT(-178.7755 -80.0156)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 DEALLOCATE PREPARE stmt;
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(@geohash, 1));
 ST_ASTEXT(ST_POINTFROMGEOHASH(@geohash, 1))
 POINT(-178.7755 -80.0156)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
 SET @srid = 4326;
 PREPARE stmt FROM "SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(\"00\", ?))";
 EXECUTE stmt USING @srid;
 ST_ASTEXT(ST_POINTFROMGEOHASH("00", ?))
-POINT(-174 -87)
+POINT(-87 -174)
 DEALLOCATE PREPARE stmt;
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00", @srid));
 ST_ASTEXT(ST_POINTFROMGEOHASH("00", @srid))
-POINT(-174 -87)
+POINT(-87 -174)
 SET @maxlen = 3;
 PREPARE stmt FROM "SELECT ST_GeoHash(POINT(10, 10), ?)";
 EXECUTE stmt USING @maxlen;
@@ -1788,11 +1948,12 @@ s000000000
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), 10);
 ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), 10)
 s000000000
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
 # Unparseable SRS definition (should pass)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
 VALUES (11111111, 1, 'TEST11111111', 'Foo', 11111111, 'FOOBAR', '');
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 11111111), 10);
-ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 11111111), 10)
-s000000000
+ERROR SR002: Can't parse the spatial reference system definition of SRID 11111111.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 11111111;

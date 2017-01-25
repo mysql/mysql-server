@@ -167,6 +167,9 @@ Tables::Tables()
   m_target_def.add_field(FIELD_VIEW_CONNECTION_COLLATION_ID,
                          "FIELD_VIEW_CONNECTION_COLLATION_ID",
                          "view_connection_collation_id BIGINT UNSIGNED");
+  m_target_def.add_field(FIELD_VIEW_COLUMN_NAMES,
+                         "FIELD_VIEW_COLUMN_NAMES",
+                         "view_column_names LONGTEXT");
 
   m_target_def.add_index("PRIMARY KEY (id)");
   m_target_def.add_index("UNIQUE KEY (schema_id, name)");

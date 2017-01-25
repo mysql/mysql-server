@@ -1,7 +1,6 @@
 #
 # Test file for InnoDB tests that require the debug sync facility
 #
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 # Save the initial number of concurrent sessions.

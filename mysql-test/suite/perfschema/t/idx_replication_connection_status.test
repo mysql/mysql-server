@@ -1,7 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 #setup
 let $select_column = SERVICE_STATE;

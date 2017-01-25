@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,11 +75,12 @@ public:
 
     @param[in] group_member_information Information about this node in XCom
                                         format
-    @param[in] peer_member_information Information about the nodes that it
+    @param[in] xcom_peers Information about the nodes that it
                                        should get in touch to enter a group
 
     @param[in] group_identifier Group identifier object
     @param[in] xcom_proxy Proxy implementation reference
+    @param[in] gcs_engine MySQL GCS engine
     @param[in] state_exchange Reference to the State Exchange algorithm implementation
     @param[in] view_control View change control interface reference
     @param[in] boot Whether the node will be used to bootstrap the group
@@ -103,11 +104,13 @@ public:
   // Gcs_control_interface implementation
   enum_gcs_error join();
 
+  enum_gcs_error do_join(const bool retry=true);
+
   /*
     Responsible for doing the heavy lifting related to the join
     operation.
   */
-  enum_gcs_error do_join();
+  enum_gcs_error retry_do_join();
 
   enum_gcs_error leave();
 
@@ -219,6 +222,16 @@ public:
   */
   bool is_xcom_running();
 
+
+  /*
+    Configure how many times the node will try to join a group.
+
+    @param[in] join_attempts number of attempts to join
+    @param[in] join_sleep_time time between attempts to join
+  */
+  void set_join_behavior(unsigned int join_attempts,
+                         unsigned int join_sleep_time);
+  
 private:
   void init_me();
 
@@ -271,10 +284,12 @@ private:
     and in all registered client applications.
 
     @param[in] new_view_id new view identifier
-    @param[in] group_name group name
+    @param[in] group_id group id
+    @param[in] states collection of states to set in the new view
     @param[in] total all the members
     @param[in] left members that left the last view
     @param[in] join members that joined from the last view
+    @param[in] error_code Error code to set in the new view
   */
   void install_view(Gcs_xcom_view_identifier *new_view_id,
                     const Gcs_group_identifier &group_id,
@@ -284,7 +299,7 @@ private:
                     std::set<Gcs_member_identifier *> *join,
 		    Gcs_view::Gcs_view_error_code error_code=Gcs_view::OK);
 
-  /*
+  /**
     Check whether the current member is in the vector of failed members
     and in this case is considered faulty.
 
@@ -293,9 +308,9 @@ private:
   bool is_considered_faulty(
     std::vector<Gcs_member_identifier *> *failed_members);
 
-  /*
+  /**
     Notify that the current member has left the group and whether it left
-    gracefuly or not.
+    gracefully or not.
 
     @param[in] error_code that identifies whether there was any error
                when the view was received.
@@ -314,7 +329,6 @@ private:
 
   // Information about the local membership of this node
   Gcs_member_identifier *m_local_member_id;
-  unsigned int          m_local_member_id_hash;
 
   // A reference of the State Exchange algorithm implementation
   Gcs_xcom_state_exchange_interface *m_state_exchange;
@@ -325,15 +339,24 @@ private:
   // XCom main loop
   My_xp_thread_impl m_xcom_thread;
 
-  /* The hash of this client. */
-  unsigned int m_hash;
-
+  /*
+     Structure that contains the identification of this node
+     from XCOM's perspective
+  */
   node_list m_node_list_me;
 
-  /* UUID of this node */
-  unsigned int m_uuid;
-
   My_xp_socket_util* m_socket_util;
+
+  /*
+    Number of attempts to join a group before giving up and reporting
+    an error.
+  */
+  unsigned int m_join_attempts; 
+
+  /*
+    Number of time in seconds to wait between attempts to join a group.
+  */
+  unsigned int m_join_sleep_time;
 
 protected:
   /*

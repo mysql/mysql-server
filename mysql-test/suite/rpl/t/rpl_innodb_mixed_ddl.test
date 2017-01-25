@@ -4,6 +4,5 @@
 # ./mysql-test-run.pl --mysqld=--binlog-format=mixed
 #########################################
 --source include/have_binlog_format_mixed.inc
---source include/have_innodb.inc
 let $engine_type= innodb;
 --source suite/rpl/include/rpl_mixed_ddl.inc

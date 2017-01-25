@@ -42,7 +42,7 @@ class THD;
                        Elements must be copyable.
 */
 template<typename Element_type> using Trivial_array=
-  Mem_root_array<Element_type, true, Sql_alloc>;
+  Mem_root_array<Element_type, Sql_alloc>;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1

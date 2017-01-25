@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,10 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
-#include "ftdefs.h"
 #include "ctype.h"
+#include "ftdefs.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 typedef struct st_ft_docstat {
   FT_WORD *list;

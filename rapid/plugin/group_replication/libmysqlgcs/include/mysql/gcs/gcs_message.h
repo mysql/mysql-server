@@ -45,7 +45,7 @@ public:
     send information to remote peers.
 
     @param  header_capacity Determines the header's size.
-    @param  header_capacity Determines the payload's size.
+    @param  payload_capacity Determines the payload's size.
   */
   explicit Gcs_message_data(const uint32_t header_capacity,
                             const uint64_t payload_capacity);
@@ -117,8 +117,8 @@ public:
    | header len | payload len | header | payload |
    -----------------------------------------------
 
-   @param[in/out] Variable that will hold a pointer to the buffer
-   @param[in/out] Variable that will hold the buffer's size.
+   @param[in,out] buffer Variable that will hold a pointer to the buffer
+   @param[in,out] buffer_len Variable that will hold the buffer's size.
 
    @return true on error, false otherwise.
   */
@@ -131,8 +131,8 @@ public:
    If the buffer is not large enough to store the encoded data or is a
    NULL pointer, an error is returned.
 
-   @param buffer[in/out] Buffer to store the encoded data in the message.
-   @param length[in/out] The length of the buffer where the data is to be stored.
+   @param [in,out] buffer Buffer to store the encoded data in the message.
+   @param [in,out] buffer_len The length of the buffer where the data is to be stored.
    It contains the length of the data dumped into the buffer once the function
    succeeds.
 

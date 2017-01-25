@@ -85,14 +85,16 @@ typedef unsigned int PSI_stage_key;
 
 /**
   Instrumented statement key.
-  To instrument a statement, a statement key must be obtained using @c register_statement.
+  To instrument a statement, a statement key must be obtained using @c
+  register_statement.
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_statement_key;
 
 /**
   Instrumented socket key.
-  To instrument a socket, a socket key must be obtained using @c register_socket.
+  To instrument a socket, a socket key must be obtained using @c
+  register_socket.
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_socket_key;
@@ -164,4 +166,3 @@ struct PSI_placeholder
 #endif
 
 #endif /* MYSQL_PSI_BASE_H */
-

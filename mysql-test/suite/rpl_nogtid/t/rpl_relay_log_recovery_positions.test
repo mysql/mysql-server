@@ -2,7 +2,6 @@
 # Test case for BUG#74089 scenario
 #
 --source include/force_restart.inc
---source include/not_gtid_enabled.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 --source include/rpl_connection_slave.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,17 @@ public:
   { m_result_data_type_null= is_null; }
 
   /////////////////////////////////////////////////////////////////////////
+  // Result display type
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &result_data_type_utf8() const
+  { return m_result_data_type_utf8; }
+
+  virtual void set_result_data_type_utf8(
+                 const String_type &result_data_type_utf8)
+  { m_result_data_type_utf8= result_data_type_utf8; }
+
+  /////////////////////////////////////////////////////////////////////////
   // result_is_zerofill.
   /////////////////////////////////////////////////////////////////////////
 
@@ -119,7 +130,16 @@ public:
   { return m_result_numeric_precision; }
 
   virtual void set_result_numeric_precision(uint result_numeric_precision)
-  { m_result_numeric_precision= result_numeric_precision; }
+  {
+    m_result_numeric_precision_null= false;
+    m_result_numeric_precision= result_numeric_precision;
+  }
+
+  virtual void set_result_numeric_precision_null(bool is_null)
+  { m_result_numeric_precision_null= is_null; }
+
+  virtual bool is_result_numeric_precision_null() const
+  { return m_result_numeric_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // result_numeric_scale.
@@ -148,7 +168,16 @@ public:
   { return m_result_datetime_precision; }
 
   virtual void set_result_datetime_precision(uint result_datetime_precision)
-  { m_result_datetime_precision= result_datetime_precision; }
+  {
+    m_result_datetime_precision_null= false;
+    m_result_datetime_precision= result_datetime_precision;
+  }
+
+  virtual void set_result_datetime_precision_null(bool is_null)
+  { m_result_datetime_precision_null= is_null; }
+
+  virtual bool is_result_datetime_precision_null() const
+  { return m_result_datetime_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // result_collation.
@@ -249,11 +278,15 @@ public:
 
 private:
   enum_column_types m_result_data_type;
+  String_type m_result_data_type_utf8;
 
   bool m_result_data_type_null;
   bool m_result_is_zerofill;
   bool m_result_is_unsigned;
+
+  bool m_result_numeric_precision_null;
   bool m_result_numeric_scale_null;
+  bool m_result_datetime_precision_null;
 
   uint m_result_numeric_precision;
   uint m_result_numeric_scale;

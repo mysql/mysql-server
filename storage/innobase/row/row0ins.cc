@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,34 +23,35 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0ins.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
-#include "trx0rec.h"
-#include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
-#include "mach0data.h"
-#include "que0que.h"
-#include "row0upd.h"
-#include "row0sel.h"
-#include "row0row.h"
-#include "row0log.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "log0log.h"
-#include "eval0eval.h"
-#include "data0data.h"
-#include "usr0sess.h"
 #include "buf0lru.h"
+#include "current_thd.h"
+#include "data0data.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "eval0eval.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "m_string.h"
 #include "gis0geo.h"
+#include "ha_prototypes.h"
 #include "lob0lob.h"
-#include "current_thd.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "m_string.h"
+#include "mach0data.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "que0que.h"
+#include "rem0cmp.h"
+#include "row0ins.h"
+#include "row0log.h"
+#include "row0row.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0rec.h"
+#include "trx0undo.h"
+#include "usr0sess.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -1492,10 +1493,12 @@ row_ins_set_shared_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	}
 
 	return(err);
@@ -1523,10 +1526,12 @@ row_ins_set_exclusive_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	}
 
 	return(err);
@@ -1723,7 +1728,7 @@ row_ins_check_foreign_constraint(
 			}
 		}
 
-		cmp = cmp_dtuple_rec(entry, rec, offsets);
+		cmp = cmp_dtuple_rec(entry, rec, check_index, offsets);
 
 		if (cmp == 0) {
 
@@ -1996,7 +2001,7 @@ row_ins_dupl_error_with_rec(
 
 	matched_fields = 0;
 
-	cmp_dtuple_rec_with_match(entry, rec, offsets, &matched_fields);
+	cmp_dtuple_rec_with_match(entry, rec, index, offsets, &matched_fields);
 
 	if (matched_fields < n_unique) {
 
@@ -2127,7 +2132,7 @@ row_ins_scan_sec_index_for_duplicate(
 			continue;
 		}
 
-		cmp = cmp_dtuple_rec(entry, rec, offsets);
+		cmp = cmp_dtuple_rec(entry, rec, index, offsets);
 
 		if (cmp == 0 && !index->allow_duplicates) {
 			if (row_ins_dupl_error_with_rec(rec, entry,
@@ -2164,6 +2169,11 @@ end_scan:
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
+@param[in]	n_uniq	offset of DB_TRX_ID
+@param[in]	entry	entry being inserted
+@param[in]	rec	clustered index record at insert position
+@param[in]	index	clustered index
+@param[in,out]	offsets	rec_get_offsets(rec)
 @retval DB_SUCCESS when no duplicate is detected
 @retval DB_SUCCESS_LOCKED_REC when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
@@ -2171,11 +2181,11 @@ a newer version of entry (the entry should not be inserted)
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_ins_duplicate_online(
-/*=====================*/
-	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
-	const dtuple_t*	entry,	/*!< in: entry that is being inserted */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
+	ulint			n_uniq,
+	const dtuple_t*		entry,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	ulint*			offsets)
 {
 	ulint	fields	= 0;
 
@@ -2187,7 +2197,7 @@ row_ins_duplicate_online(
 	/* Compare the PRIMARY KEY fields and the
 	DB_TRX_ID, DB_ROLL_PTR. */
 	cmp_dtuple_rec_with_match_low(
-		entry, rec, offsets, n_uniq + 2, &fields);
+		entry, rec, index, offsets, n_uniq + 2, &fields);
 
 	if (fields < n_uniq) {
 		/* Not a duplicate. */
@@ -2223,7 +2233,8 @@ row_ins_duplicate_error_in_clust_online(
 	if (cursor->low_match >= n_uniq && !page_rec_is_infimum(rec)) {
 		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
 					   ULINT_UNDEFINED, heap);
-		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		err = row_ins_duplicate_online(
+			n_uniq, entry, rec, cursor->index, *offsets);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
@@ -2234,7 +2245,8 @@ row_ins_duplicate_error_in_clust_online(
 	if (cursor->up_match >= n_uniq && !page_rec_is_supremum(rec)) {
 		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
 					   ULINT_UNDEFINED, heap);
-		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		err = row_ins_duplicate_online(
+			n_uniq, entry, rec, cursor->index, *offsets);
 	}
 
 	return(err);
@@ -2497,6 +2509,27 @@ row_ins_index_entry_big_rec_func(
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,thd,index)
 #endif /* UNIV_DEBUG */
 
+/** Update all the prebuilts working on this temporary table
+@param[in,out]	table	dict_table_t for the table */
+static
+void
+row_ins_temp_prebuilt_tree_modified(
+	dict_table_t*	table)
+{
+	if (table->temp_prebuilt == NULL) {
+		return;
+	}
+
+	std::vector<row_prebuilt_t*>::const_iterator      it;
+
+	for (it = table->temp_prebuilt->begin();
+	     it != table->temp_prebuilt->end(); ++it) {
+		if ((*it)->m_temp_read_shared) {
+			(*it)->m_temp_tree_modified = true;
+		}
+	}
+}
+
 /***************************************************************//**
 Tries to insert an entry into a clustered index, ignoring foreign key
 constraints. If a record with the same unique key is found, the other
@@ -2727,6 +2760,12 @@ err_exit:
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
 					n_ext, thr, autoinc_mtr.get_mtr());
+
+				if (index->table->is_intrinsic()
+				    && err == DB_SUCCESS) {
+					row_ins_temp_prebuilt_tree_modified(
+						index->table);
+				}
 			}
 		}
 
@@ -2866,6 +2905,11 @@ row_ins_sorted_clust_index_entry(
 					flags, &cursor, &offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec, n_ext,
 					thr, mtr);
+				if (index->table->is_intrinsic()
+				    && err == DB_SUCCESS) {
+					row_ins_temp_prebuilt_tree_modified(
+						index->table);
+				}
 			}
 		}
 

@@ -3970,6 +3970,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
 VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "

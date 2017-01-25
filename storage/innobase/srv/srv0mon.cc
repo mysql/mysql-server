@@ -1495,19 +1495,17 @@ ulint
 srv_mon_get_rseg_size(void)
 /*=======================*/
 {
-	ulint		i;
 	ulint		value = 0;
 
-	/* rseg_array is a static array, so we can go through it without
+	/* trx_sys_t::rsegs is a static vector, so we can go through it without
 	mutex protection. In addition, we provide an estimate of the
 	total rollback segment size and to avoid mutex contention we
 	don't acquire the rseg->mutex" */
-	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
-		const trx_rseg_t*	rseg = trx_sys->rseg_array[i];
+	for (Rseg_Iterator it = trx_sys->rsegs.begin();
+	     it != trx_sys->rsegs.end(); ++it) {
 
-		if (rseg != NULL) {
-			value += rseg->curr_size;
-		}
+		ut_ad(*it != NULL);
+		value += (*it)->curr_size;
 	}
 
 	return(value);

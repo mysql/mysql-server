@@ -11,7 +11,6 @@
 #
 
 # Storage engine to be used in CREATE TABLE
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled

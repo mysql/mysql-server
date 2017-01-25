@@ -435,7 +435,13 @@ void create_predefined_tablespaces(THD *thd)
       space_file->set_filename(file->get_name());
       space_file->set_se_private_data_raw(file->get_se_private_data());
     }
-    thd->dd_client()->store(tablespace.get());
+
+    // Here, we just want to populate the core registry in the storage
+    // adapter. We do not want to have the object registered in the
+    // uncommitted registry, this will only add complexity to the
+    // DD cache usage during bootstrap. Thus, we call the storage adapter
+    // directly instead of going through the dictionary client.
+    dd::cache::Storage_adapter::instance()->store(thd, tablespace.get());
   }
   bootstrap_stage= bootstrap::BOOTSTRAP_PREPARED;
 }
@@ -517,6 +523,7 @@ bool create_tables(THD *thd, bool is_dd_upgrade,
           first_def == version_def);
 #endif
 
+  bool error= false;
   for (; it != System_tables::instance()->end(); ++it)
   {
     /*
@@ -551,20 +558,28 @@ bool create_tables(THD *thd, bool is_dd_upgrade,
     if (is_dd_upgrade && is_innodb_stats_table)
     {
       if (execute_query(thd, stats_table_def(table_name)))
-        return true;
+      {
+        error= true;
+        break;
+      }
     }
 
     else if (table_def == nullptr ||
              execute_query(thd, table_def->build_ddl_create_table()))
-      return true;
+    {
+      error= true;
+      break;
+    }
   }
 
-  // TODO:
-  // Workaround that may be removed when the removal of uncommitted
-  // objects is done implicitly on commit/rollback.
-  thd->dd_client()->remove_uncommitted_objects<Schema>(false);
-  thd->dd_client()->remove_uncommitted_objects<Table>(false);
-  thd->dd_client()->remove_uncommitted_objects<Tablespace>(false);
+  // The modified objects are now reflected in the core registry in the
+  // storage adapter. We remove the objects from the uncommitted registry
+  // because their presence there will just complicate handling during
+  // bootstrap.
+  thd->dd_client()->rollback_modified_objects();
+
+  if (error)
+    return true;
 
   // Set iterator to end of system tables
   if (last_table != nullptr)
@@ -1474,12 +1489,6 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 {
   bool error= false;
 
-  // We need a top level auto releaser to make sure the uncommitted objects
-  // are removed. This is done in the auto releaser destructor. When
-  // renove_uncommitted_objects() is called implicitly as part of commit/
-  // rollback, this should not be necessary.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
   // RAII to handle error messages.
   Bootstrap_error_handler bootstrap_error_handler;
 
@@ -1495,6 +1504,7 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   // Upgrade schema and tables, create view without resolving dependency
   for (it= db_name.begin(); it != db_name.end(); it++)
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     bool exists= false;
     dd::schema_exists(thd, it->c_str(), &exists);
 
@@ -1511,10 +1521,7 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
     }
   }
 
-#ifndef EMBEDDED_LIBRARY
   error|= migrate_events_to_dd(thd);
-#endif
-
   error|= migrate_routines_to_dd(thd);
 
   if (error)

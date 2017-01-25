@@ -29,6 +29,7 @@ using std::chrono::nanoseconds;
 static bool timer_running= false;
 static double seconds_used;
 static steady_clock::time_point timer_start;
+static size_t bytes_processed= 0;
 
 void StartBenchmarkTiming()
 {
@@ -45,6 +46,11 @@ void StopBenchmarkTiming()
     seconds_used+= duration<double>(used).count();
     timer_running= false;
   }
+}
+
+void SetBytesProcessed(size_t bytes)
+{
+  bytes_processed= bytes;
 }
 
 void internal_do_microbenchmark(const char *name, void (*func)(size_t))
@@ -74,8 +80,19 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t))
   func(num_iterations);
   StopBenchmarkTiming();
 
-  printf("%-40s %10ld iterations %10.0f ns/iter\n",
+  printf("%-40s %10ld iterations %10.0f ns/iter",
          name,
          static_cast<long>(num_iterations),
          1e9 * seconds_used / double(num_iterations));
+
+  if (bytes_processed > 0)
+  {
+    double bytes_per_second= bytes_processed / seconds_used;
+    if (bytes_per_second > (512 << 20))   // 0.5 GB/sec.
+      printf(" %8.2f GB/sec", bytes_per_second / (1 << 30));
+    else
+      printf(" %8.2f MB/sec", bytes_per_second / (1 << 20));
+  }
+
+  printf("\n");
 }

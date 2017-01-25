@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "dd/types/table.h"                 // Table
 #include "dd/types/tablespace.h"            // Tablespace
 #include "handler.h"                        // enum_tx_isolation
+#include "my_dbug.h"
 #include "my_global.h"                      // DBUG_ASSERT() etc.
 #include "shared_multi_map.h"               // Shared_multi_map
 
@@ -55,7 +56,7 @@ template <typename T> class Cache_element;
 class Shared_dictionary_cache
 {
 private:
-  // We have 223 collations, 41 character sets and 4535 spatial
+  // We have 223 collations, 41 character sets and 4906 spatial
   // reference systems after initializing the server, as of MySQL
   // 8.0.0.
   static const size_t collation_capacity= 256;

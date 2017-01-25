@@ -44,7 +44,7 @@ ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'TRÜE'
 SET @@session.sql_big_selects = ÕN;
 ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'ÕN'
 SET @@session.sql_big_selects = OF;
-ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.sql_big_selects = ÓFF;
 ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'ÓFF'
 SET @@session.sql_big_selects = '¹';

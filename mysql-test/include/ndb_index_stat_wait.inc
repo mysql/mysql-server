@@ -4,7 +4,7 @@
 
 while(!`select count(*) from dual
         where @@global.ndb_index_stat_enable =
-        (select count(*) from information_schema.global_status
+        (select count(*) from performance_schema.global_status
          where variable_name = 'NDB_INDEX_STAT_STATUS'
          and concat(',',variable_value,',') like '%,allow:1,%')`)
 {

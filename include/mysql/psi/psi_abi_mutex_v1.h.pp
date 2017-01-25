@@ -20,15 +20,15 @@ struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_mutex_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_mutex_bootstrap PSI_mutex_bootstrap;
 struct PSI_mutex_locker;
 typedef struct PSI_mutex_locker PSI_mutex_locker;
 enum PSI_mutex_operation
 {
-  PSI_MUTEX_LOCK= 0,
-  PSI_MUTEX_TRYLOCK= 1
+  PSI_MUTEX_LOCK = 0,
+  PSI_MUTEX_TRYLOCK = 1
 };
 typedef enum PSI_mutex_operation PSI_mutex_operation;
 struct PSI_mutex_info_v1
@@ -50,20 +50,20 @@ struct PSI_mutex_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
-typedef void (*register_mutex_v1_t)
-  (const char *category, struct PSI_mutex_info_v1 *info, int count);
-typedef struct PSI_mutex* (*init_mutex_v1_t)
-  (PSI_mutex_key key, const void *identity);
+typedef void (*register_mutex_v1_t)(const char *category,
+                                    struct PSI_mutex_info_v1 *info,
+                                    int count);
+typedef struct PSI_mutex *(*init_mutex_v1_t)(PSI_mutex_key key,
+                                             const void *identity);
 typedef void (*destroy_mutex_v1_t)(struct PSI_mutex *mutex);
-typedef void (*unlock_mutex_v1_t)
-  (struct PSI_mutex *mutex);
-typedef struct PSI_mutex_locker* (*start_mutex_wait_v1_t)
-  (struct PSI_mutex_locker_state_v1 *state,
-   struct PSI_mutex *mutex,
-   enum PSI_mutex_operation op,
-   const char *src_file, uint src_line);
-typedef void (*end_mutex_wait_v1_t)
-  (struct PSI_mutex_locker *locker, int rc);
+typedef void (*unlock_mutex_v1_t)(struct PSI_mutex *mutex);
+typedef struct PSI_mutex_locker *(*start_mutex_wait_v1_t)(
+  struct PSI_mutex_locker_state_v1 *state,
+  struct PSI_mutex *mutex,
+  enum PSI_mutex_operation op,
+  const char *src_file,
+  uint src_line);
+typedef void (*end_mutex_wait_v1_t)(struct PSI_mutex_locker *locker, int rc);
 struct PSI_mutex_service_v1
 {
   register_mutex_v1_t register_mutex;

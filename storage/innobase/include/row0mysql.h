@@ -740,6 +740,9 @@ struct row_prebuilt_t {
 	dtuple_t*	clust_ref;	/*!< prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/*!< LOCK_NONE, LOCK_S, or LOCK_X */
+	enum select_mode
+			select_mode;	/*!< SELECT_ORDINARY,
+					SELECT_SKIP_LOKCED, or SELECT_NO_WAIT */
 	ulint		row_read_type;	/*!< ROW_READ_WITH_LOCKS if row locks
 					should be the obtained for records
 					under an UPDATE or DELETE cursor.
@@ -862,6 +865,15 @@ struct row_prebuilt_t {
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
 
+	/** Whether this is a temporary(intrinsic) table read to keep the position
+	for this MySQL TABLE object */
+	bool		m_temp_read_shared;
+
+	/** Whether there is tree modifying operation happened on a
+	temprorary(intrinsic) table index tree. In this case, it could be split,
+	but no shrink. */
+	bool		m_temp_tree_modified;
+
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
 
@@ -870,6 +882,9 @@ struct row_prebuilt_t {
 
 	/** limit value to avoid fts result overflow */
 	ulonglong	m_fts_limit;
+
+	/** True if exceeded the end_range while filling the prefetch cache. */
+	bool		m_end_range;
 
 	/** Can a record buffer or a prefetch cache be utilized for prefetching
 	records in this scan?

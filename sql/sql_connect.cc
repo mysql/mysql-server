@@ -62,7 +62,6 @@
 #include "mysql_com.h"
 #include "mysqld.h"                     // LOCK_user_conn
 #include "mysqld_error.h"
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
@@ -86,7 +85,7 @@
 using std::min;
 using std::max;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 /*
   Without SSL the handshake consists of one packet. This packet
   has both client capabilites and scrambled password.
@@ -102,13 +101,12 @@ using std::max;
 #define MIN_HANDSHAKE_SIZE      2
 #else
 #define MIN_HANDSHAKE_SIZE      6
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 
 /*
   Get structure for logging connection data for the current user
 */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static HASH hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,
@@ -351,33 +349,8 @@ end:
   mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
-#else
 
-int check_for_max_user_connections(THD *thd, const USER_CONN *uc)
-{
-  return 0;
-}
 
-void decrease_user_connections(USER_CONN *uc)
-{
-  return;
-}
-
-void release_user_connection(THD *thd)
-{
-  const USER_CONN *uc= thd->get_user_connect();
-  DBUG_ENTER("release_user_connection");
-
-  if (uc)
-  {
-    thd->set_user_connect(NULL);
-  }
-
-  DBUG_VOID_RETURN;
-}
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check for maximum allowable user connections, if the mysqld server is
   started with corresponding variable that is greater then 0.
@@ -396,32 +369,26 @@ static void free_user(void *arg)
   struct user_conn *uc= pointer_cast<user_conn*>(arg);
   my_free(uc);
 }
-#endif
 
 
 void init_max_user_conn(void)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void)
     my_hash_init(&hash_user_connections,system_charset_info,max_connections,
                  0, get_key_conn,
                  free_user, 0,
                  key_memory_user_conn);
-#endif
 }
 
 
 void free_max_user_conn(void)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   my_hash_free(&hash_user_connections);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
 void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   mysql_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT
   {
@@ -457,7 +424,6 @@ void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
     }
   }
   mysql_mutex_unlock(&LOCK_user_conn);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -523,7 +489,6 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Perform handshake, authorize client and update thd ACL variables.
 
@@ -855,11 +820,6 @@ static void prepare_new_connection_state(THD* thd)
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
 
-  /*
-    Much of this is duplicated in create_embedded_thd() for the
-    embedded server library.
-    TODO: refactor this to avoid code duplication there
-  */
   thd->proc_info= 0;
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
@@ -919,10 +879,6 @@ bool thd_prepare_connection(THD *thd)
   if (rc)
     return rc;
 
-  MYSQL_CONNECTION_START(thd->thread_id(),
-                         (char *) &thd->security_context()->priv_user().str[0],
-                         (char *) thd->security_context()->host_or_ip().str);
-
   prepare_new_connection_state(thd);
   return FALSE;
 }
@@ -949,13 +905,6 @@ void close_connection(THD *thd, uint sql_errno,
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
   thd->disconnect(server_shutdown);
 
-  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
-
-  if (MYSQL_CONNECTION_DONE_ENABLED())
-  {
-    sleep(0); /* Workaround to avoid tailcall optimisation */
-  }
-
   if (generate_event)
     mysql_audit_notify(thd,
                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
@@ -975,5 +924,3 @@ bool thd_connection_alive(THD *thd)
     return true;
   return false;
 }
-
-#endif /* EMBEDDED_LIBRARY */

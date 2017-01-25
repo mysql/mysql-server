@@ -211,7 +211,6 @@ static enum_field_types get_normalized_field_type(Item *arg)
 bool get_json_string(Item *arg_item,
                      String *value,
                      String *utf8_res,
-                     const char *func_name,
                      const char **safep,
                      size_t *safe_length)
 {
@@ -474,7 +473,7 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
   if (cell.m_status == enum_path_status::UNINITIALIZED)
   {
     cell.m_index= m_paths.size();
-    if (m_paths.push_back(Json_path()))
+    if (m_paths.emplace_back())
       return true;                            /* purecov: inspected */
   }
   else
@@ -1146,7 +1145,7 @@ static uint opaque_index(enum_field_types field_type)
   }
 }
 
-String *Item_func_json_type::val_str(String *str)
+String *Item_func_json_type::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -1185,7 +1184,7 @@ String *Item_func_json_type::val_str(String *str)
 }
 
 
-String *Item_json_func::val_str(String *str)
+String *Item_json_func::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   Json_wrapper wr;
@@ -1205,7 +1204,7 @@ String *Item_json_func::val_str(String *str)
 }
 
 
-bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t)
 {
   Json_wrapper wr;
   if (val_json(&wr))
@@ -1858,19 +1857,13 @@ longlong Item_func_json_length::val_int()
 
 longlong Item_func_json_depth::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
-  longlong result= 0;
-
+  DBUG_ASSERT(fixed);
   Json_wrapper wrapper;
 
   try
   {
-    if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper) ||
-        args[0]->null_value)
-    {
-      null_value= true;
-      return 0;
-    }
+    if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper))
+      return error_int();
   }
   catch (...)
   {
@@ -1880,10 +1873,11 @@ longlong Item_func_json_depth::val_int()
     /* purecov: end */
   }
 
-  result= wrapper.depth(current_thd);
+  null_value= args[0]->null_value;
+  if (null_value)
+    return 0;
 
-  null_value= false;
-  return result;
+  return wrapper.depth(current_thd);
 }
 
 
@@ -2817,7 +2811,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
       const char *safep;         // contents of key_item, possibly converted
       size_t safe_length;        // length of safep
 
-      if (get_json_string(key_item, &tmp_key_value, &utf8_res, func_name(),
+      if (get_json_string(key_item, &tmp_key_value, &utf8_res,
                            &safep, &safe_length))
       {
         my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
@@ -2934,7 +2928,7 @@ void Item_func_json_search::cleanup()
   m_cached_ooa= ooa_uninitialized;
 }
 
-typedef Prealloced_array<std::string, 16, false> String_set;
+typedef Prealloced_array<std::string, 16> String_set;
 
 /**
    Recursive function to find the string values, nested inside
@@ -3555,4 +3549,33 @@ String *Item_func_json_unquote::val_str(String *str)
 
   null_value= false;
   return str;
+}
+
+
+String *Item_func_json_pretty::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  try
+  {
+    Json_wrapper wr;
+    if (get_json_wrapper(args, 0, str, func_name(), &wr))
+      return error_str();
+
+    null_value= args[0]->null_value;
+    if (null_value)
+      return nullptr;
+
+    str->length(0);
+    if (wr.to_pretty_string(str, func_name()))
+      return error_str();                       /* purecov: inspected */
+
+    return str;
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_str();
+  }
+  /* purecov: end */
 }

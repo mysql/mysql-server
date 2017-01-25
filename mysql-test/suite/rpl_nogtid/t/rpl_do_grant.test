@@ -1,10 +1,9 @@
 # Works in statement-based and row-based binlogging.
 # Test that GRANT and other user management commands are replicated to the slave
 
--- source include/not_gtid_enabled.inc
--- source include/not_group_replication_plugin.inc
--- source include/master-slave.inc
--- source include/no_ps_protocol.inc
+--source include/not_group_replication_plugin.inc
+--source include/no_ps_protocol.inc
+--source include/master-slave.inc
 
 # do not be influenced by other tests.
 connection master;

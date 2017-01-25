@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,12 @@
   @file include/my_sys.h
 */
 
-#include "my_global.h"
-#include "my_psi_config.h"              /* IWYU pragma: keep */
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */
+#include "my_compiler.h"
+#include "my_global.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -38,37 +39,31 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "pfs_thread_provider.h"        /* build time optimization for mysql_thread_t */
-#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
-
-#include "pfs_mutex_provider.h"         /* build time optimization for mysql_mutex_t */
-#include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
-
-#include "pfs_rwlock_provider.h"        /* build time optimization for mysql_rwlock_t */
-#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-
-#include "pfs_cond_provider.h"          /* build time optimization for mysql_cond_t */
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
-
+#include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
+#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
+#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
+#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
 #include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
 #include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
 #include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
 #include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
-#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 #include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
-#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
-#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
-#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
-#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 
 C_MODE_START
 
 #ifdef HAVE_VALGRIND
 # include <valgrind/valgrind.h>
+
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
 # define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
 # include <valgrind/memcheck.h>
+
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
@@ -113,8 +108,6 @@ C_MODE_START
 #define MY_DELETE_OLD	256	/* my_create_with_symlink() */
 #define MY_RESOLVE_LINK 128	/* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
-#define MY_REDEL_MAKE_BACKUP 256
-#define MY_REDEL_NO_COPY_STAT 512 /* my_redel() doesn't call my_copystat() */
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
 #define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
@@ -541,7 +534,6 @@ extern int my_copy(const char *from,const char *to,myf MyFlags);
 extern int my_delete(const char *name,myf MyFlags);
 extern int my_getwd(char * buf,size_t size,myf MyFlags);
 extern int my_setwd(const char *dir,myf MyFlags);
-extern int my_lock(File fd,int op,my_off_t start, my_off_t length,myf MyFlags);
 extern void *my_once_alloc(size_t Size,myf MyFlags);
 extern void my_once_free(void);
 extern char *my_once_strdup(const char *src,myf myflags);
@@ -597,11 +589,6 @@ enum my_syslog_options { MY_SYSLOG_PIDS= 1 };
 int my_openlog(const char *eventSourceName, int option, int facility);
 int my_closelog();
 int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
-
-/* implemented in my_memmem.c */
-extern void *my_memmem(const void *haystack, size_t haystacklen,
-                       const void *needle, size_t needlelen);
-
 
 #ifdef _WIN32
 extern int      my_access(const char *path, int amode);
@@ -663,8 +650,6 @@ void my_message_local_stderr(enum loglevel ll,
 extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
-extern int my_redel(const char *from, const char *to, int MyFlags);
-extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
@@ -706,8 +691,6 @@ extern char * my_load_path(char * to, const char *path,
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
-extern void soundex(CHARSET_INFO *, char * out_pntr, char * in_pntr,
-                    pbool remove_garbage);
 
 extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
@@ -720,14 +703,14 @@ void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
 extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,
                              enum cache_type type,my_off_t seek_offset,
-                             pbool use_async_io, myf cache_myflags,
+                             my_bool use_async_io, myf cache_myflags,
                              PSI_file_key file_key);
 extern int init_io_cache(IO_CACHE *info,File file,size_t cachesize,
                          enum cache_type type,my_off_t seek_offset,
-                         pbool use_async_io, myf cache_myflags);
+                         my_bool use_async_io, myf cache_myflags);
 extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
-                               my_off_t seek_offset,pbool use_async_io,
-                               pbool clear_cache);
+                               my_off_t seek_offset,my_bool use_async_io,
+                               my_bool clear_cache);
 extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_read_r(IO_CACHE *info,uchar *Buffer,size_t Count);
