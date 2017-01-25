@@ -30,12 +30,6 @@ if ($rpl_server_count)
 # Setup and start group.
 --source include/master-slave.inc
 
-# Disable rpl debug that is added automatically on wait conditions
-# failures since it does only contain asynchronous replication
-# information and hides GR debug information.
---let $_show_rpl_debug_info_previous= $show_rpl_debug_info
---let $show_rpl_debug_info= 0
-
 # Reset group_replication_bootstrap_group option on all servers.
 --source ../inc/gr_clear_bootstrap_group.inc
 
