@@ -715,6 +715,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "6" },
 
   {
+    CFG_DB_DISK_DATA_FORMAT,
+    "__disk_data_format",
+    DB_TOKEN,
+    "0: Use old v1 format, 1: Use new v2 format",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",
+    "1" },
+
+  {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,
     "TimeBetweenWatchDogCheckInitial",
     DB_TOKEN,

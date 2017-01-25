@@ -1002,39 +1002,40 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
                                          regTabPtr,
                                          disk_page != RNIL);
 
-       if (unlikely(terrorCode != 0))
+       if (likely(terrorCode == 0))
        {
-         tupkeyErrorLab(&req_struct);
-         return false;
-       }
-
-       if (!regTabPtr->tuxCustomTriggers.isEmpty()) 
-       {
-         jam();
-         if (unlikely(executeTuxInsertTriggers(signal,
-                                               regOperPtr,
-                                               regFragPtr,
-                                               regTabPtr) != 0))
+         if (!regTabPtr->tuxCustomTriggers.isEmpty()) 
          {
            jam();
-           /*
-            * TUP insert succeeded but add of TUX entries failed.  All
-            * TUX changes have been rolled back at this point.
-            *
-            * We will abort via tupkeyErrorLab() as usual.  This routine
-            * however resets the operation to ZREAD.  The TUP_ABORTREQ
-            * arriving later cannot then undo the insert.
-            *
-            * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
-            * should be in memory and timeslicing cannot occur.  We must
-            * skip TUX abort triggers since TUX is already aborted.  We
-            * will dealloc the fixed and var parts if necessary.
-            */
-           signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
-           tupkeyErrorLab(&req_struct);
-           return false;
+           
+           executeTuxInsertTriggers(signal,
+                                    regOperPtr,
+                                    regFragPtr,
+                                    regTabPtr);
          }
+       }
+
+       if (unlikely(terrorCode != 0))
+       {
+         jam();
+         /*
+          * TUP insert succeeded but immediate trigger firing or
+          * add of TUX entries failed.  
+          * All TUX changes have been rolled back at this point.
+          *
+          * We will abort via tupkeyErrorLab() as usual.  This routine
+          * however resets the operation to ZREAD.  The TUP_ABORTREQ
+          * arriving later cannot then undo the insert.
+          *
+          * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
+          * should be in memory and timeslicing cannot occur.  We must
+          * skip TUX abort triggers since TUX is already aborted.  We
+          * will dealloc the fixed and var parts if necessary.
+          */
+         signal->theData[0] = operPtr.i;
+         do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
+         tupkeyErrorLab(&req_struct);
+           return false;
        }
 
        if (accminupdateptr)
@@ -2205,7 +2206,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     regOperPtr.p->op_struct.bit_field.m_disk_preallocated= 1;
     tmp.m_page_idx= size;
     memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &tmp, sizeof(tmp));
-    
+
     /**
      * Set ref from disk to mm
      */

@@ -1255,6 +1255,17 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
                        "nostart: %d  initialStart: %d",
                        abort, stop, restart, nostart, initialStart));
 
+  if (ERROR_INSERTED(10006))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10006 is used to skip the STOP_REQ call sent by
+     * the restart command thus ensuring that the nodes
+     * do not start the shut down process.
+     */
+    DBUG_RETURN(error);
+  }
+
   stoppedNodes.clear();
 
   SignalSender ss(theFacade);
@@ -1277,6 +1288,17 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
   StopReq::setStopAbort(stopReq->requestInfo, abort);
   StopReq::setNoStart(stopReq->requestInfo, nostart);
   StopReq::setInitialStart(stopReq->requestInfo, initialStart);
+
+  if (ERROR_INSERTED(10007))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10007 is used to hard code a value of false to
+     * the nostart flag in the signal. This ensures
+     * that the nodes do not reach NOT_STARTED state.
+     */
+    StopReq::setNoStart(stopReq->requestInfo, false);
+  }
 
   // send the signals
   int failed = 0;
@@ -1452,6 +1474,17 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
                        node_ids.size(),
                        abort, stop, restart, nostart, initialStart));
 
+  if (ERROR_INSERTED(10006))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10006 is used to skip the STOP_REQ call sent by
+     * the restart command thus ensuring that the node
+     * does not start the shut down process.
+     */
+    DBUG_RETURN(error);
+  }
+
   stoppedNodes.clear();
   *stopSelf= 0;
 
@@ -1522,6 +1555,17 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   StopReq::setStopAbort(stopReq->requestInfo, abort);
   StopReq::setNoStart(stopReq->requestInfo, nostart);
   StopReq::setInitialStart(stopReq->requestInfo, initialStart);
+
+  if (ERROR_INSERTED(10007))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10007 is used to hard code a value of false to
+     * the nostart flag in the signal. This ensures
+     * that the node does not reach NOT_STARTED state.
+     */
+    StopReq::setNoStart(stopReq->requestInfo, false);
+  }
 
   int use_master_node = 0;
   int do_send = 0;
@@ -1862,6 +1906,45 @@ bool MgmtSrvr::is_any_node_starting()
   return false; // No node was starting
 }
 
+bool MgmtSrvr::is_any_node_in_started_state()
+{
+  NodeId nodeId = 0;
+  trp_node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = getNodeInfo(nodeId);
+    if (node.m_state.startLevel == NodeState::SL_STARTED)
+      return true; // At least one node is in started state
+  }
+  return false; // No node is in started state
+}
+
+bool MgmtSrvr::are_all_nodes_in_cmvmi_state()
+{
+  NodeId nodeId = 0;
+  trp_node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = getNodeInfo(nodeId);
+    if (node.m_state.startLevel != NodeState::SL_CMVMI)
+      return false; // At least one node is not in CMVMI state
+  }
+  return true; // All nodes are in CMVMI state
+}
+
+bool MgmtSrvr::isTimeUp(const NDB_TICKS startTime,
+                        const Uint64 delay,
+                        const Uint64 sleepInterval)
+{
+  if(NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec()
+      < delay)
+  {
+    NdbSleep_MilliSleep(sleepInterval);
+    return false;
+  }
+  return true;
+}
+
 bool MgmtSrvr::is_cluster_single_user()
 {
   NodeId nodeId = 0;
@@ -1921,30 +2004,116 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     *stopCount = nodes.count();
   
   // start up the nodes again
-  const Uint64 waitTime = 12000;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
-  for (unsigned i = 0; i < node_ids.size(); i++)
+
+  /*
+   * The wait for all nodes to reach NOT_STARTED state is
+   * split into 2 separate checks:
+   * 1. Wait for ndbd to start shutting down
+   * 2. Wait for ndbd to shutdown and reach NOT_STARTED
+   *    state
+   *
+   * Wait 1: Wait for ndbd to start shutting down. A short
+   * wait duration of 12 seconds is being used.
+   *
+   * During shutdown the nodes traverse the 4 stopping
+   * levels namely, SL_STOPPING_1 through SL_STOPPING_4.
+   *
+   * Thus, waiting for all the nodes to enter one of these
+   * levels would be the obvious and intuitive approach for
+   * this wait. However, the nodes pass these levels in
+   * exec_STOP_REQ before the flow of execution reaches
+   * here. An alternate approach adopted here is to check if
+   * the nodes leave the SL_STARTED state in the first place.
+   * A failure to leave this state would indicate that for
+   * some reason the shutdown process failed to start and
+   * can be considered the equivalent of checking if the
+   * nodes have transitioned to any of the stopping levels.
+   *
+   * The immediate question that arises is how can one be sure
+   * that the nodes have not gone from STARTED -> STOPPED ->
+   * STARTED. This scenario is not an issue since we are waiting
+   * for NOT_STARTED state and only once that state is reached is
+   * the START_ORD fired which makes the node transition from
+   * SL_NOTHING to further states.
+   *
+   * To summarize, the first of the two waits will wait a short
+   * (12s) time to check if the shutdown process has been initiated
+   * and exit in case any of the nodes have not left the
+   * SL_STARTED state.
+   */
+  Uint64 waitTime = 12000;
+  NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  bool any_node_in_started_state;
+  do
   {
-    NodeId nodeId= node_ids[i];
-    enum ndb_mgm_node_status s;
-    s = NDB_MGM_NODE_STATUS_NO_CONTACT;
-#ifdef VM_TRACE
-    ndbout_c("Waiting for %d not started", nodeId);
-#endif
-    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
-           NdbTick_Elapsed(startTime,NdbTick_getCurrentTicks()).milliSec() < waitTime)
+    /*
+     * Check if any of the data nodes are still
+     * stuck in STARTED state
+     */
+    any_node_in_started_state = false;
+    for (unsigned i = 0; i < node_ids.size(); i++)
     {
-      Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
-      Uint32 mysql_version = 0;
-      Uint32 connectCount = 0;
-      bool system;
-      const char *address= NULL;
-      char addr_buf[NDB_ADDR_STRLEN];
-      status(nodeId, &s, &version, &mysql_version, &startPhase, 
-             &system, &dynamicId, &nodeGroup, &connectCount,
-             &address, addr_buf, sizeof(addr_buf));
-      NdbSleep_MilliSleep(100);  
+      NodeId nodeId = node_ids[i];
+      /*
+       * Check performed only for data nodes
+       */
+      if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+      {
+        trp_node node = getNodeInfo(nodeId);
+        any_node_in_started_state |= (node.m_state.startLevel ==
+                  NodeState::SL_STARTED);
+      }
     }
+  } while(any_node_in_started_state && !isTimeUp(startTime,waitTime,100));
+
+  if(any_node_in_started_state)
+  {
+    return WAIT_FOR_NDBD_TO_START_SHUTDOWN_FAILED;
+  }
+
+  /*
+   * Wait 2: Wait for ndbd to shutdown and reach NOT_STARTED state
+   *
+   * Having confirmed that the shutdown is on its way, the
+   * second wait involves simply waiting for the shutdown to complete
+   * and the nodes to enter the NOT_STARTED state.
+   *
+   * Once the nodes reach the NOT_STARTED state, they are ready for the
+   * START_ORD signal. It must be noted that while NOT_STARTED state has
+   * been mentioned throughout the comments since it is better known from
+   * a user's perspective, since we are dealing with data nodes, it is
+   * quicker and more efficient to check if the state is SL_CMVMI which is
+   * the equivalent of the MGMAPI state of NOT_STARTED.
+   *
+   * The wait time in this case is the value of num_secs_to_wait_for_node
+   */
+
+  startTime = NdbTick_getCurrentTicks();
+  waitTime = num_secs_to_wait_for_node * 1000;
+  bool all_nodes_in_cmvmi_state;
+  do
+  {
+    /*
+     * Check if all the data nodes are in
+     * SL_CMVMI state
+     */
+    all_nodes_in_cmvmi_state = true;
+    for (unsigned i = 0; i < node_ids.size(); i++)
+    {
+      NodeId nodeId= node_ids[i];
+      if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+      {
+        trp_node node = getNodeInfo(nodeId);
+        all_nodes_in_cmvmi_state &= (node.m_state.startLevel ==
+                  NodeState::SL_CMVMI);
+      }
+    }
+  } while(!all_nodes_in_cmvmi_state &&
+          !isTimeUp(startTime,waitTime,1000));
+
+  if(!all_nodes_in_cmvmi_state)
+  {
+    return WAIT_FOR_NDBD_SHUTDOWN_FAILED;
   }
 
   if (nostart)
@@ -2014,37 +2183,82 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
 #ifdef VM_TRACE
     ndbout_c("Stopped %d nodes", nodes.count());
 #endif
-  /**
-   * Here all nodes were correctly stopped,
-   * so we wait for all nodes to be contactable
+
+  /*
+   * The wait for all nodes to reach NOT_STARTED state is
+   * split into 2 separate checks:
+   * 1. Wait for ndbd to start shutting down
+   * 2. Wait for ndbd to shutdown and reach NOT_STARTED
+   *    state
+   *
+   * Wait 1: Wait for ndbd to start shutting down. A short
+   * wait duration of 12 seconds is being used.
+   *
+   * During shutdown the nodes traverse the 4 stopping
+   * levels namely, SL_STOPPING_1 through SL_STOPPING_4.
+   *
+   * Thus, waiting for all the nodes to enter one of these
+   * levels would be the obvious and intuitive approach for
+   * this wait. However, the nodes pass these levels in
+   * exec_STOP_REQ before the flow of execution reaches
+   * here. An alternate approach adopted here is to check if
+   * the nodes leave the SL_STARTED state in the first place.
+   * A failure to leave this state would indicate that for
+   * some reason the shutdown process failed to start and
+   * can be considered the equivalent of checking if the
+   * nodes have transitioned to any of the stopping levels.
+   *
+   * The immediate question that arises is how can one be sure
+   * that the nodes have not gone from STARTED -> STOPPED ->
+   * STARTED. This scenario is not an issue since we are waiting
+   * for NOT_STARTED state and only once that state is reached is
+   * the START_ORD fired which makes the node transition from
+   * SL_NOTHING to further states.
+   *
+   * To summarize, the first of the two waits will wait a short
+   * (12s) time to check if the shutdown process has been initiated
+   * and exit in case any of the nodes have not left the
+   * SL_STARTED state.
    */
-  NodeId nodeId = 0;
-  const Uint64 waitTime = 12000;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  Uint64 waitTime = 12000;
+  NDB_TICKS startTime = NdbTick_getCurrentTicks();
 
+  /*
+   * Check if any of the data nodes are still
+   * stuck in STARTED state
+   */
+  while(is_any_node_in_started_state() &&
+      !isTimeUp(startTime,waitTime,100));
 
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
-    if (!nodes.get(nodeId))
-      continue;
-    enum ndb_mgm_node_status s;
-    s = NDB_MGM_NODE_STATUS_NO_CONTACT;
-#ifdef VM_TRACE
-    ndbout_c("Waiting for %d not started", nodeId);
-#endif
-    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
-           NdbTick_Elapsed(startTime,NdbTick_getCurrentTicks()).milliSec() < waitTime)
-    {
-      Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
-      Uint32 mysql_version = 0;
-      Uint32 connectCount = 0;
-      bool system;
-      const char *address;
-      char addr_buf[NDB_ADDR_STRLEN];
-      status(nodeId, &s, &version, &mysql_version, &startPhase, 
-	     &system, &dynamicId, &nodeGroup, &connectCount,
-             &address, addr_buf, sizeof(addr_buf));
-      NdbSleep_MilliSleep(100);  
-    }
+  if(is_any_node_in_started_state())
+  {
+    return WAIT_FOR_NDBD_TO_START_SHUTDOWN_FAILED;
+  }
+
+  /*
+   * Wait 2: Wait for ndbd to shutdown and reach NOT_STARTED state
+   *
+   * Having confirmed that the shutdown is on its way, the
+   * second wait involves simply waiting for the shutdown to complete
+   * and the nodes to enter the NOT_STARTED state.
+   *
+   * Once the nodes reach the NOT_STARTED state, they are ready for the
+   * START_ORD signal. It must be noted that while NOT_STARTED state has
+   * been mentioned throughout the comments since it is better known from
+   * a user's perspective, since we are dealing with data nodes, it is
+   * quicker and more efficient to check if the state is SL_CMVMI which is
+   * the equivalent of the MGMAPI state of NOT_STARTED.
+   *
+   * The wait time in this case is the value of num_secs_to_wait_for_node
+   */
+  startTime = NdbTick_getCurrentTicks();
+  waitTime = num_secs_to_wait_for_node * 1000;
+  while(!are_all_nodes_in_cmvmi_state() &&
+          !isTimeUp(startTime,waitTime,1000));
+
+  if(!are_all_nodes_in_cmvmi_state())
+  {
+    return WAIT_FOR_NDBD_SHUTDOWN_FAILED;
   }
   
   if(nostart)
@@ -2054,7 +2268,7 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
    * Now we start all database nodes (i.e. we make them non-idle)
    * We ignore the result we get from the start command.
    */
-  nodeId = 0;
+  NodeId nodeId = 0;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
     if (!nodes.get(nodeId))
       continue;

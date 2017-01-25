@@ -154,7 +154,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
         {
           jam();
-          LocalSendThreadMeasurement_list list_50ms(
+          Local_SendThreadMeasurement_fifo list_50ms(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_50ms_measurements);
           list_50ms.addFirst(sendThreadMeasurementPtr);
@@ -163,7 +163,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
         {
           jam();
-          LocalSendThreadMeasurement_list list_1sec(
+          Local_SendThreadMeasurement_fifo list_1sec(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_1sec_measurements);
           list_1sec.addFirst(sendThreadMeasurementPtr);
@@ -172,7 +172,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
         {
           jam();
-          LocalSendThreadMeasurement_list list_20sec(
+          Local_SendThreadMeasurement_fifo list_20sec(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_20sec_measurements);
           list_20sec.addFirst(sendThreadMeasurementPtr);
@@ -825,7 +825,7 @@ Thrman::measure_cpu_usage(Signal *signal)
       c_sendThreadRecordPool.getPtr(sendThreadPtr, send_instance);
       {
         jam();
-        LocalSendThreadMeasurement_list list_50ms(c_sendThreadMeasurementPool,
+        Local_SendThreadMeasurement_fifo list_50ms(c_sendThreadMeasurementPool,
                             sendThreadPtr.p->m_send_thread_50ms_measurements);
         list_50ms.first(sendThreadMeasurementPtr);
         calculate_send_measurement(sendThreadMeasurementPtr,
@@ -839,7 +839,7 @@ Thrman::measure_cpu_usage(Signal *signal)
       if (elapsed_1sec > Uint64(1000 * 1000))
       {
         jam();
-        LocalSendThreadMeasurement_list list_1sec(c_sendThreadMeasurementPool,
+        Local_SendThreadMeasurement_fifo list_1sec(c_sendThreadMeasurementPool,
                             sendThreadPtr.p->m_send_thread_1sec_measurements);
         list_1sec.first(sendThreadMeasurementPtr);
         calculate_send_measurement(sendThreadMeasurementPtr,
@@ -853,7 +853,7 @@ Thrman::measure_cpu_usage(Signal *signal)
       if (elapsed_20sec > Uint64(20 * 1000 * 1000))
       {
         jam();
-        LocalSendThreadMeasurement_list list_20sec(c_sendThreadMeasurementPool,
+        Local_SendThreadMeasurement_fifo list_20sec(c_sendThreadMeasurementPool,
                             sendThreadPtr.p->m_send_thread_20sec_measurements);
         list_20sec.first(sendThreadMeasurementPtr);
         calculate_send_measurement(sendThreadMeasurementPtr,
@@ -1452,7 +1452,7 @@ Thrman::calculate_send_thread_load_last_second(Uint32 send_instance,
 
   c_sendThreadRecordPool.getPtr(sendThreadPtr, send_instance);
 
-  LocalSendThreadMeasurement_list list_50ms(c_sendThreadMeasurementPool,
+  Local_SendThreadMeasurement_fifo list_50ms(c_sendThreadMeasurementPool,
                          sendThreadPtr.p->m_send_thread_50ms_measurements);
   list_50ms.first(sendThreadMeasurementPtr);
 
@@ -2417,7 +2417,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         if (req.tableId == Ndbinfo::CPUSTAT_50MS_TABLEID)
         {
           jam();
-          LocalSendThreadMeasurement_list list_50ms(
+          Local_SendThreadMeasurement_fifo list_50ms(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_50ms_measurements);
           list_50ms.last(sendThreadMeasurementPtr);
@@ -2425,7 +2425,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         else if (req.tableId == Ndbinfo::CPUSTAT_1SEC_TABLEID)
         {
           jam();
-          LocalSendThreadMeasurement_list list_1sec(
+          Local_SendThreadMeasurement_fifo list_1sec(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_1sec_measurements);
           list_1sec.last(sendThreadMeasurementPtr);
@@ -2433,7 +2433,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         else if (req.tableId == Ndbinfo::CPUSTAT_20SEC_TABLEID)
         {
           jam();
-          LocalSendThreadMeasurement_list list_20sec(
+          Local_SendThreadMeasurement_fifo list_20sec(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_20sec_measurements);
           list_20sec.last(sendThreadMeasurementPtr);
@@ -2505,7 +2505,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         ndbrequire(sendThreadMeasurementPtr.i != RNIL);
         if (req.tableId == Ndbinfo::CPUSTAT_50MS_TABLEID)
         {
-          LocalSendThreadMeasurement_list list_50ms(
+          Local_SendThreadMeasurement_fifo list_50ms(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_50ms_measurements);
           list_50ms.prev(sendThreadMeasurementPtr);
@@ -2517,7 +2517,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
         else if (req.tableId == Ndbinfo::CPUSTAT_1SEC_TABLEID)
         {
-          LocalSendThreadMeasurement_list list_1sec(
+          Local_SendThreadMeasurement_fifo list_1sec(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_1sec_measurements);
           list_1sec.prev(sendThreadMeasurementPtr);
@@ -2529,7 +2529,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
         else if (req.tableId == Ndbinfo::CPUSTAT_20SEC_TABLEID)
         {
-          LocalSendThreadMeasurement_list list_20sec(
+          Local_SendThreadMeasurement_fifo list_20sec(
             c_sendThreadMeasurementPool,
             sendThreadPtr.p->m_send_thread_20sec_measurements);
           list_20sec.prev(sendThreadMeasurementPtr);

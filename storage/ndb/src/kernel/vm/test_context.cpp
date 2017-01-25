@@ -106,6 +106,13 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
   return 0;
 }
 
+Uint32
+Dbdih::dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId)
+{
+  abort();
+  return 0;
+}
+
 Dbdih::~Dbdih()
 {
 }

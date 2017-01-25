@@ -35,6 +35,7 @@
 #include "ndb_table_guard.h"
 #include "ndb_tdc.h"
 #include "ndb_thd.h"
+#include "ndb_log.h"
 #include "ndbapi/NdbDictionary.hpp"
 #include "ndbapi/ndb_cluster_connection.hpp"
 #include "rpl_filter.h"
@@ -1397,20 +1398,16 @@ int find_all_files(THD *thd, Ndb* ndb)
       /* finalize construction of path */
       end+= tablename_to_filename(elmt.name, end,
                                   (uint)(sizeof(key)-(end-key)));
-      uchar *data= 0, *pack_data= 0;
-      size_t length, pack_length;
+      uchar *data;
+      size_t length;
       int discover= 0;
-      if (create_serialized_meta_data(elmt.database, elmt.name,
-                                      &data, &length) ||
-          compress_serialized_meta_data(data, length, &pack_data, &pack_length))
+      if (readfrm(key, &data, &length))
       {
         discover= 1;
         sql_print_information("NDB: missing frm for %s.%s, discovering...",
                               elmt.database, elmt.name);
       }
-      else if (different_serialized_meta_data(
-                         static_cast<const uchar *>(ndbtab->getFrmData()),
-                         ndbtab->getFrmLength(), pack_data, pack_length))
+      else if (cmp_unpacked_frm(ndbtab, data, length))
       {
         /* ndb_share reference temporary */
         NDB_SHARE *share= get_share(key, 0, FALSE);
@@ -1435,7 +1432,6 @@ int find_all_files(THD *thd, Ndb* ndb)
         }
       }
       my_free(data);
-      my_free(pack_data);
 
       if (discover)
       {
@@ -2945,8 +2941,7 @@ class Ndb_schema_event_handler {
     if (!ndbtab)
     {
       /*
-        Bug#14773491 reports crash in 'cmp_frm' due to
-        ndbtab* being NULL -> bail out here
+        Bug#14773491 reports crash due to ndbtab* being NULL -> bail out here
       */
       sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
                       db_name, table_name);
@@ -2958,38 +2953,38 @@ class Ndb_schema_event_handler {
     build_table_filename(key, sizeof(key)-1,
                          db_name, table_name, NullS, 0);
 
-    uchar *data= 0, *pack_data= 0;
-    size_t length, pack_length;
-
-    if (create_serialized_meta_data(db_name, table_name, &data, &length) == 0 &&
-        compress_serialized_meta_data(data, length, &pack_data,
-                                      &pack_length) == 0 &&
-        different_serialized_meta_data(
-                        static_cast<const uchar *>(ndbtab->getFrmData()),
-                        ndbtab->getFrmLength(), pack_data, pack_length))
+    uchar *data;
+    size_t length;
+    if (readfrm(key, &data, &length) == 0 &&
+        cmp_unpacked_frm(ndbtab, data, length))
     {
-      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
-                          db_name, table_name));
-
-      DBUG_DUMP("frm", (uchar*) ndbtab->getFrmData(),
-                        ndbtab->getFrmLength());
-      my_free(data);
-      data= NULL;
-
-      int error;
-      uchar *sdi_data= const_cast<uchar *>(
-                         static_cast<const uchar *>(ndbtab->getFrmData()));
-      if ((error= uncompress_serialized_meta_data(sdi_data,
-                                                  ndbtab->getFrmLength(),
-                                                  &data, &length)) ||
-          (error= import_serialized_meta_data(data, length, true)))
+      // Table frm file changed, extract extra metadata for
+      // this table and write a new frm file for this table
+      Uint32 version;
+      void* unpacked_data;
+      Uint32 unpacked_len;
+      const int get_result =
+          ndbtab->getExtraMetadata(version,
+                                   &unpacked_data, &unpacked_len);
+      if (get_result != 0)
       {
-        sql_print_error("NDB: Failed write frm for %s.%s, error %d",
-                        db_name, table_name, error);
+        ndb_log_error("Failed to get extra metadata for %s.%s, error %d",
+                      db_name, table_name, get_result);
+      }
+      else
+      {
+        const int write_result =
+            writefrm(key,
+                     (const uchar*)unpacked_data, unpacked_len);
+        if (write_result != 0)
+        {
+          ndb_log_error("Failed to write frm for %s.%s, error %d",
+                        db_name, table_name, write_result);
+        }
+        free(unpacked_data);
       }
     }
     my_free(data);
-    my_free(pack_data);
     DBUG_VOID_RETURN;
   }
 

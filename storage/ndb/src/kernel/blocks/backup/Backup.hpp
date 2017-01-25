@@ -179,6 +179,8 @@ public:
     union { Uint32 prevList; Uint32 nextPool; };
   };
   typedef Ptr<Node> NodePtr;
+  typedef ArrayPool<Node> Node_pool;
+  typedef SLList<Node, Node_pool> Node_list;
 
   void update_lcp_pages_scanned(Signal *signal,
                                 Uint32 filePtrI,
@@ -186,15 +188,11 @@ public:
 
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
-    union {
-      Uint32 data[BACKUP_WORDS_PER_PAGE];
-      Uint32 chunkSize;
-      Uint32 nextChunk;
-      Uint32 lastChunk;
-    };
+    Uint32 data[BACKUP_WORDS_PER_PAGE];
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
+  typedef ArrayPool<Page32> Page32_pool;
 
   struct Fragment {
     Uint64 noOfRecords;
@@ -205,17 +203,13 @@ public:
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
-    union {
-      Uint32 nextPool;
-      Uint32 chunkSize;
-      Uint32 nextChunk;
-      Uint32 lastChunk;
-    };
+    Uint32 nextPool;
   };
   typedef Ptr<Fragment> FragmentPtr;
+  typedef ArrayPool<Fragment> Fragment_pool;
 
   struct Table {
-    Table(ArrayPool<Fragment> &);
+    Table(Fragment_pool &);
     
     Uint64 noOfRecords;
 
@@ -244,6 +238,9 @@ public:
     Uint32 nextMapTable;
   };
   typedef Ptr<Table> TablePtr;
+  typedef ArrayPool<Table> Table_pool;
+  typedef SLList<Table, Table_pool> Table_list;
+  typedef DLCFifoList<Table, Table_pool> Table_fifo;
 
   struct OperationRecord {
   public:
@@ -329,12 +326,14 @@ public:
     union { Uint32 nextPool; Uint32 nextList; };
   };
   typedef Ptr<TriggerRecord> TriggerPtr;
-  
+  typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
+  typedef SLList<TriggerRecord, TriggerRecord_pool> TriggerRecord_list;
+
   /**
    * BackupFile - At least 3 per backup
    */
   struct BackupFile {
-    BackupFile(Backup & backup, ArrayPool<Page32> & pp) 
+    BackupFile(Backup & backup, Page32_pool& pp)
       : operation(backup),  pages(pp) { m_retry_count = 0; }
     
     Uint32 backupPtr; // Pointer to backup record
@@ -364,7 +363,8 @@ public:
     Uint32 m_pos;
   }; 
   typedef Ptr<BackupFile> BackupFilePtr;
- 
+  typedef ArrayPool<BackupFile> BackupFile_pool;
+  typedef SLList<BackupFile, BackupFile_pool> BackupFile_list;
 
   /**
    * State for BackupRecord
@@ -429,9 +429,9 @@ public:
    */
   struct BackupRecord {
     BackupRecord(Backup& b, 
-		 ArrayPool<Table> & tp, 
-		 ArrayPool<BackupFile> & bp,
-		 ArrayPool<TriggerRecord> & trp) 
+                 Table_pool& tp,
+                 BackupFile_pool& bp,
+                 TriggerRecord_pool& trp)
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
       , tables(tp), triggers(trp), files(bp)
       , ctlFilePtr(RNIL), logFilePtr(RNIL), dataFilePtr(RNIL)
@@ -472,10 +472,10 @@ public:
     Uint32 startGCP;
     Uint32 currGCP;
     Uint32 stopGCP;
-    DLCFifoList<Table> tables;
-    SLList<TriggerRecord> triggers;
+    Table_fifo tables;
+    TriggerRecord_list triggers;
     
-    SLList<BackupFile> files; 
+    BackupFile_list files;
     Uint32 ctlFilePtr;  // Ptr.i to ctl-file
     Uint32 logFilePtr;  // Ptr.i to log-file
     Uint32 dataFilePtr; // Ptr.i to first data-file
@@ -547,6 +547,9 @@ public:
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
+  typedef ArrayPool<BackupRecord> BackupRecord_pool;
+  typedef SLList<BackupRecord, BackupRecord_pool> BackupRecord_sllist;
+  typedef DLList<BackupRecord, BackupRecord_pool> BackupRecord_dllist;
 
 /**
  * Number of words needed in buff to start a new scan batch
@@ -588,9 +591,9 @@ public:
    */
   Uint32 * c_tableMap;
   NodeId c_masterNodeId;
-  SLList<Node> c_nodes;
+  Node_list c_nodes;
   NdbNodeBitmask c_aliveNodes;
-  DLList<BackupRecord> c_backups;
+  BackupRecord_dllist c_backups;
   Config c_defaults;
 
   /*
@@ -709,13 +712,13 @@ public:
   /**
    * Pools
    */
-  ArrayPool<Table> c_tablePool;
-  ArrayPool<BackupRecord> c_backupPool;
-  ArrayPool<BackupFile> c_backupFilePool;
-  ArrayPool<Page32> c_pagePool;
-  ArrayPool<Fragment> c_fragmentPool;
-  ArrayPool<Node> c_nodePool;
-  ArrayPool<TriggerRecord> c_triggerPool;
+  Table_pool c_tablePool;
+  BackupRecord_pool c_backupPool;
+  BackupFile_pool c_backupFilePool;
+  Page32_pool c_pagePool;
+  Fragment_pool c_fragmentPool;
+  Node_pool c_nodePool;
+  TriggerRecord_pool c_triggerPool;
 
   void checkFile(Signal*, BackupFilePtr);
   void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1333,7 +1333,9 @@ Ndbfs::report(Request * request, Signal* signal)
 
       fsConf->filePointer = request->theFilePointer;
       fsConf->fileInfo = request->m_fileinfo;
-      sendSignal(ref, GSN_FSOPENCONF, signal, 3, JBA);
+      fsConf->file_size_hi = request->m_file_size_hi;
+      fsConf->file_size_lo = request->m_file_size_lo;
+      sendSignal(ref, GSN_FSOPENCONF, signal, 5, JBA);
       break;
     }
     case Request:: closeRemove:

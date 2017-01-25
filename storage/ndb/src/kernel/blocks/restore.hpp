@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,10 @@ protected:
   void execLQHKEYREF(Signal*);
   void execLQHKEYCONF(Signal*);
   
-  typedef DataBuffer<15> List;
+  
+  typedef ArrayPool<DataBufferSegment<15> > BufferPool;
+  typedef DataBuffer<15,BufferPool> List;
+  typedef LocalDataBuffer<15,BufferPool> LocalList;
 
 public:  
   struct Column
@@ -128,7 +131,10 @@ private:
     bool is_lcp() const { return m_file_type == BackupFormat::LCP_FILE;}
   };
   typedef Ptr<File> FilePtr;
-  
+  typedef ArrayPool<File> File_pool;
+  typedef DLList<File, File_pool> File_list;
+  typedef KeyTable<File_pool, File> File_hash;
+
   Uint32 init_file(const struct RestoreLcpReq*, FilePtr);
   void release_file(FilePtr);
   
@@ -156,9 +162,9 @@ public:
 private:
   class Dblqh* c_lqh;
   class Dbtup* c_tup;
-  DLList<File> m_file_list;
-  KeyTable<File> m_file_hash;
-  ArrayPool<File> m_file_pool;
+  File_list m_file_list;
+  File_hash m_file_hash;
+  File_pool m_file_pool;
 
   Uint64 m_rows_restored;
   Uint64 m_millis_spent;

@@ -2156,41 +2156,33 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   DBUG_ASSERT(m_table == NULL);
   DBUG_ASSERT(m_table_info == NULL);
 
-  uchar *data= NULL, *pack_data= NULL;
-  size_t length, pack_length;
+  uchar *data;
+  size_t length;
 
   /*
-    Compare SdiData in NDB with SDI from global DD.
+    Compare FrmData in NDB with frm file from disk.
   */
   error= 0;
-  if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length) ||
-      compress_serialized_meta_data(data, length, &pack_data, &pack_length))
+  if (readfrm(path, &data, &length))
   {
-    my_free(data);
-    my_free(pack_data);
     DBUG_RETURN(1);
   }
 
   ndb->setDatabaseName(m_dbname);
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   if (!(tab= ndbtab_g.get_table()))
+  {
     ERR_RETURN(dict->getNdbError());
+    my_free(data);
+  }
 
   if (get_ndb_share_state(m_share) != NSS_ALTERED &&
-      different_serialized_meta_data(
-              static_cast<const uchar*>(tab->getFrmData()),
-              tab->getFrmLength(), pack_data, pack_length))
+      cmp_unpacked_frm(tab, data, length))
   {
-    DBUG_PRINT("error", 
-               ("metadata, pack_length: %lu  getFrmLength: %d  memcmp: %d",
-                (ulong) pack_length, tab->getFrmLength(),
-                memcmp(pack_data, tab->getFrmData(), pack_length)));
-    DBUG_DUMP("pack_data", (uchar*) pack_data, pack_length);
-    DBUG_DUMP("frm", (uchar*) tab->getFrmData(), tab->getFrmLength());
+    DBUG_PRINT("error", ("extra metadata differs"));
     error= HA_ERR_TABLE_DEF_CHANGED;
   }
   my_free(data);
-  my_free(pack_data);
 
   // Create field to column map when table is opened
   m_table_map = new Ndb_table_map(table, tab);
@@ -10754,9 +10746,7 @@ int ha_ndbcluster::create(const char *name,
   THD *thd= current_thd;
   NDBTAB tab;
   NDBCOL col;
-  size_t pack_length, length;
   uint i, pk_length= 0;
-  uchar *data= NULL, *pack_data= NULL;
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
@@ -11171,25 +11161,26 @@ int ha_ndbcluster::create(const char *name,
   {
     update_comment_info(create_info, &tab);
   }
-  // Save SDI data for this table
-  if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length))
+
+  /*
+    Save the frm file for this table in the dictionary of NDB
+  */
+  size_t length;
+  uchar *data;
+  if (readfrm(name, &data, &length))
   {
     result= 1;
     goto abort_return;
   }
-  if (compress_serialized_meta_data(data, length, &pack_data, &pack_length))
+  result = tab.setExtraMetadata(1, // version 1 for frm
+                                data, (Uint32)length);
+  if (result != 0)
   {
     my_free(data);
-    result= 2;
     goto abort_return;
   }
-  DBUG_PRINT("info",
-             ("setFrm data: 0x%lx  len: %lu", (long) pack_data,
-              (ulong) pack_length));
-  tab.setFrm(pack_data, Uint32(pack_length));      
   my_free(data);
-  my_free(pack_data);
-  
+
   /*
     Handle table row type
 
@@ -13375,8 +13366,8 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   }
   if (share && get_ndb_share_state(share) == NSS_ALTERED)
   {
-    // SDI has been altered, but not yet written to ndb
-    if (create_serialized_meta_data(db, name, &data, &len))
+    // Frm has been altered on disk, but not yet written to ndb
+    if (readfrm(key, &data, &len))
     {
       DBUG_PRINT("error", ("Could not read frm"));
       error= 1;
@@ -13405,22 +13396,38 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
       goto err;
     }
     DBUG_PRINT("info", ("Found table %s", tab->getName()));
-    
-    len= tab->getFrmLength();  
-    if (len == 0 || tab->getFrmData() == NULL)
-    {
-      DBUG_PRINT("error", ("No frm data found."));
-      error= 1;
-      goto err;
-    }
 
-    uchar *sdi_data= const_cast<uchar *>(
-                       static_cast<const uchar *>(tab->getFrmData()));
-    if (uncompress_serialized_meta_data(sdi_data, len, &data, &len))
     {
-      DBUG_PRINT("error", ("Could not unpack table"));
-      error= 1;
-      goto err;
+      Uint32 version;
+      void* unpacked_data;
+      Uint32 unpacked_len;
+      const int get_result =
+          tab->getExtraMetadata(version,
+                                &unpacked_data, &unpacked_len);
+      if (get_result != 0)
+      {
+        DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
+                             get_result));
+        error= 1;
+        goto err;
+      }
+
+      // Reallocate the memory using my_malloc.
+      // NOTE! This is since the calling code is convoluted and
+      // expect my_malloc'ed memory, but the NdbApi should never
+      // return my_malloc allocated memory
+      data = (uchar*)my_memdup(PSI_INSTRUMENT_ME,
+                               unpacked_data, unpacked_len,
+                               MYF(MY_WME));
+      free(unpacked_data);
+      if (!data)
+      {
+        DBUG_PRINT("error", ("Failed to my_memdup unpacked data, error: %d",
+                             my_errno()));
+        error= 1;
+        goto err;
+      }
+      len = unpacked_len;
     }
   }
 #ifdef HAVE_NDB_BINLOG
@@ -18128,8 +18135,8 @@ public:
   NdbDictionary::Dictionary *dictionary;
   const  NdbDictionary::Table *old_table;
   NdbDictionary::Table *new_table;
-  Uint32 table_id;
-  Uint32 old_table_version;
+  const Uint32 table_id;
+  const Uint32 old_table_version;
 };
 
 /*
@@ -19097,64 +19104,59 @@ err:
   DBUG_RETURN(true);
 }
 
-int ha_ndbcluster::alter_frm(const char *file,
-                             NDB_ALTER_DATA *alter_data)
+
+int
+ha_ndbcluster::inplace_alter_frm(const char *file,
+                                 NDB_ALTER_DATA *alter_data)
 {
-  uchar *data= NULL, *pack_data= NULL;
-  size_t length, pack_length;
-  int error= 0;
-
-  DBUG_ENTER("alter_frm");
-
+  DBUG_ENTER("inplace_alter_frm");
   DBUG_PRINT("enter", ("file: %s", file));
 
-  NDBDICT *dict= alter_data->dictionary;
-
-  // TODO handle this
   DBUG_ASSERT(m_table != 0);
-
   DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
-  if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length) ||
-      compress_serialized_meta_data(data, length, &pack_data, &pack_length))
+
+  uchar *data;
+  size_t length;
+  if (readfrm(file, &data, &length))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
-    my_free(data);
-    my_free(pack_data);
-    error= 1;
     my_error(ER_FILE_NOT_FOUND, MYF(0), file,
              my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    DBUG_RETURN(1);
   }
-  else
+
+  DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb",
+                      m_tabname));
+  NdbDictionary::Dictionary* dict= alter_data->dictionary;
+  NdbDictionary::Table* new_tab= alter_data->new_table;
+
+  const int set_result =
+      new_tab->setExtraMetadata(1, // version 1 for frm
+                                data, (Uint32)length);
+  if (set_result != 0)
   {
-    DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb",
-                        m_tabname));
-    const NDBTAB *old_tab= alter_data->old_table;
-    
-    NdbDictionary::Table *new_tab= alter_data->new_table;
-
-    NdbDictionary::Object::PartitionBalance part_bal;
-    part_bal = new_tab->getPartitionBalance();
-    DBUG_PRINT("info", ("New table partitionBalance = %d", part_bal));
-
-    new_tab->setFrm(pack_data, (Uint32)pack_length);
-    if (dict->alterTableGlobal(*old_tab, *new_tab))
-    {
-      DBUG_PRINT("info", ("Online alter of table %s failed", m_tabname));
-      NdbError ndberr= dict->getNdbError();
-      error= ndb_to_mysql_error(&ndberr);
-      my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDBCLUSTER");
-    }
     my_free(data);
-    my_free(pack_data);
+    my_printf_error(ER_GET_ERRMSG,
+                    "Failed to set extra metadata during"
+                    "inplace alter table, error: %d",
+                    MYF(0), set_result);
+    DBUG_RETURN(2);
+  }
+  my_free(data); // Release 'data', it has been copied into new_tab
+
+  if (dict->alterTableGlobal(*alter_data->old_table, *new_tab))
+  {
+    DBUG_PRINT("info", ("Online alter of table %s failed", m_tabname));
+    const NdbError ndberr= dict->getNdbError();
+    const int error= ndb_to_mysql_error(&ndberr);
+    my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDBCLUSTER");
+    DBUG_RETURN(error);
   }
 
-  /* ndb_share reference schema(?) free */
-  DBUG_PRINT("NDB_SHARE", ("%s binlog schema(?) free  use_count: %u",
-                           m_share->key_string(), m_share->use_count));
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
+
 
 bool
 ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
@@ -19207,7 +19209,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   }
 
   DBUG_PRINT("info", ("getting frm file %s", altered_table->s->path.str));
-  error= alter_frm(altered_table->s->path.str, alter_data);
+  error= inplace_alter_frm(altered_table->s->path.str, alter_data);
   if (!error)
   {
     /*
@@ -19256,7 +19258,6 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
                                           ha_alter_info));
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::commit_inplace_alter_table"))
   {
     DBUG_RETURN(true); // Error
@@ -19264,22 +19265,23 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
 
   const char *db= table->s->db.str;
   const char *name= table->s->table_name.str;
-  uint32 table_id= 0, table_version= 0;
+  NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   DBUG_ASSERT(alter_data != 0);
-  if (alter_data)
-  {
-    table_id= alter_data->table_id;
-    table_version= alter_data->old_table_version;
-  }
+  const Uint32 table_id= alter_data->table_id;
+  const Uint32 table_version= alter_data->old_table_version;
+
   ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
                            NULL, NULL);
+
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
+
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
+
   DBUG_RETURN(false); // OK
 }
 

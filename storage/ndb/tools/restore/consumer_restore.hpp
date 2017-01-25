@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,15 +134,14 @@ public:
   virtual bool report_data(unsigned node_id, unsigned backup_id);
   virtual bool report_log(unsigned node_id, unsigned backup_id);
   virtual bool report_completed(unsigned node_id, unsigned backup_id);
-  void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
-                  uint data_len, uint *new_data_len);
+                  uint data_len, uint *new_data_len) const;
   bool search_replace(char *search_str, char **new_data,
                       const char **data, const char *end_data,
-                      uint *new_data_len);
-  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
-  Uint32 map_ng(Uint32 ng);
-  bool translate_frm(NdbDictionary::Table *table);
+                      uint *new_data_len) const;
+  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const;
+  Uint32 map_ng(Uint32 ng) const;
+  bool translate_frm(NdbDictionary::Table *table) const;
   bool isMissingTable(const TableS& table);
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,

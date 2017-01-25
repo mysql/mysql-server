@@ -75,10 +75,13 @@ cmd: testSystemRestart
 args: -n to T1
 max-time: 1800
 
-cmd: testSpj
-args: -n bug#23048816
-max-time: 180
-
+# OJA: Test case has never been stable.
+#      Had several failed attempts of fixing it.
+#      Giving up for now and suspend it.
+#cmd: testSpj
+#args: -n bug#23048816
+#max-time: 180
+#
 cmd: testSpj
 args: -n ScanJoinError
 max-time: 600

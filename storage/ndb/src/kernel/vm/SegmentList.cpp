@@ -609,7 +609,7 @@ SectionSegmentPool g_sectionSegmentPool;
 
 /* Static function */
 void
-SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
+SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 {
   printf("SectionSegmentPool::handleOutOfSegments called");
 }

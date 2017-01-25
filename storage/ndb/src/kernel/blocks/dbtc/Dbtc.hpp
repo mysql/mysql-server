@@ -297,7 +297,6 @@ public:
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
   
-
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
@@ -337,6 +336,9 @@ public:
     2.3 RECORDS AND FILESIZES
     -------------------------
   */
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttributeBuffer;
+  typedef LocalDataBuffer<11,ArrayPool<DataBufferSegment<11> > > LocalAttributeBuffer;
+
   /* **************************************************************** */
   /* ---------------------------------------------------------------- */
   /* ------------------- TRIGGER AND INDEX DATA --------------------- */
@@ -399,23 +401,25 @@ public:
     }
   };
   typedef Ptr<TcDefinedTriggerData> DefinedTriggerPtr;
+  typedef ArrayPool<TcDefinedTriggerData> TcDefinedTriggerData_pool;
+  typedef DLList<TcDefinedTriggerData, TcDefinedTriggerData_pool> TcDefinedTriggerData_list;
   
   /**
    * Pool of trigger data record
    */
-  ArrayPool<TcDefinedTriggerData> c_theDefinedTriggerPool;
+  TcDefinedTriggerData_pool c_theDefinedTriggerPool;
   RSS_AP_SNAPSHOT(c_theDefinedTriggerPool);
 
   /**
    * The list of active triggers
    */  
-  DLList<TcDefinedTriggerData> c_theDefinedTriggers;
+  TcDefinedTriggerData_list c_theDefinedTriggers;
 
-  typedef DataBuffer<11> AttributeBuffer;
- 
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
 
-  typedef DataBuffer<5> CommitAckMarkerBuffer;
+  typedef ArrayPool<DataBufferSegment<5> > CommitAckMarkerBuffer_pool;
+  typedef DataBuffer<5,CommitAckMarkerBuffer_pool> CommitAckMarkerBuffer;
+  typedef LocalDataBuffer<5,CommitAckMarkerBuffer_pool> LocalCommitAckMarkerBuffer;
 
   CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
 
@@ -510,12 +514,16 @@ public:
     }
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
+  typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
+  typedef DLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
+  typedef LocalDLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
+  typedef DLHashTable<TcFiredTriggerData_pool, TcFiredTriggerData> TcFiredTriggerData_hash;
   
   /**
    * Pool of trigger data record
    */
-  ArrayPool<TcFiredTriggerData> c_theFiredTriggerPool;
-  DLHashTable<TcFiredTriggerData> c_firedTriggerHash;
+  TcFiredTriggerData_pool c_theFiredTriggerPool;
+  TcFiredTriggerData_hash c_firedTriggerHash;
   AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
@@ -594,17 +602,19 @@ public:
   };
   
   typedef Ptr<TcIndexData> TcIndexDataPtr;
-  
+  typedef ArrayPool<TcIndexData> TcIndexData_pool;
+  typedef DLList<TcIndexData, TcIndexData_pool> TcIndexData_list;
+
   /**
    * Pool of index data record
    */
-  ArrayPool<TcIndexData> c_theIndexPool;
+  TcIndexData_pool c_theIndexPool;
   RSS_AP_SNAPSHOT(c_theIndexPool);
   
   /**
    * The list of defined indexes
    */  
-  DLList<TcIndexData> c_theIndexes;
+  TcIndexData_list c_theIndexes;
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
@@ -657,11 +667,14 @@ public:
   };
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
-  
+  typedef ArrayPool<TcIndexOperation> TcIndexOperation_pool;
+  typedef SLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_sllist;
+  typedef DLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_dllist;
+
   /**
    * Pool of index data record
    */
-  ArrayPool<TcIndexOperation> c_theIndexOperationPool;
+  TcIndexOperation_pool c_theIndexOperationPool;
   RSS_AP_SNAPSHOT(c_theIndexOperationPool);
 
   UintR c_maxNumberOfIndexOperations;   
@@ -704,8 +717,8 @@ public:
     }
   };
 
-  typedef RecordPool<TcFKData, RWPool> FK_pool;
-  typedef KeyTableImpl<FK_pool, TcFKData> FK_hash;
+  typedef RecordPool<TcFKData, RWPool<TcFKData> > FK_pool;
+  typedef KeyTable<FK_pool, TcFKData> FK_hash;
 
   FK_pool c_fk_pool;
   FK_hash c_fk_hash;
@@ -749,8 +762,8 @@ public:
   static const Uint8 MaxCascadingScansPerTransaction = 1;
 
   struct ApiConnectRecord {
-    ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
-		     ArrayPool<TcIndexOperation> & seizedIndexOpPool):
+    ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
+                     TcIndexOperation_pool & seizedIndexOpPool):
       m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
@@ -883,7 +896,7 @@ public:
     /**
      * The list of fired triggers
      */  
-    DLFifoList<TcFiredTriggerData> theFiredTriggers;
+    TcFiredTriggerData_fifo theFiredTriggers;
     
     
     // Index data
@@ -902,7 +915,7 @@ public:
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
     NDB_TICKS m_start_ticks;
-    DLList<TcIndexOperation> theSeizedIndexOperations;
+    TcIndexOperation_dllist theSeizedIndexOperations;
 
 #ifdef ERROR_INSERT
     Uint32 continueBCount;  // ERROR_INSERT 8082
@@ -1015,7 +1028,7 @@ public:
     /**
      * The list of pending fired triggers
      */
-    DLFifoList<TcFiredTriggerData>::Head thePendingTriggers;
+    TcFiredTriggerData_fifo::Head thePendingTriggers;
 
     UintR triggeringOperation;  // Which operation was "cause" of this op
     
@@ -1295,7 +1308,10 @@ public:
   };
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
-  typedef LocalDLList<ScanFragRec> ScanFragList;
+  typedef UnsafeArrayPool<ScanFragRec> ScanFragRec_pool;
+  typedef SLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_sllist;
+  typedef DLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_dllist;
+  typedef LocalDLList<ScanFragRec, ScanFragRec_pool> Local_ScanFragRec_dllist;
 
   /**
    * Each scan allocates one ScanRecord to store information 
@@ -1375,10 +1391,10 @@ public:
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
 
-    DLList<ScanFragRec>::Head m_running_scan_frags;  // Currently in LQH
+    ScanFragRec_dllist::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
-    DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
-    DLList<ScanFragRec>::Head m_delivered_scan_frags;// Delivered to API
+    ScanFragRec_dllist::Head m_queued_scan_frags;   // In TC !sent to API
+    ScanFragRec_dllist::Head m_delivered_scan_frags;// Delivered to API
     
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
@@ -1823,11 +1839,11 @@ private:
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
   Uint32 appendDataToSection(Uint32& sectionIVal,
-                             DataBuffer<11> & src,
-                             DataBuffer<11>::DataBufferIterator & iter,
+                             AttributeBuffer & src,
+                             AttributeBuffer::DataBufferIterator & iter,
                              Uint32 len);
   bool appendAttrDataToSection(Uint32& sectionIVal,
-                               DataBuffer<11>& values,
+                               AttributeBuffer& values,
                                bool withHeaders,
                                Uint32& attrId,
                                bool& hasNull);
@@ -1873,7 +1889,7 @@ private:
                              Uint32 op, Uint32 attrValuesPtrI);
 
   Uint32 fk_buildKeyInfo(Uint32& keyInfoPtrI, bool& hasNull,
-                         LocalDataBuffer<11>& values,
+                         LocalAttributeBuffer& values,
                          TcFKData* fkData,
                          bool parent);
 
@@ -1893,11 +1909,11 @@ private:
   void execKEYINFO20(Signal*);
 
   Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
-                        LocalDataBuffer<11> & src,
+                        LocalAttributeBuffer & src,
                         TcFKData* fkData);
   Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
   Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
-                                           DataBuffer<11>::Head&);
+                                           AttributeBuffer::Head&);
 
   bool executeFullyReplicatedTrigger(Signal* signal,
                                      TcDefinedTriggerData* definedTriggerData,
@@ -1905,8 +1921,8 @@ private:
                                      ApiConnectRecordPtr* transPtr,
                                      TcConnectRecordPtr* opPtr);
 
-  void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
-  void releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>* triggers);
+  void releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers);
+  void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
                              Uint32 error);
   // Generated statement blocks
@@ -1982,7 +1998,7 @@ private:
 				  Uint32 scanPtrI,
 				  Uint32 failedNodeId);
   void checkScanFragList(Signal*, Uint32 failedNodeId, ScanRecord * scanP, 
-			 LocalDLList<ScanFragRec>::Head&);
+                         Local_ScanFragRec_dllist::Head&);
 
   void nodeFailCheckTransactions(Signal*,Uint32 transPtrI,Uint32 failedNodeId);
   void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
@@ -2192,7 +2208,7 @@ private:
   ScanRecord *scanRecord;
   UintR cscanrecFileSize;
 
-  UnsafeArrayPool<ScanFragRec> c_scan_frag_pool;
+  ScanFragRec_pool c_scan_frag_pool;
   RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
 
@@ -2289,10 +2305,12 @@ public:
 
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
-  typedef DLHashTable<CommitAckMarker>::Iterator CommitAckMarkerIterator;
+  typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
+  typedef DLHashTable<CommitAckMarker_pool, CommitAckMarker> CommitAckMarker_hash;
+  typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
-  ArrayPool<CommitAckMarker>   m_commitAckMarkerPool;
-  DLHashTable<CommitAckMarker> m_commitAckMarkerHash;
+  CommitAckMarker_pool m_commitAckMarkerPool;
+  CommitAckMarker_hash m_commitAckMarkerHash;
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);

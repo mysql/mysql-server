@@ -54,7 +54,8 @@ SafeCounterManager::release(ActiveCounterPtr& ptr){
 }
 
 void
-SafeCounterManager::getPtr(ActiveCounterPtr& ptr, Uint32 ptrI){
+SafeCounterManager::getPtr(ActiveCounterPtr& ptr, Uint32 ptrI) const
+{
   m_activeCounters.getPtr(ptr, ptrI);
 }
 
