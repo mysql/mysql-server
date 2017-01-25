@@ -4805,7 +4805,9 @@ sub run_testcase ($) {
         "system status. Please fix the test case to perform the skip\n".
         "condition check before modifying the system status.";
 
-      if ( $opt_check_testcases and !restart_forced_by_test('force_restart') )
+      if ($opt_check_testcases and
+          !restart_forced_by_test('force_restart') and
+          !restart_forced_by_test('force_restart_if_skipped'))
       {
         $check_res= check_testcase($tinfo, "after")
           if ($res == 0 or $res == 62);
