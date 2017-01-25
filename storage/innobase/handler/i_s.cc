@@ -6304,18 +6304,15 @@ i_s_sys_tables_fill_table_stats(
 	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
 
 	while (rec) {
-		const char*	err_msg;
 		dict_table_t*	table_rec;
 		ulint		ref_count = 0;
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
-		err_msg = dd_process_dd_tables_rec_and_mtr_commit(
+		dd_process_dd_tables_rec_and_mtr_commit(
 			heap, rec, &table_rec, dd_tables, &mtr);
 
 		if (table_rec != NULL) {
-			ut_ad(err_msg == NULL);
-
 			ref_count = table_rec->get_ref_count();
 
 			/* Protect the dict_table_t object by incrementing
