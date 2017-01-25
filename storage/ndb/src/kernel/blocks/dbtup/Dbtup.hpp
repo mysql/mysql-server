@@ -3581,9 +3581,6 @@ private:
     pageidx &= ~(Uint16(1) << 15);
     assert(!isCopyTuple(pageid, pageidx));
   }
-  bool is_disk_page_written(Fix_page *page,
-                            Fragrecord &frag,
-                            ScanPos &pos);
 };
 
 #if 0

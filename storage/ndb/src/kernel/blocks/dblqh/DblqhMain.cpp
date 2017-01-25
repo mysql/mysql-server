@@ -732,20 +732,6 @@ void Dblqh::execSTTOR(Signal* signal)
     init_elapsed_time(signal, c_latestTIME_SIGNAL);
     sendsttorryLab(signal);
     break;
-  case 103:
-    /**
-     * Now that restart is fully completed we can rest assured that no old v1 format
-     * tablespaces will appear. So check in TSMAN if any old v1 format is present.
-     * Sufficient to provide pointer to TSMAN object.
-     */
-    {
-      jam();
-      Tsman *t_tsman = (Tsman*)globalData.getBlock(TSMAN);
-      ndbrequire(t_tsman != NULL);
-      Tablespace_client tsman(0, this, t_tsman, 0, 0, 0, 0);
-      c_use_only_v2_format = tsman.is_only_using_v2_format();
-    }
-    break;
   default:
     jam();
     /*empty*/;
@@ -1254,10 +1240,9 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[3] = ZSTART_PHASE1;
   signal->theData[4] = 4;
   signal->theData[5] = 6;
-  signal->theData[6] = 103;
-  signal->theData[7] = 255;
+  signal->theData[6] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 8, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
   return;
 }//Dblqh::sendsttorryLab()
 
@@ -11679,30 +11664,9 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
     }
     else
     {
-      /**
-       * We can only support disk scan order for backups if
-       * we use a table space that have all its files using
-       * version 2 of the disk format. Old table space files
-       * using version 1 makes it impossible to deduce whether
-       * the page is the new table or a page that was written
-       * in the old table.
-       *
-       * For new disk format we also write the create table
-       * version into each page and can thus ensure that
-       * the table id and fragment id is the one we are using
-       * and not an old deleted fragment.
-       */
-      if (c_use_only_v2_format)
-      {
-        jam();
-        AccScanReq::setNoDiskScanFlag(requestInfo,
-                                      !regTcPtr->m_disk_table);
-      }
-      else
-      {
-        jam();
-        AccScanReq::setNoDiskScanFlag(requestInfo, 1);
-      }
+      /* If backup scan disktables in disk order */
+      AccScanReq::setNoDiskScanFlag(requestInfo,
+                                    !regTcPtr->m_disk_table);
       AccScanReq::setLcpScanFlag(requestInfo, 0);
     }
   }

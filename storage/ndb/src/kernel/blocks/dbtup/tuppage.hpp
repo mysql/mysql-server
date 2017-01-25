@@ -120,7 +120,7 @@ struct Tup_fixsize_page
   Uint32 unushed_insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
   Uint32 m_ndb_version;
-  Uint32 m_create_table_version;
+  Uint32 m_schema_version;
   Uint32 unused_ph[4];
 
   STATIC_CONST( FREE_RECORD = ~(Uint32)0 );
