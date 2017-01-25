@@ -23,6 +23,11 @@ let $get_processlist_id=
 --echo ## Disable events from the default connection
 UPDATE performance_schema.threads SET instrumented = 'NO' WHERE processlist_id = CONNECTION_ID();
 
+## Remove residual entries in the tables performance_schema.users
+## and performance_schema.accounts
+TRUNCATE TABLE performance_schema.users;
+TRUNCATE TABLE performance_schema.accounts;
+
 ## Get the thread_id of the default connection
 eval $get_thread_id;
 let $default_thread_id= `SELECT @my_thread_id`;
