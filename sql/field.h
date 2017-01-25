@@ -4704,6 +4704,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   uint pack_length_override);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);
+uint32 calc_key_length(enum_field_types sql_type, uint32 length,
+                       uint32 decimals, bool is_unsigned, uint32 elements);
 type_conversion_status set_field_to_null(Field *field);
 type_conversion_status set_field_to_null_with_conversions(Field *field,
                                                           bool no_conversions);

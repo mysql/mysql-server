@@ -70,6 +70,16 @@ CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
 --echo
+--echo # Get tables loaded in data-dictionary cache
+--echo
+--disable_query_log
+--disable_result_log
+SELECT * FROM t1;
+SELECT * FROM nt1;
+--enable_result_log
+--enable_query_log
+
+--echo
 --echo # Disable all events from the control thread
 --echo
 --disable_query_log

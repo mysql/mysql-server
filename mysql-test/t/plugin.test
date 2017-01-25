@@ -54,6 +54,17 @@ DELETE FROM t1 WHERE a = 0;
 --error ER_ILLEGAL_HA
 HANDLER t1 OPEN;
 
+--echo # Try to delete table when plugin is not loaded.
+--echo # Remove table from TDC to allow plugin unload.
+FLUSH TABLE t1;
+UNINSTALL PLUGIN example;
+
+--error ER_STORAGE_ENGINE_NOT_LOADED 
+DROP TABLE t1;
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
 DROP TABLE t1;
 
 # a couple of tests for variables

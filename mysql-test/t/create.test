@@ -40,8 +40,10 @@ drop table if exists t1;
 --error 1075
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 
--- error 1049
+--error ER_BAD_DB_ERROR
 create table not_existing_database.test (a int);
+--error ER_BAD_DB_ERROR
+create temporary table not_existing_database.test (a int);
 create table `a/a` (a int);
 show create table `a/a`;
 create table t1 like `a/a`;

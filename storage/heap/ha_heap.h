@@ -63,7 +63,8 @@ public:
   double read_time(uint, uint, ha_rows rows)
   { return (double) rows /  20.0+1; }
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   void set_keys_for_scanning(void);
   int write_row(uchar * buf);
@@ -96,10 +97,13 @@ public:
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int delete_table(const char *from);
+  int delete_table(const char *from, const dd::Table *table_def);
   void drop_table(const char *name);
-  int rename_table(const char * from, const char * to);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   void update_create_info(HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

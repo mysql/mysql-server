@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,6 +153,8 @@ public:
 
   virtual void set_order(enum_index_element_order order)
   { m_order= order; }
+
+  virtual bool is_prefix() const;
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()

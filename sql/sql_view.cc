@@ -708,7 +708,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     }
   }
 
-  res= mysql_register_view(thd, view, mode);
+  res= mysql_register_view(thd, view, mode, true);
 
   /*
     View TABLE_SHARE must be removed from the table definition cache in order to
@@ -720,7 +720,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   {
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
 
-    res= update_referencing_views_metadata(thd, view);
+    res= update_referencing_views_metadata(thd, view, true, nullptr);
 
     if (!res && mysql_bin_log.is_open())
     {
@@ -783,23 +783,32 @@ err:
 }
 
 
-/*
-  Register VIEW (write definition to DD)
+/**
+  Register view by writing its definition to the data-dictionary.
 
-  SYNOPSIS
-    mysql_register_view()
-    thd		- thread handler
-    view	- view description
-    mode	- VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
+  @param  thd                 Thread handler.
+  @param  view                View description
+  @param  mode                VIEW_CREATE_NEW, VIEW_ALTER or
+                              VIEW_CREATE_OR_REPLACE.
+  @param   commit_dd_changes  Indicates whether changes to DD need to be
+                              committed.
 
-  RETURN
-     0	OK
-    -1	Error
-     1	Error and error message given
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval 0   OK
+  @retval -1  Error
+  @retval 1   Error and error message given.
 */
 
 int mysql_register_view(THD *thd, TABLE_LIST *view,
-                        enum_view_create_mode mode)
+                        enum_view_create_mode mode,
+                        bool commit_dd_changes)
 {
   LEX *lex= thd->lex;
 
@@ -1064,13 +1073,15 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 
   if (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
-      dd::drop_table<dd::View>(thd, view->db, view->table_name))
+      dd::drop_table<dd::View>(thd, view->db, view->table_name,
+                               commit_dd_changes))
   {
     error= 1;
     goto err;
   }
 
-  if (dd::create_view(thd, view, view->db, view->table_name))
+  if (dd::create_view(thd, view, view->db, view->table_name,
+                      commit_dd_changes))
   {
     error= 1;
     goto err;
@@ -1843,8 +1854,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
             Remove view from DD tables and update metadata of other views
             referecing view being dropped.
           */
-          if (dd::drop_table<dd::View>(thd, view->db, view->table_name) ||
-              update_referencing_views_metadata(thd, view))
+          if (dd::drop_table<dd::View>(thd, view->db, view->table_name, true) ||
+              update_referencing_views_metadata(thd, view, true, nullptr))
           {
             error= true;
           }
@@ -2064,43 +2075,5 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
 
     list->push_back(fld);
   }
-  DBUG_RETURN(false);
-}
-
-/*
-  rename view
-
-  Synopsis:
-    renames a view
-
-  Parameters:
-    thd        thread handler
-    new_db     new name of database
-    new_name   new name of view
-    view       view
-
-  Return values:
-    FALSE      Ok
-    TRUE       Error
-*/
-bool
-mysql_rename_view(THD *thd,
-                  const char *new_db,
-                  const char *new_name,
-                  TABLE_LIST *view)
-{
-  DBUG_ENTER("mysql_rename_view");
-
-  /* Rename view in the data-dictionary. */
-  if (dd::rename_table<dd::View>(thd,
-                                 view->db, view->table_name,
-                                 new_db, new_name))
-  {
-    DBUG_RETURN(true);
-  }
-
-  /* Remove cache entries. */
-  query_cache.invalidate(thd, view, FALSE);
-  sp_cache_invalidate();
   DBUG_RETURN(false);
 }

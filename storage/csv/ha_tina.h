@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,7 +134,8 @@ public:
   */
   ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
 
-  int open(const char *name, int mode, uint open_options);
+  int open(const char *name, int mode, uint open_options,
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -153,7 +154,8 @@ public:
   int info(uint);
   int extra(enum ha_extra_function operation);
   int delete_all_rows(void);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes);
 

@@ -98,7 +98,7 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 17	4	engine	6	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 18	5	tablespace_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 19	5	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-20	5	file_name	3	MYSQL_TYPE_VARCHAR	0	0	0	765	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+20	5	file_name	3	MYSQL_TYPE_VARCHAR	0	0	0	1536	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 21	5	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 22	6	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
 23	6	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
@@ -370,7 +370,7 @@ index_id	ordinal_position	column_id	length	order	hidden
 8	1	13	765	ASC	0
 9	1	18	8	ASC	0
 9	2	19	4	ASC	0
-10	1	20	765	ASC	0
+10	1	20	1536	ASC	0
 11	1	22	8	ASC	0
 12	1	23	192	ASC	0
 13	1	26	8	ASC	0

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -496,7 +496,9 @@ enum ha_extra_function {
   /* Begin of insertion into intermediate table during copy alter operation. */
   HA_EXTRA_BEGIN_ALTER_COPY,
   /* Insertion is done in intermediate table during copy alter operation. */
-  HA_EXTRA_END_ALTER_COPY
+  HA_EXTRA_END_ALTER_COPY,
+  /* Do not use auto-increment locking. */
+  HA_EXTRA_NO_AUTOINC_LOCKING
 };
 
 /* Compatible option, to be deleted in 6.0 */

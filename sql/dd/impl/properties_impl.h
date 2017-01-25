@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,6 +102,11 @@ public:
 
   virtual bool empty() const
   { return m_map->empty(); }
+
+  /* purecov: begin deadcode */
+  virtual void clear()
+  { return m_map->clear(); }
+  /* purecov: end */
 
   virtual bool exists(const String_type &key) const
   { return m_map->find(key) != m_map->end(); }

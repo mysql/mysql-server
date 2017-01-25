@@ -15,22 +15,38 @@ ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: ## - .
 use mysqltest1;
 show tables;
 Tables_in_mysqltest1
+t1
+t2
+t3
+use test;
+create table mysqltest1.t4 (pk int primary key) engine=InnoDB;
+create table test.t2 (fk int, foreign key (fk) references mysqltest1.t4(pk)) engine= InnoDB;
 drop database mysqltest1;
-ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: ## - ...)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 use mysqltest1;
 show tables;
 Tables_in_mysqltest1
+t4
+use test;
+drop database mysqltest1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+use mysqltest1;
+show tables;
+Tables_in_mysqltest1
+t4
 use test;
 create table t1 (n int);
 insert into t1 values (1234);
 use mysqltest1;
 show tables;
 Tables_in_mysqltest1
+t4
 use test;
 select * from t1;
 n
 1234
 use test;
 drop table t1;
+drop table t2;
 drop database mysqltest1;
 include/rpl_end.inc

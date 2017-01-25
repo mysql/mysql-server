@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,8 +296,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
 
   // Setup other fields =====================================================
   /* Allocate handler */
-  if (!(handler_file= get_new_handler(share, &share->mem_root,
-                                      share->db_type())))
+  if (!(handler_file= get_new_handler(share, (share->m_part_info != NULL),
+                                      &share->mem_root, share->db_type())))
   {
     my_error(ER_INVALID_DD_OBJECT, MYF(0),  share->path.str,
              "Failed to initialize handler.");
@@ -1898,19 +1898,6 @@ static bool set_field_list(MEM_ROOT *mem_root,
 }
 
 
-// Used to compare two partition elements
-struct Partition_order_comparator
-{
-  bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
-  {
-    if (p1->level() == p2->level())
-      return p1->number() < p2->number();
-
-    return p1->level() < p2->level();
-  }
-};
-
-
 /**
   Fill TABLE_SHARE with partitioning details from dd::Partition.
 
@@ -2087,32 +2074,13 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   //
 
   partition_element *curr_part= NULL, *curr_part_elem;
-  uint num_subparts= 0, tot_partitions, part_id= 0, level= 0;
+  uint num_subparts= 0, part_id= 0, level= 0;
   bool is_subpart;
   List_iterator<partition_element> part_elem_it;
 
-  /*
-    Copy the partitions into a vector and sort them first on level and
-    then on number. To calculate the number of subpartitions we then look
-    at the last element in the collection.
-  */
+  /* Partitions are sorted first on level and then on number. */
 
-  std::vector<const dd::Partition*> partitions;
-  partitions.reserve(tab_obj->partitions().size());
   for (const dd::Partition *part_obj : tab_obj->partitions())
-    partitions.push_back(part_obj);
-
-  Partition_order_comparator c;
-  std::sort(partitions.begin(), partitions.end(), c);
-
-  {
-    const dd::Partition *part_obj= partitions.back();
-    tot_partitions= part_obj->number() + 1;
-    DBUG_ASSERT(part_obj->level() == 0 ||
-                part_info->subpart_type == partition_type::HASH);
-  }
-
-  for (const dd::Partition *part_obj : partitions)
   {
     /* Must be in sorted order (sorted by level first and then on number). */
     DBUG_ASSERT(part_obj->level() >= level);
@@ -2152,8 +2120,9 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
           number of subpartitions per partition.
         */
         part_elem_it.init(part_info->partitions);
-	num_subparts= tot_partitions / part_info->partitions.elements;
-	DBUG_ASSERT((tot_partitions % part_info->partitions.elements) == 0);
+	num_subparts= (tab_obj->partitions().size() -
+                       part_info->partitions.elements) /
+                      part_info->partitions.elements;
       }
       /* Increment partition iterator for first subpartition in the partition. */
       if ((part_id % num_subparts) == 0)
@@ -2162,7 +2131,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
         return true;
     }
   }
-  DBUG_ASSERT((part_id + 1) == tot_partitions);
   part_info->num_parts= part_info->partitions.elements;
   if (curr_part)
   {
@@ -2336,3 +2304,4 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   }
   DBUG_RETURN(true);
 }
+

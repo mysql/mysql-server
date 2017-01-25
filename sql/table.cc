@@ -26,6 +26,7 @@
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
 #include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
 #include "dd/dd.h"                       // dd::get_dictionary
 #include "dd/dictionary.h"               // dd::Dictionary
 #include "dd/types/abstract_table.h"
@@ -2136,8 +2137,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     fix_type_pointers(&interval_array, &share->keynames, 1, &keynames);
 
  /* Allocate handler */
-  if (!(handler_file= get_new_handler(share, thd->mem_root,
-                                      share->db_type())))
+  if (!(handler_file= get_new_handler(share,
+                                      share->partition_info_str_len != 0,
+                                      thd->mem_root, share->db_type())))
     goto err;
 
   if (handler_file->set_ha_share_ref(&share->ha_share))
@@ -2983,17 +2985,21 @@ bool unpack_partition_info(THD *thd,
 /**
   Open a table based on a TABLE_SHARE
 
-  @param thd			Thread handler
-  @param share		Table definition
-  @param alias    Alias for table
-  @param db_stat	Open flags (for example HA_OPEN_KEYFILE|
-    			        HA_OPEN_RNDFILE..) can be 0 (example in
-                  ha_example_table)
-  @param prgflag   		READ_ALL etc..
-  @param ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..
-  @param outparam      Result table.
-  @param is_create_table Indicates that table is opened as part
-                         of CREATE or ALTER and does not yet exist in SE.
+  @param thd              Thread handler
+  @param share            Table definition
+  @param alias            Alias for table
+  @param db_stat          Open flags (for example HA_OPEN_KEYFILE|
+                          HA_OPEN_RNDFILE..) can be 0 (example in
+                          ha_example_table)
+  @param prgflag          READ_ALL etc..
+  @param ha_open_flags    HA_OPEN_ABORT_IF_LOCKED etc..
+  @param outparam         Result table.
+  @param is_create_table  Indicates that table is opened as part
+                          of CREATE or ALTER and does not yet exist in SE.
+  @param table_def_param  dd::Table object describing the table to be
+                          opened in SE. Can be nullptr, which case this
+                          function will try to retrieve such object from
+                          the data-dictionary before opening table in SE.
 
   @retval 0	ok
   @retval 1	Error (see open_table_error)
@@ -3005,7 +3011,8 @@ bool unpack_partition_info(THD *thd,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table)
+                          TABLE *outparam, bool is_create_table,
+                          const dd::Table *table_def_param)
 {
   int error;
   uint records, i, bitmap_size;
@@ -3057,7 +3064,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->file= 0;
   if (!(prgflag & OPEN_FRM_FILE_ONLY))
   {
-    if (!(outparam->file= get_new_handler(share, root, share->db_type())))
+    if (!(outparam->file= get_new_handler(share,
+                                          share->m_part_info != NULL,
+                                          root,
+                                          share->db_type())))
       goto err;
     if (outparam->file->set_ha_share_ref(&share->ha_share))
       goto err;
@@ -3274,16 +3284,39 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   error= 2;
   if (db_stat)
   {
+    const dd::Table *table_def= table_def_param;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+    if (!table_def && !(prgflag & OPEN_NO_DD_TABLE))
+    {
+
+      if (thd->dd_client()->acquire<dd::Table>(share->db.str,
+                                               share->table_name.str,
+                                               &table_def))
+      {
+        error_reported= true;
+        goto err;
+      }
+
+      if (!table_def)
+      {
+        error= 1;
+        set_my_errno(ENOENT);
+        goto err;
+      }
+    }
+
     int ha_err;
     if ((ha_err= (outparam->file->
                   ha_open(outparam, share->normalized_path.str,
                           (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
-                          (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-                           (db_stat & HA_WAIT_IF_LOCKED) ?
-                           HA_OPEN_WAIT_IF_LOCKED :
-                           (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
-                          HA_OPEN_ABORT_IF_LOCKED :
-                           HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
+                          ((db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
+                            (db_stat & HA_WAIT_IF_LOCKED) ?
+                            HA_OPEN_WAIT_IF_LOCKED :
+                            (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
+                             HA_OPEN_ABORT_IF_LOCKED :
+                             HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags),
+                          table_def))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
       share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&
@@ -3506,7 +3539,9 @@ static void open_table_error(THD *thd, TABLE_SHARE *share,
 
     if (share->db_type() != NULL)
     {
-      if ((file= get_new_handler(share, thd->mem_root,
+      if ((file= get_new_handler(share,
+                                 share->m_part_info != NULL,
+                                 thd->mem_root,
                                  share->db_type())))
       {
         if (! file->ht->file_extensions ||
@@ -4242,8 +4277,8 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   no_keyread= false;
 
   /* Tables may be reused in a sub statement. */
-  DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
-  
+  DBUG_ASSERT(!db_stat || !file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
   bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
   DBUG_ASSERT(!error);
 }

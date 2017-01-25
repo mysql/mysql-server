@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,6 +71,8 @@ public:
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
   virtual void debug_print(String_type &outb) const;
+
+  virtual bool is_empty(THD *thd, bool *empty) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////

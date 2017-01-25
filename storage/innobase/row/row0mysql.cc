@@ -978,6 +978,7 @@ row_create_prebuilt(
 	prebuilt->blob_heap = NULL;
 
 	prebuilt->skip_serializable_dd_view = false;
+	prebuilt->no_autoinc_locking = false;
 
 	prebuilt->m_no_prefetch = false;
 	prebuilt->m_read_virtual_key = false;

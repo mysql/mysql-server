@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +113,12 @@ class Table;
   TMP_TABLE_COLUMNS/KEYS I_S table only for the SHOW commands.
 */
 #define OPEN_FOR_SHOW_ONLY     CHECK_METADATA_VERSION*2
+/**
+  Avoid dd::Table lookup in open_table_from_share() call.
+  Temporary workaround used by upgrade code until we start
+  reading info from InnoDB SYS tables directly.
+*/
+#define OPEN_NO_DD_TABLE       OPEN_FOR_SHOW_ONLY*2
 
 
 /*
@@ -204,6 +210,12 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   table flush, wait on thr_lock.c locks) while opening and locking table.
 */
 #define MYSQL_OPEN_IGNORE_KILLED                0x4000
+/**
+  For new TABLE instances constructed do not open table in the storage
+  engine. Existing TABLE instances for which there is a handler object
+  which represents table open in storage engines can still be used.
+*/
+#define MYSQL_OPEN_NO_NEW_TABLE_IN_SE           0x8000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
@@ -228,7 +240,8 @@ thr_lock_type read_lock_type_for_table(THD *thd,
                                        bool routine_modifies_data);
 
 bool mysql_rm_tmp_tables(void);
-bool rm_temporary_table(THD *thd, handlerton *base, const char *path);
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
+                        const dd::Table *table_def);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
@@ -287,8 +300,6 @@ bool setup_natural_join_row_types(THD *thd,
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
-void drop_open_table(THD *thd, TABLE *table, const char *db_name,
-                     const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -315,7 +326,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
 TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias);
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
+void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
 void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table);

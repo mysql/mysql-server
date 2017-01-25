@@ -85,6 +85,7 @@
 #include "transaction_info.h"
 #include "trigger_def.h"
 
+
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);
 
@@ -2428,6 +2429,9 @@ void Query_result_insert::abort_result_set()
   @param [in] items             The source table columns. Corresponding column
                                 definitions (Create_field's) will be added to
                                 the end of alter_info->create_list.
+  @param  [out] post_ddl_ht     Set to handlerton for table's SE, if this SE
+                                supports atomic DDL, so caller can call SE
+                                post DDL hook after committing transaction.
 
   @note
     This function assumes that either table exists and was pre-opened and
@@ -2448,7 +2452,8 @@ void Query_result_insert::abort_result_set()
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
                                       Alter_info *alter_info,
-                                      List<Item> *items)
+                                      List<Item> *items,
+                                      handlerton **post_ddl_ht)
 {
   TABLE tmp_table;		// Used during 'Create_field()'
   TABLE_SHARE share;
@@ -2547,12 +2552,29 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info,
-                                    select_field_count, NULL))
+                                    select_field_count, NULL,
+                                    post_ddl_ht))
     {
       DEBUG_SYNC(thd,"create_table_select_before_open");
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
+#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
+        /*
+          InnoDB might add tablespace objects to the DD during table creation.
+          If these changes are not committed here it will have problems dropping
+          table on error.
+
+          The problem will be solved once InnoDB implements support for atomic
+          DDL and statement rollback will remove the table automatically.
+        */
+        {
+          Disable_gtid_state_update_guard disabler(thd);
+          trans_commit_stmt(thd);
+          trans_commit_implicit(thd);
+        }
+#endif
+
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
@@ -2560,9 +2582,22 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         */
         if (open_table(thd, create_table, &ot_ctx))
         {
-          quick_rm_table(thd, create_info->db_type, create_table->db,
-                         table_case_name(create_info, create_table->table_name),
-                         0);
+          /* Play safe, remove table share for the table from the cache. */
+          tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
+                           create_table->table_name, false);
+
+          if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+            quick_rm_table(thd, create_info->db_type, create_table->db,
+                           create_table->table_name, 0);
+#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
+          else
+          {
+            /*
+              In practice this never ever happens. So it is not worth
+              to write workaround code.
+            */
+          }
+#endif
         }
         else
           table= create_table->table;
@@ -2610,7 +2645,8 @@ Query_result_create::Query_result_create(THD *thd,
      create_info(create_info_par),
      select_tables(select_tables_arg),
      alter_info(alter_info_arg),
-     m_plock(NULL)
+     m_plock(NULL),
+     m_post_ddl_ht(nullptr)
 {}
 
 
@@ -2633,7 +2669,7 @@ bool Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       alter_info, &values)))
+                                       alter_info, &values, &m_post_ddl_ht)))
     /* abort() deletes table */
     DBUG_RETURN(true);
 
@@ -2829,6 +2865,12 @@ int Query_result_create::binlog_show_create_table()
   if (mysql_bin_log.is_open())
   {
     DEBUG_SYNC(thd, "create_select_before_write_create_event");
+    /*
+      Binary log layer has special code to handle rollback of CREATE TABLE
+      SELECT in RBR mode - it truncates statement cache in this case.
+      So it is OK that we disregard that SE is transactional and might even
+      support atomic DDL below.
+    */
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     result= thd->binlog_query(THD::STMT_QUERY_TYPE,
                               query.ptr(), query.length(),
@@ -2890,22 +2932,38 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp= update_referencing_views_metadata(thd, create_table);
+  bool tmp;
+
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    tmp= update_referencing_views_metadata(thd, create_table,
+                                           !(table->s->db_type()->flags &
+                                             HTON_SUPPORTS_ATOMIC_DDL),
+                                           &uncommitted_tables);
+  }
+
   if (!tmp)
     tmp= Query_result_insert::send_eof();
   if (tmp)
     abort_result_set();
   else
   {
+    bool commit_error= false;
     /*
-      Do an implicit commit at end of statement for non-temporary
-      tables.  This can fail, but we should unlock the table
-      nevertheless.
+      Do an implicit commit at end of statement for non-temporary tables.
+      This can fail in which case rollback will be done automatically.
+      For storage engines supporting atomic DDL this will revert table
+      creation in SE, data-dictionary and binlog changes.
+      For other storage engines we might end-up with partially consistent
+      state between data-dictionary, SE, data in table and binary log.
+      However this should be extremely rare.
     */
     if (!table->s->tmp_table)
     {
-      trans_commit_stmt(thd);
-      trans_commit_implicit(thd);
+      thd->get_stmt_da()->set_overwrite_status(true);
+      commit_error= trans_commit_stmt(thd) || trans_commit_implicit(thd);
+      thd->get_stmt_da()->set_overwrite_status(false);
     }
 
     if (m_plock)
@@ -2914,8 +2972,96 @@ bool Query_result_create::send_eof()
       *m_plock= NULL;
       m_plock= NULL;
     }
+
+    if (commit_error)
+    {
+      DBUG_ASSERT(!table->s->tmp_table);
+      DBUG_ASSERT(table == thd->open_tables);
+      close_thread_table(thd, &thd->open_tables);
+      /*
+        Remove TABLE and TABLE_SHARE objects for the table which creation
+        might have been rolled back from the caches.
+      */
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
+                       create_table->table_name, false);
+    }
+
+    if (m_post_ddl_ht)
+      m_post_ddl_ht->post_ddl(thd);
   }
   return tmp;
+}
+
+
+/**
+  Close and drop just created table in CREATE TABLE ... SELECT in case
+  of error.
+
+  @note Here we assume that the table to be closed is open only by the
+        calling thread, so we needn't wait until other threads close the
+        table. We also assume that the table is first in thd->open_ables
+        and a data lock on it, if any, has been released.
+*/
+
+void Query_result_create::drop_open_table()
+{
+  DBUG_ENTER("Query_result_create::drop_open_table");
+
+  if (table->s->tmp_table)
+    close_temporary_table(thd, table, 1, 1);
+  else
+  {
+    DBUG_ASSERT(table == thd->open_tables);
+
+    handlerton *table_type= table->s->db_type();
+
+    table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+    close_thread_table(thd, &thd->open_tables);
+    /*
+      Remove TABLE and TABLE_SHARE objects for the table we have failed
+      to create from the caches. This also nicely covers the case when
+      addition of table to data-dictionary was not even committed.
+    */
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
+                     create_table->table_name, false);
+
+    if (!(table_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+    {
+      /*
+        Removal of table by quick_rm_table() below commits statement
+        transaction as a side-effect. If the statement is not rolled back here
+        then binlog cache (containing log(s) of new table and inserts) will be
+        written to the binlog file.
+
+        We are not allowed to rollback a statement transactions inside stored
+        function or trigger. OTOH in such contexts only creation of temporary
+        tables is allowed.
+      */
+      trans_rollback_stmt(thd);
+      if (thd->transaction_rollback_request)
+        trans_rollback_implicit(thd);
+
+      quick_rm_table(thd, table_type, create_table->db,
+                     create_table->table_name, 0);
+    }
+#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
+    else
+    {
+      trans_rollback_stmt(thd);
+      /*
+        Rollback transaction both to clear THD::transaction_rollback_request
+        (if it is set) and to synchronize DD state for view metadata in cache
+        and on disk (as statement rollback doesn't clear DD cache of modified
+        uncommitted objects).
+      */
+      trans_rollback_implicit(thd);
+
+      quick_rm_table(thd, table_type, create_table->db,
+                     create_table->table_name, 0);
+    }
+#endif
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2945,27 +3091,6 @@ void Query_result_create::abort_result_set()
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);
 
-  /*
-    Rolling back the statement transaction here. The table created in
-    "CREATE TABLE ... SELECT" is removed on error and statement transaction is
-    committed. If the statement is not rolled back here then binlog cache
-    (containing log(s) of new table and inserts) are written to the binlog file.
-
-    We are not allowed to rollback a statement transactions inside stored
-    function or trigger. OTOH in such contexts only creation of temporary
-    tables is allowed and since such tables are not stored in
-    data-dictionary no additional rollback is required (as there is no
-    removal of table from data-dictionary and commit associated with it)
-  */
-  if (!thd->in_sub_stmt)
-  {
-    trans_rollback_stmt(thd);
-    if (thd->transaction_rollback_request)
-    {
-      trans_rollback_implicit(thd);
-    }
-  }
-
   if (m_plock)
   {
     mysql_unlock_tables(thd, *m_plock);
@@ -2976,8 +3101,23 @@ void Query_result_create::abort_result_set()
   if (table)
   {
     table->auto_increment_field_not_null= FALSE;
-    drop_open_table(thd, table, create_table->db, create_table->table_name);
+    drop_open_table();
     table=0;                                    // Safety
   }
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  {
+    trans_rollback_stmt(thd);
+    /*
+      Rollback transaction both to clear THD::transaction_rollback_request
+      (if it is set) and to synchronize DD state in cache and on disk (as
+      statement rollback doesn't clear DD cache of modified uncommitted
+      objects).
+    */
+    trans_rollback_implicit(thd);
+    if (m_post_ddl_ht)
+      m_post_ddl_ht->post_ddl(thd);
+  }
+
   DBUG_VOID_RETURN;
 }

@@ -28,6 +28,11 @@ call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("Column count of mysql.* is wrong");
+# InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
+# statistics while persistent statistics table is altered during upgrade.
+# This issue doesn't seem to cause any further trouble (as there is no persistent
+# stats for persistent stats table anyway), so we ignore these warnings here.
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 

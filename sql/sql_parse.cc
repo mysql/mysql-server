@@ -843,6 +843,7 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_TRUNCATE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_CREATE_DB]|=        CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_DB]|=          CF_NEEDS_AUTOCOMMIT_OFF;
@@ -3117,7 +3118,7 @@ mysql_execute_command(THD *thd, bool first_level)
         goto error;
     }
 
-    if (mysql_rename_tables(thd, first_table, 0))
+    if (mysql_rename_tables(thd, first_table))
       goto error;
     break;
   }

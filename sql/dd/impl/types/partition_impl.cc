@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ Partition_impl::Partition_impl()
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(NULL),
+  m_parent(NULL),
   m_values(),
   m_indexes(),
   m_tablespace_id(INVALID_OBJECT_ID)
@@ -92,6 +93,7 @@ Partition_impl::Partition_impl(Table_impl *table)
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(table),
+  m_parent(NULL),
   m_values(),
   m_indexes(),
   m_tablespace_id(INVALID_OBJECT_ID)
@@ -401,6 +403,7 @@ Partition_impl::Partition_impl(const Partition_impl &src,
     m_se_private_data(Properties_impl::
                       parse_properties(src.m_se_private_data->raw_string())),
     m_table(parent),
+    m_parent(src.parent() ? parent->get_partition(src.parent()->name()) : NULL),
     m_values(),
     m_indexes(),
     m_tablespace_id(src.m_tablespace_id)

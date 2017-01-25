@@ -35,6 +35,7 @@ static bool is_slave_applier(THD *thd)
 
 static handler *blackhole_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
+                                         bool,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_blackhole(hton, table);
@@ -59,7 +60,7 @@ ha_blackhole::ha_blackhole(handlerton *hton,
 {}
 
 
-int ha_blackhole::open(const char *name, int, uint)
+int ha_blackhole::open(const char *name, int, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_blackhole::open");
 
@@ -77,7 +78,7 @@ int ha_blackhole::close(void)
   DBUG_RETURN(0);
 }
 
-int ha_blackhole::create(const char*, TABLE*, HA_CREATE_INFO*)
+int ha_blackhole::create(const char*, TABLE*, HA_CREATE_INFO*, dd::Table*)
 {
   DBUG_ENTER("ha_blackhole::create");
   DBUG_RETURN(0);

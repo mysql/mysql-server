@@ -16,6 +16,9 @@
 --source include/not_valgrind.inc
 --source include/have_debug_sync.inc
 --source include/not_crashrep.inc
+# Disabled in --log-bin runs until atomic DDL is properly supported in
+# binary log.
+--source include/not_log_bin.inc
 
 --source ../include/xplugin_preamble.inc
 

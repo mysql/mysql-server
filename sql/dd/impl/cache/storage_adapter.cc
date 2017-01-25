@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -243,7 +243,6 @@ bool Storage_adapter::drop(THD *thd, const T *object)
   // Drop the object from the dd tables. We need to switch transaction ctx to do this.
   Update_dictionary_tables_ctx ctx(thd);
   ctx.otx.register_tables<T>();
-  DEBUG_SYNC(thd, "before_dropping_dd_object");
 
   if (ctx.otx.open_tables() || object->impl()->drop(&ctx.otx))
   {

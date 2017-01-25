@@ -10080,7 +10080,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
 
-  DEBUG_SYNC(current_thd, "begin_decide_logging_format");
+#if defined(ENABLED_DEBUG_SYNC)
+  if (!is_attachable_ro_transaction_active())
+    DEBUG_SYNC(this, "begin_decide_logging_format");
+#endif
 
   reset_binlog_local_stmt_filter();
 
@@ -10624,7 +10627,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
   }
 
-  DEBUG_SYNC(current_thd, "end_decide_logging_format");
+#if defined(ENABLED_DEBUG_SYNC)
+  if (!is_attachable_ro_transaction_active())
+    DEBUG_SYNC(this, "end_decide_logging_format");
+#endif
 
   DBUG_RETURN(0);
 }

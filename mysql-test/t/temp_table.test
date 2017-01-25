@@ -153,8 +153,7 @@ CREATE TEMPORARY TABLE t2 (i INT);
 --error 1051
 DROP TEMPORARY TABLE t2, t1;
 
-# Table t2 should have been dropped.
---error 1146
+# Table t2 should be still there too.
 SELECT * FROM t2;
 # But table t1 should still be there.
 SELECT * FROM t1;

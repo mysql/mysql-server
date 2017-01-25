@@ -30,6 +30,7 @@
 #include "dd/impl/bootstrapper.h"             // execute_query
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd_upgrade.h"
 #include "derror.h"                           // ER_DEFAULT
@@ -1122,7 +1123,7 @@ static bool create_unlinked_view(THD *thd,
   Disable_autocommit_guard autocommit_guard(thd);
 
   bool result= dd::create_view(thd, view_ref, db_name.c_str(),
-                               view_name.c_str());
+                               view_name.c_str(), true);
 
   // Restore
   thd->lex->select_lex= backup_select;
@@ -1248,7 +1249,7 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
     sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
                       "View is no more valid to use", db_name.c_str(),
                       view_name.c_str());
-    update_view_status(thd, db_name.c_str(), view_name.c_str(), false);
+    update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
     error= false;
   }
 
@@ -1452,7 +1453,15 @@ static bool migrate_tablespace_to_dd(THD *thd, const char *name,
   */
   ts_info.data_file_name= name;
 
-  return dd::create_tablespace(thd, &ts_info, hton);
+  if (dd::create_tablespace(thd, &ts_info, hton))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 
@@ -1800,8 +1809,9 @@ static bool open_table_for_fk_info(THD *thd,
                                       HA_OPEN_RNDFILE |
                                       HA_GET_INDEX |
                                       HA_TRY_READ_ONLY),
-                                      EXTRA_RECORD,
-                              thd->open_options, table, FALSE))
+                                      EXTRA_RECORD | OPEN_NO_DD_TABLE,
+                              thd->open_options, table, FALSE,
+                              NULL))
     {
       sql_print_error("Error in opening table %s.%s",
                       schema_name.c_str(), table_name.c_str());
@@ -1949,7 +1959,9 @@ static bool migrate_table_to_dd(THD *thd,
                                is_fix_view_cols_and_deps));
 
   // Get the handler
-  if (!(file= get_new_handler(&share, &table->mem_root,
+  if (!(file= get_new_handler(&share,
+                              share.partition_info_str_len != 0,
+                              &table->mem_root,
                               share.db_type())))
   {
     sql_print_error("Error in creating handler object for table %s.%s",
@@ -2204,7 +2216,8 @@ static bool migrate_table_to_dd(THD *thd,
                                Alter_info::ENABLE,
                                fk_key_info_buffer,
                                fk_number,
-                               table->file))
+                               table->file,
+                               true))
   {
     sql_print_error("Error in Creating DD entry for %s.%s",
                     schema_name.c_str(), table_name.c_str());
@@ -2364,6 +2377,14 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
   Disable_autocommit_guard autocommit_guard(thd);
 
   if (dd::create_schema(thd, schema_name, schema_charset))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd))
     return true;
 
   return false;

@@ -44,6 +44,8 @@ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
 ERROR 42000: Unknown database 'not_existing_database'
+create temporary table not_existing_database.test (a int);
+ERROR 42000: Unknown database 'not_existing_database'
 create table `a/a` (a int);
 show create table `a/a`;
 Table	Create Table
@@ -936,7 +938,7 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	7
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0

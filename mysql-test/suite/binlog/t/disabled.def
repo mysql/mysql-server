@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+binlog.binlog_write_error : WL#9536 2016-07-18 dlenev Needs support for rollback of DDL in InnoDB

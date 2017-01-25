@@ -140,7 +140,8 @@ static void debug_wait_for_kill(const char *info)
 *****************************************************************************/
 
 static handler *myisam_create_handler(handlerton *hton,
-                                      TABLE_SHARE *table, 
+                                      TABLE_SHARE *table,
+                                      bool,
                                       MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_myisam(hton, table);
@@ -760,7 +761,8 @@ static bool myisam_is_supported_system_table(const char*,
 }
 
 /* Name is here without an extension */
-int ha_myisam::open(const char *name, int mode, uint test_if_locked)
+int ha_myisam::open(const char *name, int mode, uint test_if_locked,
+                    const dd::Table*)
 {
   MI_KEYDEF *keyinfo;
   MI_COLUMNDEF *recinfo= 0;
@@ -1966,7 +1968,7 @@ int ha_myisam::delete_all_rows()
 }
 
 
-int ha_myisam::delete_table(const char *name)
+int ha_myisam::delete_table(const char *name, const dd::Table*)
 {
   return mi_delete_table(name);
 }
@@ -2003,7 +2005,8 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 
 
 int ha_myisam::create(const char *name, TABLE *table_arg,
-		      HA_CREATE_INFO *ha_create_info)
+		      HA_CREATE_INFO *ha_create_info,
+                      dd::Table*)
 {
   int error;
   uint create_flags= 0, records, i;
@@ -2084,7 +2087,8 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
 }
 
 
-int ha_myisam::rename_table(const char * from, const char * to)
+int ha_myisam::rename_table(const char * from, const char * to,
+                            const dd::Table*, dd::Table*)
 {
   return mi_rename(from,to);
 }

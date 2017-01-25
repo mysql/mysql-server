@@ -175,7 +175,8 @@ public:
   /** @brief
     We implement this in ha_example.cc; it's a required method.
   */
-  int open(const char *name, int mode, uint test_if_locked);    // required
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);                         // required
 
   /** @brief
     We implement this in ha_example.cc; it's a required method.
@@ -250,10 +251,13 @@ public:
   int delete_all_rows(void);
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key);
-  int delete_table(const char *from);
-  int rename_table(const char * from, const char * to);
+  int delete_table(const char *from, const dd::Table *table_def);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
   int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info);                      ///< required
+             HA_CREATE_INFO *create_info,
+             dd::Table *table_def);                             ///< required
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     ///< required

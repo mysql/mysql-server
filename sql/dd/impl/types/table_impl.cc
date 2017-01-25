@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,13 +171,18 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Partition>(),
-      Table_partitions::create_key_by_table_id(this->id()))
+      Table_partitions::create_key_by_table_id(this->id()),
+      // Sort partitions first on level and then on number.
+      Partition_order_comparator())
     ||
     m_triggers.restore_items(
       this,
       otx,
       otx->get_table<Trigger>(),
       Triggers::create_key_by_table_id(this->id()));
+
+  if (!ret)
+    fix_partitions();
 
   /*
     Keep the collection items ordered based on
@@ -204,7 +209,6 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
   }
 
   return ret;
-
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -485,6 +489,7 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
                    val, "foreign_keys");
   deserialize_each(rctx, [this] () { return add_partition(); }, val,
                    "partitions");
+  fix_partitions();
   read(&m_collation_id, val, "collation_id");
   return deserialize_tablespace_ref(rctx, &m_tablespace_id, val, "tablespace_id");
 }
@@ -801,11 +806,11 @@ void Table_impl::move_triggers(Prealloced_array<Trigger*, 1> *triggers)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_impl::copy_triggers(Table *tab_obj)
+void Table_impl::copy_triggers(const Table *tab_obj)
 {
   DBUG_ASSERT(tab_obj != nullptr);
 
-  for (Trigger *trig : *tab_obj->triggers())
+  for (const Trigger *trig : tab_obj->triggers())
   {
     /*
       Reset the trigger primary key ID, so that a new row is
@@ -868,6 +873,47 @@ void Table_impl::drop_trigger(const Trigger *trigger)
   m_triggers.remove(dynamic_cast<Trigger_impl*>(const_cast<Trigger*>(trigger)));
 
   reorder_action_order(at, et);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Partition *Table_impl::get_partition(const String_type &name)
+{
+  for (Partition *i : m_partitions)
+  {
+    if (i->name() == name)
+      return i;
+  }
+
+  return NULL;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::fix_partitions()
+{
+  size_t part_num= 0;
+  size_t subpart_num= 0;
+  size_t subpart_processed= 0;
+
+  Partition_collection::iterator part_it= m_partitions.begin();
+  for (Partition *part : m_partitions)
+  {
+    if (part->level() == 0)
+      ++part_num;
+    else
+    {
+      if (!subpart_num)
+      {
+        // First subpartition.
+        subpart_num= (m_partitions.size() - part_num) / part_num;
+      }
+      part->set_parent(*part_it);
+      ++subpart_processed;
+      if (subpart_processed % subpart_num == 0)
+        ++part_it;
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////

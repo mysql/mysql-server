@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,6 +83,7 @@ Raw_key *Parent_id_range_key::create_access_key(Raw_table *db_table) const
   t->use_all_columns();
 
   t->field[m_id_column_no]->store(m_object_id, true);
+  t->field[m_id_column_no]->set_notnull();
 
   KEY *key_info= t->key_info + m_id_index_no;
 

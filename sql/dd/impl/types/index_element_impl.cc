@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "dd/types/column.h"                    // Column
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
+#include "dd_table_share.h"                     // dd_get_old_field_type()
 #include "m_string.h"
 #include "my_global.h"
 #include "my_sys.h"
@@ -178,6 +179,35 @@ bool Index_element_impl::has_new_primary_key() const
 {
   return m_index->has_new_primary_key();
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if index element represents prefix key part on the column.
+
+  @note This function is in sync with how we evaluate HA_PART_KEY_SEG.
+        As result it returns funny results for BLOB/GIS types.
+*/
+
+/* purecov: begin deadcode */
+bool Index_element_impl::is_prefix() const
+{
+  uint interval_parts;
+  const Column& col= column();
+  enum_field_types field_type= dd_get_old_field_type(col.type());
+
+  if (field_type == MYSQL_TYPE_ENUM || field_type == MYSQL_TYPE_SET)
+    interval_parts= col.elements_count();
+  else
+    interval_parts= 0;
+
+  return calc_key_length(field_type,
+                         col.char_length(),
+                         col.numeric_scale(),
+                         col.is_unsigned(),
+                         interval_parts) != length();
+}
+/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

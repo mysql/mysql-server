@@ -3345,7 +3345,8 @@ bool unpack_partition_info(THD *thd,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table);
+                          TABLE *outparam, bool is_create_table,
+                          const dd::Table *table_def_param);
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,

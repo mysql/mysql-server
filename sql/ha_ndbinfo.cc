@@ -150,7 +150,7 @@ ndbcluster_is_disabled(void)
 }
 
 static handler*
-create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root)
+create_handler(handlerton *hton, TABLE_SHARE *table, bool, MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_ndbinfo(hton, table);
 }
@@ -324,7 +324,8 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
 }
 
 int ha_ndbinfo::create(const char *name, TABLE *form,
-                       HA_CREATE_INFO *create_info)
+                       HA_CREATE_INFO *create_info,
+                       dd::Table *)
 {
   DBUG_ENTER("ha_ndbinfo::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -342,7 +343,8 @@ bool ha_ndbinfo::is_offline(void) const
   return m_impl.m_offline;
 }
 
-int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
+int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked,
+                     const dd::Table *)
 {
   DBUG_ENTER("ha_ndbinfo::open");
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));

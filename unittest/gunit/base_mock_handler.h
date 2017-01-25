@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,9 +34,11 @@ public:
   // Declare all the pure-virtuals.
   // Note: Sun Studio needs a little help in resolving uchar.
   MOCK_METHOD0(close,    int());
-  MOCK_METHOD3(create,   int(const char *name, TABLE *form, HA_CREATE_INFO*));
+  MOCK_METHOD4(create,   int(const char *name, TABLE *form, HA_CREATE_INFO*,
+                             dd::Table *table_def));
   MOCK_METHOD1(info,     int(unsigned ha_status_bitmap));
-  MOCK_METHOD3(open,     int(const char *name, int mode, uint test_if_locked));
+  MOCK_METHOD4(open,     int(const char *name, int mode, uint test_if_locked,
+                             const dd::Table *table_def));
   MOCK_METHOD1(position, void(const ::uchar *record));
   MOCK_METHOD1(rnd_init, int(bool scan));
   MOCK_METHOD1(rnd_next, int(::uchar *buf));

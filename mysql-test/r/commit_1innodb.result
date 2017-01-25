@@ -340,6 +340,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int unique);
 create table t2 (a int) engine=myisam;
+# Warm-up data-dictionary cache.
 set sql_mode=default;
 #
 # An auxiliary procedure to track Handler_prepare and Handler_commit
@@ -634,7 +635,7 @@ set sql_mode=no_engine_substitution;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create temporary table t2 (a int);
-call p_verify_status_increment(6, 0, 0, 0);
+call p_verify_status_increment(X, 0, 0, 0);
 SUCCESS
 
 set sql_mode=default;
@@ -800,6 +801,7 @@ create table t2 (a int);
 call p_verify_status_increment(<commit_count>, 0, 6, 0);
 SUCCESS
 
+# One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
 call p_verify_status_increment(2, 2, 3, 2);
 SUCCESS
@@ -844,15 +846,15 @@ call p_verify_status_increment(<commit_count>, 0, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
-call p_verify_status_increment(5, 0, 2, 0);
+call p_verify_status_increment(X, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
-call p_verify_status_increment(6, 0, 3, 0);
+call p_verify_status_increment(5, 0, 3, 0);
 SUCCESS
 
 rename table t4 to t3;
-call p_verify_status_increment(8, 0, 5, 0);
+call p_verify_status_increment(7, 0, 5, 0);
 SUCCESS
 
 truncate table t3;
@@ -887,7 +889,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 drop view v1;
-call p_verify_status_increment(5, 0, 3, 0);
+call p_verify_status_increment(X, 0, 3, 0);
 SUCCESS
 
 #

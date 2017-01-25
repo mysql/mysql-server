@@ -389,7 +389,7 @@ const char *Partition_share::get_partition_name(size_t part_id) const
 }
 
 
-int Partition_handler::truncate_partition()
+int Partition_handler::truncate_partition(dd::Table *table_def)
 {
   handler *file= get_handler();
   if (!file)
@@ -399,7 +399,7 @@ int Partition_handler::truncate_partition()
   DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
               file->m_lock_type == F_WRLCK);
   file->mark_trx_read_write();
-  return truncate_partition_low();
+  return truncate_partition_low(table_def);
 }
 
 
@@ -420,6 +420,24 @@ int Partition_handler::change_partitions(HA_CREATE_INFO *create_info,
   return change_partitions_low(create_info, path, copied, deleted);
 }
 
+
+int Partition_handler::exchange_partition(const char *partition_path,
+                                          const char *swap_table_path,
+                                          uint part_id,
+                                          dd::Table *part_table_def,
+                                          dd::Table *swap_table_def)
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type != F_UNLCK);
+  file->mark_trx_read_write();
+  return exchange_partition_low(partition_path, swap_table_path, part_id,
+                                part_table_def, swap_table_def);
+}
 
 
 /*
@@ -1160,6 +1178,60 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
   DBUG_RETURN(true);
 }
 
+
+void Partition_helper::prepare_change_partitions()
+{
+  List_iterator<partition_element> part_it(m_part_info->partitions);
+  uint num_subparts= m_part_info->is_sub_partitioned() ?
+                     m_part_info->num_subparts : 1;
+  uint temp_partitions= m_part_info->temp_partitions.elements;
+  bool first= true;
+  uint i= 0;
+  partition_element *part_elem;
+
+  /*
+    Use the read_partitions bitmap for reorganized partitions,
+    i.e. what to copy.
+  */
+  bitmap_clear_all(&m_part_info->read_partitions);
+
+  while ((part_elem= part_it++) != NULL)
+  {
+    if (part_elem->part_state == PART_CHANGED ||
+        part_elem->part_state == PART_REORGED_DROPPED)
+    {
+      for (uint sp = 0; sp < num_subparts; sp++)
+      {
+        bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
+      }
+      DBUG_ASSERT(first);
+    }
+    else if (first && temp_partitions &&
+             part_elem->part_state == PART_TO_BE_ADDED)
+    {
+      /*
+        When doing an ALTER TABLE REORGANIZE PARTITION a number of
+        partitions is to be reorganized into a set of new partitions.
+        The reorganized partitions are in this case in the temp_partitions
+        list. We mark all of them in one batch and thus we only do this
+        until we find the first partition with state PART_TO_BE_ADDED
+        since this is where the new partitions go in and where the old
+        ones used to be.
+      */
+      first= false;
+      DBUG_ASSERT(((i*num_subparts) + temp_partitions * num_subparts) <=
+                  m_tot_parts);
+      for (uint sp = 0; sp < temp_partitions * num_subparts; sp++)
+      {
+        bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
+      }
+    }
+
+    ++i;
+  }
+}
+
+
 /**
   Implement the partition changes defined by ALTER TABLE of partitions.
 
@@ -1201,16 +1273,9 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
   uint num_remain_partitions;
   uint num_reorged_parts;
   int error= 1;
-  bool first;
   uint temp_partitions= m_part_info->temp_partitions.elements;
   THD *thd= get_thd();
   DBUG_ENTER("Partition_helper::change_partitions");
-
-  /*
-    Use the read_partitions bitmap for reorganized partitions,
-    i.e. what to copy.
-  */
-  bitmap_clear_all(&m_part_info->read_partitions);
 
   /*
     Assert that it works without HA_FILE_BASED and lower_case_table_name = 2.
@@ -1271,44 +1336,7 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
     Step 3:
       Set the read_partition bit for all partitions to be copied.
   */
-  if (num_reorged_parts)
-  {
-    i= 0;
-    first= true;
-    part_it.rewind();
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (part_elem->part_state == PART_CHANGED ||
-          part_elem->part_state == PART_REORGED_DROPPED)
-      {
-        for (uint sp = 0; sp < num_subparts; sp++)
-        {
-          bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
-        }
-        DBUG_ASSERT(first);
-      }
-      else if (first && temp_partitions &&
-               part_elem->part_state == PART_TO_BE_ADDED)
-      {
-        /*
-          When doing an ALTER TABLE REORGANIZE PARTITION a number of
-          partitions is to be reorganized into a set of new partitions.
-          The reorganized partitions are in this case in the temp_partitions
-          list. We mark all of them in one batch and thus we only do this
-          until we find the first partition with state PART_TO_BE_ADDED
-          since this is where the new partitions go in and where the old
-          ones used to be.
-        */
-        first= false;
-        DBUG_ASSERT(((i*num_subparts) + num_reorged_parts) <= m_tot_parts);
-        for (uint sp = 0; sp < num_reorged_parts; sp++)
-        {
-          bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
-        }
-      }
-    } while (++i < num_parts);
-  }
+  prepare_change_partitions();
 
   /*
     Step 4:

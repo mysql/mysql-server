@@ -1100,12 +1100,14 @@ innobase_release_savepoint(
 /** Function for constructing an InnoDB table handler instance.
 @param[in,out]	hton		handlerton for InnoDB
 @param[in]	table		MySQL table
+@param[in]	partitioned	Indicates whether table is partitioned
 @param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
 	handlerton*	hton,
 	TABLE_SHARE*	table,
+	bool		partitioned,
 	MEM_ROOT*	mem_root);
 
 
@@ -1249,6 +1251,12 @@ uint32
 innobase_sdi_get_num_copies(
 	const dd::Tablespace&	tablespace);
 
+/** Perform post-commit/rollback cleanup after DDL statement. */
+static
+void
+innobase_post_ddl(
+	THD*		thd);
+
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
 Once InnoDB is running, the innodb_commit_concurrency must not change
@@ -1312,14 +1320,21 @@ innobase_rollback_by_xid(
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
-@param[in]	alter_info	Describies the command and how to do it.
+@param[in]	alter_info	Describes the command and how to do it.
+@param[in]	old_ts_def	Old version of dd::Tablespace object for the
+tablespace.
+@param[in,out]	new_ts_def	New version of dd::Tablespace object for the
+tablespace. Can be adjusted by SE. Changes will be persisted in the
+data-dictionary at statement commit.
 @return MySQL error code*/
 static
 int
 innobase_alter_tablespace(
 	handlerton*		hton,
 	THD*			thd,
-	st_alter_tablespace*	alter_info);
+	st_alter_tablespace*	alter_info,
+	const dd::Tablespace*	old_ts_def,
+	dd::Tablespace*		new_ts_def);
 
 /** Remove all tables in the named database inside InnoDB.
 @param[in]	hton	handlerton from InnoDB
@@ -1533,23 +1548,17 @@ innobase_commit_concurrency_validate(
 /** Function for constructing an InnoDB table handler instance.
 @param[in,out]	hton		handlerton for InnoDB
 @param[in]	table		MySQL table
+@param[in]	partitioned	Indicates whether table is partitioned
 @param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
 	handlerton*	hton,
 	TABLE_SHARE*	table,
+	bool		partitioned,
 	MEM_ROOT*	mem_root)
 {
-	/* If the table:
-	1) have type InnoDB (not the generic partition handlerton)
-	2) have partitioning defined
-	Then return the native partitioning handler ha_innopart
-	else return normal ha_innobase handler. */
-	if (table
-	    && table->db_type() == innodb_hton_ptr // 1)
-	    && table->partition_info_str           // 2)
-	    && table->partition_info_str_len) {    // 2)
+	if (partitioned) {
 		ha_innopart* file = new (mem_root) ha_innopart(hton, table);
 		if (file && file->init_partitioning(mem_root))
 		{
@@ -4153,7 +4162,8 @@ innodb_init(
 	innobase_hton->show_status = innobase_show_status;
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
-		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
+		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_ATOMIC_DDL;
 
 	innobase_hton->replace_native_transaction_in_thd =
 		innodb_replace_trx_in_thd;
@@ -4194,6 +4204,8 @@ innodb_init(
 
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
+
+	innobase_hton->post_ddl = innobase_post_ddl;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -5330,6 +5342,15 @@ innobase_sdi_get_num_copies(
 	return(ib_sdi_get_num_copies(space_id));
 }
 
+/** Perform post-commit/rollback cleanup after DDL statement
+(dummy implementation). */
+static
+void
+innobase_post_ddl(
+	THD*		thd)
+{
+}
+
 /*************************************************************************//**
 ** InnoDB database tables
 *****************************************************************************/
@@ -6384,10 +6405,15 @@ ha_innobase::innobase_initialize_autoinc()
 /** Open an InnoDB table.
 @param[in]	name	table name
 @param[in]	open_flags	flags for opening table from SQL-layer.
+@param[in]	table_def	dd::Table object describing table to be opened
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innobase::open(const char* name, int, uint open_flags)
+ha_innobase::open(
+	const char* name,
+	int,
+	uint open_flags,
+	const dd::Table* table_def)
 {
 	dict_table_t*		ib_table;
 	char			norm_name[FN_REFLEN];
@@ -7867,9 +7893,12 @@ ha_innobase::innobase_lock_autoinc(void)
 
 	ut_ad(!srv_read_only_mode || m_prebuilt->table->is_intrinsic());
 
-	if (m_prebuilt->table->is_intrinsic()) {
-		/* Intrinsic table are not shared accorss connection
-		so there is no need to AUTOINC lock the table. */
+	if (m_prebuilt->table->is_intrinsic()
+	    || m_prebuilt->no_autoinc_locking) {
+		/* Intrinsic table are not shared across connection
+		so there is no need to AUTOINC lock the table.
+		Also we won't use AUTOINC lock if this was requested
+		explicitly. */
 		lock_mode = AUTOINC_NO_LOCKING;
 	}
 
@@ -12824,7 +12853,7 @@ ha_innobase::get_se_private_data(
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
-		DBUG_ASSERT(dd_table->partitions().empty());
+		DBUG_ASSERT(dd_table->partitions()->empty());
 	}
 
 	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];
@@ -12852,17 +12881,22 @@ ha_innobase::get_se_private_data(
 }
 
 /** Create an InnoDB table.
-@param[in]	name		table name
-@param[in]	form		table structure
-@param[in]	create_info	more information on the table
-@param[in]	file_per_table	whether to create a per-table tablespace
-@return error number */
+@param[in]	name		Table name, format: "db/table_name".
+@param[in]	form		Table format; columns and index information.
+@param[in]	create_info	Create info (including create statement string).
+@param[in,out]	table_def	dd::Table describing table to be created.
+Can be adjusted by SE, the changes will be saved into data-dictionary at
+statement commit time.
+@param[in]	file_per_table	whether to create a tablespace too
+@return	error number
+@retval 0 on success */
 int
 ha_innobase::create(
-	const char*	name,
-	TABLE*		form,
-	HA_CREATE_INFO*	create_info,
-	bool		file_per_table)
+	const char*		name,
+	TABLE*			form,
+	HA_CREATE_INFO*		create_info,
+	dd::Table*		table_def,
+	bool			file_per_table)
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
@@ -12972,29 +13006,39 @@ cleanup:
 @param[in]	name		table name
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
+@param[in,out]	table_def	dd::Table describing table to be created.
+Can be adjusted by SE, the changes will be saved into data-dictionary at
+statement commit time.
 @return error number */
 int
 ha_innobase::create(
-	const char*	name,
-	TABLE*		form,
-	HA_CREATE_INFO*	create_info)
+	const char*		name,
+	TABLE*			form,
+	HA_CREATE_INFO*		create_info,
+	dd::Table*		table_def)
 {
 	/* Determine if this CREATE TABLE will be making a file-per-table
 	tablespace.  Note that "srv_file_per_table" is not under
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create(name, form, create_info, srv_file_per_table));
+	return(create(name, form, create_info, table_def, srv_file_per_table));
 }
 
 /*****************************************************************//**
 Discards or imports an InnoDB tablespace.
+@param[in]	discard		TRUE if discard, else import
+@param[in,out]	table_def	dd::Table describing table which
+tablespace is to be imported or discarded. Can be adjusted by SE,
+the changes will be saved into the data-dictionary at statement
+commit time.
 @return 0 == success, -1 == error */
 
 int
 ha_innobase::discard_or_import_tablespace(
 /*======================================*/
-	my_bool		discard)	/*!< in: TRUE if discard, else import */
+	my_bool		discard,
+	dd::Table*	table_def)
 {
 
 	DBUG_ENTER("ha_innobase::discard_or_import_tablespace");
@@ -13126,9 +13170,13 @@ ha_innobase::discard_or_import_tablespace(
 }
 
 /** DROP and CREATE an InnoDB table.
-@return error number */
+@param[in,out]	table_def	dd::Table describing table to be
+truncated. Can be adjusted by SE, the changes will be saved into
+the data-dictionary at statement commit time.
+@return	error number
+@retval 0 on success */
 int
-ha_innobase::truncate()
+ha_innobase::truncate(dd::Table *table_def)
 {
 	DBUG_ENTER("ha_innobase::truncate");
 	/* The table should have been opened in ha_innobase::open().
@@ -13182,13 +13230,15 @@ ha_innobase::truncate()
 
 	close();
 
-	int	error	= delete_table(name, SQLCOM_TRUNCATE);
+	int	error	= delete_table(
+		name, table_def, SQLCOM_TRUNCATE);
 
 	if (!error) {
-		error = create(name, table, &info, file_per_table);
+		error = create(name, table, &info, table_def,
+				file_per_table);
 	}
 
-	open(name, 0, 0);
+	open(name, 0, 0, table_def);
 
 	if (!error) {
 		dict_names_t	fk_tables;
@@ -13220,12 +13270,15 @@ ha_innobase::truncate()
 }
 
 /** Drop a table.
-@param[in]	name	table name
+@param[in]	name		table name
+@param[in]	table_def	dd::Table describing table to
+be dropped
 @return error number */
 
 int
 ha_innobase::delete_table(
-	const char*		name)
+	const char*		name,
+	const dd::Table*	table_def)
 {
 	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
 		thd_sql_command(ha_thd()));
@@ -13241,17 +13294,20 @@ ha_innobase::delete_table(
 	from the data dictionary tables. */
 	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
 
-	return(delete_table(name, sqlcom));
+	return(delete_table(name, table_def, sqlcom));
 }
 
 /** Drop a table.
-@param[in]	name	table name
+@param[in]	name		table name
+@param[in]	table_def	dd::Table describing table to
+be dropped
 @param[in]	sqlcom	type of operation that the DROP is part of
-@return error number */
-
+@return	error number
+@retval 0 on success */
 int
 ha_innobase::delete_table(
 	const char*		name,
+	const dd::Table*	table_def,
 	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
@@ -13749,13 +13805,20 @@ have_error:
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
 @param[in]	alter_info	How to do the command
+@param[in]	old_ts_def	Old version of dd::Tablespace object for the
+tablespace
+@param[in,out]	new_ts_def	New version of dd::Tablespace object for the
+tablespace. Can be adjusted by SE. Changes will be persisted in the
+data-dictionary at statement commit.
 @return MySQL error code*/
 static
 int
 innobase_alter_tablespace(
 	handlerton*		hton,
 	THD*			thd,
-	st_alter_tablespace*	alter_info)
+	st_alter_tablespace*	alter_info,
+	const dd::Tablespace*	old_ts_def,
+	dd::Tablespace*		new_ts_def)
 {
 	int		error;		/* return zero for success */
 	DBUG_ENTER("innobase_alter_tablespace");
@@ -14008,13 +14071,22 @@ innobase_rename_table(
 
 /*********************************************************************//**
 Renames an InnoDB table.
+@param[in]	from	Old name of the table.
+@param[in]	to	New name of the table.
+@param[in]	from_table_def	dd::Table object describing old version
+of table.
+@param[in,out]	to_table_def	dd::Table object describing version of
+table with new name. Can be updated by SE. Changes are persisted to the
+dictionary at statement commit time.
 @return 0 or error code */
 
 int
 ha_innobase::rename_table(
 /*======================*/
-	const char*	from,	/*!< in: old name of the table */
-	const char*	to)	/*!< in: new name of the table */
+	const char*	from,
+	const char*	to,
+	const dd::Table	*from_table_def,
+	dd::Table	*to_table_def)
 {
 	THD*	thd = ha_thd();
 
@@ -16240,6 +16312,9 @@ ha_innobase::extra(
 	case HA_EXTRA_END_ALTER_COPY:
 		m_prebuilt->table->skip_alter_undo = 0;
 		break;
+	case HA_EXTRA_NO_AUTOINC_LOCKING:
+		m_prebuilt->no_autoinc_locking = true;
+		break;
 	default:/* Do nothing */
 		;
 	}
@@ -16270,6 +16345,7 @@ ha_innobase::end_stmt()
 	m_prebuilt->autoinc_last_value = 0;
 
 	m_prebuilt->skip_serializable_dd_view = false;
+	m_prebuilt->no_autoinc_locking = false;
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;

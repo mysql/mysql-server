@@ -1,6 +1,6 @@
 #ifndef DD_TABLE_SHARE_INCLUDED
 #define DD_TABLE_SHARE_INCLUDED
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@ struct TABLE_SHARE;
 typedef struct charset_info_st CHARSET_INFO;
 namespace dd {
   class Table;
-
   enum class enum_column_types;
 }
 

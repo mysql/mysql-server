@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,9 +26,30 @@ typedef struct st_mem_root MEM_ROOT;
 namespace dd {
 class View;
 
-/** Store view metadata into dd.views */
+/**
+  Store view metadata in the data-dictionary.
+
+  @param   thd                Thread handle.
+  @param   view               TABLE_LIST elemenent describing the view.
+  @param   schema_name        Schema name.
+  @param   view_name          View name.
+  @param   commit_dd_changes  Indicates whether changes to DD need to be
+                              committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval  false        On Success.
+  @retval  true         On Failure.
+*/
 bool create_view(THD *thd, TABLE_LIST *view,
-                 const char *schema_name, const char *view_name);
+                 const char *schema_name, const char *view_name,
+                 bool commit_dd_changes);
 
 /** Read view metadata from dd.views into TABLE_LIST */
 bool read_view(TABLE_LIST *view, const dd::View &view_ref,
@@ -41,12 +62,23 @@ bool read_view(TABLE_LIST *view, const dd::View &view_ref,
   @param   schema_name  Schema name.
   @param   view_name    View name.
   @param   status       View status(valid/invalid).
+  @param   commit_dd_changes  Indicates whether changes to DD need to be
+                              committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval  false        On Success.
   @retval  true         On Failure.
 */
 bool update_view_status(THD *thd, const char *schema_name,
-                        const char *view_name, bool status);
+                        const char *view_name, bool status,
+                        bool commit_dd_changes);
 
 } // namespace dd
 #endif // DD_VIEW_INCLUDED

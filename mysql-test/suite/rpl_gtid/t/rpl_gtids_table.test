@@ -72,8 +72,10 @@ if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
   INSERT INTO t3 VALUES(1);
   --enable_query_log
 }
+# The below statement is no-op as t3 is non-temporary.
 --error ER_BAD_TABLE_ERROR
 DROP TEMPORARY TABLE tmp1, t3;
+DROP TEMPORARY TABLE tmp1;
 DROP TABLE t3;
 --let $assert_text= committed gtids MASTER_UUID:1-8
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"

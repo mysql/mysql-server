@@ -372,7 +372,9 @@ static int ndbcluster_get_tablespace(THD* thd,
                                      LEX_CSTRING *tablespace_name);
 static int ndbcluster_alter_tablespace(handlerton *hton,
                                        THD* thd, 
-                                       st_alter_tablespace *info);
+                                       st_alter_tablespace *info,
+                                       const dd::Tablespace *old_ts_def,
+                                       dd::Tablespace *new_ts_def);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
@@ -402,6 +404,7 @@ ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
 
 static handler *ndbcluster_create_handler(handlerton *hton,
                                           TABLE_SHARE *table,
+                                          bool partitioned,
                                           MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_ndbcluster(hton, table);
@@ -10741,7 +10744,8 @@ void ha_ndbcluster::append_create_info(String *packet)
 
 int ha_ndbcluster::create(const char *name, 
                           TABLE *form, 
-                          HA_CREATE_INFO *create_info)
+                          HA_CREATE_INFO *create_info,
+                          dd::Table *)
 {
   THD *thd= current_thd;
   NDBTAB tab;
@@ -10931,7 +10935,7 @@ int ha_ndbcluster::create(const char *name,
       DBUG_RETURN(err);
 
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
-    if ((err= delete_table(name)))
+    if ((err= delete_table(name, nullptr)))
       DBUG_RETURN(err);
     ndbtab_g.reinit();
   }
@@ -12050,7 +12054,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   {
     // Rename .ndb file
     int result;
-    if ((result= handler::rename_table(from, to)))
+    if ((result= handler::rename_table(from, to, nullptr, nullptr)))
     {
       // ToDo in 4.1 should rollback alter table...
 
@@ -12161,7 +12165,8 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   Rename a table in NDB and on the participating mysqld(s)
 */
 
-int ha_ndbcluster::rename_table(const char *from, const char *to)
+int ha_ndbcluster::rename_table(const char *from, const char *to,
+                                const dd::Table *, dd::Table *)
 {
   THD *thd= current_thd;
   char old_dbname[FN_HEADLEN];
@@ -12671,7 +12676,7 @@ retry_temporary_error1:
   DBUG_RETURN(0);
 }
 
-int ha_ndbcluster::delete_table(const char *name)
+int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
 {
   THD *thd= current_thd;
 
@@ -12687,7 +12692,7 @@ int ha_ndbcluster::delete_table(const char *name)
     */
     DBUG_PRINT("info", ("Table is already dropped in NDB"));
     delete_table_drop_share(0, name);
-    DBUG_RETURN(handler::delete_table(name));
+    DBUG_RETURN(handler::delete_table(name, nullptr));
   }
 
   set_dbname(name);
@@ -12722,7 +12727,7 @@ int ha_ndbcluster::delete_table(const char *name)
       error == HA_ERR_NO_SUCH_TABLE)
   {
     /* Call ancestor function to delete .ndb file */
-    int error1= handler::delete_table(name);
+    int error1= handler::delete_table(name, nullptr);
     if (!error)
       error= error1;
   }
@@ -12899,7 +12904,8 @@ ha_ndbcluster::~ha_ndbcluster()
     < 0  Table has changed
 */
 
-int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
+int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
+                        const dd::Table *)
 {
   THD *thd= current_thd;
   int res;
@@ -18845,7 +18851,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
 bool
 ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                                            Alter_inplace_info *ha_alter_info,
-                                           dd::Table *new_dd_tab)
+                                           const dd::Table *, dd::Table *)
 {
   int error= 0;
   uint i;
@@ -19160,7 +19166,8 @@ ha_ndbcluster::inplace_alter_frm(const char *file,
 
 bool
 ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
-                                   Alter_inplace_info *ha_alter_info)
+                                   Alter_inplace_info *ha_alter_info,
+                                   const dd::Table *, dd::Table *)
 {
   DBUG_ENTER("ha_ndbcluster::inplace_alter_table");
   int error= 0;
@@ -19249,7 +19256,8 @@ err:
 bool
 ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
                                           Alter_inplace_info *ha_alter_info,
-                                          bool commit)
+                                          bool commit,
+                                          const dd::Table *, dd::Table *)
 {
   DBUG_ENTER("ha_ndbcluster::commit_inplace_alter_table");
 
@@ -19314,7 +19322,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
   DBUG_RETURN(false);
 }
 
-void ha_ndbcluster::notify_table_changed()
+void ha_ndbcluster::notify_table_changed(Alter_inplace_info *)
 {
   DBUG_ENTER("ha_ndbcluster::notify_table_changed ");
 
@@ -19481,7 +19489,9 @@ int ndbcluster_get_tablespace(THD* thd,
 
 static
 int ndbcluster_alter_tablespace(handlerton *hton,
-                                THD* thd, st_alter_tablespace *alter_info)
+                                THD* thd, st_alter_tablespace *alter_info,
+                                const dd::Tablespace *old_ts_def,
+                                dd::Tablespace *new_ts_def)
 {
   int is_tablespace= 0;
   NdbError err;

@@ -627,7 +627,9 @@ FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
-Handler_external_lock	2
+Handler_external_lock	24
+Handler_read_key	40
+Handler_update	40
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
 FLUSH STATUS;
@@ -974,7 +976,10 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
-Handler_external_lock	2
+Handler_external_lock	24
+Handler_read_key	40
+Handler_update	40
+# Warm-up data-dictionary cache
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 ERROR HY000: Found a row not matching the given partition set
@@ -1171,7 +1176,11 @@ FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
-Handler_external_lock	2
+Handler_external_lock	24
+Handler_read_key	40
+Handler_update	40
+# Lots of extra lock acquisitions, reads and etc due to
+# data-dictionary update.
 # Test on non partitioned table
 SELECT * FROM t3 PARTITION (pNeg);
 ERROR HY000: PARTITION () clause on non partitioned table

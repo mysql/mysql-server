@@ -715,7 +715,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 
 --echo #
 --echo # Dropping ts1 should fail.
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE ts1;
 
 --echo #
@@ -767,7 +767,7 @@ LET $wait_condition=
 --connection con2
 --reap
 --connection default
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 
@@ -1080,12 +1080,12 @@ LET $wait_condition=
 --source include/wait_condition.inc
 
 LET $wait_condition=
-  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history_long
     WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 --source include/wait_condition.inc
 
 SELECT event_name, object_name, object_type, operation
-  FROM performance_schema.events_waits_history
+  FROM performance_schema.events_waits_history_long
   WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 
 --echo #

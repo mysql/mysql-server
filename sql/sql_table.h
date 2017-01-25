@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,16 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
+#include <set>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "binary_log_types.h"  // enum_field_types
 #include "my_global.h"
 #include "mysql/psi/mysql_mutex.h"
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+#include "prealloced_array.h"
+#endif
 
 class Alter_info;
 class Alter_table_ctx;
@@ -137,6 +141,12 @@ static const uint FN_IS_TMP=       FN_FROM_IS_TMP | FN_TO_IS_TMP;
 static const uint NO_HA_TABLE=     1 << 2;
 /** Don't check foreign key constraints while renaming table */
 static const uint NO_FK_CHECKS=    1 << 3;
+/**
+  Don't commit transaction after updating data-dictionary while renaming
+  the table.
+*/
+static const uint NO_DD_COMMIT=    1 << 4;
+
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF
@@ -166,9 +176,10 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 uint select_field_count,
-                                bool *is_trans);
-int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list);
+                                bool *is_trans,
+                                handlerton **post_ddl_ht);
+bool mysql_discard_or_import_tablespace(THD *thd,
+                                        TABLE_LIST *table_list);
 
 /**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
@@ -228,9 +239,14 @@ bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
-int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
-                            bool drop_temporary, bool drop_view,
-                            bool log_query);
+bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+                             bool drop_temporary, bool drop_database,
+                             bool *dropped_non_atomic_flag,
+                             std::set<handlerton*> *post_ddl_htons
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+                             , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
+#endif
+                             );
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,
@@ -241,6 +257,9 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
 
 const CHARSET_INFO* get_sql_field_charset(const Create_field *sql_field,
                                           const HA_CREATE_INFO *create_info);
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name);
 bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,

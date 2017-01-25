@@ -192,7 +192,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
                               the row just read by readers.
                             */
                             DELAYED_OPEN,
-                            0, t, FALSE))
+                            0, t, FALSE, nullptr))
     return nullptr;                             /* purecov: inspected */
   DBUG_ASSERT(t->s == first->s && t != first && t->file != first->file);
   t->s->ref_count++;

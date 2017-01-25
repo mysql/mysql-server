@@ -30,7 +30,8 @@
 #include "sql_plugin.h"
 
 static handler *heap_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool partitioned,
                                     MEM_ROOT *mem_root);
 static int
 heap_prepare_hp_create_info(TABLE *table_arg,
@@ -64,7 +65,8 @@ static int heap_init(void *p)
 }
 
 static handler *heap_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool,
                                     MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_heap(hton, table);
@@ -94,7 +96,8 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 */
 #define HEAP_STATS_UPDATE_THRESHOLD 10
 
-int ha_heap::open(const char *name, int mode, uint test_if_locked)
+int ha_heap::open(const char *name, int mode, uint test_if_locked,
+                  const dd::Table*)
 {
   const bool delete_on_close= test_if_locked & HA_OPEN_INTERNAL_TABLE;
   single_instance= delete_on_close && table_share->ref_count == 1;
@@ -166,9 +169,10 @@ int ha_heap::close(void)
 
 handler *ha_heap::clone(const char*, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  handler *new_handler= get_new_handler(table->s, false, mem_root,
+                                        table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
+                                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
     return new_handler;
   return NULL;  /* purecov: inspected */
 }
@@ -546,7 +550,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD*,
   not when doing a CREATE on the table.
 */
 
-int ha_heap::delete_table(const char *name)
+int ha_heap::delete_table(const char *name, const dd::Table*)
 {
   int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;
@@ -560,7 +564,8 @@ void ha_heap::drop_table(const char*)
 }
 
 
-int ha_heap::rename_table(const char * from, const char * to)
+int ha_heap::rename_table(const char * from, const char * to,
+                          const dd::Table*, dd::Table*)
 {
   return heap_rename(from,to);
 }
@@ -712,7 +717,7 @@ heap_prepare_hp_create_info(TABLE *table_arg,
 
 
 int ha_heap::create(const char *name, TABLE *table_arg,
-		    HA_CREATE_INFO *create_info)
+                    HA_CREATE_INFO *create_info, dd::Table*)
 {
   int error;
   my_bool created;

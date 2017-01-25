@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "auth/auth_common.h"   // create_table_precheck()
 #include "binlog.h"             // mysql_bin_log
+#include "dd/cache/dictionary_client.h"
 #include "derror.h"             // ER_THD
 #include "error_handler.h"      // Ignore_error_handler
 #include "handler.h"
@@ -280,6 +281,9 @@ bool Sql_cmd_create_table::execute(THD *thd)
                                                          lex->duplicates,
                                                          select_tables)))
     {
+      // For objects acquired during table creation.
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
       Ignore_error_handler ignore_handler;
       Strict_error_handler strict_handler;
       if (thd->lex->is_ignore())

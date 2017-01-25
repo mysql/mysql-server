@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "mysqld_error.h"                       // ER_*
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
+#include "sql_table.h"                          // MAX_LEN_GEOM_POINT_FIELD
 
 using dd::tables::Indexes;
 using dd::tables::Index_column_usage;
@@ -381,6 +382,64 @@ Index_element *Index_impl::add_element(Column *c)
   m_elements.push_back(e);
   return e;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if index represents candidate key.
+
+  @note This function is in sync with how we evaluate TABLE_SHARE::primary_key.
+*/
+
+/* purecov: begin deadcode */
+bool Index_impl::is_candidate_key() const
+{
+  if (type() != Index::IT_PRIMARY && type() != Index::IT_UNIQUE)
+    return false;
+
+  for (const Index_element *idx_elem_obj : elements())
+  {
+    // Skip hidden index elements
+    if (idx_elem_obj->is_hidden())
+      continue;
+
+    if (idx_elem_obj->column().is_nullable())
+      return false;
+
+    if (idx_elem_obj->column().is_virtual())
+      return false;
+
+    /*
+      Probably we should adjust is_prefix() to take these two scenarios
+      into account. But this also means that we probably need avoid
+      setting HA_PART_KEY_SEG in them.
+    */
+
+    if ((idx_elem_obj->column().type() == enum_column_types::TINY_BLOB &&
+         idx_elem_obj->length() == 255) ||
+        (idx_elem_obj->column().type() == enum_column_types::BLOB &&
+         idx_elem_obj->length() == 65535) ||
+        (idx_elem_obj->column().type() == enum_column_types::MEDIUM_BLOB &&
+         idx_elem_obj->length() == (1 << 24) - 1) ||
+        (idx_elem_obj->column().type() == enum_column_types::LONG_BLOB &&
+         idx_elem_obj->length() == (1LL << 32) - 1))
+      continue;
+
+    if (idx_elem_obj->column().type() == enum_column_types::GEOMETRY)
+    {
+      uint32 sub_type;
+      idx_elem_obj->column().options().get_uint32("geom_type", &sub_type);
+      if (sub_type ==  Field::GEOM_POINT &&
+          idx_elem_obj->length() == MAX_LEN_GEOM_POINT_FIELD)
+        continue;
+    }
+
+    if (idx_elem_obj->is_prefix())
+      return false;
+  }
+  return true;
+}
+/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

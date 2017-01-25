@@ -1632,8 +1632,7 @@ FLUSH TABLE t1;
 --remove_file $MYSQLD_DATADIR/test/t1.ARZ
 --error ER_FILE_NOT_FOUND
 SELECT * FROM t1;
---error ER_BAD_TABLE_ERROR
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
 
 --echo #
 --echo # Ensure that TRUNCATE fails for non-empty archive tables.

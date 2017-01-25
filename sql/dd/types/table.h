@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
@@ -185,6 +185,13 @@ public:
   virtual void set_subpartition_expression(
     const String_type &subpartition_expression) = 0;
 
+  /** Dummy method to be able to use Partition and Table interchangeably
+  in templates. */
+  const Table &table() const
+  { return *this; }
+  Table &table()
+  { return *this; }
+
   /////////////////////////////////////////////////////////////////////////
   //Index collection.
   /////////////////////////////////////////////////////////////////////////
@@ -212,6 +219,15 @@ public:
   virtual Partition *add_partition() = 0;
 
   virtual const Partition_collection &partitions() const = 0;
+
+  virtual Partition_collection *partitions() = 0;
+
+  /**
+    Find and set parent partitions for subpartitions.
+
+    TODO: Adjust API and code to avoid need for this method.
+  */
+  virtual void fix_partitions() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Trigger collection.
@@ -270,7 +286,7 @@ public:
                       are copied.
   */
 
-  virtual void copy_triggers(Table *tab_obj) = 0;
+  virtual void copy_triggers(const Table *tab_obj) = 0;
 
 
   /**

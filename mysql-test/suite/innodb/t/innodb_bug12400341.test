@@ -29,17 +29,14 @@ CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int
 
 --disable_query_log
 #
-# Insert in 1 transaction which needs over 1 page undo record to avoid the insert_undo cached,
-# because the cached insert_undo can be reused at "CREATE TABLE" statement later.
+# Add some rows so UPDATE below has something to work on.
 #
-START TRANSACTION;
-let $c = 4096;
+let $c = 16;
 while ($c)
 {
   eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
   dec $c;
 }
-COMMIT;
 
 let $c = 32;
 while ($c)
@@ -53,15 +50,28 @@ while ($c)
 select count(*) from information_schema.processlist;
 
 #
-# fill the all undo slots
+# Fill the all undo slots.
+#
+# CREATE TABLE above creates both cached insert and update slots, with exact
+# number of slots of each type depending on implementation. Since type of the
+# slot can't be changed we have to use transactions of both insert and update
+# types to to fill all undo slots.
 #
 --disable_query_log
 let $c = 32;
+while ($c > 16)
+{
+  connection con$c;
+  START TRANSACTION;
+  eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
+  dec $c;
+}
+
 while ($c)
 {
   connection con$c;
   START TRANSACTION;
-  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 33 - $c;
+  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 17 - $c;
   dec $c;
 }
 --enable_query_log

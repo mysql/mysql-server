@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,15 +73,9 @@ bool create_schema(THD *thd, const char *schema_name,
 
   // Store the schema. Error will be reported by the dictionary subsystem.
   if (thd->dd_client()->store(wrapped_sch_obj.get()))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     return true;
-  }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return false;
 }
 
 
@@ -92,34 +86,29 @@ bool alter_schema(THD *thd, const char *schema_name,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   // Get dd::Schema object.
-  dd::Schema *new_sch_obj= nullptr;
-  if (client->acquire_for_modification(schema_name, &new_sch_obj))
+  dd::Schema *sch_obj= nullptr;
+  if (client->acquire_for_modification(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
-  if (!new_sch_obj)
+  if (!sch_obj)
   {
     my_error(ER_NO_SUCH_DB, MYF(0), schema_name);
     return true;
   }
 
   // Set new collation ID.
-  new_sch_obj->set_default_collation_id(charset_info->number);
+  sch_obj->set_default_collation_id(charset_info->number);
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(new_sch_obj))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+  if (client->update(sch_obj))
     return true;
-  }
 
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  return false;
 }
 
 
@@ -152,15 +141,9 @@ bool drop_schema(THD *thd, const char *schema_name)
 
   // Drop the schema.
   if (client->drop(sch_obj))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     return true;
-  }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return false;
 }
 
 
