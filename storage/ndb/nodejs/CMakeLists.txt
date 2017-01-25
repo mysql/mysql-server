@@ -116,7 +116,7 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x")
   # Remove -Wundef from C++ compiler flags since there are several
   # undefined identifiers which are evaluated in for example v8config.h
-  STRING(REPLACE "-Wundef"    "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+  STRING(REPLACE "-Wundef " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 endif()
 
 add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
