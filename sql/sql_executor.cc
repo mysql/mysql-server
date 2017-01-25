@@ -3766,8 +3766,10 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
          group;
          group= group->next, key_part++)
     {
+      // Field null indicator is located one byte ahead of field value.
+      // @todo - check if this NULL byte is really necessary for grouping
       if (key_part->null_bit)
-        memcpy(table->record[0] + key_part->offset, group->buff, 1);
+        memcpy(table->record[0] + key_part->offset - 1, group->buff - 1, 1);
     }
     /* See comment on copy_funcs above. */
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))

@@ -6453,7 +6453,7 @@ bool Item::can_be_evaluated_now() const
 
   If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
   If max_length > 0 create a varchar @n
-  If max_length == 0 create a CHAR(0) (or VARCHAR(0) if we are grouping)
+  If max_length == 0 create a CHAR(0)
 
   @param table		Table for which the field is created
 */
@@ -6473,19 +6473,8 @@ Field *Item::make_string_field(TABLE *table)
     field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
                                table->s, collation.collation);
   else
-  {
-    /*
-     marker == 4 : see create_tmp_table()
-     With CHAR(0) end_update() may write garbage into the next field.
-    */
-    if (max_length == 0 && marker == 4 && maybe_null &&
-        field_type() == MYSQL_TYPE_VAR_STRING && type() != Item::TYPE_HOLDER)
-      field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
-                                 table->s, collation.collation);
-    else
-      field= new Field_string(max_length, maybe_null, item_name.ptr(),
-                              collation.collation);
-  }
+    field= new Field_string(max_length, maybe_null, item_name.ptr(),
+                            collation.collation);
   if (field)
     field->init(table);
   return field;
