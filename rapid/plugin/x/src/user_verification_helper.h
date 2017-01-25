@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,12 +20,12 @@
 #ifndef XPL_USER_VERIFICATION_HELPER_H_
 #define XPL_USER_VERIFICATION_HELPER_H_
 
+#include "my_dbug.h"
 #include "ngs_common/connection_type.h"
-
-#include "xpl_log.h"
+#include "query_string_builder.h"
 #include "sql_data_context.h"
 #include "sql_user_require.h"
-#include "query_string_builder.h"
+#include "xpl_log.h"
 
 
 namespace xpl {

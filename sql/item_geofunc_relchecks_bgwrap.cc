@@ -38,7 +38,7 @@
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::point_within_geometry(Geometry *g1, Geometry *g2,
-                                               my_bool *pnull_value)
+                                               bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -74,7 +74,7 @@ int BG_wrap<Geom_types>::point_within_geometry(Geometry *g1, Geometry *g2,
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
-                                                    my_bool *pnull_value)
+                                                    bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -283,7 +283,7 @@ multipoint_within_multipolygon(const Multipoint &mpts,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_within_geometry(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value)
+                           bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -308,7 +308,7 @@ linestring_within_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_within_geometry(Geometry *g1, Geometry *g2,
-                                my_bool *pnull_value)
+                                bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -335,7 +335,7 @@ multilinestring_within_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 polygon_within_geometry(Geometry *g1, Geometry *g2,
-                        my_bool *pnull_value)
+                        bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -358,7 +358,7 @@ polygon_within_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipolygon_within_geometry(Geometry *g1, Geometry *g2,
-                             my_bool *pnull_value)
+                             bool *pnull_value)
 {
 
   int result= 0;
@@ -391,7 +391,7 @@ multipolygon_within_geometry(Geometry *g1, Geometry *g2,
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
-                                                    my_bool *pnull_value)
+                                                    bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -436,7 +436,7 @@ int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
-                             my_bool *pnull_value)
+                             bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -617,7 +617,7 @@ multipoint_disjoint_multi_geometry(const Multipoint &mpts,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                             my_bool *pnull_value)
+                             bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -653,7 +653,7 @@ linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                  my_bool *pnull_value)
+                                  bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -691,7 +691,7 @@ multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 point_disjoint_geometry(Geometry *g1, Geometry *g2,
-                        my_bool *pnull_value)
+                        bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -745,7 +745,7 @@ point_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value)
+                          bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -791,7 +791,7 @@ polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value)
+                               bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -838,7 +838,7 @@ multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 point_intersects_geometry(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value)
+                          bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -880,7 +880,7 @@ point_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value)
+                               bool *pnull_value)
 {
   return !multipoint_disjoint_geometry(g1, g2, pnull_value);
 }
@@ -899,7 +899,7 @@ multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value)
+                               bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -936,7 +936,7 @@ linestring_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                    my_bool *pnull_value)
+                                    bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -973,7 +973,7 @@ multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 polygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value)
+                            bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1020,7 +1020,7 @@ polygon_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                 my_bool *pnull_value)
+                                 bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1066,7 +1066,7 @@ multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_crosses_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value)
+                            bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1108,7 +1108,7 @@ linestring_crosses_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
-                                 my_bool *pnull_value)
+                                 bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1149,7 +1149,7 @@ multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value)
+                            bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1215,14 +1215,12 @@ multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
-multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value)
+multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2)
 {
   int result= 0;
 
@@ -1269,7 +1267,7 @@ multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
-                                my_bool *pnull_value)
+                                bool *pnull_value)
 {
 
   const void *data_ptr= g2->normalize_ring_order();
@@ -1307,7 +1305,7 @@ multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 point_touches_geometry(Geometry *g1, Geometry *g2,
-                       my_bool *pnull_value)
+                       bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1348,7 +1346,7 @@ point_touches_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_touches_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value)
+                            bool *pnull_value)
 {
   int has_touches= 0;
 
@@ -1382,7 +1380,7 @@ multipoint_touches_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_touches_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value)
+                            bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1428,7 +1426,7 @@ linestring_touches_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
-                                 my_bool *pnull_value)
+                                 bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1475,7 +1473,7 @@ multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 polygon_touches_geometry(Geometry *g1, Geometry *g2,
-                         my_bool *pnull_value)
+                         bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1522,7 +1520,7 @@ polygon_touches_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
-                              my_bool *pnull_value)
+                              bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
@@ -1563,119 +1561,118 @@ multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_within_geometry(Geometry *g1, Geometry *g2,
-                      my_bool *pnull_value);
+                      bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_within_geometry(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value);
+                           bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_within_geometry(Geometry *g1, Geometry *g2,
-                           my_bool *pnull_value);
+                           bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_within_geometry(Geometry *g1, Geometry *g2,
-                                my_bool *pnull_value);
+                                bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_within_geometry(Geometry *g1, Geometry *g2,
-                        my_bool *pnull_value);
+                        bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_within_geometry(Geometry *g1, Geometry *g2,
-                             my_bool *pnull_value);
+                             bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
-multipoint_equals_geometry(Geometry *g1, Geometry *g2, my_bool *pnull_value);
+multipoint_equals_geometry(Geometry *g1, Geometry *g2, bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_disjoint_geometry(Geometry *g1, Geometry *g2,
-                        my_bool *pnull_value);
+                        bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
-                             my_bool *pnull_value);
+                             bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                             my_bool *pnull_value);
+                             bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                  my_bool *pnull_value);
+                                  bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value);
+                          bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value);
+                               bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_intersects_geometry(Geometry *g1, Geometry *g2,
-                          my_bool *pnull_value);
+                          bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value);
+                               bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value);
+                               bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                    my_bool *pnull_value);
+                                    bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                 my_bool *pnull_value);
+                                 bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_crosses_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
-                                 my_bool *pnull_value);
+                                 bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
-multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                               my_bool *pnull_value);
+multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_touches_geometry(Geometry *g1, Geometry *g2,
-                       my_bool *pnull_value);
+                       bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_touches_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_touches_geometry(Geometry *g1, Geometry *g2,
-                            my_bool *pnull_value);
+                            bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
-                                my_bool *pnull_value);
+                                bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
-                                 my_bool *pnull_value);
+                                 bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_touches_geometry(Geometry *g1, Geometry *g2,
-                         my_bool *pnull_value);
+                         bool *pnull_value);
 template
 int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
-                              my_bool *pnull_value);
+                              bool *pnull_value);

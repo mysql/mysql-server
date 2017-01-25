@@ -67,7 +67,7 @@ ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value o
 SET @@session.query_cache_wlock_invalidate = ÕN;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÕN'
 SET @@session.query_cache_wlock_invalidate = OF;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.query_cache_wlock_invalidate = ÓFF;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÓFF'
 SET @@global.query_cache_wlock_invalidate = -1;
@@ -83,7 +83,7 @@ ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value o
 SET @@global.query_cache_wlock_invalidate = ÕN;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÕN'
 SET @@global.query_cache_wlock_invalidate = OF;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@global.query_cache_wlock_invalidate = ÓFF;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_135_05----------------------------#'

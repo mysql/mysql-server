@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,15 +21,25 @@
 #ifndef _keycache_h
 #define _keycache_h
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"                             /* flush_type */
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
 C_MODE_START
 
 /* declare structures that is used by st_key_cache */
 
 struct st_block_link;
+
 typedef struct st_block_link BLOCK_LINK;
 struct st_hash_link;
+
 typedef struct st_hash_link HASH_LINK;
 
 /* Thread specific variables */

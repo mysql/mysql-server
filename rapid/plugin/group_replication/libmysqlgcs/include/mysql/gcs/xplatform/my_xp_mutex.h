@@ -56,7 +56,7 @@ public:
   /**
     Initialize mutex.
 
-    @param mutex attributes reference
+    @param attr mutex attributes reference
     @return success status
   */
 
@@ -164,7 +164,7 @@ public:
   /**
     Initialize mutex attributes object
 
-    @param mutex attributes reference
+    @param attr mutex attributes reference
     @return success status
   */
 
@@ -174,7 +174,7 @@ public:
   /**
     Destroy mutex attributes object
 
-    @param mutex attributes reference
+    @param attr mutex attributes reference
     @return success status
   */
 

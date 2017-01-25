@@ -820,7 +820,7 @@ String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)
   If item is a node set, then casts it to boolean,
   otherwise returns the item itself.
 */
-static Item* nodeset2bool(MY_XPATH *xpath, Item *item)
+static Item* nodeset2bool(Item *item)
 {
   if (item->type() == Item::XPATH_NODESET)
     return new Item_xpath_cast_bool(item);
@@ -1146,37 +1146,37 @@ my_xpath_keyword(MY_XPATH *x,
   Functions to create an item, a-la those in item_create.cc
 */
 
-static Item *create_func_true(MY_XPATH *xpath, Item **args, uint nargs)
-{ 
+static Item *create_func_true(MY_XPATH*, Item **, uint)
+{
   return new Item_bool(1);
 }
 
 
-static Item *create_func_false(MY_XPATH *xpath, Item **args, uint nargs)
-{ 
+static Item *create_func_false(MY_XPATH*, Item**, uint)
+{
   return new Item_bool(0);
 }
 
 
-static Item *create_func_not(MY_XPATH *xpath, Item **args, uint nargs)
-{ 
-  return new Item_func_not(nodeset2bool(xpath, args[0]));
+static Item *create_func_not(MY_XPATH*, Item **args, uint)
+{
+  return new Item_func_not(nodeset2bool(args[0]));
 }
 
 
-static Item *create_func_ceiling(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_ceiling(MY_XPATH*, Item **args, uint)
 {
   return new Item_func_ceiling(args[0]);
 }
 
 
-static Item *create_func_floor(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_floor(MY_XPATH*, Item **args, uint)
 {
   return new Item_func_floor(args[0]);
 }
 
 
-static Item *create_func_bool(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_bool(MY_XPATH*, Item **args, uint)
 {
   return new Item_xpath_cast_bool(args[0]);
 }
@@ -1205,39 +1205,39 @@ static Item *create_func_string_length(MY_XPATH *xpath, Item **args, uint nargs)
 }
 
 
-static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_round(MY_XPATH*, Item **args, uint)
 {
   return new Item_func_round(args[0], new Item_int_0(), 0);
 }
 
 
-static Item *create_func_last(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_last(MY_XPATH *xpath, Item**, uint)
 {
-  return xpath->context ? 
+  return xpath->context ?
          new Item_func_xpath_count(xpath->context) : NULL;
 }
 
 
-static Item *create_func_position(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_position(MY_XPATH *xpath, Item**, uint)
 {
-  return xpath->context ? 
+  return xpath->context ?
          new Item_func_xpath_position(xpath->context) : NULL;
 }
 
 
-static Item *create_func_contains(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_contains(MY_XPATH*, Item **args, uint)
 {
   return new Item_xpath_cast_bool(new Item_func_locate(args[0], args[1]));
 }
 
 
-static Item *create_func_concat(MY_XPATH *xpath, Item **args, uint nargs)
-{ 
-  return new Item_func_concat(args[0], args[1]); 
+static Item *create_func_concat(MY_XPATH*, Item **args, uint)
+{
+  return new Item_func_concat(args[0], args[1]);
 }
 
 
-static Item *create_func_substr(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_substr(MY_XPATH*, Item **args, uint nargs)
 {
   if (nargs == 2)
     return new Item_func_substr(args[0], args[1]);
@@ -1246,15 +1246,15 @@ static Item *create_func_substr(MY_XPATH *xpath, Item **args, uint nargs)
 }
 
 
-static Item *create_func_count(MY_XPATH *xpath, Item **args, uint nargs)
-{  
+static Item *create_func_count(MY_XPATH*, Item **args, uint)
+{
   if (args[0]->type() != Item::XPATH_NODESET)
     return 0;
   return new Item_func_xpath_count(args[0]);
 }
 
 
-static Item *create_func_sum(MY_XPATH *xpath, Item **args, uint nargs)
+static Item *create_func_sum(MY_XPATH *xpath, Item **args, uint)
 {
   if (args[0]->type() != Item::XPATH_NODESET)
     return 0;
@@ -1734,7 +1734,7 @@ my_xpath_parse_AxisSpecifier_NodeTest_opt_Predicate_list(MY_XPATH *xpath)
       return 0;
     }
 
-    xpath->item= nodeset2bool(xpath, xpath->item);
+    xpath->item= nodeset2bool(xpath->item);
 
     if (xpath->item->is_bool_func())
     {
@@ -2119,8 +2119,8 @@ static int my_xpath_parse_OrExpr(MY_XPATH *xpath)
       return 0;
       xpath->error= 1;
     }
-    xpath->item= new Item_cond_or(nodeset2bool(xpath, prev),
-                                  nodeset2bool(xpath, xpath->item));
+    xpath->item= new Item_cond_or(nodeset2bool(prev),
+                                  nodeset2bool(xpath->item));
   }
   return 1;
 }
@@ -2151,8 +2151,8 @@ static int my_xpath_parse_AndExpr(MY_XPATH *xpath)
       return 0;
     }
 
-    xpath->item= new Item_cond_and(nodeset2bool(xpath,prev), 
-                                   nodeset2bool(xpath,xpath->item));
+    xpath->item= new Item_cond_and(nodeset2bool(prev),
+                                   nodeset2bool(xpath->item));
   }
   return 1;
 }
@@ -2652,7 +2652,7 @@ my_xpath_parse(MY_XPATH *xpath, const char *str, const char *strend)
 }
 
 
-bool Item_xml_str_func::resolve_type(THD *thd)
+bool Item_xml_str_func::resolve_type(THD*)
 {
   nodeset_func= 0;
 
@@ -2770,9 +2770,9 @@ int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 
   node.parent= data->parent; // Set parent for the new node to old parent
   data->parent= numnodes;    // Remember current node as new parent
-  DBUG_ASSERT(data->level <= MAX_LEVEL);
+  DBUG_ASSERT(data->level < MAX_LEVEL);
   data->pos[data->level]= numnodes;
-  if (data->level < MAX_LEVEL)
+  if (data->level < MAX_LEVEL - 1)
     node.level= data->level++;
   else
     return MY_XML_ERROR;
@@ -2825,7 +2825,7 @@ int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
 */
 extern "C" int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len);
 
-int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
+int xml_leave(MY_XML_PARSER *st,const char*, size_t)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   DBUG_ASSERT(data->level > 0);

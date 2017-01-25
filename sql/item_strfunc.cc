@@ -31,7 +31,13 @@
 #include "sha2.h"
 
 #include <algorithm>
-#include <cmath>                     // isnan
+#include <atomic>
+#include <cmath>                     // std::isfinite
+#include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "auth_acls.h"
 #include "auth_common.h"             // check_password_policy
@@ -55,14 +61,17 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_dir.h"                  // For my_stat
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_md5_size.h"
 #include "my_rnd.h"                  // my_rand_buffer
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "myisampack.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_password_policy.h"
@@ -77,30 +86,12 @@
 #include "sql_lex.h"
 #include "sql_locale.h"              // my_locale_by_name
 #include "sql_security_ctx.h"
+#include "sql_show.h"  // grant_types
 #include "strfunc.h"                 // hexchar_to_int
 #include "template_utils.h"
 #include "typelib.h"
 #include "val_int_compare.h"         // Integer_value
 #include "zconf.h"
-
-C_MODE_START
-#include "../mysys/my_static.h"			// For soundex_map
-
-C_MODE_END
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_show.h"  // grant_types
-#endif
-
-#include <atomic>
-#include <cmath>                     // isnan
-#include <memory>
-#include <ostream>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;
@@ -286,7 +277,7 @@ bool Item_func_sha::resolve_type(THD *)
 String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
 
@@ -369,7 +360,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     "sha2", "--with-ssl");
   null_value= TRUE;
   return (String *) NULL;
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
 }
 
 
@@ -378,7 +369,7 @@ bool Item_func_sha2::resolve_type(THD *thd)
   maybe_null= true;
   max_length= 0;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   longlong sha_variant;
   if (args[1]->const_item())
   {
@@ -427,7 +418,7 @@ bool Item_func_sha2::resolve_type(THD *thd)
     ER_FEATURE_DISABLED,
     ER_THD(thd, ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
 
   return false;
 }
@@ -464,7 +455,7 @@ public:
                                        Item **args,
                                        const char *func_name,
                                        THD *thd,
-                                       my_bool *error_generated)
+                                       bool *error_generated)
   {
     const unsigned char *iv_str= NULL;
 
@@ -678,7 +669,7 @@ bool Item_func_random_bytes::resolve_type(THD *)
 }
 
 
-String *Item_func_random_bytes::val_str(String *a)
+String *Item_func_random_bytes::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   longlong n_bytes= args[0]->val_int();
@@ -889,7 +880,7 @@ bool Item_func_concat::resolve_type(THD *)
 String *Item_func_des_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -978,7 +969,7 @@ error:
                       ER_FEATURE_DISABLED,
                       ER_THD(current_thd, ER_FEATURE_DISABLED),
                       "des_encrypt", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
   null_value=1;
   return 0;
 }
@@ -987,7 +978,7 @@ error:
 String *Item_func_des_decrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -1059,7 +1050,7 @@ wrong_key:
                       ER_FEATURE_DISABLED,
                       ER_THD(current_thd, ER_FEATURE_DISABLED),
                       "des_decrypt", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+#endif /* defined(HAVE_OPENSSL) */
   null_value=1;
   return 0;
 }
@@ -1788,16 +1779,11 @@ void Item_func_roles_graphml::print(String *str, enum_query_type)
 bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
 {
   Item_str_func::fix_fields(thd, ref);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->security_context()->check_access(SUPER_ACL, false))
     roles_graphml(thd, &m_str);
   else
     m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                               "<graphml />"), system_charset_info);
-#else
-  m_str.set(STRING_WITH_LEN("Not supported in embedded mode"),
-            system_charset_info);
-#endif
   return false;  
 }
 
@@ -2375,7 +2361,6 @@ bool Item_func_current_role::fix_fields(THD *thd, Item **ref)
 
 String *Item_func_current_role::val_str(String* str)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   THD *thd= current_thd;
   Security_context *ctx= thd->security_context();
   /*
@@ -2408,9 +2393,6 @@ String *Item_func_current_role::val_str(String* str)
     m_active_role.append("@");
     append_identifier(thd, &m_active_role, it->second.str, it->second.length);
   }
-#else
-  m_active_role.set_ascii("NONE", 4);
-#endif
   if (str != 0)
   {
     str->copy(m_active_role);
@@ -2437,12 +2419,8 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
     return TRUE;
 
   Security_context *ctx=
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
                          (context->security_ctx
                           ? context->security_ctx : thd->security_context());
-#else
-                         thd->security_context();
-#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
   return init(ctx->priv_user().str, ctx->priv_host().str);
 }
 
@@ -2470,6 +2448,11 @@ static int soundex_toupper(int ch)
 {
   return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
 }
+
+
+				/* ABCDEFGHIJKLMNOPQRSTUVWXYZ */
+				/* :::::::::::::::::::::::::: */
+static const char *soundex_map=   "01230120022455012623010202";
 
 
 static char get_scode(int wc)
@@ -2613,7 +2596,7 @@ String *Item_func_soundex::val_str(String *str)
 const int FORMAT_MAX_DECIMALS= 30;
 
 
-MY_LOCALE *Item_func_format::get_locale(Item *item)
+MY_LOCALE *Item_func_format::get_locale(Item*)
 {
   DBUG_ASSERT(arg_count == 3);
   THD *thd= current_thd;
@@ -2692,7 +2675,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (std::isnan(nr) || std::isinf(nr))
+    if (!std::isfinite(nr))
       return str;
     str_length=str->length();
   }
@@ -3560,7 +3543,7 @@ err:
 }
 
 
-bool Item_func_conv::resolve_type(THD *thd)
+bool Item_func_conv::resolve_type(THD*)
 {
   collation.set(default_charset());
   max_length=64;
@@ -3800,7 +3783,7 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res)
   {
     if (args[0]->itemize(pc, &args[0]))
       return true;
-    args[0]= new (pc->mem_root) Item_char_typecast(args[0], nweights,
+    args[0]= new (pc->mem_root) Item_char_typecast(args[0], num_codepoints,
                                                    &my_charset_bin);
     if (args[0] == NULL)
       return true;
@@ -3813,10 +3796,10 @@ void Item_func_weight_string::print(String *str, enum_query_type query_type)
   str->append(func_name());
   str->append('(');
   args[0]->print(str, query_type);
-  if (nweights && !as_binary)
+  if (num_codepoints && !as_binary)
   {
     str->append(" as char");
-    str->append_parenthesized(nweights);
+    str->append_parenthesized(num_codepoints);
   }
   // The flags is already normalized
   uint flag_lev = flags & MY_STRXFRM_LEVEL_ALL;
@@ -3861,11 +3844,15 @@ bool Item_func_weight_string::resolve_type(THD *)
   /* 
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
-    and "nweights".
+    and "num_codepoints".
+
+    FIXME: Shouldn't this use strxfrm_multiply instead of, or in
+    addition to, mbmaxlen? Do we take into account things like
+    UCA level separators at all?
   */  
   max_length= field ? field->pack_length() :
               result_length ? result_length :
-              cs->mbmaxlen * max(args[0]->max_length, nweights);
+              cs->mbmaxlen * max(args[0]->max_length, num_codepoints);
   maybe_null= true;
   return false;
 }
@@ -3880,7 +3867,7 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
     return 0;
 
   Item_func_weight_string *wstr= (Item_func_weight_string*)item;
-  if (nweights != wstr->nweights ||
+  if (num_codepoints != wstr->num_codepoints ||
       flags != wstr->flags)
     return 0;
 
@@ -3893,37 +3880,37 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
 /* Return a weight_string according to collation */
 String *Item_func_weight_string::val_str(String *str)
 {
-  String *res;
+  String *input;
   const CHARSET_INFO *cs= args[0]->collation.collation;
-  size_t tmp_length, frm_length;
+  size_t output_buf_size, output_length;
   bool rounded_up= false;
   DBUG_ASSERT(fixed == 1);
 
   if (args[0]->result_type() != STRING_RESULT ||
-      !(res= args[0]->val_str(str)))
+      !(input= args[0]->val_str(str)))
     goto nl;
   
   /*
     Use result_length if it was given in constructor
     explicitly, otherwise calculate result length
-    from argument and "nweights".
+    from argument and "num_codepoints".
   */
-  tmp_length= field ? field->pack_length() :
+  output_buf_size= field ? field->pack_length() :
               result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
-                                    max<size_t>(res->length(), nweights));
+                                    max<size_t>(input->length(), num_codepoints));
 
   /*
     my_strnxfrm() with an odd number of bytes is illegal for some collations;
     ask for one more and then truncate ourselves instead.
   */
-  if ((tmp_length % 2) == 1)
+  if ((output_buf_size % 2) == 1)
   {
-    ++tmp_length;
+    ++output_buf_size;
     rounded_up= true;
   }
 
-  if(tmp_length > current_thd->variables.max_allowed_packet)
+  if(output_buf_size > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -3933,26 +3920,37 @@ String *Item_func_weight_string::val_str(String *str)
     goto nl;
   }
 
-  if (tmp_value.alloc(tmp_length))
+  if (tmp_value.alloc(output_buf_size))
     goto nl;
 
   if (field)
   {
-    frm_length= field->pack_length();
-    field->make_sort_key((uchar *) tmp_value.ptr(), tmp_length);
+    output_length= field->pack_length();
+    field->make_sort_key((uchar *) tmp_value.ptr(), output_buf_size);
   }
   else
-    frm_length= cs->coll->strnxfrm(cs,
-                                   (uchar *) tmp_value.ptr(), tmp_length,
-                                   nweights ? nweights : tmp_length,
-                                   (const uchar *) res->ptr(), res->length(),
-                                   flags);
-  DBUG_ASSERT(frm_length <= tmp_length);
+  {
+    size_t input_length= input->length();
+    if (num_codepoints)
+    {
+      // Truncate the string to the requested number of code points.
+      input_length= std::min(input_length,
+        cs->cset->charpos(cs, input->ptr(), input->ptr() + input_length,
+                          num_codepoints));
+    }
+    output_length= cs->coll->strnxfrm(
+      cs,
+      (uchar *) tmp_value.ptr(), output_buf_size,
+      num_codepoints ? num_codepoints : output_buf_size,
+      (const uchar *) input->ptr(), input_length,
+      flags);
+  }
+  DBUG_ASSERT(output_length <= output_buf_size);
 
-  if (rounded_up && frm_length == tmp_length)
-    --frm_length;
+  if (rounded_up && output_length == output_buf_size)
+    --output_length;
 
-  tmp_value.length(frm_length);
+  tmp_value.length(output_length);
   null_value= 0;
   return &tmp_value;
 
@@ -4293,9 +4291,7 @@ String *Item_load_file::val_str(String *str)
   DBUG_ENTER("load_file");
 
   if (!(file_name= args[0]->val_str(str))
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
       || !(current_thd->security_context()->check_access(FILE_ACL))
-#endif
       )
     goto err;
 
@@ -5051,7 +5047,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
   // Retrieve required values to form column type string.
   //
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read schema_name, table_name, field_name
   String schema_name;
   String *schema_name_ptr;
@@ -5098,7 +5093,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
     else
       oss << "select";
   }
-#endif
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 

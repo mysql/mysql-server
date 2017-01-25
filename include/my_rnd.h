@@ -22,9 +22,9 @@
   A wrapper to use OpenSSL/YaSSL PRNGs.
 */
 
-#include <my_global.h>
-#include <mysql_com.h>
 #include <stddef.h>
+
+#include "mysql_com.h"  // IWYU pragma: keep
 
 #ifdef __cplusplus
 extern "C" {

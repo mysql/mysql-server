@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,19 +23,19 @@
 */
 
 
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_push.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "abstract_query_plan.h"
-
+#include <ndb_version.h>
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
+
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
-
-#include <ndb_version.h>
+#include "abstract_query_plan.h"
+#include "ha_ndbcluster.h"
+#include "ha_ndbcluster_binlog.h"
+#include "ha_ndbcluster_cond.h"
+#include "ha_ndbcluster_glue.h"
+#include "ha_ndbcluster_push.h"
+#include "my_dbug.h"
 
 
 /*
@@ -1018,6 +1018,14 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
                     key_item_field->field->table->alias, 
                     key_item_field->field->field_name);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently disable as child
+    DBUG_RETURN(false);
+  }
+
+  if (key_item_field->field->is_virtual_gcol())
+  {
+    EXPLAIN_NO_PUSH("Can't push condition on virtual generated column '%s.%s'",
+                    key_item_field->field->table->alias,
+                    key_item_field->field->field_name);
     DBUG_RETURN(false);
   }
 

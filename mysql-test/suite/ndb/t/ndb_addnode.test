@@ -7,6 +7,18 @@
 -- source include/not_embedded.inc
 --result_format 2
 
+--echo "Create nodegroup with out-of-range node ID"
+--error 255
+--exec $NDB_MGM -e "create nodegroup 112,113"
+--error 255
+--exec $NDB_MGM -e "create nodegroup 4,112"
+
+--echo "Create nodegroup with in-range but inactive node ID"
+--error 255
+--exec $NDB_MGM -e "create nodegroup 48,3"
+--error 255
+--exec $NDB_MGM -e "create nodegroup 4,48"
+
 --exec $NDB_MGM -e show
 
 CREATE LOGFILE GROUP lg_1
@@ -59,6 +71,19 @@ select count(1) as t6_part_count from information_schema.partitions where table_
 --exec $NDB_MGM -e "drop nodegroup 1"
 ## and create
 --exec $NDB_MGM -e "create nodegroup 3,4"
+
+set @@new = 1;
+
+#create table t7(id int primary key, uk int, unique key (uk)) engine=ndb
+create table t7(id int primary key, uk int) engine=ndb
+  partition by list(id) (
+    partition p0 values in (0),
+    partition p1 values in (1),
+    partition p2 values in (2),
+    partition p3 values in (3),
+    partition p4 values in (4)
+  );
+drop table t7;
 
 create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 create table t4(id int NOT NULL PRIMARY KEY, data char(8))

@@ -2,46 +2,6 @@
 # DROP-related tests which execution requires debug server.
 #
 --source include/have_debug.inc
---source include/have_debug_sync.inc
-
---disable_parsing
-# 
-# WL7743/TODO: Decide if this test is till relevant.
-#
-###########################################################################
---echo
---echo # --
---echo # -- Bug#43138: DROP DATABASE failure does not clean up message list.
---echo # --
---echo
-
---disable_warnings
-DROP DATABASE IF EXISTS mysql_test;
---enable_warnings
-
---echo
-CREATE DATABASE mysql_test;
-CREATE TABLE mysql_test.t1(a INT);
-CREATE TABLE mysql_test.t2(b INT);
-CREATE TABLE mysql_test.t3(c INT);
-
---echo
-SET SESSION DEBUG = "+d,bug43138";
-
---echo
---sorted_result
-DROP DATABASE mysql_test;
-
---echo
-SET SESSION DEBUG = "-d,bug43138";
-
---echo
---echo # --
---echo # -- End of Bug#43138.
---echo # --
---enable_parsing
-
-###########################################################################
 
 --echo #
 --echo # Bug#21625393 : Assert condition (e->usage() == 1) failure in
@@ -50,28 +10,29 @@ SET SESSION DEBUG = "-d,bug43138";
 
 --enable_connect_log
 
-CREATE TABLE t1 (f1 INT);
+--echo #
+--echo # Create MyISAM table, and drop it, but make drop fail
+--echo # before the object is deleted from the dd tables. Now,
+--echo # the object exists in the global data dictionary, but
+--echo # not in the SE.
 
-SET DEBUG_SYNC='before_dropping_dd_object SIGNAL kill_query WAIT_FOR go';
---SEND DROP TABLE t1;
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
 
-connect (con1, localhost, root,,);
-SET DEBUG_SYNC='now WAIT_FOR kill_query';
-SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "DROP TABLE%" INTO @thread_id;
-KILL QUERY @thread_id;
-SET DEBUG_SYNC='now SIGNAL go';
-
-connection default;
-# Bug#21966802 is makes DD operations immune to kill. So DROP TABLE statement
-# will not be interrupted in this case. So commenting following statement.
-#--error ER_QUERY_INTERRUPTED
---reap
-# Without fix, following statement results in a assert condition failure with
-# the debug build.
---error ER_BAD_TABLE_ERROR
+--connect (con1, localhost, root)
+SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
 DROP TABLE t1;
+SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
 
-#cleanup
-disconnect con1;
-SET DEBUG_SYNC='RESET';
+--connection default
+--echo # Drop the table for real. Use IF EXISTS clause to ignore
+--echo # the fact that table does not exist in SE.
+--echo # Without the fix this statement will fail with assert.
+DROP TABLE IF EXISTS t1;
+
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+
 --disable_connect_log

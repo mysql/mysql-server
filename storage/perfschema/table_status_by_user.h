@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,26 +55,30 @@ struct row_status_by_user
   Index 1 on user (0 based)
   Index 2 on status variable (0 based)
 */
-struct pos_status_by_user
-: public PFS_double_index
+struct pos_status_by_user : public PFS_double_index
 {
-  pos_status_by_user()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_status_by_user() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline bool has_more_user(void)
-  { return (m_index_1 < global_user_container.get_row_count()); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
 
-  inline void next_user(void)
+  inline bool
+  has_more_user(void)
+  {
+    return (m_index_1 < global_user_container.get_row_count());
+  }
+
+  inline void
+  next_user(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -83,11 +87,14 @@ class PFS_index_status_by_user : public PFS_engine_index
 public:
   PFS_index_status_by_user()
     : PFS_engine_index(&m_key_1, &m_key_2),
-    m_key_1("USER"), m_key_2("VARIABLE_NAME")
-  {}
+      m_key_1("USER"),
+      m_key_2("VARIABLE_NAME")
+  {
+  }
 
   ~PFS_index_status_by_user()
-  {}
+  {
+  }
 
   virtual bool match(PFS_user *pfs);
   virtual bool match(const Status_variable *pfs);
@@ -104,8 +111,13 @@ private:
 class table_status_by_user_context : public PFS_table_context
 {
 public:
-  table_status_by_user_context(ulonglong current_version, bool restore) :
-    PFS_table_context(current_version, global_user_container.get_row_count(), restore, THR_PFS_SBU) { }
+  table_status_by_user_context(ulonglong current_version, bool restore)
+    : PFS_table_context(current_version,
+                        global_user_container.get_row_count(),
+                        restore,
+                        THR_PFS_SBU)
+  {
+  }
 };
 
 /** Table PERFORMANCE_SCHEMA.STATUS_BY_USER. */
@@ -116,7 +128,7 @@ class table_status_by_user : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -137,10 +149,12 @@ protected:
   table_status_by_user();
 
 public:
-  ~table_status_by_user() { }
+  ~table_status_by_user()
+  {
+  }
 
 protected:
-  void make_row(PFS_user *user, const Status_variable *status_var);
+  int make_row(PFS_user *user, const Status_variable *status_var);
 
 private:
   /** Table share lock. */
@@ -153,14 +167,13 @@ private:
 
   /** Current row. */
   row_status_by_user m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */
   pos_t m_next_pos;
 
-  /** Table context with global status array version and map of materialized threads. */
+  /** Table context with global status array version and map of materialized
+   * threads. */
   table_status_by_user_context *m_context;
 
   PFS_index_status_by_user *m_opened_index;

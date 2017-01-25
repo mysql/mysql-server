@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
@@ -164,12 +165,10 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     lex->insert_table_leaf= table_list;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     Field_iterator_table_ref field_it;
     field_it.set(table_list);
     if (check_grant_all_columns(thd, INSERT_ACL, &field_it))
       return true;
-#endif
   }
   else
   {
@@ -380,7 +379,7 @@ static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
   // This 'set' helps decide if we need to make copy of BLOB value
   // or not.
 
-  Prealloced_array<Field_blob *, 16, true>
+  Prealloced_array<Field_blob *, 16>
     blob_update_field_set(PSI_NOT_INSTRUMENTED);
   if (blob_update_field_set.reserve(fields.elements))
     DBUG_RETURN(true);
@@ -1224,9 +1223,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
   if (duplicates == DUP_UPDATE)
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     table_list->set_want_privilege(UPDATE_ACL);
-#endif
     // Setup the columns to be updated
     if (setup_fields(thd, Ref_item_array(), update_field_list, UPDATE_ACL,
                      NULL, false, true))
@@ -1235,9 +1232,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     if (check_valid_table_refs(table_list, update_field_list, map))
       DBUG_RETURN(true);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     table_list->set_want_privilege(SELECT_ACL);
-#endif
   }
 
   if (table_list->is_merged())
@@ -2050,7 +2045,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 }
 
 
-int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_insert::prepare");
 
@@ -2062,10 +2057,10 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table= lex->insert_table_leaf->table;
 
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   if ((duplicate_handling == DUP_UPDATE) &&
       update.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
@@ -2079,7 +2074,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     if (duplicate_handling == DUP_UPDATE &&
         table->next_number_field != NULL &&
         rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
   }
 #endif
 
@@ -2100,23 +2095,23 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     (*next_field)->reset_tmp_null();
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
 /**
-  Finish the preparation of the result table.
+  Set up the target table for execution.
 
-  If the result table is the same as one of the source tables (INSERT SELECT),
-  the result table is not finally prepared at the join prepair phase.
+  If the target table is the same as one of the source tables (INSERT SELECT),
+  the target table is not finally prepared in the join optimization phase.
   Do the final preparation now.
 
-  @returns 0 always
+  @returns false always
 */
 
-int Query_result_insert::prepare2()
+bool Query_result_insert::start_execution()
 {
-  DBUG_ENTER("Query_result_insert::prepare2");
+  DBUG_ENTER("Query_result_insert::start_execution");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
   {
@@ -2125,7 +2120,7 @@ int Query_result_insert::prepare2()
     table->file->ha_start_bulk_insert((ha_rows) 0);
     bulk_insert_started= true;
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -2343,7 +2338,7 @@ bool Query_result_insert::send_eof()
     thd->first_successful_insert_id_in_cur_stmt=
       thd->first_successful_insert_id_in_prev_stmt;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -2475,7 +2470,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   memset(&tmp_table, 0, sizeof(tmp_table));
   tmp_table.s= &share;
-  init_tmp_table_share(thd, &share, "", 0, "", "");
+  init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->db_low_byte_first= 
@@ -2570,14 +2565,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 #ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
         /*
           InnoDB might add tablespace objects to the DD during table creation.
-          If this changes are not committed here it will have problems dropping
+          If these changes are not committed here it will have problems dropping
           table on error.
 
           The problem will be solved once InnoDB implements support for atomic
           DDL and statement rollback will remove the table automatically.
-
-          WL7743/TODO: Replace this code with not clearing uncommitted objects
-                       cache during rollback of transaction?
         */
         {
           Disable_gtid_state_update_guard disabler(thd);
@@ -2586,7 +2578,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         }
 #endif
 
-        // FIXME?
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
@@ -2668,12 +2659,10 @@ Query_result_create::Query_result_create(THD *thd,
   @param values  List of items to be used as new columns
   @param u       Select
 
-  @return Operation status.
-    @retval 0   Success
-    @retval !=0 Failure
+  @returns false if success, true if error.
 */
 
-int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_create::prepare");
 
@@ -2682,18 +2671,15 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
-  m_releaser= std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser>(
-                new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
-
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values, &m_post_ddl_ht)))
     /* abort() deletes table */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
 
   if (table->s->fields < values.elements)
   {
     my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
   }
   /* First field to copy */
   field= table->field+table->s->fields - values.elements;
@@ -2718,149 +2704,35 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
-/*
-  Class for maintaining hooks used inside operations on tables such
-  as: create table functions, delete table functions, and alter table
-  functions.
-
-  Class is using the Template Method pattern to separate the public
-  usage interface from the private inheritance interface.  This
-  imposes no overhead, since the public non-virtual function is small
-  enough to be inlined.
-
-  The hooks are usually used for functions that does several things,
-  e.g., create_table_from_items(), which both create a table and lock
-  it.
- */
-class TABLEOP_HOOKS
-{
-public:
-  TABLEOP_HOOKS() {}
-  virtual ~TABLEOP_HOOKS() {}
-
-  inline void prelock(TABLE **tables, uint count)
-  {
-    do_prelock(tables, count);
-  }
-
-  inline int postlock(TABLE **tables, uint count)
-  {
-    return do_postlock(tables, count);
-  }
-private:
-  /* Function primitive that is called prior to locking tables */
-  virtual void do_prelock(TABLE **tables, uint count)
-  {
-    /* Default is to do nothing */
-  }
-
-  /**
-     Primitive called after tables are locked.
-
-     If an error is returned, the tables will be unlocked and error
-     handling start.
-
-     @return Error code or zero.
-   */
-  virtual int do_postlock(TABLE **tables, uint count)
-  {
-    return 0;                           /* Default is to do nothing */
-  }
-};
-
-
 /**
   Lock the newly created table and prepare it for insertion.
 
-  @return Operation status.
-    @retval 0   Success
-    @retval !=0 Failure
+  @returns false if success, true if error
 */
 
-int Query_result_create::prepare2()
+bool Query_result_create::start_execution()
 {
-  DBUG_ENTER("Query_result_create::prepare2");
+  DBUG_ENTER("Query_result_create::start_execution");
   DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   MYSQL_LOCK *extra_lock= NULL;
-  /*
-    For row-based replication, the CREATE-SELECT statement is written
-    in two pieces: the first one contain the CREATE TABLE statement
-    necessary to create the table and the second part contain the rows
-    that should go into the table.
 
-    For non-temporary tables, the start of the CREATE-SELECT
-    implicitly commits the previous transaction, and all events
-    forming the statement will be stored the transaction cache. At end
-    of the statement, the entire statement is committed as a
-    transaction, and all events are written to the binary log.
-
-    On the master, the table is locked for the duration of the
-    statement, but since the CREATE part is replicated as a simple
-    statement, there is no way to lock the table for accesses on the
-    slave.  Hence, we have to hold on to the CREATE part of the
-    statement until the statement has finished.
-   */
-  class MY_HOOKS : public TABLEOP_HOOKS {
-  public:
-    MY_HOOKS(Query_result_create *x, TABLE_LIST *create_table_arg,
-             TABLE_LIST *select_tables_arg)
-      : ptr(x),
-        create_table(create_table_arg),
-        select_tables(select_tables_arg)
-      {
-      }
-
-  private:
-    virtual int do_postlock(TABLE **tables, uint count)
-    {
-      int error;
-      THD *thd= const_cast<THD*>(ptr->get_thd());
-      TABLE_LIST *save_next_global= create_table->next_global;
-
-      create_table->next_global= select_tables;
-
-      error= thd->decide_logging_format(create_table);
-
-      create_table->next_global= save_next_global;
-
-      if (error)
-        return error;
-
-      TABLE const *const table = *tables;
-      if (thd->is_current_stmt_binlog_format_row()  &&
-          !table->s->tmp_table)
-      {
-        if (int error= ptr->binlog_show_create_table(tables, count))
-          return error;
-      }
-      return 0;
-    }
-    Query_result_create *ptr;
-    TABLE_LIST *create_table;
-    TABLE_LIST *select_tables;
-  };
-
-  MY_HOOKS hooks(this, create_table, select_tables);
- 
   table->reginfo.lock_type=TL_WRITE;
-  hooks.prelock(&table, 1);                    // Call prelock hooks
+
   /*
     mysql_lock_tables() below should never fail with request to reopen table
     since it won't wait for the table lock (we have exclusive metadata lock on
     the table) and thus can't get aborted.
   */
   if (! (extra_lock= mysql_lock_tables(thd, &table, 1, 0)) ||
-        hooks.postlock(&table, 1))
+      binlog_show_create_table())
   {
     if (extra_lock)
     {
       mysql_unlock_tables(thd, extra_lock);
       extra_lock= 0;
     }
-    drop_open_table();
-    table= 0;
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
   if (extra_lock)
   {
@@ -2882,11 +2754,11 @@ int Query_result_create::prepare2()
 
   // Set up an empty bitmap of function defaults
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   if (info.add_function_default_columns(table,
                                         table->fields_set_during_insert))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   table->next_number_field=table->found_next_number_field;
 
@@ -2912,19 +2784,51 @@ int Query_result_create::prepare2()
   thd->count_cuted_fields= CHECK_FIELD_WARN;
 
   if (check_that_all_fields_are_given_values(thd, table, table_list))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   thd->count_cuted_fields= save_count_cuted_fields;
 
   table->mark_columns_needed_for_insert(thd);
   table->file->extra(HA_EXTRA_WRITE_CACHE);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
-int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
+/*
+  For row-based replication, the CREATE-SELECT statement is written
+  in two pieces: the first one contain the CREATE TABLE statement
+  necessary to create the table and the second part contain the rows
+  that should go into the table.
+
+  For non-temporary tables, the start of the CREATE-SELECT
+  implicitly commits the previous transaction, and all events
+  forming the statement will be stored the transaction cache. At end
+  of the statement, the entire statement is committed as a
+  transaction, and all events are written to the binary log.
+
+  On the master, the table is locked for the duration of the
+  statement, but since the CREATE part is replicated as a simple
+  statement, there is no way to lock the table for accesses on the
+  slave.  Hence, we have to hold on to the CREATE part of the
+  statement until the statement has finished.
+*/
+
+int Query_result_create::binlog_show_create_table()
 {
-  DBUG_ENTER("select_create::binlog_show_create_table");
+  DBUG_ENTER("Query_result_create::binlog_show_create_table");
+
+  TABLE_LIST *save_next_global= create_table->next_global;
+  create_table->next_global= select_tables;
+  int error= thd->decide_logging_format(create_table);
+  create_table->next_global= save_next_global;
+
+  if (error)
+    DBUG_RETURN(error);
+
+  if (!thd->is_current_stmt_binlog_format_row() ||
+      table->s->tmp_table)
+    DBUG_RETURN(0);
+
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
     created table by calling store_create_info() (behaves as SHOW
@@ -2946,8 +2850,6 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
     schema that will do a close_thread_tables(), destroying the
     statement transaction cache.
   */
-  DBUG_ASSERT(thd->is_current_stmt_binlog_format_row());
-  DBUG_ASSERT(tables && *tables && count > 0);
 
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
@@ -2955,7 +2857,7 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   TABLE_LIST tmp_table_list;
 
   memset(&tmp_table_list, 0, sizeof(tmp_table_list));
-  tmp_table_list.table = *tables;
+  tmp_table_list.table= table;
   query.length(0);      // Have to zero it since constructor doesn't
 
   result= store_create_info(thd, &tmp_table_list, &query, create_info,
@@ -3032,7 +2934,17 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp= update_referencing_views_metadata(thd, create_table);
+  bool tmp;
+
+  {
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    tmp= update_referencing_views_metadata(thd, create_table,
+                                           !(table->s->db_type()->flags &
+                                             HTON_SUPPORTS_ATOMIC_DDL),
+                                           &uncommitted_tables);
+  }
+
   if (!tmp)
     tmp= Query_result_insert::send_eof();
   if (tmp)
@@ -3078,8 +2990,6 @@ bool Query_result_create::send_eof()
 
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
-
-    m_releaser.reset();
   }
   return tmp;
 }
@@ -3111,7 +3021,7 @@ void Query_result_create::drop_open_table()
     close_thread_table(thd, &thd->open_tables);
     /*
       Remove TABLE and TABLE_SHARE objects for the table we have failed
-      to create from the caches. This also nicely covers the case then
+      to create from the caches. This also nicely covers the case when
       addition of table to data-dictionary was not even committed.
     */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
@@ -3140,8 +3050,13 @@ void Query_result_create::drop_open_table()
     else
     {
       trans_rollback_stmt(thd);
-      if (thd->transaction_rollback_request)
-        trans_rollback_implicit(thd);
+      /*
+        Rollback transaction both to clear THD::transaction_rollback_request
+        (if it is set) and to synchronize DD state for view metadata in cache
+        and on disk (as statement rollback doesn't clear DD cache of modified
+        uncommitted objects).
+      */
+      trans_rollback_implicit(thd);
 
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
@@ -3195,12 +3110,16 @@ void Query_result_create::abort_result_set()
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     trans_rollback_stmt(thd);
-    // QQ: Should we try to rollback txn here too?
+    /*
+      Rollback transaction both to clear THD::transaction_rollback_request
+      (if it is set) and to synchronize DD state in cache and on disk (as
+      statement rollback doesn't clear DD cache of modified uncommitted
+      objects).
+    */
+    trans_rollback_implicit(thd);
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
   }
-
-  m_releaser.reset();
 
   DBUG_VOID_RETURN;
 }

@@ -48,9 +48,6 @@ disconnect con2;
 --echo # THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
 --echo #
 
-# WL7743/TODO: There is problem with CTS cleanup on rollback
-
---disable_parsing
 create table t1 (i int);
 insert into t1 values (42);
 
@@ -74,4 +71,3 @@ disconnect rr_con;
 
 COMMIT;
 drop table t1;
---enable_parsing

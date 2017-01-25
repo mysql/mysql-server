@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <welcome_copyright_notice.h>
 

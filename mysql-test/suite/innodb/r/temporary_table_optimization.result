@@ -171,7 +171,7 @@ ERROR 23000: Duplicate entry '2.2' for key 'sec_index'
 alter table t1 add index sec_index(t1_f);
 explain select * from t1 where t1_f > 2.2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	sec_index	NULL	NULL	NULL	4	75.00	Using where
+1	SIMPLE	t1	NULL	range	sec_index	sec_index	5	NULL	3	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t1_i` AS `t1_i`,`test`.`t1`.`t1_f` AS `t1_f` from `test`.`t1` where (`test`.`t1`.`t1_f` > 2.2)
 select * from t1 where t1_f > 2.2;

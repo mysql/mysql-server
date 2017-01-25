@@ -21,8 +21,12 @@
   @file include/sha1.h
 */
 
+#include <stddef.h>
+
+#include "my_compiler.h"
 #include "my_config.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 #define SHA1_HASH_SIZE 20 /* Hash size in bytes */
 

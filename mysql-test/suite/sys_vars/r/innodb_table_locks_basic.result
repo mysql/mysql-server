@@ -66,9 +66,10 @@ ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'TRÜE'
 SET @@session.innodb_table_locks = ÕN;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'ÕN'
 SET @@session.innodb_table_locks = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@session.innodb_table_locks;
 @@session.innodb_table_locks
-0
+1
 SET @@session.innodb_table_locks = ÓFF;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'ÓFF'
 SET @@global.innodb_table_locks = -1;
@@ -83,9 +84,10 @@ ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'TRÜE'
 SET @@global.innodb_table_locks = QN;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'QN'
 SET @@global.innodb_table_locks = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@global.innodb_table_locks;
 @@global.innodb_table_locks
-0
+1
 '#-------------------FN_DYNVARS_046_05----------------------------#'
 SET @@global.innodb_table_locks = 0;
 SET @@session.innodb_table_locks = 1;

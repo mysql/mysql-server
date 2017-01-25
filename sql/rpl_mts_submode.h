@@ -92,11 +92,11 @@ public:
   int schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
-  void detach_temp_tables(THD *thd, const Relay_log_info* rli,
-                                                      Query_log_event *ev);
-  Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
+  void detach_temp_tables(THD *thd, const Relay_log_info*,
+                          Query_log_event *ev);
+  Slave_worker* get_least_occupied_worker(Relay_log_info*,
                                           Slave_worker_array *ws,
-                                          Log_event *ev);
+                                          Log_event*);
   ~Mts_submode_database(){};
   int wait_for_workers_to_finish(Relay_log_info  *rli,
                                  Slave_worker *ignore= NULL);
@@ -148,7 +148,7 @@ public:
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
-                                                      Query_log_event *ev);
+                          Query_log_event*);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           Slave_worker_array *ws,
                                           Log_event *ev);

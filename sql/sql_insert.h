@@ -19,12 +19,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "handler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sqlcommand.h"
-#include "probes_mysql.h"         // IWYU pragma: keep
 #include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
 #include "sql_data_change.h"      // enum_duplicates
@@ -148,8 +146,8 @@ public:
 
 public:
   bool need_explain_interceptor() const override { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  int prepare2() override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool start_execution() override;
   bool send_data(List<Item> &items) override;
   virtual void store_values(List<Item> &values);
   void send_error(uint errcode, const char *err) override;
@@ -180,7 +178,6 @@ class Query_result_create final : public Query_result_insert {
     otherwise.
   */
   handlerton *m_post_ddl_ht;
-  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> m_releaser;
 public:
   Query_result_create(THD *thd,
                       TABLE_LIST *table_arg,
@@ -190,18 +187,15 @@ public:
                       enum_duplicates duplic,
                       TABLE_LIST *select_tables_arg);
 
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  int binlog_show_create_table(TABLE **tables, uint count);
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   void store_values(List<Item> &values) override;
   void send_error(uint errcode, const char *err) override;
   bool send_eof() override;
   void abort_result_set() override;
-
-  // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
-  const THD *get_thd(void) { return thd; }
-  int prepare2() override;
+  bool start_execution() override;
 
 private:
+  int binlog_show_create_table();
   void drop_open_table();
 };
 
@@ -302,17 +296,6 @@ public:
 
 protected:
   virtual bool execute_inner(THD *thd);
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
-  {
-    MYSQL_INSERT_START(query);
-  }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
-  {
-    MYSQL_INSERT_DONE(status, rows);
-  }
-#endif
 };
 
 
@@ -332,18 +315,6 @@ public:
   {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
-
-protected:
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
-  {
-    MYSQL_INSERT_SELECT_START(query);
-  }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
-  {
-    MYSQL_INSERT_SELECT_DONE(status, rows);
-  }
-#endif
 };
 
 #endif /* SQL_INSERT_INCLUDED */

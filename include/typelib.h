@@ -22,6 +22,7 @@
 */
 
 #include "mem_root_fwd.h"
+#include "my_inttypes.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -143,11 +143,11 @@ SET SESSION debug=@save_debug;
 create table t1(id int primary key, val int) engine=ndb;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter table t1 add partition partitions 2;
-ERROR HY000: Unknown error 4008
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	4008	Unknown error 4008
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t1;
 # mysqld gets timeout error 4008 on DROP_TAB_REQ for table drop

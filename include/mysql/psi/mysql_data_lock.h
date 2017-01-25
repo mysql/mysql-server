@@ -33,32 +33,32 @@
   @{
 */
 
-#define mysql_data_lock_register(I) \
-  inline_mysql_data_lock_register(I)
+#define mysql_data_lock_register(I) inline_mysql_data_lock_register(I)
 
-void inline_mysql_data_lock_register(
+void
+inline_mysql_data_lock_register(
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
-   PSI_engine_data_lock_inspector *i
+  PSI_engine_data_lock_inspector *i
 #else
-   PSI_engine_data_lock_inspector *i MY_ATTRIBUTE ((unused))
+  PSI_engine_data_lock_inspector *i MY_ATTRIBUTE((unused))
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
-                                    )
+  )
 {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
   PSI_DATA_LOCK_CALL(register_data_lock)(i);
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 }
 
-#define mysql_data_lock_unregister(I) \
-  inline_mysql_data_lock_unregister(I)
+#define mysql_data_lock_unregister(I) inline_mysql_data_lock_unregister(I)
 
-void inline_mysql_data_lock_unregister(
+void
+inline_mysql_data_lock_unregister(
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
   PSI_engine_data_lock_inspector *i
 #else
-  PSI_engine_data_lock_inspector *i MY_ATTRIBUTE ((unused))
+  PSI_engine_data_lock_inspector *i MY_ATTRIBUTE((unused))
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
-                                      )
+  )
 {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
   PSI_DATA_LOCK_CALL(unregister_data_lock)(i);
@@ -68,4 +68,3 @@ void inline_mysql_data_lock_unregister(
 /** @} (end of group psi_api_data_lock) */
 
 #endif
-

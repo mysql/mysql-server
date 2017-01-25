@@ -23,16 +23,17 @@ SQL data field and tuple
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
+#include <new>
 
 #include "data0data.h"
+#include "ha_prototypes.h"
 #ifndef UNIV_HOTBACKUP
-#include "rem0rec.h"
-#include "rem0cmp.h"
+#include "btr0cur.h"
+#include "dict0dict.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "dict0dict.h"
-#include "btr0cur.h"
+#include "rem0cmp.h"
+#include "rem0rec.h"
 #include "row0upd.h"
 
 #endif /* !UNIV_HOTBACKUP */
@@ -48,10 +49,9 @@ byte	data_error;
 /** Compare two data tuples.
 @param[in] tuple1 first data tuple
 @param[in] tuple2 second data tuple
-@return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
-respectively */
-int
-dtuple_coll_cmp(
+@return whether tuple1 == tuple2 */
+bool
+dtuple_coll_eq(
 	const dtuple_t*	tuple1,
 	const dtuple_t*	tuple2)
 {
@@ -73,10 +73,11 @@ dtuple_coll_cmp(
 	for (i = 0; cmp == 0 && i < n_fields; i++) {
 		const dfield_t*	field1	= dtuple_get_nth_field(tuple1, i);
 		const dfield_t*	field2	= dtuple_get_nth_field(tuple2, i);
-		cmp = cmp_dfield_dfield(field1, field2);
+		/* Equality comparison does not care about ASC/DESC. */
+		cmp = cmp_dfield_dfield(field1, field2, true);
 	}
 
-	return(cmp);
+	return(cmp == 0);
 }
 
 /*********************************************************************//**

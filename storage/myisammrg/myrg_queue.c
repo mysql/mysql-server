@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_dbug.h"
 #include "myrg_def.h"
 
 static int queue_key_cmp(void *keyseg, uchar *a, uchar *b)
@@ -49,7 +50,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
   {
     if (!is_queue_inited(q))
     {
-      if (init_queue(q,info->tables, 0,
+      if (init_queue(q,key_memory_QUEUE,info->tables, 0,
 		     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
 		     queue_key_cmp,
 		     info->open_tables->table->s->keyinfo[inx].seg))
@@ -57,7 +58,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
     }
     else
     {
-      if (reinit_queue(q,info->tables, 0,
+      if (reinit_queue(q,key_memory_QUEUE,info->tables, 0,
 		       (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
 		       queue_key_cmp,
 		       info->open_tables->table->s->keyinfo[inx].seg))

@@ -1236,10 +1236,10 @@ rw_lock_debug_print(
 {
 	ulint	rwt = info->lock_type;
 
-	fprintf(f, "Locked: thread %lu file %s line %lu  ",
-		(ulong) info->thread_id,
+	fprintf(f, "Locked: thread " UINT64PF " file %s line " ULINTPF "  ",
+		(uint64_t)(info->thread_id),
 		sync_basename(info->file_name),
-		static_cast<ulong>(info->line));
+		info->line);
 
 	switch (rwt) {
 	case RW_LOCK_S:

@@ -769,10 +769,11 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   MYSQL_GCS_LOG_DEBUG("Configured waiting time(s): " << wait_time_str->c_str())
 
   int wait_time= atoi(wait_time_str->c_str());
+  assert(wait_time > 0);
 
   // Setup the proxy
   if (create_proxy)
-    xcom_proxy= new Gcs_xcom_proxy_impl(wait_time);
+    xcom_proxy= new Gcs_xcom_proxy_impl(static_cast<unsigned int>(wait_time));
 
   // Setup the processing engine
   gcs_engine= new Gcs_xcom_engine();
@@ -993,8 +994,8 @@ Gcs_xcom_interface::configure_msg_stages(const Gcs_interface_parameters& p,
   const std::string *sptr= p.get_parameter("compression");
   if (sptr->compare("on") == 0)
   {
-    unsigned long long threshold=
-      atoll(p.get_parameter("compression_threshold")->c_str());
+    unsigned long long threshold= static_cast<unsigned long long>
+      (atoll(p.get_parameter("compression_threshold")->c_str()));
 
     st_lz4->set_threshold(threshold);
     MYSQL_GCS_LOG_TRACE(
@@ -1024,7 +1025,16 @@ void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
                           char *data)
 {
   const site_def *site= find_site_def(message_id);
+
+  if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    free(data);
+    return;
+  }
+
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
+  assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification=
@@ -1156,7 +1166,7 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
   }
 
   // Build a gcs_message from the arriving data...
-  MYSQL_GCS_DEBUG_EXECUTE(
+  MYSQL_GCS_TRACE_EXECUTE(
     if (hd.get_cargo_type() == Gcs_internal_message_header::CT_INTERNAL_STATE_EXCHANGE)
     {
       MYSQL_GCS_LOG_TRACE(
@@ -1205,7 +1215,15 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
 void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id, node_set nodes)
 {
   const site_def *site= find_site_def(message_id);
+
+  if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    return;
+  }
+
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
+  assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification=
@@ -1260,7 +1278,7 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
     return;
   }
 
-  MYSQL_GCS_DEBUG_EXECUTE(
+  MYSQL_GCS_TRACE_EXECUTE(
     unsigned int node_no= xcom_nodes->get_node_no();
     unsigned int size= xcom_nodes->get_size();
     const std::vector<std::string> &addresses= xcom_nodes->get_addresses();
@@ -1329,7 +1347,14 @@ int cb_xcom_match_port(xcom_port if_port)
 void cb_xcom_receive_local_view(synode_no message_id, node_set nodes)
 {
   const site_def *site= find_site_def(message_id);
+  if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    return;
+  }
+
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
+  assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification=

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,13 +51,19 @@ Int32 readLogEntry(ndbzio_stream*, Uint32**);
 static Uint32 recNo;
 static Uint32 logEntryNo;
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 int
 main(int argc, const char * argv[]){
 
   ndb_init();
   if(argc <= 1){
     printf("Usage: %s <filename>\n", argv[0]);
-    exit(1);
+    ndb_end_and_exit(1);
   }
 
   ndbzio_stream fo;
@@ -68,7 +74,7 @@ main(int argc, const char * argv[]){
   {
     ndbout_c("Failed to open file '%s', error: %d",
              argv[1], r);
-    exit(1);
+    ndb_end_and_exit(1);
   }
 
   ndbzio_stream* f = &fo;
@@ -76,7 +82,7 @@ main(int argc, const char * argv[]){
   BackupFormat::FileHeader fileHeader;
   if(!readHeader(f, &fileHeader)){
     ndbout << "Invalid file!" << endl;
-    exit(1);
+    ndb_end_and_exit(1);
   }	
   ndbout << fileHeader << endl;
 
@@ -219,7 +225,7 @@ main(int argc, const char * argv[]){
     break;
   }
   ndbzclose(f);
-  return 0;
+  ndb_end_and_exit(0);
 }
 
 #define RETURN_FALSE() { ndbout_c("false: %d", __LINE__); abort(); return false; }

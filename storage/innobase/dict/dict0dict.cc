@@ -24,19 +24,20 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-#include "current_thd.h"
-#include "mysqld.h"                             // system_charset_info
+#include <stdlib.h>
 #include <strfunc.h>
-
-#include "dict0dict.h"
-#include "fts0fts.h"
-#include "fil0fil.h"
 #include <algorithm>
 #include <string>
 
-#include "row0sel.h"
+#include "current_thd.h"
+#include "dict0dict.h"
+#include "fil0fil.h"
+#include "fts0fts.h"
+#include "ha_prototypes.h"
+#include "my_dbug.h"
+#include "mysqld.h"                             // system_charset_info
 #include "que0types.h"
+#include "row0sel.h"
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -47,6 +48,9 @@ extern uint	ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
+#include <algorithm>
+#include <vector>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -71,19 +75,16 @@ extern uint	ibuf_debug;
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0ins.h"
 #include "row0log.h"
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0upd.h"
-#include "row0ins.h"
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
 #include "ut0new.h"
-
-#include <vector>
-#include <algorithm>
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -3062,7 +3063,7 @@ dict_index_copy(
 		field = index2->get_field(i);
 
 		dict_index_add_col(index1, table, field->col,
-				   field->prefix_len);
+				   field->prefix_len, field->is_ascending);
 	}
 }
 
@@ -3241,14 +3242,13 @@ dict_index_build_internal_clust(
 
 	if (!dict_index_is_unique(index)) {
 		dict_index_add_col(new_index, table,
-				   table->get_sys_col(DATA_ROW_ID),
-				   0);
+				   table->get_sys_col(DATA_ROW_ID), 0, true);
 		trx_id_pos++;
 	}
 
 	dict_index_add_col(
 		new_index, table,
-		table->get_sys_col(DATA_TRX_ID), 0);
+		table->get_sys_col(DATA_TRX_ID), 0, true);
 
 
 	for (i = 0; i < trx_id_pos; i++) {
@@ -3292,8 +3292,7 @@ dict_index_build_internal_clust(
 
 		dict_index_add_col(
 			new_index, table,
-			table->get_sys_col(DATA_ROLL_PTR),
-			0);
+			table->get_sys_col(DATA_ROLL_PTR), 0, true);
 	}
 
 	/* Remember the table columns already contained in new_index */
@@ -3323,7 +3322,7 @@ dict_index_build_internal_clust(
 		ut_ad(col->mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {
-			dict_index_add_col(new_index, table, col, 0);
+			dict_index_add_col(new_index, table, col, 0, true);
 		}
 	}
 
@@ -3413,12 +3412,14 @@ dict_index_build_internal_non_clust(
 
 		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, table, field->col,
-					   field->prefix_len);
+					   field->prefix_len,
+					   field->is_ascending);
 		} else if (dict_index_is_spatial(index)) {
 			/*For spatial index, we still need to add the
 			field to index. */
 			dict_index_add_col(new_index, table, field->col,
-					   field->prefix_len);
+					   field->prefix_len,
+					   field->is_ascending);
 		}
 	}
 
@@ -4373,6 +4374,10 @@ dict_table_get_highest_foreign_id(
 			}
 		}
 	}
+
+	ulint size = table->foreign_set.size();
+
+	biggest_id = (size > biggest_id) ? size : biggest_id;
 
 	DBUG_PRINT("dict_table_get_highest_foreign_id",
 		   ("id: %lu", biggest_id));
@@ -5814,13 +5819,15 @@ dict_table_load_dynamic_metadata(
 					 table);
 			table->dirty_status = METADATA_BUFFERED;
 			ut_d(table->in_dirty_dict_tables_list = true);
-		} else {
-			/* The row in DDTableBuffer is invalid, which
-			is due to the corrupted index marked has been dropped.
-			We can remove it, but this is in load table,
-			it should be in read only mode, so we just keep it */
-			table->dirty_status = METADATA_CLEAN;
 		}
+		/* If !is_dirty, it could be either:
+		1. It's first time to load this table, and the corrupted
+		index marked has been dropped. Current dirty_status should
+		be METADATA_CLEAN.
+		2. It's the second time to apply dynamic metadata to this
+		table, current in-memory dynamic metadata is up-to-date.
+		Current dirty_status should be METADATA_BUFFERED.
+		In both cases, we don't have to change the dirty_status */
 	}
 
 	mutex_exit(&dict_persist->mutex);
@@ -6113,7 +6120,8 @@ dict_ind_init(void)
 
 	dict_ind_redundant = dict_mem_index_create("SYS_DUMMY1", "SYS_DUMMY1",
 						   DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0);
+	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0,
+			   true);
 	dict_ind_redundant->table = table;
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	dict_ind_redundant->cached = TRUE;
@@ -7710,7 +7718,7 @@ altogether. If purge or rollback needs to access the SDI table, it can create
 the SDI table object for the table_id on demand. */
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace_id
 @param[in,out]	sdi_tables	Array of sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void

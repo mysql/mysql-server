@@ -23,6 +23,8 @@
 #include "dd/sdi_fwd.h"                   // RJ_Document
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 
+class THD;
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -66,7 +68,7 @@ public:
   static bool update_name_key(name_key_type *key,
                               const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(aux_key_type*) const
   { return true; }
 
 public:
@@ -80,7 +82,7 @@ public:
     @param       thd      Thread context.
     @param [out] empty    Whether the tablespace is empty.
 
-    @retutn true if error, false if success.
+    @return true if error, false if success.
   */
 
   virtual bool is_empty(THD *thd, bool *empty) const= 0;

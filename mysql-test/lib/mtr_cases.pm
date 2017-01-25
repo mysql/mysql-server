@@ -69,6 +69,7 @@ sub collect_option {
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
+use My::File::Path qw / get_bld_path /;
 use IO::File();
 use My::Config;
 use My::Platform;
@@ -133,7 +134,7 @@ sub collect_test_cases ($$$$) {
 		  "ha_innodb_plugin.sl"],
 		 NOT_REQUIRED);
   $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
-		      !(IS_WINDOWS && $::opt_embedded_server) &&
+		      !(IS_WINDOWS) &&
 		      $lib_innodb_plugin);
 
   # If not reordering, we also shouldn't group by suites, unless
@@ -201,8 +202,14 @@ sub collect_test_cases ($$$$) {
 
   if ( @$opt_cases )
   {
-    # A list of tests was specified on the command line
-    # Check that the tests specified was found
+    # A list of tests was specified on the command line.
+    # Among those, the tests which are not already collected will be
+    # collected and stored temporarily in an array of hashes pointed
+    # by the below reference. This array is eventually appeneded to
+    # the one having all collected test cases.
+    my $cmdline_cases;
+
+    # Check that the tests specified were found
     # in at least one suite
     foreach my $test_name_spec ( @$opt_cases )
     {
@@ -225,9 +232,14 @@ sub collect_test_cases ($$$$) {
         {
           # If suite was part of name, find it there, may come with combinations
           my @this_case = collect_one_suite($sname, [ $tname ]);
+
+          # If a test is specified multiple times on the command line, all
+          # instances of the test need to be picked. Hence, such tests are
+          # stored in the temporary array instead of adding them to $cases
+          # directly so that repeated tests are not run only once
           if ( @this_case )
           {
-            push (@$cases, @this_case);
+            push (@$cmdline_cases, @this_case);
           }
           else
           {
@@ -245,13 +257,13 @@ sub collect_test_cases ($$$$) {
               my @this_case = collect_one_suite($suite, [ $tname ]);
               if ( @this_case )
               {
-                push (@$cases, @this_case);
+                push (@$cmdline_cases, @this_case);
                 $found= 1;
               }
               @this_case= collect_one_suite("i_".$suite, [ $tname ]);
               if ( @this_case )
               {
-                push (@$cases, @this_case);
+                push (@$cmdline_cases, @this_case);
                 $found= 1;
               }
             }
@@ -263,6 +275,9 @@ sub collect_test_cases ($$$$) {
         }
       }
     }
+    # Add test cases collected in the temporary array to the one
+    # containing all previously collected test cases
+    push (@$cases, @$cmdline_cases) if $cmdline_cases;
   }
 
   if ( $opt_reorder && !$quick_collect)
@@ -426,6 +441,10 @@ sub collect_one_suite($)
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
   my %disabled;
+  foreach my $skip_file(@{$opt_skip_test_list})
+  {
+    $skip_file= get_bld_path($skip_file);
+  }
   my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
   for my $skip (@disabled_collection)
@@ -1069,21 +1088,30 @@ sub collect_one_test_case {
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs 'include/not_parallel.inc' include file when 'run-non-parallel-tests' option is set";
-    return $tinfo
+    return $tinfo;
   }
 
-  if ( $tinfo->{'big_test'} and ! $::opt_big_test )
+  # Normal tests shouldn't run with only-big-test option
+  if ($::opt_only_big_test and !$tinfo->{'big_test'})
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'big-test' option";
-    return $tinfo
+    $tinfo->{'comment'}= "Not a big test";
+    return $tinfo;
+  }
+
+  # Check for big test
+  if ($tinfo->{'big_test'} and !($::opt_big_test or $::opt_only_big_test))
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test needs 'big-test' or 'only-big-test' option";
+    return $tinfo;
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs debug binaries";
-    return $tinfo
+    return $tinfo;
   }
 
   if ( $tinfo->{'ndb_test'} )
@@ -1151,24 +1179,6 @@ sub collect_one_test_case {
     }
   }
 
-  if ( $::opt_embedded_server )
-  {
-    if ( $tinfo->{'not_embedded'} )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not run for embedded server";
-      return $tinfo;
-    }
-#Setting the default storage engine to InnoDB for embedded tests as the default
-#storage engine for mysqld in embedded mode is still MyISAM.
-#To be removed after completion of WL #6911.
-    if ( !$tinfo->{'myisam_test'} && !defined $default_storage_engine)
-    {
-      push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=InnoDB");
-      push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=InnoDB");
-    }
-  }
-
   if ( $tinfo->{'need_ssl'} )
   {
     # This is a test that needs ssl
@@ -1198,6 +1208,7 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   if (defined $defaults_file) {
     # Using same config file for all tests
+    $defaults_file= get_bld_path($defaults_file);
     $tinfo->{template_path}= $defaults_file;
   }
   elsif (! $tinfo->{template_path} )
@@ -1227,6 +1238,7 @@ sub collect_one_test_case {
 
   # Set extra config file to use
   if (defined $defaults_extra_file) {
+    $defaults_extra_file= get_bld_path($defaults_extra_file);
     $tinfo->{extra_template_path}= $defaults_extra_file;
   }
 
@@ -1285,9 +1297,7 @@ my @tags=
 
 ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
- ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
- ["include/have_ssl_communication.inc", "need_ssl", 1],
  ["include/not_windows.inc", "not_windows", 1],
  ["include/not_parallel.inc", "not_parallel", 1],
 

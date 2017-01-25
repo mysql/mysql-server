@@ -31,6 +31,8 @@
 #include "mysys_priv.h"
 #endif
 
+extern CHARSET_INFO my_charset_utf16le_bin;
+
 #ifndef _WIN32
 #include <syslog.h>
 

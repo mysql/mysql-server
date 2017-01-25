@@ -22,4 +22,3 @@
 #define MY_GLOBAL_INCLUDED
 #define MY_PSI_CONFIG_INCLUDED
 #include "mysql/psi/psi_cond.h"
-

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,13 +49,13 @@ struct row_session_status
 class PFS_index_session_status : public PFS_engine_index
 {
 public:
-  PFS_index_session_status()
-    : PFS_engine_index(&m_key),
-    m_key("VARIABLE_NAME")
-  {}
+  PFS_index_session_status() : PFS_engine_index(&m_key), m_key("VARIABLE_NAME")
+  {
+  }
 
   ~PFS_index_session_status()
-  {}
+  {
+  }
 
   virtual bool match(const Status_variable *pfs);
 
@@ -70,8 +70,10 @@ private:
 class table_session_status_context : public PFS_table_context
 {
 public:
-  table_session_status_context(ulonglong current_version, bool restore) :
-    PFS_table_context(current_version, restore, THR_PFS_SS) { }
+  table_session_status_context(ulonglong current_version, bool restore)
+    : PFS_table_context(current_version, restore, THR_PFS_SS)
+  {
+  }
 };
 
 /** Table PERFORMANCE_SCHEMA.SESSION_STATUS. */
@@ -82,7 +84,7 @@ class table_session_status : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -103,10 +105,11 @@ protected:
 
 public:
   ~table_session_status()
-  {}
+  {
+  }
 
 protected:
-  void make_row(const Status_variable *status_var);
+  int make_row(const Status_variable *status_var);
 
 private:
   /** Table share lock. */
@@ -118,8 +121,6 @@ private:
   PFS_status_variable_cache m_status_cache;
   /** Current row. */
   row_session_status m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

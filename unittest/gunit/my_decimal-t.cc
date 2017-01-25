@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
-
 #include <my_decimal.h>
+
+#include "my_config.h"
+#include "my_dbug.h"
+#include "test_utils.h"
 
 namespace my_decimal_unittest {
 

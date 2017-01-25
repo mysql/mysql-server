@@ -222,7 +222,7 @@ trx_is_redo_rseg_updated(
 Check if noredo rseg is modified for insert/update. */
 UNIV_INLINE
 bool
-trx_is_noredo_rseg_updated(
+trx_is_temp_rseg_updated(
 /*=======================*/
 	const trx_t*	   trx) /*!< in: transaction */
 {
@@ -239,7 +239,7 @@ trx_is_rseg_updated(
 	const trx_t*	   trx) /*!< in: transaction */
 {
 	return(trx_is_redo_rseg_updated(trx)
-	       || trx_is_noredo_rseg_updated(trx));
+	       || trx_is_temp_rseg_updated(trx));
 }
 
 /********************************************************************//**

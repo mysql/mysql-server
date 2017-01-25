@@ -207,6 +207,44 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
     m_object_filter.m_databases_excluded.push_back(std::make_pair(
       "", "sys"));
   }
+
+  if (m_dump_all_databases)
+    m_formatter_options->m_innodb_stats_tables_included= true;
+  else if (m_dump_selected_databases)
+  {
+    for (auto database : m_object_filter.m_databases_included)
+    {
+      auto db_name= std::get<1>(database);
+      if (!my_strcasecmp(&my_charset_latin1, db_name.c_str(), "mysql"))
+      {
+        m_formatter_options->m_innodb_stats_tables_included= true;
+        break;
+      }
+    }
+  }
+  /* check positional options */
+  else
+  for (auto database : m_object_filter.m_databases_included)
+  {
+    auto db_name= std::get<1>(database);
+    if (!my_strcasecmp(&my_charset_latin1, db_name.c_str(), "mysql"))
+    {
+      if (m_object_filter.m_tables_included.size() == 0)
+        m_formatter_options->m_innodb_stats_tables_included= true;
+      for (auto table : m_object_filter.m_tables_included)
+      {
+        auto table_name= std::get<1>(table);
+        if (!my_strcasecmp(&my_charset_latin1,
+                           table_name.c_str(), "innodb_table_stats") ||
+            !my_strcasecmp(&my_charset_latin1,
+                           table_name.c_str(), "innodb_index_stats"))
+        {
+          m_formatter_options->m_innodb_stats_tables_included= true;
+          break;
+        }
+      }
+    }
+  }
 }
 
 void Mysqldump_tool_chain_maker_options::create_options()

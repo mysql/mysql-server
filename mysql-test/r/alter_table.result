@@ -20,7 +20,7 @@ select * from t1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	2	3	4	5		PENDING		0000-00-00 00:00:00
 drop table t1;
-create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=myisam;
 insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
 alter table t1 add column new_col int, order by payoutid,bandid;
 select * from t1;
@@ -34,6 +34,35 @@ bandID	payoutID	new_col
 7	12	NULL
 8	12	NULL
 alter table t1 order by bandid,payoutid;
+select * from t1;
+bandID	payoutID	new_col
+1	6	NULL
+2	6	NULL
+3	4	NULL
+4	9	NULL
+5	10	NULL
+6	1	NULL
+7	12	NULL
+8	12	NULL
+drop table t1;
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=InnoDB;
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 't1'
+select * from t1;
+bandID	payoutID	new_col
+1	6	NULL
+2	6	NULL
+3	4	NULL
+4	9	NULL
+5	10	NULL
+6	1	NULL
+7	12	NULL
+8	12	NULL
+alter table t1 order by bandid,payoutid;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 't1'
 select * from t1;
 bandID	payoutID	new_col
 1	6	NULL
@@ -124,7 +153,7 @@ unique(n1),
 key (n1, n2, n3, n4),
 key (n2, n3, n4, n1),
 key (n3, n4, n1, n2),
-key (n4, n1, n2, n3) );
+key (n4, n1, n2, n3) ) engine=Myisam;
 alter table t1 disable keys;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
@@ -288,8 +317,8 @@ insert into t1 values(1,1), (2,1), (3, 1);
 alter table t1 add unique (a,b), add key (b);
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	0	a	2	b	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE			YES
+t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE			YES
 t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE			YES
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -475,25 +504,25 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET koi8r DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 DEFAULT CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET koi8r DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 CONVERT TO CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 DEFAULT CHARACTER SET cp1251;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251
 drop table t1;
 create table t1 (myblob longblob,mytext longtext)
 default charset latin1 collate latin1_general_cs;
@@ -502,14 +531,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `myblob` longblob,
   `mytext` longtext COLLATE latin1_general_cs
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs
 alter table t1 character set latin2;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `myblob` longblob,
   `mytext` longtext CHARACTER SET latin1 COLLATE latin1_general_cs
-) ENGINE=MyISAM DEFAULT CHARSET=latin2
+) ENGINE=InnoDB DEFAULT CHARSET=latin2
 drop table t1;
 CREATE TABLE t1 (a int PRIMARY KEY, b INT UNIQUE);
 ALTER TABLE t1 DROP PRIMARY KEY;
@@ -519,7 +548,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP PRIMARY KEY;
 ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
 DROP TABLE t1;
@@ -548,7 +577,7 @@ alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 drop table t1;
 drop table if exists t1;
-create table t1 (a int, key(a));
+create table t1 (a int, key(a)) engine=myisam;
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -594,7 +623,7 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 drop table t1;
 "Now will test with one unique index"
-create table t1(a int, b char(10), unique(a));
+create table t1(a int, b char(10), unique(a)) engine=myisam;
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -625,7 +654,7 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 drop table t1;
 "Now will test with one unique and one non-unique index"
-create table t1(a int, b char(10), unique(a), key(b));
+create table t1(a int, b char(10), unique(a), key(b)) engine=myisam;
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -683,7 +712,7 @@ ERROR 3D000: No database selected
 alter table test.t1 rename test.t1;
 use test;
 drop table t1;
-CREATE TABLE t1(a INT) ROW_FORMAT=FIXED;
+CREATE TABLE t1(a INT) ENGINE=MyISAM ROW_FORMAT=FIXED;
 CREATE INDEX i1 ON t1(a);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -700,7 +729,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 DROP TABLE IF EXISTS bug24219;
 DROP TABLE IF EXISTS bug24219_2;
-CREATE TABLE bug24219 (a INT, INDEX(a));
+CREATE TABLE bug24219 (a INT, INDEX(a)) ENGINE=MyISAM;
 SHOW INDEX FROM bug24219;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -853,7 +882,7 @@ id
 51
 drop table t1;
 set sql_mode= default;
-create table t1(f1 int);
+create table t1(f1 int) engine=myisam;
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');
 alter table t1 add column f3 datetime not null;
@@ -910,15 +939,15 @@ select * from t1;
 i	v
 1	def
 2	abc
-5	lmn
 4	3r4f
+5	lmn
 alter table t1 change i i bigint;
 select * from t1;
 i	v
 1	def
 2	abc
-5	lmn
 4	3r4f
+5	lmn
 alter table t1 add unique key (i, v);
 select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 i	v
@@ -936,7 +965,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL,
   SPATIAL KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY(b(50));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -945,7 +974,7 @@ t1	CREATE TABLE `t1` (
   `b` geometry NOT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD c POINT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -955,7 +984,7 @@ t1	CREATE TABLE `t1` (
   `c` point DEFAULT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 CREATE TABLE t2 (a INT, KEY (a(20)));
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 ALTER TABLE t1 ADD d INT;
@@ -1006,7 +1035,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 (a mediumtext character set latin1);
 alter table t1 convert to character set utf8;
@@ -1014,7 +1043,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 End of 5.0 tests
 drop table if exists t1, t2, t3;
@@ -1087,12 +1116,12 @@ SHOW CREATE TABLE `tt+1`;
 Table	Create Table
 tt+1	CREATE TEMPORARY TABLE `tt+1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE `tt+2`;
 Table	Create Table
 tt+2	CREATE TEMPORARY TABLE `tt+2` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE   `tt+1`, `tt+2`;
 CREATE TABLE `#sql1` (c1 INT);
 CREATE TABLE `@0023sql2` (c1 INT);
@@ -1129,12 +1158,12 @@ SHOW CREATE TABLE `#sql2`;
 Table	Create Table
 #sql2	CREATE TEMPORARY TABLE `#sql2` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE `@0023sql1`;
 Table	Create Table
 @0023sql1	CREATE TEMPORARY TABLE `@0023sql1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE `#sql2`, `@0023sql1`;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -1149,7 +1178,7 @@ int_field	int(10) unsigned	NO	MUL	NULL
 char_field	char(10)	YES		NULL	
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	int_field	1	int_field	A	NULL	NULL	NULL		BTREE			YES
+t1	1	int_field	1	int_field	A	0	NULL	NULL		BTREE			YES
 INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
 "Non-copy data change - new frm, but old data and index files"
 ALTER TABLE t1
@@ -1242,7 +1271,7 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
-create table t1(f1 int not null, f2 int not null, key  (f1), key (f2));
+create table t1(f1 int not null, f2 int not null, key  (f1), key (f2)) engine=myisam;
 select index_length into @unpaked_keys_size from
 information_schema.tables where table_name='t1';
 alter table t1 pack_keys=1;
@@ -1461,7 +1490,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(10) unsigned DEFAULT NULL,
   `c2` char(100) NOT NULL DEFAULT '',
   `c3` char(16) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
 #
 # WL#5534 Online ALTER, Phase 1
@@ -1618,7 +1647,7 @@ DROP TABLE t1, m1;
 #
 # 6: Possible deadlock involving thr_lock.c
 #
-CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,2);
 START TRANSACTION;
 INSERT INTO t1 VALUES (3,3);
@@ -1997,7 +2026,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `b` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename index b to c;
 show create table t1;
 Table	Create Table
@@ -2007,7 +2036,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # 1.b) It should be impossible to rename index that doesn't
 #      exists, dropped or added within the same ALTER TABLE.
 alter table t1 rename key d to e;
@@ -2020,7 +2049,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 drop key c, rename key c to d;
 ERROR 42000: Key 'c' doesn't exist in table 't1'
 show create table t1;
@@ -2031,7 +2060,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 add key d(j), rename key d to e;
 ERROR 42000: Key 'd' doesn't exist in table 't1'
 show create table t1;
@@ -2042,7 +2071,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # 1.c) It should be impossible to rename index to a name
 #      which is already used by another index, or is used
 #      by index which is added within the same ALTER TABLE.
@@ -2058,7 +2087,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk`),
   KEY `c` (`i`),
   KEY `d` (`j`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 drop key d;
 alter table t1 add key d(j), rename key c to d;
 ERROR 42000: Duplicate key name 'd'
@@ -2070,7 +2099,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # 1.d) It should be possible to rename index to a name
 #      which belongs to index which is dropped within the
 #      same ALTER TABLE.
@@ -2084,7 +2113,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # 1.e) We disallow renaming from/to PRIMARY as it might
 #      lead to some other key becoming "primary" internally,
 #      which will be interpreted as dropping/addition of
@@ -2099,7 +2128,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Even using 'funny' syntax.
 alter table t1 rename key t1.primary to d;
 ERROR 42000: Incorrect index name 'primary'
@@ -2111,7 +2140,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename key c to primary;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'primary' at line 1
 show create table t1;
@@ -2122,7 +2151,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename key c to t1.primary;
 ERROR 42000: Incorrect index name 'primary'
 show create table t1;
@@ -2133,7 +2162,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 #
 # 2) More complex tests for semantics of ALTER TABLE.
@@ -2149,7 +2178,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`),
   KEY `k` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename key k to kk;
 show create table t1;
 Table	Create Table
@@ -2158,7 +2187,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`),
   KEY `kk` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # 2.b) Check how that this clause can be mixed with other
 #      clauses which don't affect key or its columns.
 alter table t1 rename key kk to kkk, add column c int;
@@ -2170,7 +2199,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`),
   KEY `kkk` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename key uu to uuu, add key c(c);
 show create table t1;
 Table	Create Table
@@ -2181,7 +2210,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uuu` (`a`),
   KEY `kkk` (`b`),
   KEY `c` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename key kkk to k, drop key uuu;
 show create table t1;
 Table	Create Table
@@ -2191,7 +2220,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   KEY `k` (`b`),
   KEY `c` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 rename key k to kk, rename to t2;
 show create table t2;
 Table	Create Table
@@ -2201,7 +2230,7 @@ t2	CREATE TABLE `t2` (
   `c` int(11) DEFAULT NULL,
   KEY `kk` (`b`),
   KEY `c` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # 2.c) Check that this clause properly works even in case
 #      when it is mixed with clauses affecting columns in
 #      the key renamed.
@@ -2214,7 +2243,7 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT NULL,
   KEY `kk` (`b`),
   KEY `cc` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Create multi-component key for next example.
 alter table t2 add unique u (a, b, c);
 show create table t2;
@@ -2226,7 +2255,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `u` (`a`,`b`,`c`),
   KEY `kk` (`b`),
   KEY `cc` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t2 rename key u to uu, drop column b;
 show create table t2;
 Table	Create Table
@@ -2235,7 +2264,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`,`c`),
   KEY `cc` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2;
 #
 # 3) Test coverage for handling of RENAME INDEX clause in
@@ -2567,38 +2596,38 @@ SET sql_mode = default;
 CREATE TABLE t1(fld1 int, key key1(fld1));
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test';
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		success	YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		success	YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment	YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		old comment	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment	YES
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		new comment	YES
 DROP TABLE t1;
 #
 # Bug#19635706

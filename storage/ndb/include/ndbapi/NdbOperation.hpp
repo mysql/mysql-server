@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1247,8 +1247,12 @@ protected:
  * was sent, then the connection object is told about this situation.
  *****************************************************************************/
 
-  int    doSendKeyReq(int processorId, GenericSectionPtr* secs, Uint32 numSecs);
+  int    doSendKeyReq(int processorId,
+                      GenericSectionPtr* secs,
+                      Uint32 numSecs,
+                      bool lastFlag);
   int    doSend(int ProcessorId, Uint32 lastFlag);
+  void   setRequestInfoTCKEYREQ(bool lastFlag, bool longSignal);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId,
 			     AbortOption);
@@ -1363,6 +1367,8 @@ protected:
   int prepareGetLockHandleNdbRecord();
 
   virtual void setReadLockMode(LockMode lockMode);
+  void setReadCommittedBase();
+  Uint32 getReadCommittedBase();
 
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
@@ -1450,6 +1456,11 @@ protected:
   Uint8  theCommitIndicator;	 // Indicator of whether commit operation
   Uint8  theSimpleIndicator;	 // Indicator of whether simple operation
   Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
+  /**
+   * Indicates that the base operation is ReadCommitted although it has
+   * been upgraded to use locking read.
+   */
+  Uint8  theReadCommittedBaseIndicator;
   Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
                                  // Note that scan operations always have this
                                  // set true
@@ -1868,6 +1879,19 @@ NdbOperation::setValue(Uint32 anAttrId, double aPar)
   return setValue(anAttrId, (const char*)&aPar, (Uint32)8);
 }
 
+inline
+void
+NdbOperation::setReadCommittedBase()
+{
+  theReadCommittedBaseIndicator = 1;
+}
+
+inline
+Uint32
+NdbOperation::getReadCommittedBase()
+{
+  return theReadCommittedBaseIndicator;
+}
 #endif // doxygen
 
 #endif

@@ -136,7 +136,7 @@ class BG_setop_wrapper
   // Some computation in this class may rely on functions in
   // Item_func_spatial_operation.
   Item_func_spatial_operation *m_ifso;
-  my_bool null_value; // Whether computation has error.
+  bool null_value; // Whether computation has error.
 
   // Some computation in this class may rely on functions in
   // Item_func_spatial_operation, after each call of its functions, copy its
@@ -168,7 +168,7 @@ public:
   }
 
 
-  my_bool get_null_value() const
+  bool get_null_value() const
   {
     return null_value;
   }
@@ -2652,7 +2652,7 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
   geocol= new Gis_geometry_collection(geo1, result);
   geocol->set_components_no_overlapped(geo1->is_components_no_overlapped());
   std::unique_ptr<Gis_geometry_collection> guard3(geocol);
-  my_bool had_error= false;
+  bool had_error= false;
 
   for (TYPENAME Multipoint::iterator i= mpts.begin();
        i != mpts.end(); ++i)
@@ -2935,9 +2935,9 @@ public:
   }
 
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype != Geometry::wkb_geometrycollection)
     {

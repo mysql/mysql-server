@@ -37,10 +37,3 @@
 # include/m_ctype.h:*
 #===========================================================================
 
-# BUG#24941421: FIX DOXYGEN WARNINGS ON GCS/XCOM
-# 2016 OCT 24 - Nuno Carvalho
-rapid/plugin/group_replication/libmysqlgcs/include/mysql/gcs/*
-rapid/plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/*
-rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/*
-rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/*
-

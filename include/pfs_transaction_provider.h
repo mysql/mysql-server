@@ -21,12 +21,19 @@
   Performance schema instrumentation (declarations).
 */
 
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/psi/psi_transaction.h"
+
+struct PSI_transaction_locker;
 
 #define PSI_TRANSACTION_CALL(M) pfs_ ## M ## _v1
 
@@ -71,7 +78,6 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit);
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_TRANSACTION_INTERFACE */
 

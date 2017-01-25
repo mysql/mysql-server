@@ -233,7 +233,7 @@ longlong Item_func_spatial_rel::val_int()
   Geometry *g1= NULL, *g2= NULL;
   int tres= 0;
   bool had_except= false;
-  my_bool had_error= false;
+  bool had_error= false;
   String wkt1, wkt2;
 
   res1= args[0]->val_str(&tmp_value1);
@@ -467,7 +467,7 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
          j != rtree.qend(); ++j)
     {
       bool had_except= false;
-      my_bool had_error= false;
+      bool had_error= false;
 
       try
       {
@@ -538,7 +538,7 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
 {
   int has_inner= 0;
   int tres= 0;
-  my_bool had_error= false;
+  bool had_error= false;
 
   Rtree_index &rtree= *((Rtree_index *)prtree);
 
@@ -740,7 +740,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
          j != rtree.qend(); ++j)
     {
       bool had_except= false;
-      my_bool had_error= false;
+      bool had_error= false;
 
       try
       {
@@ -840,7 +840,7 @@ geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value)
+                                        bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -884,7 +884,7 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value)
+                                        bool *pnull_value)
 {
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Linestring Linestring;
@@ -968,7 +968,7 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value)
+                                          bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -1027,7 +1027,7 @@ int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
-                                            my_bool *pnull_value)
+                                            bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -1089,7 +1089,7 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value)
+                                          bool *pnull_value)
 {
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Multipoint Multipoint;
@@ -1119,7 +1119,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
   if (gt1 == Geometry::wkb_multipoint && gt2 == Geometry::wkb_multipoint)
   {
     result= BG_wrap<Geom_types>::
-      multipoint_overlaps_multipoint(g1, g2, pnull_value);
+      multipoint_overlaps_multipoint(g1, g2);
     return result;
   }
 
@@ -1212,7 +1212,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value)
+                                         bool *pnull_value)
 {
   typedef typename Geom_types::Linestring Linestring;
   typedef typename Geom_types::Multilinestring Multilinestring;
@@ -1283,7 +1283,7 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value)
+                                         bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt1= g1->get_type();
@@ -1346,7 +1346,7 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
 template<typename Coordsys>
 int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
                                                  Functype relchk_type,
-                                                 my_bool *pnull_value)
+                                                 bool *pnull_value)
 {
   int result= 0;
 

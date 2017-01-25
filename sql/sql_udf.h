@@ -89,7 +89,7 @@ class udf_handler :public Sql_alloc
   bool fix_fields(THD *thd, Item_result_field *item,
 		  uint arg_count, Item **args);
   void cleanup();
-  double val(my_bool *null_value)
+  double val(bool *null_value)
   {
     is_null= 0;
     if (get_arguments())
@@ -107,7 +107,7 @@ class udf_handler :public Sql_alloc
     *null_value=0;
     return tmp;
   }
-  longlong val_int(my_bool *null_value)
+  longlong val_int(bool *null_value)
   {
     is_null= 0;
     if (get_arguments())
@@ -125,14 +125,14 @@ class udf_handler :public Sql_alloc
     *null_value=0;
     return tmp;
   }
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *dec_buf);
+  my_decimal *val_decimal(bool *null_value, my_decimal *dec_buf);
   void clear()
   {
     is_null= 0;
     Udf_func_clear func= u_d->func_clear;
     func(&initid, &is_null, &error);
   }
-  void add(my_bool *null_value)
+  void add(bool *null_value)
   {
     if (get_arguments())
     {
@@ -141,7 +141,7 @@ class udf_handler :public Sql_alloc
     }
     Udf_func_add func= u_d->func_add;
     func(&initid, &f_args, &is_null, &error);
-    *null_value= (my_bool) (is_null || error);
+    *null_value= (bool) (is_null || error);
   }
   String *val_str(String *str,String *save_str);
 };

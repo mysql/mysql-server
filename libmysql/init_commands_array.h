@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,9 @@
 
 #include "prealloced_array.h"
 
-struct Init_commands_array : public Prealloced_array<char*, 5, true>
+struct Init_commands_array : public Prealloced_array<char*, 5>
 {
   explicit Init_commands_array(PSI_memory_key psi_key)
-    : Prealloced_array<char*, 5, true>(psi_key)
+    : Prealloced_array<char*, 5>(psi_key)
   {}
 };

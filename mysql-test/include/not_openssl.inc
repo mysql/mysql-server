@@ -1,4 +1,5 @@
--- require r/not_openssl.require
-disable_query_log;
-show variables like "have_openssl";
-enable_query_log;
+let $have_openssl= `SELECT @@have_openssl`;
+if ($have_openssl != NO)
+{
+  --skip Test requires 'not_openssl'
+}

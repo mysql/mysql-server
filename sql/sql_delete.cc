@@ -226,9 +226,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
     We are passing HA_EXTRA_IGNORE_DUP_KEY flag here to recreate query with
     IGNORE keyword within federated storage engine. If federated engine is
     removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
-    HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from mysql_delete(),
-    Query_result_delete::initialize_tables() and
-    Query_result_delete::cleanup().
+    HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from
+    delete_from_single_table(), Query_result_delete::optimize() and
   */
   if (lex->is_ignore())
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -359,7 +358,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       no_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
-                                 ORDER::ORDER_NOT_RELEVANT, &qep_tab,
+                                 ORDER_NOT_RELEVANT, &qep_tab,
                                  conds, &needed_reg_dummy, &qck) < 0;
       qep_tab.set_quick(qck);
     }
@@ -396,8 +395,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
   {
     table->update_const_key_parts(conds);
     order= simple_remove_const(order, conds);
-
-    usable_index= get_index_for_order(order, &qep_tab, limit,
+    ORDER_with_src order_src(order, ESC_ORDER_BY);
+    usable_index= get_index_for_order(&order_src, &qep_tab, limit,
                                       &need_sort, &reverse);
   }
 
@@ -667,8 +666,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
 
   bool apply_semijoin;
 
-  Mem_root_array<Item_exists_subselect *, true>
-    sj_candidates_local(thd->mem_root);
+  Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -887,11 +885,10 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
 }
 
 
-int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_delete::prepare");
   unit= u;
-  do_delete= true;
 
   for (TABLE_LIST *tr= u->first_select()->leaf_tables; tr; tr= tr->next_leaf)
   {
@@ -906,17 +903,27 @@ int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
 
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
-bool Query_result_delete::initialize_tables(JOIN *join)
+/**
+  Optimize for deletion from one or more tables in a multi-table DELETE
+
+  Function is called when the join order has been determined.
+  Calculate which tables can be deleted from immediately and which tables
+  must be delayed. Create objects for handling of delayed deletes.
+*/
+
+bool Query_result_delete::optimize()
 {
-  DBUG_ENTER("Query_result_delete::initialize_tables");
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
+  DBUG_ENTER("Query_result_delete::optimize");
 
   SELECT_LEX *const select= unit->first_select();
-  DBUG_ASSERT(join == select->join);
+
+  JOIN *const join= select->join;
+
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
@@ -1180,7 +1187,7 @@ void Query_result_delete::abort_result_set()
     The same if all tables are transactional, regardless of where we are.
     In all other cases do attempt deletes ...
   */
-  if (do_delete && non_transactional_deleted)
+  if (!delete_completed && non_transactional_deleted)
   {
     /*
       We have to execute the recorded do_deletes() and write info into the
@@ -1222,10 +1229,10 @@ void Query_result_delete::abort_result_set()
 int Query_result_delete::do_deletes()
 {
   DBUG_ENTER("Query_result_delete::do_deletes");
-  DBUG_ASSERT(do_delete);
+  DBUG_ASSERT(!delete_completed);
 
   DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
-  do_delete= false;                                 // Mark called
+  delete_completed= true;               // Mark operation as complete
   if (found_rows == 0)
     DBUG_RETURN(0);
 
@@ -1271,7 +1278,7 @@ int Query_result_delete::do_table_deletes(TABLE *table)
   int local_error= 0;
   READ_RECORD info;
   ha_rows last_deleted= deleted_rows;
-  DBUG_ENTER("do_deletes_for_table");
+  DBUG_ENTER("Query_result_delete::do_table_deletes");
   if (init_read_record(&info, thd, table, NULL, 0, 1, FALSE))
     DBUG_RETURN(1);
   /*

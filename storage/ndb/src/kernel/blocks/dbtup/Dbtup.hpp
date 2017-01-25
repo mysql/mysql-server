@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,10 +39,12 @@
 #include <DynArr256.hpp>
 #include "../pgman.hpp"
 #include "../tsman.hpp"
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 414
 
 
+extern EventLogger* g_eventLogger;
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
@@ -655,6 +657,7 @@ struct Fragrecord {
   } fragStatus;
   Uint32 fragTableId;
   Uint32 fragmentId;
+  Uint32 partitionId;
   Uint32 nextfreefrag;
   // +1 is as "full" pages are stored last
   DLList<Page>::Head free_var_page_array[MAX_FREE_LIST+1]; 
@@ -679,10 +682,25 @@ struct Fragrecord {
   // Consistency check.
   bool verifyVarSpace() const
   {
-    return (m_varWordsFree < Uint64(1)<<60) && //Underflow.
-      m_varWordsFree * sizeof(Uint32) <=
-      noOfVarPages * File_formats::NDB_PAGE_SIZE;
+    if ((m_varWordsFree < Uint64(1)<<60) && //Underflow.
+        m_varWordsFree * sizeof(Uint32) <=
+        Uint64(noOfVarPages) * File_formats::NDB_PAGE_SIZE)
+    {
+      return true;
+    }
+    else
+    {
+      g_eventLogger->info("TUP : T%uF%u verifyVarSpace fails : "
+                          "m_varWordsFree : %llu "
+                          "noOfVarPages : %u",
+                          fragTableId,
+                          fragmentId,
+                          m_varWordsFree,
+                          noOfVarPages);
+      return false;
+    }
   }
+
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
@@ -762,21 +780,29 @@ struct Operationrec {
     unsigned int m_reorg : 2;
     unsigned int in_active_list : 1;
     unsigned int delete_insert_flag : 1;
-    unsigned int primary_replica : 1;
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
     unsigned int m_gci_written : 1;
-    /* If the op has no logical effect, it should not be logged
-     * or sent as an event. Example op is OPTIMIZE table,
-     * which uses ZUPDATE to move varpart values physically.
+
+    /**
+     * @see TupKeyReq
+     *
+     * 0 = non-primary replica, fire detached triggers
+     * 1 = primary replica, fire immediate and detached triggers
+     * 2 = no fire triggers
+     *     e.g If the op has no logical effect, it should not be
+     *         sent as an event. Example op is OPTIMIZE table,
+     *         which uses ZUPDATE to move varpart values physically.
      */
-    unsigned int m_physical_only_op : 1;
+
     /* No foreign keys should be checked for this operation.
      * No fk triggers will be fired.  
      */
+    unsigned int m_triggers : 2;
     unsigned int m_disable_fk_checks : 1;
   };
+
   union OpStruct {
     OpBitFields bit_field;
     Uint32 op_bit_fields;
@@ -1330,24 +1356,6 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    */
   struct Var_part_ref 
   {
-#ifdef NDB_32BIT_VAR_REF
-    /*
-      In versions prior to ndb 6.1.6, 6.2.1 and mysql 5.1.17
-      Running this code limits DataMemory to 16G, also online
-      upgrade not possible between versions
-     */
-    Uint32 m_ref;
-    STATIC_CONST( SZ32 = 1 );
-
-    void copyout(Local_key* dst) const {
-      dst->m_page_no = Local_key::ref2page_id(m_ref);
-      dst->m_page_idx = Local_key::ref2page_idx(m_ref);
-    }
-
-    void assign(const Local_key* src) {
-      m_ref = Local_key::ref(src->m_page_no, src->m_page_idx);
-    }
-#else
     Uint32 m_page_no;
     Uint32 m_page_idx;
     STATIC_CONST( SZ32 = 2 );
@@ -1361,7 +1369,6 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       m_page_no = src->m_page_no;
       m_page_idx = src->m_page_idx;
     }
-#endif    
   };
   
   struct Disk_part_ref
@@ -1378,9 +1385,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
        * regOperPtr->prevActiveOp links.
        */
       Uint32 m_operation_ptr_i;  // OperationPtrI
-      Uint32 m_base_record_ref;  // For disk tuple, ref to MM tuple
+      Uint32 m_base_record_page_no;  // For disk tuple, ref to MM tuple
     };
-    Uint32 m_header_bits;      // Header word
+    union
+    {
+      Uint32 m_header_bits;      // Header word
+      Uint32 m_base_record_page_idx;  // For disk tuple, ref to MM tuple
+    };
     union {
       Uint32 m_checksum;
       Uint32 m_data[1];
@@ -1406,7 +1417,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( DISK_ALLOC  = 0x00040000 ); // Is disk part allocated
     STATIC_CONST( DISK_INLINE = 0x00080000 ); // Is disk inline
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
-    STATIC_CONST( MM_SHRINK   = 0x00200000 ); // Has MM part shrunk
+    STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
     STATIC_CONST( FREED       = 0x00800000 ); // Is freed
     STATIC_CONST( FREE        = 0x00800000 ); // alias
@@ -1423,7 +1434,17 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 	(m_header_bits & ~(Uint32)TUP_VERSION_MASK) | 
 	(version & TUP_VERSION_MASK);
     }
-
+    void get_base_record_ref(Local_key& key)
+    {
+      require(m_base_record_page_idx <= MAX_TUPLES_PER_PAGE);
+      key.m_page_no = m_base_record_page_no;
+      key.m_page_idx = m_base_record_page_idx;
+    }
+    void set_base_record_ref(Local_key key)
+    {
+      m_base_record_page_no = key.m_page_no;
+      m_base_record_page_idx = key.m_page_idx;
+    }
     Uint32* get_null_bits(const Tablerec* tabPtrP) {
       return m_null_bits+tabPtrP->m_offsets[MM].m_null_offset;
     }
@@ -2687,6 +2708,8 @@ private:
                           const Operationrec*) const;
 
   bool check_fire_reorg(const KeyReqStruct *, Fragrecord::FragState) const;
+  bool check_fire_fully_replicated(const KeyReqStruct *,
+                                   Fragrecord::FragState) const;
   bool check_fire_suma(const KeyReqStruct *,
                        const Operationrec*,
                        const Fragrecord*) const;
@@ -3025,9 +3048,7 @@ private:
   void   removeTdArea(Uint32 tabDesRef, Uint32 list);
   void   insertTdArea(Uint32 tabDesRef, Uint32 list);
   void   itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal);
-#if defined VM_TRACE || defined ERROR_INSERT
-  void verifytabdes();
-#endif
+  void   verifytabdes();
 
   void seizeOpRec(OperationrecPtr& regOperPtr);
   void seizeFragrecord(FragrecordPtr& regFragPtr);
@@ -3258,7 +3279,7 @@ private:
 #endif
 
   void expand_tuple(KeyReqStruct*, Uint32 sizes[4], Tuple_header*org, 
-		    const Tablerec*, bool disk);
+		    const Tablerec*, bool disk, bool from_lcp_keep = false);
   void shrink_tuple(KeyReqStruct*, Uint32 sizes[2], const Tablerec*,
 		    bool disk);
   

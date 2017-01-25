@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,11 +34,15 @@ class PFS_index_esms_by_program : public PFS_engine_index
 public:
   PFS_index_esms_by_program()
     : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
-  {}
+      m_key_1("OBJECT_TYPE"),
+      m_key_2("OBJECT_SCHEMA"),
+      m_key_3("OBJECT_NAME")
+  {
+  }
 
   ~PFS_index_esms_by_program()
-  {}
+  {
+  }
 
   virtual bool match(PFS_program *pfs);
 
@@ -82,7 +86,7 @@ class table_esms_by_program : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -104,10 +108,11 @@ protected:
 
 public:
   ~table_esms_by_program()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_program*);
+  int make_row(PFS_program *);
 
 private:
   /** Table share lock. */
@@ -117,8 +122,6 @@ private:
 
   /** Current row. */
   row_esms_by_program m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

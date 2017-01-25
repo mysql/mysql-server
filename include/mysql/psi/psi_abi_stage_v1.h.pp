@@ -17,7 +17,7 @@ struct PSI_placeholder
 C_MODE_START
 struct PSI_stage_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_stage_bootstrap PSI_stage_bootstrap;
 struct PSI_stage_progress_v1
@@ -33,12 +33,14 @@ struct PSI_stage_info_v1
   int m_flags;
 };
 typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
-typedef void (*register_stage_v1_t)
-  (const char *category, struct PSI_stage_info_v1 **info, int count);
-typedef PSI_stage_progress_v1* (*start_stage_v1_t)
-  (PSI_stage_key key, const char *src_file, int src_line);
-typedef PSI_stage_progress_v1* (*get_current_stage_progress_v1_t)(void);
-typedef void (*end_stage_v1_t) (void);
+typedef void (*register_stage_v1_t)(const char *category,
+                                    struct PSI_stage_info_v1 **info,
+                                    int count);
+typedef PSI_stage_progress_v1 *(*start_stage_v1_t)(PSI_stage_key key,
+                                                   const char *src_file,
+                                                   int src_line);
+typedef PSI_stage_progress_v1 *(*get_current_stage_progress_v1_t)(void);
+typedef void (*end_stage_v1_t)(void);
 struct PSI_stage_service_v1
 {
   register_stage_v1_t register_stage;

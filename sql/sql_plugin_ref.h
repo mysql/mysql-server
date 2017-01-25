@@ -19,6 +19,7 @@
 #include "my_alloc.h"
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"
+#include "prealloced_array.h"
 
 typedef struct st_mysql_lex_string LEX_STRING;
 
@@ -120,5 +121,44 @@ inline bool plugin_equals(st_plugin_int **ref1, st_plugin_int **ref2)
   return ref1 && ref2 && (ref1[0] == ref2[0]);
 }
 #endif
+
+/**
+  @class Plugin_array
+
+  @brief Plugin array helper class.
+*/
+class Plugin_array : public Prealloced_array<plugin_ref, 2>
+{
+public:
+  /**
+    Class construction.
+
+    @param psi_key PSI key.
+  */
+  explicit Plugin_array(PSI_memory_key psi_key) :
+    Prealloced_array<plugin_ref, 2>(psi_key)
+  {
+  }
+
+  /**
+    Check, whether the plugin specified by the plugin argument has been
+    already added into the array.
+
+    @param plugin Plugin to check.
+
+    @retval true  Plugin has been already added.
+    @retval false There is no plugin in the array.
+  */
+  bool exists(plugin_ref plugin)
+  {
+    Plugin_array::iterator i;
+
+    for (i= begin(); i != end(); ++i)
+      if (plugin_equals(*i, plugin))
+        return true;
+
+    return false;
+  }
+};
 
 #endif  // SQL_PLUGIN_REF_INCLUDED

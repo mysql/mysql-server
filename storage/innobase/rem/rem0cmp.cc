@@ -152,10 +152,11 @@ cmp_cols_are_equal(
 
 /** Compare two DATA_DECIMAL (MYSQL_TYPE_DECIMAL) fields.
 TODO: Remove this function. Everything should use MYSQL_TYPE_NEWDECIMAL.
-@param[in] a data field
-@param[in] a_length length of a, in bytes (not UNIV_SQL_NULL)
-@param[in] b data field
-@param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
+@param[in]	a		data field
+@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
+@param[in]	b		data field
+@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
+@param[in]	is_asc		true=ascending, false=descending order
 @return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 static UNIV_COLD
@@ -164,16 +165,17 @@ cmp_decimal(
 	const byte*	a,
 	unsigned int	a_length,
 	const byte*	b,
-	unsigned int	b_length)
+	unsigned int	b_length,
+	bool		is_asc)
 {
-	int	swap_flag;
+	int	swap_flag = is_asc ? 1 : -1;
 
 	/* Remove preceding spaces */
 	for (; a_length && *a == ' '; a++, a_length--) { }
 	for (; b_length && *b == ' '; b++, b_length--) { }
 
 	if (*a == '-') {
-		swap_flag = -1;
+		swap_flag = -swap_flag;
 
 		if (*b != '-') {
 			return(swap_flag);
@@ -183,8 +185,6 @@ cmp_decimal(
 		a_length--;
 		b_length--;
 	} else {
-		swap_flag = 1;
-
 		if (*b == '-') {
 			return(swap_flag);
 		}
@@ -313,12 +313,13 @@ cmp_gis_field(
 }
 
 /** Compare two data fields.
-@param[in] mtype main type
-@param[in] prtype precise type
-@param[in] a data field
-@param[in] a_length length of a, in bytes (not UNIV_SQL_NULL)
-@param[in] b data field
-@param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
+@param[in]	mtype		main type
+@param[in]	prtype		precise type
+@param[in]	is_asc		true=ascending, false=descending order
+@param[in]	a		data field
+@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
+@param[in]	b		data field
+@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
 @return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 static
@@ -326,6 +327,7 @@ int
 cmp_whole_field(
 	ulint		mtype,
 	ulint		prtype,
+	bool		is_asc,
 	const byte*	a,
 	unsigned int	a_length,
 	const byte*	b,
@@ -335,18 +337,19 @@ cmp_whole_field(
 	float		f_2;
 	double		d_1;
 	double		d_2;
+	int		cmp;
 
 	switch (mtype) {
 	case DATA_DECIMAL:
-		return(cmp_decimal(a, a_length, b, b_length));
+		return(cmp_decimal(a, a_length, b, b_length, is_asc));
 	case DATA_DOUBLE:
 		d_1 = mach_double_read(a);
 		d_2 = mach_double_read(b);
 
 		if (d_1 > d_2) {
-			return(1);
+			return(is_asc ? 1 : -1);
 		} else if (d_2 > d_1) {
-			return(-1);
+			return(is_asc ? -1 : 1);
 		}
 
 		return(0);
@@ -356,17 +359,17 @@ cmp_whole_field(
 		f_2 = mach_float_read(b);
 
 		if (f_1 > f_2) {
-			return(1);
+			return(is_asc ? 1 : -1);
 		} else if (f_2 > f_1) {
-			return(-1);
+			return(is_asc ? -1 : 1);
 		}
 
 		return(0);
 	case DATA_VARCHAR:
 	case DATA_CHAR:
-		return(my_charset_latin1.coll->strnncollsp(
-			       &my_charset_latin1,
-			       a, a_length, b, b_length));
+		cmp = my_charset_latin1.coll->strnncollsp(
+			&my_charset_latin1, a, a_length, b, b_length);
+		break;
 	case DATA_BLOB:
 		if (prtype & DATA_BINARY_TYPE) {
 			ib::error() << "Comparing a binary BLOB"
@@ -376,8 +379,9 @@ cmp_whole_field(
 		/* fall through */
 	case DATA_VARMYSQL:
 	case DATA_MYSQL:
-		return(innobase_mysql_cmp(prtype,
-					  a, a_length, b, b_length));
+		cmp = innobase_mysql_cmp(prtype,
+					 a, a_length, b, b_length);
+                break;
 	case DATA_POINT:
 	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
@@ -385,18 +389,22 @@ cmp_whole_field(
 				b_length));
 	default:
 		ib::fatal() << "Unknown data type number " << mtype;
+                cmp = 0;
 	}
-
-	return(0);
+	if (!is_asc) {
+		cmp = -cmp;
+	}
+	return(cmp);
 }
 
 /** Compare two data fields.
-@param[in] mtype main type
-@param[in] prtype precise type
-@param[in] data1 data field
-@param[in] len1 length of data1 in bytes, or UNIV_SQL_NULL
-@param[in] data2 data field
-@param[in] len2 length of data2 in bytes, or UNIV_SQL_NULL
+@param[in]	mtype	main type
+@param[in]	prtype	precise type
+@param[in]	is_asc	true=ascending, false=descending order
+@param[in]	data1	data field
+@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
+@param[in]	data2	data field
+@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
 @return the comparison result of data1 and data2
 @retval 0 if data1 is equal to data2
 @retval negative if data1 is less than data2
@@ -406,6 +414,7 @@ int
 cmp_data(
 	ulint		mtype,
 	ulint		prtype,
+	bool		is_asc,
 	const byte*	data1,
 	ulint		len1,
 	const byte*	data2,
@@ -418,7 +427,7 @@ cmp_data(
 
 		/* We define the SQL null to be the smallest possible
 		value of a field. */
-		return(len1 == UNIV_SQL_NULL ? -1 : 1);
+		return((len1 == UNIV_SQL_NULL) == is_asc ? -1 : 1);
 	}
 
 	ulint	pad;
@@ -446,7 +455,7 @@ cmp_data(
 		ut_ad(prtype & DATA_BINARY_TYPE);
 		pad = ULINT_UNDEFINED;
 		if (prtype & DATA_GIS_MBR) {
-			return(cmp_whole_field(mtype, prtype,
+			return(cmp_whole_field(mtype, prtype, is_asc,
 					       data1, (unsigned) len1,
 					       data2, (unsigned) len2));
 		}
@@ -458,7 +467,7 @@ cmp_data(
 		}
 		/* fall through */
 	default:
-		return(cmp_whole_field(mtype, prtype,
+		return(cmp_whole_field(mtype, prtype, is_asc,
 				       data1, (unsigned) len1,
 				       data2, (unsigned) len2));
 	}
@@ -498,7 +507,7 @@ cmp_data(
 		for (ulint i = 4 + (len & 3); i > 0; i--) {
 			cmp = int(*data1++) - int(*data2++);
 			if (cmp) {
-				return(cmp);
+				goto func_exit;
 			}
 
 			if (!--len) {
@@ -511,7 +520,7 @@ cmp_data(
 			cmp = memcmp(data1, data2, len);
 
 			if (cmp) {
-				return(cmp);
+				goto func_exit;
 			}
 
 			data1 += len;
@@ -523,8 +532,12 @@ cmp_data(
 
 	cmp = (int) (len1 - len2);
 
-	if (!cmp || pad == ULINT_UNDEFINED) {
+	if (!cmp) {
 		return(cmp);
+	}
+
+	if (pad == ULINT_UNDEFINED) {
+		goto func_exit;
 	}
 
 	len = 0;
@@ -543,7 +556,8 @@ cmp_data(
 		} while (cmp == 0 && len < len2);
 	}
 
-	return(cmp);
+func_exit:
+	return(is_asc ? cmp : -cmp);
 }
 
 /** Compare a GIS data tuple to a physical record.
@@ -621,6 +635,7 @@ cmp_dtuple_rec_with_gis_internal(
 
 	return(cmp_data(dtuple_field->type.mtype,
 			dtuple_field->type.prtype,
+			true,
 			static_cast<const byte*>(dtuple_field->data),
 			dtuple_f_len,
 			rec_b_ptr,
@@ -628,12 +643,13 @@ cmp_dtuple_rec_with_gis_internal(
 }
 
 /** Compare two data fields.
-@param[in] mtype main type
-@param[in] prtype precise type
-@param[in] data1 data field
-@param[in] len1 length of data1 in bytes, or UNIV_SQL_NULL
-@param[in] data2 data field
-@param[in] len2 length of data2 in bytes, or UNIV_SQL_NULL
+@param[in]	mtype	main type
+@param[in]	prtype	precise type
+@param[in]	is_asc	true=ascending, false=descending order
+@param[in]	data1	data field
+@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
+@param[in]	data2	data field
+@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
 @return the comparison result of data1 and data2
 @retval 0 if data1 is equal to data2
 @retval negative if data1 is less than data2
@@ -642,37 +658,40 @@ int
 cmp_data_data(
 	ulint		mtype,
 	ulint		prtype,
+	bool		is_asc,
 	const byte*	data1,
 	ulint		len1,
 	const byte*	data2,
 	ulint		len2)
 {
-	return(cmp_data(mtype, prtype, data1, len1, data2, len2));
+	return(cmp_data(mtype, prtype, is_asc, data1, len1, data2, len2));
 }
 
 /** Compare a data tuple to a physical record.
-@param[in] dtuple data tuple
-@param[in] rec B-tree record
-@param[in] offsets rec_get_offsets(rec)
-@param[in] n_cmp number of fields to compare
-@param[in,out] matched_fields number of completely matched fields
+@param[in]	dtuple		data tuple
+@param[in]	rec		record
+@param[in]	index		index
+@param[in]	offsets		rec_get_offsets(rec)
+@param[in]	n_cmp		number of fields to compare
+@param[in,out]	matched_fields	number of completely matched fields
 @return the comparison result of dtuple and rec
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec
 @retval positive if dtuple is greater than rec */
 int
 cmp_dtuple_rec_with_match_low(
-	const dtuple_t*	dtuple,
-	const rec_t*	rec,
-	const ulint*	offsets,
-	ulint		n_cmp,
-	ulint*		matched_fields)
+	const dtuple_t*		dtuple,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	ulint			n_cmp,
+	ulint*			matched_fields)
 {
 	ulint		cur_field;	/* current field number */
 	int		ret;		/* return value */
 
 	ut_ad(dtuple_check_typed(dtuple));
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	cur_field = *matched_fields;
 
@@ -686,6 +705,9 @@ cmp_dtuple_rec_with_match_low(
 						     rec_offs_comp(offsets));
 		ulint	tup_info = dtuple_get_info_bits(dtuple);
 
+		/* The leftmost node pointer record is defined as
+		smaller than any other node pointer, independent of
+		any ASC/DESC flags. It is an "infimum node pointer". */
 		if (UNIV_UNLIKELY(rec_info & REC_INFO_MIN_REC_FLAG)) {
 			ret = !(tup_info & REC_INFO_MIN_REC_FLAG);
 			goto order_resolved;
@@ -721,7 +743,11 @@ cmp_dtuple_rec_with_match_low(
 
 		ut_ad(!dfield_is_ext(dtuple_field));
 
+		/* For now, change buffering is only supported on
+		indexes with ascending order on the columns. */
 		ret = cmp_data(type->mtype, type->prtype,
+			       dict_index_is_ibuf(index)
+			       || index->get_field(cur_field)->is_ascending,
 			       dtuple_b_ptr, dtuple_f_len,
 			       rec_b_ptr, rec_f_len);
 		if (ret) {
@@ -828,6 +854,11 @@ cmp_dtuple_rec_with_match_bytes(
 		const byte*	dtuple_b_ptr;
 		const byte*	rec_b_ptr;
 		ulint		rec_f_len;
+		/* For now, change buffering is only supported on
+		indexes with ascending order on the columns. */
+		const bool	is_ascending =
+			dict_index_is_ibuf(index)
+			|| index->fields[cur_field].is_ascending;
 
 		dtuple_b_ptr = static_cast<const byte*>(
 			dfield_get_data(dfield));
@@ -845,14 +876,14 @@ cmp_dtuple_rec_with_match_bytes(
 					goto next_field;
 				}
 
-				ret = -1;
+				ret = is_ascending ? -1 : 1;
 				goto order_resolved;
 			} else if (rec_f_len == UNIV_SQL_NULL) {
 				/* We define the SQL null to be the
 				smallest possible value of a field
 				in the alphabetical order */
 
-				ret = 1;
+				ret = is_ascending ? 1 : -1;
 				goto order_resolved;
 			}
 		}
@@ -871,6 +902,7 @@ cmp_dtuple_rec_with_match_bytes(
 			/* fall through */
 		default:
 			ret = cmp_data(type->mtype, type->prtype,
+				       is_ascending,
 				       dtuple_b_ptr, dtuple_f_len,
 				       rec_b_ptr, rec_f_len);
 
@@ -900,8 +932,7 @@ cmp_dtuple_rec_with_match_bytes(
 				}
 
 				if (rec_byte == ULINT_UNDEFINED) {
-					ret = 1;
-
+					ret = is_ascending ? 1 : -1;
 					goto order_resolved;
 				}
 			} else {
@@ -910,8 +941,7 @@ cmp_dtuple_rec_with_match_bytes(
 
 			if (dtuple_f_len <= cur_bytes) {
 				if (dtuple_byte == ULINT_UNDEFINED) {
-					ret = -1;
-
+					ret = is_ascending ? -1 : 1;
 					goto order_resolved;
 				}
 			} else {
@@ -919,10 +949,10 @@ cmp_dtuple_rec_with_match_bytes(
 			}
 
 			if (dtuple_byte < rec_byte) {
-				ret = -1;
+				ret = is_ascending ? -1 : 1;
 				goto order_resolved;
 			} else if (dtuple_byte > rec_byte) {
-				ret = 1;
+				ret = is_ascending ? 1 : -1;
 				goto order_resolved;
 			}
 		}
@@ -945,42 +975,46 @@ order_resolved:
 
 /** Compare a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
-@param[in] dtuple data tuple
-@param[in] rec B-tree record
-@param[in] offsets rec_get_offsets(rec); may be NULL
-for ROW_FORMAT=REDUNDANT
+@param[in]	dtuple	data tuple
+@param[in]	rec	record
+@param[in]	index	index
+@param[in]	offsets	rec_get_offsets(rec)
 @return the comparison result of dtuple and rec
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec
 @retval positive if dtuple is greater than rec */
 int
 cmp_dtuple_rec(
-	const dtuple_t*	dtuple,
-	const rec_t*	rec,
-	const ulint*	offsets)
+	const dtuple_t*		dtuple,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	const ulint*		offsets)
 {
 	ulint	matched_fields	= 0;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
+	return(cmp_dtuple_rec_with_match(dtuple, rec, index, offsets,
 					 &matched_fields));
 }
 
-/**************************************************************//**
-Checks if a dtuple is a prefix of a record. The last field in dtuple
-is allowed to be a prefix of the corresponding field in the record.
+/** Checks if a dtuple is a prefix of a record. The last field in dtuple is
+allowed to be a prefix of the corresponding field in the record.
+@param[in]	dtuple	data tuple
+@param[in]	rec	B-tree record
+@param[in]	index	B-tree index
+@param[in]	offsets	rec_get_offsets(rec)
 @return TRUE if prefix */
 ibool
 cmp_dtuple_is_prefix_of_rec(
-/*========================*/
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	const dtuple_t*		dtuple,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	const ulint*		offsets)
 {
+	ut_ad(!dict_index_is_spatial(index));
+
 	ulint	n_fields;
 	ulint	matched_fields	= 0;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	n_fields = dtuple_get_n_fields(dtuple);
 
 	if (n_fields > rec_offs_n_fields(offsets)) {
@@ -988,8 +1022,8 @@ cmp_dtuple_is_prefix_of_rec(
 		return(FALSE);
 	}
 
-	cmp_dtuple_rec_with_match(dtuple, rec, offsets, &matched_fields);
-	return(matched_fields == n_fields);
+	return(!cmp_dtuple_rec_with_match(dtuple, rec, index, offsets,
+					  &matched_fields));
 }
 
 /*************************************************************//**
@@ -1013,6 +1047,7 @@ cmp_rec_rec_simple_field(
 	ulint		rec1_f_len;
 	ulint		rec2_f_len;
 	const dict_col_t*	col	= index->get_col(n);
+	const dict_field_t*	field	= index->get_field(n);
 
 	ut_ad(!rec_offs_nth_extern(offsets1, n));
 	ut_ad(!rec_offs_nth_extern(offsets2, n));
@@ -1020,7 +1055,7 @@ cmp_rec_rec_simple_field(
 	rec1_b_ptr = rec_get_nth_field(rec1, offsets1, n, &rec1_f_len);
 	rec2_b_ptr = rec_get_nth_field(rec2, offsets2, n, &rec2_f_len);
 
-	return(cmp_data(col->mtype, col->prtype,
+	return(cmp_data(col->mtype, col->prtype, field->is_ascending,
 			rec1_b_ptr, rec1_f_len, rec2_b_ptr, rec2_f_len));
 }
 
@@ -1170,6 +1205,7 @@ cmp_rec_rec_with_match(
 
 		ulint	mtype;
 		ulint	prtype;
+		bool	is_asc;
 
 		/* If this is node-ptr records then avoid comparing node-ptr
 		field. Only key field needs to be compared. */
@@ -1181,13 +1217,17 @@ cmp_rec_rec_with_match(
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;
+			is_asc = true;
 		} else {
 			const dict_col_t*	col;
+			const dict_field_t*	field =
+				index->get_field(cur_field);
 
 			col	= index->get_col(cur_field);
 
 			mtype = col->mtype;
 			prtype = col->prtype;
+			is_asc = field->is_ascending;
 
 			/* If the index is spatial index, we mark the
 			prtype of the first field as MBR field. */
@@ -1217,7 +1257,7 @@ cmp_rec_rec_with_match(
 			goto order_resolved;
 		}
 
-		ret = cmp_data(mtype, prtype,
+		ret = cmp_data(mtype, prtype, is_asc,
 			       rec1_b_ptr, rec1_f_len,
 			       rec2_b_ptr, rec2_f_len);
 		if (ret) {

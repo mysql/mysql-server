@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,9 +21,11 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqlcheck.h"

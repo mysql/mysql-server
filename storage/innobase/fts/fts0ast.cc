@@ -23,11 +23,12 @@ Full Text Search parser helper file.
 Created 2007/3/16 Sunny Bains.
 ***********************************************************************/
 
-#include "ha_prototypes.h"
+#include <stdlib.h>
 
 #include "fts0ast.h"
-#include "fts0pars.h"
 #include "fts0fts.h"
+#include "fts0pars.h"
+#include "ha_prototypes.h"
 
 /* The FTS ast visit pass. */
 enum fts_ast_visit_pass_t {

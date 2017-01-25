@@ -18,12 +18,6 @@
 #ifndef HA_NDBCLUSTER_GLUE_H
 #define HA_NDBCLUSTER_GLUE_H
 
-#include <mysql_version.h>
-
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 #include "current_thd.h"
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
@@ -47,24 +41,6 @@
                             // schema_table_store_record
 #include "my_global.h"
 
-
-#if MYSQL_VERSION_ID >= 50501
-
-/* my_free has lost last argument */
-static inline
-void my_free(void* ptr, myf MyFlags)
-{
-  my_free(ptr);
-}
-
-/* thd has no version field anymore */
-#define NDB_THD_HAS_NO_VERSION
-
-/* No mysql_rm_table_part2 anymore in 5.5.8 */
-#define NDB_NO_MYSQL_RM_TABLE_PART2
-
-#endif
-
 static inline
 uint32 thd_unmasked_server_id(const THD* thd)
 {
@@ -78,86 +54,21 @@ uint32 thd_unmasked_server_id(const THD* thd)
 static inline
 ulonglong thd_options(const THD * thd)
 {
-#if MYSQL_VERSION_ID < 50500
-  return thd->options;
-#else
-  /* "options" has moved to "variables.option_bits" */
   return thd->variables.option_bits;
-#endif
 }
 
 /* set the "command" member of thd */
 static inline
 void thd_set_command(THD* thd, enum enum_server_command command)
 {
-#if MYSQL_VERSION_ID < 50600
-  thd->command = command;
-#else
-  /* "command" renamed to "m_command", use accessor function */
   thd->set_command(command);
-#endif
 }
 
 /* get pointer to Diagnostics Area for statement from THD */
 static inline
 Diagnostics_area* thd_stmt_da(THD* thd)
 {
-#if MYSQL_VERSION_ID < 50500
-  return &(thd->main_da);
-#else
-#if MYSQL_VERSION_ID < 50603
-  /* "main_da" has been made private and one should use "stmt_da*" */
-  return thd->stmt_da;
-#else
-  /* "stmt_da*" has been made private and one should use 'get_stmt_da()' */
   return thd->get_stmt_da();
-#endif
-#endif
 }
-
-#if MYSQL_VERSION_ID < 50500
-
-/*
-  MySQL Server has got its own mutex type in 5.5, add backwards
-  compatibility support allowing to write code in 7.0 that works
-  in future MySQL Server
-*/
-
-typedef pthread_mutex_t mysql_mutex_t;
-
-static inline
-int mysql_mutex_lock(mysql_mutex_t* mutex)
-{
-  return pthread_mutex_lock(mutex);
-}
-
-static inline
-int mysql_mutex_unlock(mysql_mutex_t* mutex)
-{
-  return pthread_mutex_unlock(mutex);
-}
-
-static inline
-void mysql_mutex_assert_owner(mysql_mutex_t* mutex)
-{
-  return safe_mutex_assert_owner(mutex);
-}
-
-typedef pthread_cond_t mysql_cond_t;
-
-static inline
-int mysql_cond_wait(mysql_cond_t* cond, mysql_mutex_t* mutex)
-{
-  return pthread_cond_wait(cond, mutex);
-}
-
-static inline
-int mysql_cond_timedwait(mysql_cond_t* cond, mysql_mutex_t* mutex,
-                         struct timespec* abstime)
-{
-  return pthread_cond_timedwait(cond, mutex, abstime);
-}
-
-#endif
 
 #endif

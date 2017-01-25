@@ -55,3 +55,46 @@ cmd: testNdbApi
 args: -n GetNdbIndexOperationParallelDroppingTest I3
 max-time : 300
 
+cmd: testNodeRestart
+args: -n ArbitrationWithApiNodeFailure T1
+
+cmd: testScan
+args: -n ScanDuringExpandAndShrinkBack T1
+max-time : 180
+
+cmd: testScan
+args: -n ScanDuringShrinkAndExpandBack T1
+max-time : 180
+
+cmd: testSystemRestart
+args: -n StaleNodeTakeoverDuringSR T1
+max-time : 300
+
+cmd: testFK
+args: -n AbortWithSlowChildScans T1
+max-time : 180
+
+cmd: testNodeRestart
+args: -n RestoreOlderLCP T1
+
+cmd: testNdbApi
+args: -n CheckTransId T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckTransIdMt T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectCommit T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectComplete T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckSlowCommit T1
+max-time : 180
+
+

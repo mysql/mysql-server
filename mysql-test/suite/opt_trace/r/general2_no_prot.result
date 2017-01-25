@@ -304,7 +304,7 @@ TRACE
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 4.5034
+                    "cost": 2.8009
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -317,7 +317,7 @@ TRACE
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 1.4175,
+                    "cost": 0.4544,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -338,7 +338,7 @@ TRACE
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
-                        "cost": 1.4275,
+                        "cost": 0.4644,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -364,14 +364,14 @@ TRACE
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 2.4034,
+                      "cost": 0.7009,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 2.4034,
+                "cost_for_plan": 0.7009,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -519,21 +519,21 @@ TRACE
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 4,
-                  "cost": 2
+                  "cost": 0.5017
                 } /* table_scan */
               },
               {
                 "table": "`t2`",
                 "table_scan": {
                   "rows": 4,
-                  "cost": 2
+                  "cost": 0.5017
                 } /* table_scan */
               },
               {
                 "table": "`t3`",
                 "table_scan": {
                   "rows": 4,
-                  "cost": 2
+                  "cost": 0.5017
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -550,14 +550,14 @@ TRACE
                       "rows_to_scan": 4,
                       "access_type": "scan",
                       "resulting_rows": 4,
-                      "cost": 2.8068,
+                      "cost": 0.9017,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 4,
-                "cost_for_plan": 2.8068,
+                "cost_for_plan": 0.9017,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -572,14 +572,14 @@ TRACE
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 4,
-                          "cost": 5.207,
+                          "cost": 2.1017,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 16,
-                    "cost_for_plan": 8.0138,
+                    "cost_for_plan": 3.0034,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -595,14 +595,14 @@ TRACE
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 1,
-                              "cost": 5.8083,
+                              "cost": 2.4021,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 16,
-                        "cost_for_plan": 13.822,
+                        "cost_for_plan": 5.4056,
                         "chosen": true
                       }
                     ] /* rest_of_plan */
@@ -826,21 +826,21 @@ TRACE
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5024
                 } /* table_scan */
               },
               {
                 "table": "`t2`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5024
                 } /* table_scan */
               },
               {
                 "table": "`t3`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 2
+                  "cost": 0.5012
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -857,7 +857,7 @@ TRACE
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 2.4098,
+                      "cost": 0.7024,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -865,7 +865,7 @@ TRACE
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 2.4098,
+                "cost_for_plan": 0.7024,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -880,14 +880,14 @@ TRACE
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 1,
-                          "cost": 2.4049,
+                          "cost": 0.7012,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 2,
-                    "cost_for_plan": 4.8147,
+                    "cost_for_plan": 1.4037,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -903,16 +903,16 @@ TRACE
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 2,
-                              "cost": 2.8099,
+                              "cost": 0.9025,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 4,
-                        "cost_for_plan": 7.6246,
+                        "cost_for_plan": 2.3061,
                         "sort_cost": 4,
-                        "new_cost_for_plan": 11.625,
+                        "new_cost_for_plan": 6.3061,
                         "chosen": true
                       }
                     ] /* rest_of_plan */
@@ -930,14 +930,14 @@ TRACE
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 2,
-                          "cost": 2.8098,
+                          "cost": 0.9025,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 5.2196,
+                    "cost_for_plan": 1.6049,
                     "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
@@ -1037,7 +1037,7 @@ TRACE
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5024
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -1054,14 +1054,14 @@ TRACE
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 2.4098,
+                      "cost": 0.7024,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 2.4098,
+                "cost_for_plan": 0.7024,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1174,10 +1174,17 @@ TRACE
               }
             ] /* filesort_execution */,
             "filesort_summary": {
-              "rows": 4,
-              "examined_rows": 4,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": "XXX",
+              "row_size": "XXX",
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
+              "num_rows_found": 4,
+              "num_examined_rows": 4,
+              "num_tmp_files": 0,
               "sort_buffer_size": "NNN",
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -1256,7 +1263,7 @@ TRACE
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 3,
-                        "cost": 2
+                        "cost": 0.5016
                       } /* table_scan */
                     }
                   ] /* rows_estimation */
@@ -1273,7 +1280,7 @@ TRACE
                             "rows_to_scan": 3,
                             "access_type": "scan",
                             "resulting_rows": 3,
-                            "cost": 2.6066,
+                            "cost": 0.8016,
                             "chosen": true,
                             "use_tmp_table": true
                           }
@@ -1281,9 +1288,9 @@ TRACE
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 3,
-                      "cost_for_plan": 2.6066,
+                      "cost_for_plan": 0.8016,
                       "sort_cost": 3,
-                      "new_cost_for_plan": 5.6066,
+                      "new_cost_for_plan": 3.8016,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -1341,7 +1348,7 @@ TRACE
                 "table": " `teeone`",
                 "table_scan": {
                   "rows": 3,
-                  "cost": 10
+                  "cost": 2.5375
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -1358,14 +1365,14 @@ TRACE
                       "rows_to_scan": 3,
                       "access_type": "scan",
                       "resulting_rows": 3,
-                      "cost": 10.75,
+                      "cost": 2.8375,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 3,
-                "cost_for_plan": 10.75,
+                "cost_for_plan": 2.8375,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1424,28 +1431,6 @@ TRACE
                       "row_limit_estimate": 762600
                     } /* tmp_table_info */
                   } /* creating_tmp_table */
-                },
-                {
-                  "filesort_information": [
-                    {
-                      "direction": "asc",
-                      "table": "intermediate_tmp_table",
-                      "field": "b"
-                    }
-                  ] /* filesort_information */,
-                  "filesort_priority_queue_optimization": {
-                    "usable": false,
-                    "cause": "not applicable (no LIMIT)"
-                  } /* filesort_priority_queue_optimization */,
-                  "filesort_execution": [
-                  ] /* filesort_execution */,
-                  "filesort_summary": {
-                    "rows": 3,
-                    "examined_rows": 3,
-                    "number_of_tmp_files": 0,
-                    "sort_buffer_size": "NNN",
-                    "sort_mode": "<fixed_sort_key, rowid>"
-                  } /* filesort_summary */
                 }
               ] /* steps */
             } /* join_execution */
@@ -1753,7 +1738,7 @@ SET @a=(select count(a) from t1 where a>0)	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 3,
-                        "cost": 2
+                        "cost": 0.5013
                       } /* table_scan */
                     }
                   ] /* rows_estimation */
@@ -1770,14 +1755,14 @@ SET @a=(select count(a) from t1 where a>0)	{
                             "rows_to_scan": 3,
                             "access_type": "scan",
                             "resulting_rows": 1,
-                            "cost": 2.6051,
+                            "cost": 0.8013,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
-                      "cost_for_plan": 2.6051,
+                      "cost_for_plan": 0.8013,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -1882,7 +1867,7 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 3,
-                        "cost": 2
+                        "cost": 0.5013
                       } /* table_scan */
                     }
                   ] /* rows_estimation */
@@ -1899,14 +1884,14 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                             "rows_to_scan": 3,
                             "access_type": "scan",
                             "resulting_rows": 1,
-                            "cost": 2.6051,
+                            "cost": 0.8013,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
-                      "cost_for_plan": 2.6051,
+                      "cost_for_plan": 0.8013,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -2061,7 +2046,7 @@ call p1((select a from t1 limit 1))	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 2,
-                        "cost": 2
+                        "cost": 0.5009
                       } /* table_scan */
                     }
                   ] /* rows_estimation */
@@ -2078,14 +2063,14 @@ call p1((select a from t1 limit 1))	{
                             "rows_to_scan": 2,
                             "access_type": "scan",
                             "resulting_rows": 2,
-                            "cost": 2.4034,
+                            "cost": 0.7009,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 2,
-                      "cost_for_plan": 2.4034,
+                      "cost_for_plan": 0.7009,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -2213,7 +2198,7 @@ select concat(concat(_latin1'->',f1),_latin1'<-') from t1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5024
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -2230,14 +2215,14 @@ select concat(concat(_latin1'->',f1),_latin1'<-') from t1	{
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 2.4098,
+                      "cost": 0.7024,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 2.4098,
+                "cost_for_plan": 0.7024,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2482,7 +2467,7 @@ table3.col_varchar_10_utf8_key	{
                 "table": "`t3` `table1`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5027
                 } /* table_scan */
               },
               {
@@ -2496,7 +2481,7 @@ table3.col_varchar_10_utf8_key	{
                 "table": "`t2` `table3`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 2
+                  "cost": 0.5012
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -2514,14 +2499,14 @@ table3.col_varchar_10_utf8_key	{
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 2.4107,
+                      "cost": 0.7027,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 2.4107,
+                "cost_for_plan": 0.7027,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -2537,14 +2522,14 @@ table3.col_varchar_10_utf8_key	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 1,
-                          "cost": 2.405,
+                          "cost": 0.7012,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 2,
-                    "cost_for_plan": 4.8157,
+                    "cost_for_plan": 1.4039,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -2566,7 +2551,7 @@ table3.col_varchar_10_utf8_key	{
                     "range_analysis": {
                       "table_scan": {
                         "rows": 1,
-                        "cost": 4.3049
+                        "cost": 2.7012
                       } /* table_scan */,
                       "potential_range_indexes": [
                         {
@@ -2584,7 +2569,7 @@ table3.col_varchar_10_utf8_key	{
                       ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "col_varchar_10_utf8_key",
-                        "cost": 1.2,
+                        "cost": 0.35,
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
@@ -2600,7 +2585,7 @@ table3.col_varchar_10_utf8_key	{
                       "range_analysis": {
                         "table_scan": {
                           "rows": 1,
-                          "cost": 4.3049
+                          "cost": 2.7012
                         } /* table_scan */,
                         "potential_range_indexes": [
                           {
@@ -2618,7 +2603,7 @@ table3.col_varchar_10_utf8_key	{
                         ] /* potential_range_indexes */,
                         "best_covering_index_scan": {
                           "index": "col_varchar_10_utf8_key",
-                          "cost": 1.2,
+                          "cost": 0.35,
                           "chosen": true
                         } /* best_covering_index_scan */,
                         "group_index_range": {
@@ -2796,7 +2781,7 @@ from t0 where a in
                 "table": "`t0`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 2
+                  "cost": 0.5043
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -2813,14 +2798,14 @@ from t0 where a in
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.0171,
+                      "cost": 1.5043,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.0171,
+                "cost_for_plan": 1.5043,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2947,21 +2932,21 @@ from t0 where a in
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 2
+                  "cost": 0.5055
                 } /* table_scan */
               },
               {
                 "table": "`t2`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 2
+                  "cost": 0.5055
                 } /* table_scan */
               },
               {
                 "table": "`t3`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 2
+                  "cost": 0.5055
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -2984,14 +2969,14 @@ from t0 where a in
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -3004,7 +2989,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 12,
+                          "cost": 3.5,
                           "chosen": true
                         },
                         {
@@ -3013,14 +2998,14 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 10,
-                          "cost": 22.022,
+                          "cost": 10.506,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 10,
-                    "cost_for_plan": 16.022,
+                    "cost_for_plan": 5.0055,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -3034,7 +3019,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 12,
+                              "cost": 3.5,
                               "chosen": true
                             },
                             {
@@ -3043,7 +3028,7 @@ from t0 where a in
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 10,
-                              "cost": 22.023,
+                              "cost": 10.506,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -3051,7 +3036,7 @@ from t0 where a in
                         "added_to_eq_ref_extension": true,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 10,
-                        "cost_for_plan": 28.022,
+                        "cost_for_plan": 8.5055,
                         "chosen": true
                       }
                     ] /* rest_of_plan */
@@ -3074,14 +3059,14 @@ from t0 where a in
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -3094,7 +3079,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 12,
+                          "cost": 3.5,
                           "chosen": true
                         },
                         {
@@ -3103,14 +3088,14 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 10,
-                          "cost": 22.022,
+                          "cost": 10.506,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 10,
-                    "cost_for_plan": 16.022,
+                    "cost_for_plan": 5.0055,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -3124,7 +3109,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 12,
+                              "cost": 3.5,
                               "chosen": true
                             },
                             {
@@ -3133,7 +3118,7 @@ from t0 where a in
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 10,
-                              "cost": 22.023,
+                              "cost": 10.506,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -3141,7 +3126,7 @@ from t0 where a in
                         "added_to_eq_ref_extension": true,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 10,
-                        "cost_for_plan": 28.022,
+                        "cost_for_plan": 8.5055,
                         "pruned_by_cost": true
                       },
                       {
@@ -3156,7 +3141,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 12,
+                              "cost": 3.5,
                               "chosen": true
                             },
                             {
@@ -3165,14 +3150,14 @@ from t0 where a in
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 10,
-                              "cost": 22.023,
+                              "cost": 10.506,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 10,
-                        "cost_for_plan": 28.022,
+                        "cost_for_plan": 8.5055,
                         "pruned_by_cost": true
                       }
                     ] /* rest_of_plan */
@@ -3188,7 +3173,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 12,
+                          "cost": 3.5,
                           "chosen": true
                         },
                         {
@@ -3197,14 +3182,14 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 10,
-                          "cost": 22.022,
+                          "cost": 10.506,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 10,
-                    "cost_for_plan": 16.022,
+                    "cost_for_plan": 5.0055,
                     "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
@@ -3225,14 +3210,14 @@ from t0 where a in
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -3245,7 +3230,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 12,
+                          "cost": 3.5,
                           "chosen": true
                         },
                         {
@@ -3254,14 +3239,14 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 10,
-                          "cost": 22.022,
+                          "cost": 10.506,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 10,
-                    "cost_for_plan": 16.022,
+                    "cost_for_plan": 5.0055,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -3275,7 +3260,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 12,
+                              "cost": 3.5,
                               "chosen": true
                             },
                             {
@@ -3284,7 +3269,7 @@ from t0 where a in
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 10,
-                              "cost": 22.023,
+                              "cost": 10.506,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
@@ -3292,7 +3277,7 @@ from t0 where a in
                         "added_to_eq_ref_extension": true,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 10,
-                        "cost_for_plan": 28.022,
+                        "cost_for_plan": 8.5055,
                         "pruned_by_cost": true
                       },
                       {
@@ -3307,7 +3292,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 12,
+                              "cost": 3.5,
                               "chosen": true
                             },
                             {
@@ -3316,14 +3301,14 @@ from t0 where a in
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 10,
-                              "cost": 22.023,
+                              "cost": 10.506,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 10,
-                        "cost_for_plan": 28.022,
+                        "cost_for_plan": 8.5055,
                         "pruned_by_cost": true
                       }
                     ] /* rest_of_plan */
@@ -3339,7 +3324,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 12,
+                          "cost": 3.5,
                           "chosen": true
                         },
                         {
@@ -3348,14 +3333,14 @@ from t0 where a in
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 10,
-                          "cost": 22.022,
+                          "cost": 10.506,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 10,
-                    "cost_for_plan": 16.022,
+                    "cost_for_plan": 5.0055,
                     "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
@@ -3381,7 +3366,7 @@ from t0 where a in
                     "range_analysis": {
                       "table_scan": {
                         "rows": 10,
-                        "cost": 14
+                        "cost": 5.5
                       } /* table_scan */,
                       "potential_range_indexes": [
                         {
@@ -3394,7 +3379,7 @@ from t0 where a in
                       ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "a",
-                        "cost": 3.2093,
+                        "cost": 1.3023,
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
@@ -3635,7 +3620,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "range_analysis": {
                         "table_scan": {
                           "rows": 9,
-                          "cost": 5.9198
+                          "cost": 3.5049
                         } /* table_scan */,
                         "potential_range_indexes": [
                           {
@@ -3663,7 +3648,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t3`",
                       "table_scan": {
                         "rows": 8,
-                        "cost": 2
+                        "cost": 0.5049
                       } /* table_scan */
                     }
                   ] /* rows_estimation */
@@ -3681,12 +3666,12 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                             "access_type": "ref",
                             "index": "t3_ID_IDX",
                             "rows": 1,
-                            "cost": 1.2,
+                            "cost": 0.35,
                             "chosen": true
                           },
                           {
                             "access_type": "scan",
-                            "cost": 3.6,
+                            "cost": 1.3049,
                             "rows": 8,
                             "chosen": false,
                             "cause": "cost"
@@ -3695,7 +3680,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
-                      "cost_for_plan": 1.2,
+                      "cost_for_plan": 0.35,
                       "rest_of_plan": [
                         {
                           "plan_prefix": [
@@ -3709,12 +3694,12 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "ref",
                                 "index": "t2_ID_IDX",
                                 "rows": 2,
-                                "cost": 2.4,
+                                "cost": 0.7,
                                 "chosen": true
                               },
                               {
                                 "access_type": "scan",
-                                "cost": 3.8,
+                                "cost": 1.4049,
                                 "rows": 9,
                                 "chosen": false,
                                 "cause": "cost"
@@ -3735,12 +3720,12 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "ref",
                                 "index": "t2_ID_IDX",
                                 "rows": 2,
-                                "cost": 2.4,
+                                "cost": 0.7,
                                 "chosen": true
                               },
                               {
                                 "access_type": "scan",
-                                "cost": 3.8,
+                                "cost": 1.4049,
                                 "rows": 9,
                                 "chosen": false,
                                 "cause": "cost"
@@ -3749,7 +3734,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                           } /* best_access_path */,
                           "condition_filtering_pct": 100,
                           "rows_for_plan": 2,
-                          "cost_for_plan": 3.6,
+                          "cost_for_plan": 1.05,
                           "chosen": true
                         }
                       ] /* rest_of_plan */
@@ -3765,12 +3750,12 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                             "access_type": "ref",
                             "index": "t2_ID_IDX",
                             "rows": 1,
-                            "cost": 1.2,
+                            "cost": 0.35,
                             "chosen": true
                           },
                           {
                             "access_type": "scan",
-                            "cost": 3.8,
+                            "cost": 1.4049,
                             "rows": 9,
                             "chosen": false,
                             "cause": "cost"
@@ -3779,7 +3764,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
-                      "cost_for_plan": 1.2,
+                      "cost_for_plan": 0.35,
                       "pruned_by_heuristic": true
                     }
                   ] /* considered_execution_plans */
@@ -3807,7 +3792,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                 "table": " `tmp`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 10
+                  "cost": 2.525
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -3824,14 +3809,14 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 10.5,
+                      "cost": 2.725,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 10.5,
+                "cost_for_plan": 2.725,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -4232,7 +4217,7 @@ link_alias_148._field_156	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 4.5083
+                    "cost": 2.8021
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4246,7 +4231,7 @@ link_alias_148._field_156	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
-                    "cost": 1.4435,
+                    "cost": 0.4609,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -4267,7 +4252,7 @@ link_alias_148._field_156	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 1.21,
+                        "cost": 0.36,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -4286,7 +4271,7 @@ link_alias_148._field_156	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
+                    "cost_for_plan": 0.36,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -4295,7 +4280,7 @@ link_alias_148._field_156	{
                 "table": "`t7` `link_alias_142`",
                 "table_scan": {
                   "rows": 3,
-                  "cost": 2
+                  "cost": 0.5039
                 } /* table_scan */
               },
               {
@@ -4303,7 +4288,7 @@ link_alias_148._field_156	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 3,
-                    "cost": 4.7125
+                    "cost": 2.9031
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4317,7 +4302,7 @@ link_alias_148._field_156	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
-                    "cost": 1.687,
+                    "cost": 0.5717,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -4338,7 +4323,7 @@ link_alias_148._field_156	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 1.21,
+                        "cost": 0.36,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -4357,7 +4342,7 @@ link_alias_148._field_156	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
+                    "cost_for_plan": 0.36,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -4366,7 +4351,7 @@ link_alias_148._field_156	{
                 "table": "`t1` `link_alias_133`",
                 "table_scan": {
                   "rows": 3,
-                  "cost": 2
+                  "cost": 0.5103
                 } /* table_scan */
               },
               {
@@ -4374,7 +4359,7 @@ link_alias_148._field_156	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 3,
-                    "cost": 4.7125
+                    "cost": 2.9031
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4388,7 +4373,7 @@ link_alias_148._field_156	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
-                    "cost": 1.687,
+                    "cost": 0.5717,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -4409,7 +4394,7 @@ link_alias_148._field_156	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 1.21,
+                        "cost": 0.36,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -4428,7 +4413,7 @@ link_alias_148._field_156	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
+                    "cost_for_plan": 0.36,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -4437,7 +4422,7 @@ link_alias_148._field_156	{
                 "table": "`t5` `link_alias_148`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5034
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -4455,7 +4440,7 @@ link_alias_148._field_156	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true
                     },
                     {
@@ -4470,7 +4455,7 @@ link_alias_148._field_156	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -4484,12 +4469,12 @@ link_alias_148._field_156	{
                           "access_type": "eq_ref",
                           "index": "PRIMARY",
                           "rows": 1,
-                          "cost": 1.2,
+                          "cost": 0.35,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
-                          "cost": 2.6,
+                          "cost": 0.8039,
                           "rows": 3,
                           "chosen": false,
                           "cause": "cost"
@@ -4499,7 +4484,7 @@ link_alias_148._field_156	{
                     "added_to_eq_ref_extension": true,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 2.4,
+                    "cost_for_plan": 0.7,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -4514,7 +4499,7 @@ link_alias_148._field_156	{
                               "access_type": "ref",
                               "index": "PRIMARY",
                               "rows": 1,
-                              "cost": 1.2,
+                              "cost": 0.35,
                               "chosen": true
                             },
                             {
@@ -4530,7 +4515,7 @@ link_alias_148._field_156	{
                         "added_to_eq_ref_extension": true,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 1,
-                        "cost_for_plan": 3.6,
+                        "cost_for_plan": 1.05,
                         "rest_of_plan": [
                           {
                             "plan_prefix": [
@@ -4546,12 +4531,12 @@ link_alias_148._field_156	{
                                   "access_type": "eq_ref",
                                   "index": "PRIMARY",
                                   "rows": 1,
-                                  "cost": 1.2,
+                                  "cost": 0.35,
                                   "chosen": true
                                 },
                                 {
                                   "access_type": "scan",
-                                  "cost": 2.6,
+                                  "cost": 0.8103,
                                   "rows": 3,
                                   "chosen": false,
                                   "cause": "cost"
@@ -4561,7 +4546,7 @@ link_alias_148._field_156	{
                             "added_to_eq_ref_extension": true,
                             "condition_filtering_pct": 100,
                             "rows_for_plan": 1,
-                            "cost_for_plan": 4.8,
+                            "cost_for_plan": 1.4,
                             "rest_of_plan": [
                               {
                                 "plan_prefix": [
@@ -4578,7 +4563,7 @@ link_alias_148._field_156	{
                                       "access_type": "ref",
                                       "index": "PRIMARY",
                                       "rows": 1,
-                                      "cost": 1.2,
+                                      "cost": 0.35,
                                       "chosen": true
                                     },
                                     {
@@ -4594,7 +4579,7 @@ link_alias_148._field_156	{
                                 "added_to_eq_ref_extension": true,
                                 "condition_filtering_pct": 100,
                                 "rows_for_plan": 1,
-                                "cost_for_plan": 6,
+                                "cost_for_plan": 1.75,
                                 "rest_of_plan": [
                                   {
                                     "plan_prefix": [
@@ -4612,12 +4597,12 @@ link_alias_148._field_156	{
                                           "access_type": "eq_ref",
                                           "index": "PRIMARY",
                                           "rows": 1,
-                                          "cost": 1.2,
+                                          "cost": 0.35,
                                           "chosen": true
                                         },
                                         {
                                           "access_type": "scan",
-                                          "cost": 2.4,
+                                          "cost": 0.7034,
                                           "rows": 2,
                                           "chosen": false,
                                           "cause": "cost"
@@ -4627,7 +4612,7 @@ link_alias_148._field_156	{
                                     "added_to_eq_ref_extension": true,
                                     "condition_filtering_pct": 100,
                                     "rows_for_plan": 1,
-                                    "cost_for_plan": 7.2,
+                                    "cost_for_plan": 2.1,
                                     "chosen": true
                                   }
                                 ] /* rest_of_plan */
@@ -4921,7 +4906,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "table": "`t1` `alias1`",
                 "table_scan": {
                   "rows": 20,
-                  "cost": 2
+                  "cost": 0.5244
                 } /* table_scan */
               },
               {
@@ -4935,7 +4920,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 100,
-                    "cost": 24.588
+                    "cost": 12.722
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4968,14 +4953,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                       "rows_to_scan": 20,
                       "access_type": "scan",
                       "resulting_rows": 18,
-                      "cost": 6.0977,
+                      "cost": 2.5244,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 18,
-                "cost_for_plan": 6.0977,
+                "cost_for_plan": 2.5244,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -4988,7 +4973,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                           "access_type": "eq_ref",
                           "index": "PRIMARY",
                           "rows": 1,
-                          "cost": 21.6,
+                          "cost": 6.3,
                           "chosen": true
                         },
                         {
@@ -4997,14 +4982,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 100,
-                          "cost": 362.49,
+                          "cost": 180.62,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 18,
-                    "cost_for_plan": 27.698,
+                    "cost_for_plan": 8.8244,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -5102,10 +5087,17 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             "filesort_execution": [
             ] /* filesort_execution */,
             "filesort_summary": {
-              "rows": 8,
-              "examined_rows": 8,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": "XXX",
+              "row_size": "XXX",
+              "max_rows_per_buffer": 18,
+              "num_rows_estimate": 18,
+              "num_rows_found": 8,
+              "num_examined_rows": 8,
+              "num_tmp_files": 0,
               "sort_buffer_size": "NNN",
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -5290,14 +5282,14 @@ select * from t1,mysqltest2.t2	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 3,
-                  "cost": 2
+                  "cost": 0.5013
                 } /* table_scan */
               },
               {
                 "table": "`mysqltest2`.`t2`",
                 "table_scan": {
                   "rows": 2,
-                  "cost": 2
+                  "cost": 0.5009
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -5314,14 +5306,14 @@ select * from t1,mysqltest2.t2	{
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 2.4034,
+                      "cost": 0.7009,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 2.4034,
+                "cost_for_plan": 0.7009,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -5336,14 +5328,14 @@ select * from t1,mysqltest2.t2	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 3,
-                          "cost": 3.2052,
+                          "cost": 1.1013,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 6,
-                    "cost_for_plan": 5.6086,
+                    "cost_for_plan": 1.8022,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -5358,14 +5350,14 @@ select * from t1,mysqltest2.t2	{
                       "rows_to_scan": 3,
                       "access_type": "scan",
                       "resulting_rows": 3,
-                      "cost": 2.6051,
+                      "cost": 0.8013,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 3,
-                "cost_for_plan": 2.6051,
+                "cost_for_plan": 0.8013,
                 "pruned_by_heuristic": true
               }
             ] /* considered_execution_plans */

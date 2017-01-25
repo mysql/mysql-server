@@ -15,7 +15,7 @@ connection spj;
 # Save old mysqld counter values.
 --disable_warnings ONCE
 create temporary table server_counts_at_startup
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name in 
        ('Ndb_pruned_scan_count',
         'Ndb_sorted_scan_count',
@@ -1182,7 +1182,7 @@ connection ddl;
 CREATE TABLE tx (
   a int NOT NULL,
   PRIMARY KEY (`a`)
-);
+) comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 delete from t1;
@@ -1223,7 +1223,9 @@ create table t1 (
   c int not null,
   d int not null,
   primary key (`a`,`b`)
-) engine=ndbcluster partition by key(a);
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+  partition by key(a);
 
 connection spj;
 insert into t1 values
@@ -1284,7 +1286,8 @@ set new=default;
 # *** join push is currently dissabled for these ****
 #
 connection ddl;
-create table t1 (a int, b int, primary key(a) using hash) engine = ndb;
+create table t1 (a int, b int, primary key(a) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1, 2);
@@ -1324,7 +1327,8 @@ drop table t1;
 
 # Same case when there is an ordered index on PK
 connection ddl;
-create table t1 (a int, b int, primary key(a)) engine = ndb;
+create table t1 (a int, b int, primary key(a)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1, 2);
@@ -1385,12 +1389,16 @@ drop table t1;
 set ndb_join_pushdown=true;
 
 connection ddl;
-create table t1 (a int, b int, primary key(a)) engine = ndb;
-create table t2 (c int, d int, primary key(c)) engine = ndb;
+create table t1 (a int, b int, primary key(a)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (c int, d int, primary key(c)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3 (a3 int, b3 int, c3 int not null, d3 int not null,
- primary key(a3, b3)) engine = ndb;
+ primary key(a3, b3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3_hash (a3 int, b3 int, c3 int not null, d3 int not null,
- primary key(a3, b3) using hash) engine = ndb;
+ primary key(a3, b3) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (0x1f, 0x2f);
@@ -1673,13 +1681,16 @@ drop table t1,t2,t3, t3_hash;
 
 connection ddl;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
- primary key(b3, a3)) engine = ndb;
+ primary key(b3, a3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create table t3_hash (a3 int, b3 int, c3 int, d3 int,
- primary key(b3,a3) using hash) engine = ndb;
+ primary key(b3,a3) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create table t3_unq (pk int, a3 int not null, b3 int not null, c3 int, d3 int,
- primary key(pk) using hash, unique key(b3,a3) using hash) engine = ndb;
+ primary key(pk) using hash, unique key(b3,a3) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
@@ -1736,7 +1747,8 @@ drop table t3, t3_hash, t3_unq;
 
 connection ddl;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
- primary key(a3), unique key(d3)) engine = ndb;
+ primary key(a3), unique key(d3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
@@ -1806,7 +1818,8 @@ drop table t3;
 
 connection ddl;
 create table t3 (a3 int not null, b3 int not null, c3 int, d3 int,
- primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb;
+ primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values (0x1f, 0x2f, 1,    0x1f);
@@ -2042,7 +2055,8 @@ execute stmt1 using @a;
 
 # test index scan disguised as JT_ALL
 connection ddl;
-create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
+create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,null, 2);
@@ -2107,7 +2121,8 @@ drop table t1;
 # mixed engines
 
 connection ddl;
-create table t1 (a int primary key, b int) engine = ndb;
+create table t1 (a int primary key, b int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (a int primary key, b int) engine = myisam;
 
 connection spj;
@@ -2129,8 +2144,10 @@ drop table t1, t2;
 # Tables with blob, but not in the selected columns:
 
 connection ddl;
-create table t1 (a int primary key, b int, c blob) engine = ndb;
-create table t2 (a int primary key, b int) engine = ndb;
+create table t1 (a int primary key, b int, c blob) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (a int primary key, b int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,1, 'kalle');
@@ -2236,7 +2253,8 @@ drop table t1, t2;
 ##
 connection ddl;
   create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
@@ -2249,7 +2267,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 tinyint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2261,7 +2280,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 smallint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2273,7 +2293,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 smallint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2285,7 +2306,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 mediumint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2297,7 +2319,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 mediumint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2309,7 +2332,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 int, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2321,7 +2345,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 int unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2333,7 +2358,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 bigint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2345,7 +2371,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 bigint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2357,7 +2384,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 boolean, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0, 1, 0x1f);
   insert into t3 values (0x2f, 1, 2, 0x2f);
@@ -2369,7 +2397,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 float, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.00, 2, 0x2f);
@@ -2381,7 +2410,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 float unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.00, 2, 0x2f);
@@ -2393,7 +2423,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 double, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.14, 2, 0x2f);
@@ -2405,7 +2436,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 double unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.14, 2, 0x2f);
@@ -2417,7 +2449,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 decimal, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
@@ -2429,7 +2462,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 decimal(12,4), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.14, 2, 0x2f);
@@ -2441,7 +2475,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 date, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, '1905-05-17', 1, 0x1f);
   insert into t3 values (0x2f, '2000-02-28', 2, 0x2f);
@@ -2478,7 +2513,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 char(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
@@ -2490,7 +2526,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 varchar(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
@@ -2502,7 +2539,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 varchar(512), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
@@ -2514,7 +2552,8 @@ connection spj;
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 binary(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
@@ -2526,7 +2565,8 @@ connection spj;
 connection ddl;
   drop table t3;
     create table t3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
@@ -2544,7 +2584,8 @@ connection ddl;
 ##
 connection ddl;
   create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
@@ -2564,7 +2605,8 @@ connection ddl;
 
 connection ddl;
 create table t3 (a3 varchar(16), b3 int, c3 int not null, d3 int not null, 
-  primary key(a3,b3)) engine = ndb;
+  primary key(a3,b3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values ('Ole', 0x1f, 1, 0x1f);
@@ -2585,7 +2627,8 @@ connection ddl;
 drop table t3;
 
 connection ddl;
-create table t1 (k int primary key, b int) engine = ndb;
+create table t1 (k int primary key, b int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,1), (2,1), (3,1), (4,1);
@@ -2644,7 +2687,8 @@ create table t1 (
   c int not null,
   d char(255) not null,
   primary key (`a`,`b`)
-) engine=ndbcluster;
+) engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 let $1=1000;
@@ -2726,7 +2770,8 @@ create table t1 (a int not null,
                  b int not null storage disk, 
        		 c int not null storage memory, 
 		 primary key(a)) 
-		 tablespace ts1 storage disk engine = ndb;
+		 tablespace ts1 storage disk engine = ndb
+ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (10, 11, 11);
@@ -2735,7 +2780,8 @@ insert into t1 values (12, 13, 13);
 
 connection ddl;
 create table t2 (a int not null, 
-       	     	 b int not null, primary key(a)) engine = ndb;
+       	     	 b int not null, primary key(a)) engine = ndb
+ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t2 values (10, 11);
@@ -2847,7 +2893,8 @@ connection ddl;
 create table t1 (
        a int primary key, 
        b int,
-       c int) engine = ndb;
+       c int) engine = ndb
+ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1, 2, 3);
@@ -2891,7 +2938,9 @@ create table t1(
        b int not null,
        c int not null,
        primary key(a,b))
-engine = ndb partition by key (a);
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+partition by key (a);
 
 connection spj;
 insert into t1 values (10, 10, 11);
@@ -2909,7 +2958,7 @@ select * from t1 t1, t1 t2
 # Save old mysqld counter values.
 --disable_warnings ONCE
 create temporary table server_counts
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name in 
        ('Ndb_scan_count',
         'Ndb_pruned_scan_count',
@@ -2939,7 +2988,7 @@ select count(*) from t1 t1, t1 t2
 --disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts as old,
-         information_schema.global_status as new
+         performance_schema.global_status as new
        where new.variable_name = old.variable_name
        order by new.variable_name;
 
@@ -2956,7 +3005,9 @@ create table t1(
        a int not null,
        b int not null,
        primary key using hash (a,b))
-engine = ndb partition by key (a);
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+partition by key (a);
 
 connection spj;
 insert into t1(a,b,c,d) values (10, 10, 11, 11);
@@ -3049,7 +3100,9 @@ create table t2(
        b int not null,
        c int not null,
        primary key using hash (a,b,c))
-engine = ndb partition by key (b,a);
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+partition by key (b,a);
 
 connection spj;
 insert into t2(a,b,c,d,e,f) values (1, 2, 3, 1, 2, 3); 
@@ -3101,7 +3154,8 @@ connection ddl;
 drop table t2;
 
 connection ddl;
-create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb;
+create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values ('\0123456789', '1234567890');
@@ -3126,7 +3180,8 @@ drop table t1;
 # Have been merged from 5.1 main branch.
 
 connection ddl;
-create table t1 (pk int primary key, a int unique key) engine = ndb;
+create table t1 (pk int primary key, a int unique key) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,10), (2,20), (3,30);
@@ -3174,7 +3229,8 @@ drop table t1;
 # Test scan-lookup-scan query (see http://lists.mysql.com/commits/115164)
 
 connection ddl;
-create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
+create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
       
 connection spj;
@@ -3192,7 +3248,8 @@ drop table t1;
 
 # Test sorted scan where inner join eliminates all rows (known regression).
 connection ddl;
-create table t1 (pk int primary key, u int not null) engine=ndb;
+create table t1 (pk int primary key, u int not null) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1), 
@@ -3229,7 +3286,8 @@ drop table t1;
 # Test query using "scan -> unique index lookup -> index scan".
 
 connection ddl;
-create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
+create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 create unique index ix2 on t1(u);
 
@@ -3575,7 +3633,8 @@ CREATE TABLE t1 (
   c int NOT NULL,
   d int NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,1,1,1), (1,2,1,1), (1,3,1,1), (1,4,1,2);
@@ -3584,13 +3643,15 @@ connection ddl;
 CREATE TABLE t2 (
   a int NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t3 (
   a int NOT NULL,
   b int NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection ddl;
 insert into t2 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
@@ -3785,7 +3846,8 @@ drop table t1;
 # (At the cost of more roundrtrips)
 ###
 connection ddl;
-create table t1 (pk int primary key, a int, b int) engine=ndb;
+create table t1 (pk int primary key, a int, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 
 connection spj;
@@ -3825,7 +3887,8 @@ drop table t1;
 # the specific testcase commited together with patch for this bug.
 #######
 connection ddl;
-create table t (pk int primary key, a int) engine=ndb;
+create table t (pk int primary key, a int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values 
   (1,1), (2,1),
   (4,3), (6,3),
@@ -3859,7 +3922,8 @@ drop table t;
 # Test correct format of an 'open bound'
 ########
 connection ddl;
-create table t (b int, a int, primary key (a,b)) engine=ndb;
+create table t (b int, a int, primary key (a,b)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values(0,0);
@@ -3881,7 +3945,8 @@ drop table t;
 # is not expected to happen any more.
 #######
 connection ddl;
-create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values (1,3), (3,6), (6,9), (9,1);
@@ -3906,7 +3971,8 @@ drop table t;
 # 'ref_or_null' contains elements of left outer join wo/ being identical.
 # 
 connection ddl;
-create table t (k int, uq int, unique key ix1 (uq)) engine = ndb;
+create table t (k int, uq int, unique key ix1 (uq)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
@@ -3930,7 +3996,8 @@ drop table t;
 # even requiring to access left table (b) which becomes 'system' -> No pushed joins !
 ########
 connection ddl;
-create table t (k int primary key, uq int) engine = ndb;
+create table t (k int primary key, uq int) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
@@ -3956,8 +4023,9 @@ create table tc(
   b varchar(10),
   c varchar(10),
   primary key (a),
-  unique key uk1 (b, c) 
-)engine=ndbcluster;
+  unique key uk1 (b, c)
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into tc values ('aa','bb', 'x'), ('bb','cc', 'x'), ('cc', 'dd', 'x');
@@ -3992,7 +4060,9 @@ create table t1 (
   c varchar(16) not null,
   d int not null,
   primary key (a,b)
-) engine ndb partition by key (a);
+) engine ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+  partition by key (a);
 
 connection spj;
 insert into t1  values ('aaa', 1, 'aaa', 1);
@@ -4012,25 +4082,29 @@ CREATE TABLE t1 (
   id int NOT NULL AUTO_INCREMENT,
   t2_id int,
   PRIMARY KEY (id)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t2 (
   id int NOT NULL AUTO_INCREMENT,
   t3_id varchar(20) DEFAULT NULL,
   PRIMARY KEY (id)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t3 (
   id varchar(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t4 (
   pk int NOT NULL,
   id varchar(20) NOT NULL,
   PRIMARY KEY (pk),
   UNIQUE KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 
 connection spj;
@@ -4102,7 +4176,8 @@ CREATE TABLE t1 (
   d int,
   PRIMARY KEY (`a`,`b`),
   unique key(c)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values
@@ -4160,8 +4235,10 @@ drop table t1;
 
 ## Test scan sorted on string field.
 connection ddl;
-create table t1 (pk char(10) primary key, u int not null) engine=ndb;
-create table t2 (pk int primary key, u int not null) engine=ndb;
+create table t1 (pk char(10) primary key, u int not null) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (pk int primary key, u int not null) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values ('wh',1);
@@ -4245,7 +4322,9 @@ create table t1
        b int not null, 
        c int not null,
        d int not null,
-       primary key(a,b,c,d)) engine=ndb partition by key (b,c);
+       primary key(a,b,c,d)) engine=ndb
+       comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+       partition by key (b,c);
 
 connection spj;
 insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
@@ -4292,7 +4371,8 @@ create table t1 (
   key (name)
 )
 default charset = utf8
-engine = ndb;
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values (1, 1, 'Ole');
 insert into t1 values (2, 2, 'Dole');
@@ -4303,7 +4383,7 @@ insert into t1 values (4, 4, 'row# 999');
 # range optimizer on 64 bit but not on 32 bit, thus cauing different result.
 # Fix by setting a fairly low value in order to get consistent behaviour
 set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
-set range_optimizer_max_mem_size = 512*1024;
+set range_optimizer_max_mem_size = 512*512;
 
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
@@ -4379,7 +4459,8 @@ create table t(
   index(i),
   index(j),
   index(k)
-) engine = ndb;
+) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t(i,j,k) values
    (1,1,1), (1,1,1), (1,1,1),
@@ -4412,7 +4493,8 @@ drop table t;
 ####################################################
 # Test LQH handling of zero-length key in LQHKEYREQ
 # Bug#
-create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
+create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (4,null, 2);
 
 explain
@@ -4433,7 +4515,8 @@ CREATE TABLE t1 (
   c int NOT NULL,
   d int NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create unique index ix1 on t1(b,c) using hash;
 
@@ -4447,7 +4530,7 @@ explain select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) o
 # Record value before query.
 --disable_warnings ONCE
 create temporary table scan_count
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name = 'Ndb_scan_count';
 
 # Query gives wrong result on mysql-trunk-cluster, and extra scan on both
@@ -4458,7 +4541,7 @@ select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x
 --disable_warnings ONCE
 select scan_count.VARIABLE_NAME,
        old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
-       from scan_count,information_schema.global_status as old 
+       from scan_count, performance_schema.global_status as old 
        where old.variable_name = 'Ndb_scan_count';
 
 drop table scan_count;
@@ -4475,23 +4558,27 @@ connection ddl;
 CREATE TABLE table1 (
   col_int_unique int(11), 
   PRIMARY KEY (col_int_unique)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE table3 (
   col_int int(11) NOT NULL DEFAULT '0',
   KEY (col_int)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE table4 (
   col_int int(11) DEFAULT NULL,
   pk int(11) NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE table6 (
   col_int int(11) DEFAULT NULL,
   col_int_unique int(11) DEFAULT NULL
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into table6 values
@@ -4553,7 +4640,8 @@ create table t1 (
   d int not null,
   primary key (`a`,`b`),
   key(c), key(d)
-) engine=ndbcluster;
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values
@@ -4617,13 +4705,15 @@ CREATE TABLE ndb_order_test (
   user_id int(10) unsigned NOT NULL,
   sort_number int(10) unsigned NOT NULL,
   KEY node_id (node_id,sort_number)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE ndb_user_test (
   user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
   name varchar(20) NOT NULL,
   PRIMARY KEY (user_id)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 
 connection spj;
@@ -4670,7 +4760,7 @@ connection spj;
 --disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts_at_startup as old,
-         information_schema.global_status as new
+         performance_schema.global_status as new
        where new.variable_name = old.variable_name
        order by new.variable_name;
 

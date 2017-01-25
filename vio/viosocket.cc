@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -23,8 +23,12 @@
   the file descriptior.
 */
 
-#include "vio_priv.h"
+#include <fcntl.h>
+#include <stdlib.h>
+
+#include "my_dbug.h"
 #include "mysql/service_my_snprintf.h"
+#include "vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>

@@ -1,10 +1,48 @@
 typedef char my_bool;
 typedef unsigned long long my_ulonglong;
 typedef int my_socket;
+#include "binary_log_types.h"
+typedef enum enum_field_types {
+  MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
+  MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
+  MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
+  MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
+  MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
+  MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
+  MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
+  MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
+  MYSQL_TYPE_BIT,
+  MYSQL_TYPE_TIMESTAMP2,
+  MYSQL_TYPE_DATETIME2,
+  MYSQL_TYPE_TIME2,
+  MYSQL_TYPE_JSON=245,
+  MYSQL_TYPE_NEWDECIMAL=246,
+  MYSQL_TYPE_ENUM=247,
+  MYSQL_TYPE_SET=248,
+  MYSQL_TYPE_TINY_BLOB=249,
+  MYSQL_TYPE_MEDIUM_BLOB=250,
+  MYSQL_TYPE_LONG_BLOB=251,
+  MYSQL_TYPE_BLOB=252,
+  MYSQL_TYPE_VAR_STRING=253,
+  MYSQL_TYPE_STRING=254,
+  MYSQL_TYPE_GEOMETRY=255
+} enum_field_types;
 #include "mem_root_fwd.h"
 struct st_mem_root;
 typedef struct st_mem_root MEM_ROOT;
-#include "mysql_version.h"
+#include "my_list.h"
+typedef struct st_list {
+  struct st_list *prev,*next;
+  void *data;
+} LIST;
+typedef int (*list_walk_action)(void *,void *);
+extern LIST *list_add(LIST *root,LIST *element);
+extern LIST *list_delete(LIST *root,LIST *element);
+extern LIST *list_cons(void *data,LIST *root);
+extern LIST *list_reverse(LIST *root);
+extern void list_free(LIST *root,unsigned int free_data);
+extern unsigned int list_length(LIST *);
+extern int list_walk(LIST *,list_walk_action action,unsigned char * argument);
 #include "mysql_com.h"
 #include "my_command.h"
 enum enum_server_command
@@ -43,6 +81,35 @@ enum enum_server_command
   COM_RESET_CONNECTION,
   COM_END
 };
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef char my_bool;
+typedef int myf;
+#include "my_io.h"
+#include "my_config.h"
+static inline int is_directory_separator(char c)
+{
+  return c == '/';
+}
+typedef int File;
+typedef mode_t MY_MODE;
+typedef socklen_t socket_len_t;
+typedef int my_socket;
 enum SERVER_STATUS_flags_enum
 {
   SERVER_STATUS_IN_TRANS= 1,
@@ -72,15 +139,10 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1;
-  my_bool unused2;
   my_bool compress;
-  my_bool unused3;
   unsigned char *unused;
   unsigned int last_errno;
   unsigned char error;
-  my_bool unused4;
-  my_bool unused5;
   char last_error[512];
   char sqlstate[5 +1];
   void *extension;
@@ -129,6 +191,9 @@ my_bool net_write_command(NET *net,unsigned char command,
      const unsigned char *packet, size_t len);
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
+void my_net_set_write_timeout(NET *net, uint timeout);
+void my_net_set_read_timeout(NET *net, uint timeout);
+void my_net_set_retry_count(NET *net, uint retry_count);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
@@ -178,58 +243,10 @@ char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 my_bool my_thread_init(void);
 void my_thread_end(void);
-#include "mysql_time.h"
-enum enum_mysql_timestamp_type
-{
-  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
-  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
-};
-typedef struct st_mysql_time
-{
-  unsigned int year, month, day, hour, minute, second;
-  unsigned long second_part;
-  my_bool neg;
-  enum enum_mysql_timestamp_type time_type;
-} MYSQL_TIME;
-#include "binary_log_types.h"
-typedef enum enum_field_types {
-  MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-  MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
-  MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
-  MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
-  MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-  MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
-  MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-  MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-  MYSQL_TYPE_BIT,
-  MYSQL_TYPE_TIMESTAMP2,
-  MYSQL_TYPE_DATETIME2,
-  MYSQL_TYPE_TIME2,
-  MYSQL_TYPE_JSON=245,
-  MYSQL_TYPE_NEWDECIMAL=246,
-  MYSQL_TYPE_ENUM=247,
-  MYSQL_TYPE_SET=248,
-  MYSQL_TYPE_TINY_BLOB=249,
-  MYSQL_TYPE_MEDIUM_BLOB=250,
-  MYSQL_TYPE_LONG_BLOB=251,
-  MYSQL_TYPE_BLOB=252,
-  MYSQL_TYPE_VAR_STRING=253,
-  MYSQL_TYPE_STRING=254,
-  MYSQL_TYPE_GEOMETRY=255
-} enum_field_types;
-#include "my_list.h"
-typedef struct st_list {
-  struct st_list *prev,*next;
-  void *data;
-} LIST;
-typedef int (*list_walk_action)(void *,void *);
-extern LIST *list_add(LIST *root,LIST *element);
-extern LIST *list_delete(LIST *root,LIST *element);
-extern LIST *list_cons(void *data,LIST *root);
-extern LIST *list_reverse(LIST *root);
-extern void list_free(LIST *root,unsigned int free_data);
-extern unsigned int list_length(LIST *);
-extern int list_walk(LIST *,list_walk_action action,unsigned char * argument);
+ulong net_field_length(uchar **packet);
+my_ulonglong net_field_length_ll(uchar **packet);
+uchar *net_store_length(uchar *pkg, ulonglong length);
+unsigned int net_length_size(ulonglong num);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin
 {
@@ -270,6 +287,21 @@ mysql_client_register_plugin(struct st_mysql *mysql,
                              struct st_mysql_client_plugin *plugin);
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+#include "mysql_version.h"
+#include "mysql_time.h"
+#include "my_inttypes.h"
+enum enum_mysql_timestamp_type
+{
+  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
+  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
+};
+typedef struct st_mysql_time
+{
+  unsigned int year, month, day, hour, minute, second;
+  unsigned long second_part;
+  my_bool neg;
+  enum enum_mysql_timestamp_type time_type;
+} MYSQL_TIME;
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 typedef struct st_mysql_field {
@@ -451,6 +483,19 @@ typedef struct st_mysql_res {
   my_bool unbuffered_fetch_cancelled;
   void *extension;
 } MYSQL_RES;
+typedef struct st_mysql_rpl {
+  size_t file_name_length;
+  const char *file_name;
+  my_ulonglong start_position;
+  unsigned int server_id;
+  unsigned int flags;
+  size_t gtid_set_encoded_size;
+  void (*fix_gtid_set)(struct st_mysql_rpl *rpl,
+                       unsigned char *packet_gtid_set);
+  void *gtid_set_arg;
+  unsigned long size;
+  const unsigned char *buffer;
+} MYSQL_RPL;
 int mysql_server_init(int argc, char **argv, char **groups);
 void mysql_server_end(void);
 my_bool mysql_thread_init(void);
@@ -573,6 +618,9 @@ unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
 my_bool mysql_read_query_result(MYSQL *mysql);
 int mysql_reset_connection(MYSQL *mysql);
+int mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl);
+int mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl);
+void mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl);
 enum enum_mysql_stmt_state
 {
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,

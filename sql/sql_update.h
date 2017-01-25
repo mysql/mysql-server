@@ -22,7 +22,6 @@
 #include "my_base.h"
 #include "my_global.h"
 #include "my_sqlcommand.h"
-#include "probes_mysql.h"    // IWYU pragma: keep
 #include "query_result.h"    // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
 #include "sql_lex.h"
@@ -73,8 +72,8 @@ class Query_result_update final : public Query_result_interceptor
   List <TABLE> unupdated_check_opt_tables;
   /// ???
   Copy_field *copy_field;
-  /// Whether to perform updates or not, cleared when updates are done.
-  bool do_update;
+  /// True if the full update operation is complete
+  bool update_completed;
   /// True if all tables to be updated are transactional.
   bool trans_safe;
   /// True if the update operation has made a change in a transactional table
@@ -110,16 +109,18 @@ public:
    found_rows(0), updated_rows(0),
    fields(field_list), values(value_list),
    copy_field(NULL),
-   do_update(true), trans_safe(true),
+   update_completed(false), trans_safe(true),
    transactional_tables(false), error_handled(false),
    update_operations(NULL)
   {}
   ~Query_result_update()
   {}
   bool need_explain_interceptor() const override { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool optimize() override;
+  bool start_execution() override
+  { update_completed= false; return false; }
   bool send_data(List<Item> &items) override;
-  bool initialize_tables (JOIN *join) override;
   void send_error(uint errcode, const char *err) override;
   bool do_updates();
   bool send_eof() override;
@@ -144,23 +145,6 @@ protected:
   bool prepare_inner(THD *thd) override;
 
   bool execute_inner(THD *thd) override;
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  void start_stmt_dtrace(char *query) override
-  {
-    if (multitable)
-      MYSQL_MULTI_UPDATE_START(query);
-    else
-      MYSQL_UPDATE_START(query);
-  }
-  void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed) override
-  {
-    if (multitable)
-      MYSQL_UPDATE_DONE(status, rows, changed);
-    else
-      MYSQL_MULTI_UPDATE_DONE(status, rows, changed);
-  }
-#endif
 
 private:
   bool update_single_table(THD *thd);

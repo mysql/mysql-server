@@ -46,7 +46,9 @@ install_db () {
 
     # Restore log, dir, perms and SELinux contexts
 
-    [ -d "$datadir" ] || install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+	install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    fi
 
     if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
 	case $(basename "$log") in

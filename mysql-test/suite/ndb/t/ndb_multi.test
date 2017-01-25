@@ -438,3 +438,34 @@ drop database db;
 use db;
 
 --connection server1
+
+
+#
+# #Bug#23553267 DEADLOCK WHEN MDL_EXCLUSIVE ACQUIRES A GSL LOCK
+#
+# Multiple mysqlds may be involved in a deadlock when
+# a mysql upgrading an MDL_INTENTIONAL_EXCLUSIVE(IX) to MDL_EXCLUSIV
+# require a GSL to be taken. At the same time the GSL may be
+# held a schema distr. op. which blocks on the above IX when
+# trying to acquire an MDL_EXCLUSIVE.
+# 
+--connection server1
+CREATE DATABASE tmp_db;
+
+--connection server2
+--echo Let server2 create the table tmp_db.t1 in the background.
+send CREATE TABLE tmp_db.t1 (k int primary key) ENGINE NDB;
+
+--connection server1
+--echo Attempt to recreate 'tmp_db', expect 'EXISTS' failure - Not MDL deadlocks
+CREATE DATABASE IF NOT EXISTS tmp_db;
+
+--connection server2
+--echo Wait for server2 table creation to complete.
+reap;
+Select count(*) from tmp_db.t1;
+
+--connection server1
+DROP TABLE tmp_db.t1;
+DROP DATABASE tmp_db;
+

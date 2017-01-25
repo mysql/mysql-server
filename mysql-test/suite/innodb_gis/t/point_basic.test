@@ -34,6 +34,12 @@ INSERT INTO gis_point VALUES
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
+EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1 ASC, p2 ASC;
+SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1 ASC, p2 ASC;
+
+EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
+SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
+
 SELECT ST_AsText(p1) FROM gis_point WHERE p1 = p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE p1 = ST_PointFromText('POINT(100.32374832 101.23741821)');
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE p2 = ST_PointFromText('POINT(200.32247328 101.86728201)');
@@ -769,8 +775,8 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE parent(p POINT, PRIMARY KEY(p)) ENGINE=InnoDB;
 CREATE TABLE child(p POINT NOT NULL) ENGINE=InnoDB;
-ALTER TABLE parent ADD SPATIAL INDEX idx1(p ASC);
-ALTER TABLE child ADD SPATIAL INDEX idx2(p ASC);
+ALTER TABLE parent ADD SPATIAL INDEX idx1(p);
+ALTER TABLE child ADD SPATIAL INDEX idx2(p);
 SHOW CREATE TABLE parent;
 SHOW CREATE TABLE child;
 

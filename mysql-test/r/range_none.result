@@ -765,7 +765,7 @@ v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	v	NULL	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	100.00	NULL
-1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	s	NULL	ref	OXLEFT,OXROOTID	OXROOTID	34	const	5	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`s`.`OXID` AS `oxid` from `test`.`t1` `v` join `test`.`t1` `s` where ((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`v`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))
 SELECT s.oxid FROM t1 v, t1 s 
@@ -3028,11 +3028,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE t7.a IN (t5.b, t6.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	28.57	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3055,11 +3055,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7

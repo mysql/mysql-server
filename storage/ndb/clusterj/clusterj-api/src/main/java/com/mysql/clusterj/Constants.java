@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,10 @@ package com.mysql.clusterj;
  */
 public interface Constants {
 
-    /** The name of the connection service property */
+	/** The name of the environment variable to set the logger factory */
+	static final String ENV_CLUSTERJ_LOGGER_FACTORY_NAME = "CLUSTERJ_LOGGER_FACTORY";
+
+	/** The name of the connection service property */
     static final String PROPERTY_CLUSTER_CONNECTION_SERVICE = "com.mysql.clusterj.connection.service";
 
     /** The name of the connection string property. For details, see

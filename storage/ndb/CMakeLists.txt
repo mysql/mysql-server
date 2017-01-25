@@ -52,6 +52,30 @@ ENDMACRO()
 
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 
+# Disable specific types of warnings for storage/ndb
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized"
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
 #
 # Add the ndbcluster plugin
 #
@@ -86,15 +110,14 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_binlog_thread.cc
   ../../sql/ndb_find_files_list.cc
   ../../sql/ndb_name_util.cc
+  ../../sql/ndb_bitmap.cc
+  ../../sql/ndb_table_map.cc
 )
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
- # Global schema lock not supported in non
- # MySQL Cluster version yet, compile ndbcluster without it
- ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
 
 # NDB needs replication
@@ -114,7 +137,7 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    ${is_default_plugin} STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
 ENDIF()
 
@@ -153,6 +176,16 @@ ENDIF()
 # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
 # is compiled without this define)
 IF(NOT WITHOUT_SERVER)
+  # Add MYSQL_SERVER to the list of compile definitions used when compiling
+  # the ndbcluster plugin. This is a workaround to BUG#23508762 where a spelling
+  # error in plugin.cmake causes MYSQL_SERVER to not be defined. Workaround can
+  # be removed when bug is fixed. NOTE! ndbcluster_embedded is not affected by the
+  # spelling error.
+  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "MYSQL_SERVER")
+
+  # Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
+  # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
+  # is compiled without this define)
   NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
 ENDIF()
 
@@ -203,6 +236,17 @@ ELSE()
   IF(WITH_VALGRIND)
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
+    SET(WITH_NDBAPI_EXAMPLES ON)
+  ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE MATCHES "Debug")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
 ENDIF()
 

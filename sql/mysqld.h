@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,10 +96,8 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 /* Function prototypes */
-#ifndef EMBEDDED_LIBRARY
 void kill_mysql(void);
-#endif
-void refresh_status(THD *thd);
+void refresh_status();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 
@@ -311,10 +309,8 @@ extern my_bool avoid_temporal_upgrade;
 extern my_bool dd_upgrade_flag;
 extern my_bool dd_upgrade_skip_se;
 extern LEX_STRING opt_init_connect, opt_init_slave;
-#ifndef EMBEDDED_LIBRARY
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
-#endif
 extern ulong log_warnings;
 extern bool  opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
@@ -326,8 +322,6 @@ extern char *opt_log_syslog_facility;
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
-/** System variable show_compatibility_56. */
-extern my_bool show_compatibility_56;
 extern my_bool persisted_globals_load;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
@@ -619,7 +613,6 @@ extern const char *log_error_dest;
 extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
-extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 
 extern long tc_heuristic_recover;
 

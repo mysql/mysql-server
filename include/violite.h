@@ -25,9 +25,18 @@
 #include "my_config.h"
 
 #include <my_thread.h> /* my_thread_handle */
-#include <pfs_socket_provider.h>
 #include <mysql/psi/mysql_socket.h>
+#include <stddef.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+
+struct st_vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
@@ -208,10 +217,9 @@ int vio_getnameinfo(const struct sockaddr *sa,
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
-#ifndef EMBEDDED_LIBRARY
 enum enum_ssl_init_error
 {
   SSL_INITERR_NOERROR= 0, SSL_INITERR_CERT, SSL_INITERR_KEY, 
@@ -246,7 +254,6 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
 
-#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
 void ssl_start(void);
@@ -359,7 +366,7 @@ struct st_vio
 #ifdef HAVE_OPENSSL
   void    *ssl_arg= { nullptr };
 #endif
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   HANDLE  handle_file_map= { nullptr };
   char    *handle_map= { nullptr };
   HANDLE  event_server_wrote= { nullptr };
@@ -369,7 +376,7 @@ struct st_vio
   HANDLE  event_conn_closed= { nullptr };
   size_t  shared_memory_remain= { 0 };
   char    *shared_memory_pos= { nullptr };
-#endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 
 private:
   friend st_vio *internal_vio_create(uint flags);

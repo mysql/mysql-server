@@ -440,10 +440,10 @@ struct RPL_TABLE_LIST
 class Deferred_log_events
 {
 private:
-  Prealloced_array<Log_event*, 32, true> m_array;
+  Prealloced_array<Log_event*, 32> m_array;
 
 public:
-  Deferred_log_events(Relay_log_info *rli);
+  Deferred_log_events();
   ~Deferred_log_events();
   /* queue for exection at Query-log-event time prior the Query */
   int add(Log_event *ev);

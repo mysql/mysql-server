@@ -23,6 +23,8 @@
   of buffers to a given size.
 */
 
+#include "my_inttypes.h"
+
 #define MY_ALIGN(A,L)   (((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)   MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */

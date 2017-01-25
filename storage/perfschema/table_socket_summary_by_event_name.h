@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,21 +41,22 @@ struct row_socket_summary_by_event_name
   /** Column EVENT_NAME. */
   PFS_event_name_row m_event_name;
 
-  /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER and NUMBER_OF_BYTES for each operation. */
+  /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER and NUMBER_OF_BYTES for each
+   * operation. */
   PFS_socket_io_stat_row m_io_stat;
 };
 
-class PFS_index_socket_summary_by_event_name
-  : public PFS_engine_index
+class PFS_index_socket_summary_by_event_name : public PFS_engine_index
 {
 public:
   PFS_index_socket_summary_by_event_name()
-    : PFS_engine_index(&m_key),
-      m_key("EVENT_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_socket_summary_by_event_name()
-  {}
+  {
+  }
 
   bool match(const PFS_socket_class *pfs);
 
@@ -69,7 +70,7 @@ class table_socket_summary_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -91,10 +92,11 @@ private:
 
 public:
   ~table_socket_summary_by_event_name()
-  {}
+  {
+  }
 
 private:
-  void make_row(PFS_socket_class *socket_class);
+  int make_row(PFS_socket_class *socket_class);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -103,8 +105,6 @@ private:
 
   /** Current row. */
   row_socket_summary_by_event_name m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

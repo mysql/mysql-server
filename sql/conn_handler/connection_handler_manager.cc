@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "channel_info.h"              // Channel_info
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
 #include "current_thd.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -47,7 +48,6 @@ THD_event_functions* Connection_handler_manager::event_functions= NULL;
 THD_event_functions* Connection_handler_manager::saved_event_functions= NULL;
 mysql_mutex_t Connection_handler_manager::LOCK_connection_count;
 mysql_cond_t Connection_handler_manager::COND_connection_count;
-#ifndef EMBEDDED_LIBRARY
 Connection_handler_manager* Connection_handler_manager::m_instance= NULL;
 ulong Connection_handler_manager::thread_handling=
   SCHEDULER_ONE_THREAD_PER_CONNECTION;
@@ -305,7 +305,6 @@ void dec_connection_count()
 {
   Connection_handler_manager::dec_connection_count();
 }
-#endif // !EMBEDDED_LIBRARY
 
 
 extern "C"
@@ -322,10 +321,8 @@ int my_connection_handler_set(Connection_handler_functions *chf,
   if (conn_handler == NULL)
     return 1;
 
-#ifndef EMBEDDED_LIBRARY
   Connection_handler_manager::get_instance()->
     load_connection_handler(conn_handler);
-#endif
   Connection_handler_manager::saved_event_functions=
     Connection_handler_manager::event_functions;
   Connection_handler_manager::event_functions= tef;
@@ -337,11 +334,7 @@ int my_connection_handler_reset()
 {
   Connection_handler_manager::event_functions=
     Connection_handler_manager::saved_event_functions;
-#ifndef EMBEDDED_LIBRARY
   return Connection_handler_manager::get_instance()->
     unload_connection_handler();
-#else
-  return 0;
-#endif
 }
 }

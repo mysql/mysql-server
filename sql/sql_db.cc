@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -85,9 +86,6 @@
 #include "template_utils.h"
 #include "transaction.h"     // trans_rollback_stmt
 #include "typelib.h"
-
-#include "pfs_file_provider.h"  // IWYU pragma:keep
-#include "mysql/psi/mysql_file.h"
 
 static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
 
@@ -234,10 +232,10 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_create_db");
 
-  // We need a top level auto releaser to make sure the uncommitted objects
-  // are removed. This is done in the auto releaser destructor. When
-  // remove_uncommitted_objects() is called implicitly as part of commit/
-  // rollback, this should not be necessary.
+  /*
+    Use Auto_releaser to keep uncommitted object for database until
+    trans_commit() call.
+  */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Reject creation of the system schema except for system threads.
@@ -437,8 +435,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (trans_commit_stmt(thd) || trans_commit(thd))
     DBUG_RETURN(true);
 
-  thd->dd_client()->remove_uncommitted_objects<dd::Schema>(true);
-
   /* Change options if current database is being altered. */
   if (thd->db().str && !strcmp(thd->db().str,db))
   {
@@ -451,6 +447,48 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   my_ok(thd, 1);
   DBUG_RETURN(false);
 }
+
+
+/**
+  Error handler which converts errors during database directory removal
+  to warnings/messages to error log.
+*/
+
+class Rmdir_error_handler : public Internal_error_handler
+{
+public:
+  Rmdir_error_handler()
+    : m_is_active(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (! m_is_active)
+    {
+      /* Disable the handler to avoid infinite recursion. */
+      m_is_active= true;
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+			  ER_DB_DROP_RMDIR2,
+                          ER_THD(thd, ER_DB_DROP_RMDIR2), msg);
+      sql_print_warning(ER_DEFAULT(ER_DB_DROP_RMDIR2), msg);
+      m_is_active= false;
+      return true;
+    }
+    return false;
+  }
+
+private:
+  /**
+    Indicates that we are already in the process of handling
+    some error. Allows to re-emit error/warning from the error
+    handler without falling into infinite recursion.
+  */
+  bool m_is_active;
+};
 
 
 /**
@@ -480,12 +518,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-  std::vector<TABLE_LIST*> dropped_atomic;
+  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
 #endif
   bool dropped_non_atomic= false;
   std::set<handlerton*> post_ddl_htons;
 
   DBUG_ENTER("mysql_rm_db");
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Reject dropping the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
@@ -525,245 +565,237 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
         DBUG_RETURN(true);
 
-      goto dropped_ok;
+      /* Fall-through to resetting current database in connection. */
     }
   }
-
-  if (find_unknown_and_remove_deletable_files(thd, dirp, path))
+  else
   {
+    /* Database exists. */
+
+    if (find_unknown_and_remove_deletable_files(thd, dirp, path))
+    {
+      my_dirend(dirp);
+      DBUG_RETURN(true);
+    }
     my_dirend(dirp);
-    DBUG_RETURN(true);
-  }
-  my_dirend(dirp);
 
-  if (find_db_tables(thd, db.str, &tables))
-  {
-    DBUG_RETURN(true);
-  }
+    if (find_db_tables(thd, db.str, &tables))
+    {
+      DBUG_RETURN(true);
+    }
 
-  /*
-    Disable drop of enabled log tables, must be done before name locking.
-    This check is only needed if we are dropping the "mysql" database.
-  */
-  if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db.str) == 0))
-  {
+    /* Lock all tables and stored routines about to be dropped. */
+    if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
+        || Events::lock_schema_events(thd, db.str)
+        || lock_db_routines(thd, db.str)
+        || lock_trigger_names(thd, tables))
+      DBUG_RETURN(true);
+
+    /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
+    if (tables)
+      mysql_ha_rm_tables(thd, tables);
+
     for (table= tables; table; table= table->next_local)
     {
-      if (query_logger.check_if_log_table(table, true))
-      {
-        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
-        DBUG_RETURN(true);
-      }
+      deleted_tables++;
     }
-  }
 
-  /* Lock all tables and stored routines about to be dropped. */
-  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
-#ifndef EMBEDDED_LIBRARY
-      || Events::lock_schema_events(thd, db.str)
-#endif
-      || lock_db_routines(thd, db.str)
-      || lock_trigger_names(thd, tables))
-    DBUG_RETURN(true);
+    if (thd->killed)
+      DBUG_RETURN(true);
 
-  /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
-  if (tables)
-    mysql_ha_rm_tables(thd, tables);
+    thd->push_internal_handler(&err_handler);
+    if (tables)
+      error= mysql_rm_table_no_locks(thd, tables, true, false, true,
+                                     &dropped_non_atomic, &post_ddl_htons,
+                                     &dropped_atomic);
 
-  for (table= tables; table; table= table->next_local)
-  {
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
-                     false);
-    deleted_tables++;
-  }
+    DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
+                    {
+                      my_error(ER_UNKNOWN_ERROR, MYF(0));
+                      error= true;
+                    });
 
-  if (thd->killed)
-    DBUG_RETURN(true);
-
-  thd->push_internal_handler(&err_handler);
-  if (tables)
-    error= mysql_rm_table_no_locks(thd, tables, true, false, true,
-                                   &dropped_non_atomic, &post_ddl_htons,
-                                   &dropped_atomic);
-
-  DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
-                  {
-                    my_error(ER_UNKNOWN_ERROR, MYF(0));
-                    error= true;
-                  });
-
-  if (!error)
-  {
-    /*
-      We temporarily disable the binary log while dropping SPs
-      in the database. Since the DROP DATABASE statement is always
-      replicated as a statement, execution of it will drop all objects
-      in the database on the slave as well, so there is no need to
-      replicate the removal of the individual objects in the database
-      as well.
-
-      This is more of a safety precaution, since normally no objects
-      should be dropped while the database is being cleaned, but in
-      the event that a change in the code to remove other objects is
-      made, these drops should still not be logged.
-
-      Notice that the binary log have to be enabled over the call to
-      ha_drop_database(), since NDB otherwise detects the binary log
-      as disabled and will not log the drop database statement on any
-      other connected server.
-    */
-
-    ha_drop_database(path);
-    thd->clear_error(); /* @todo Do not ignore errors */
-    tmp_disable_binlog(thd);
-    query_cache.invalidate(thd, db.str);
-#ifndef EMBEDDED_LIBRARY
-    error= Events::drop_schema_events(thd, db.str);
-#endif
-    error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
-    reenable_binlog(thd);
-
-  }
-  thd->pop_internal_handler();
-
-  /*
-    If database exists and there was no error we should
-    write statement to binary log and remove DD entry.
-  */
-  if (!error)
-    error= write_db_cmd_to_binlog(thd, db.str);
-
-  if (!error)
-    error= dd::drop_schema(thd, db.str);
-
-  if (!error)
-    error= trans_commit_stmt(thd) || trans_commit(thd);
-
-  /*
-    In case of error rollback the transaction in order to revert
-    changes which are possible to rollback (e.g. removal of tables
-    in SEs supporting atomic DDL, events and routines).
-  */
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-  thd->skip_gtid_rollback= true;
-#endif
-  if (error)
-  {
-    trans_rollback_stmt(thd);
-    /*
-      Play safe to be sure that THD::transaction_rollback_request is
-      cleared before work-around code below is run.
-    */
-    trans_rollback_implicit(thd);
-  }
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-  thd->skip_gtid_rollback= false;
-#endif
-
-  /*
-    Call post-DDL handlerton hook. For engines supporting atomic DDL
-    tables' files are removed from disk on this step.
-  */
-  for (handlerton *hton: post_ddl_htons)
-    hton->post_ddl(thd);
-
-  /*
-    Now we can try removing database directory.
-
-    If the directory is a symbolic link, remove the link first, then
-    remove the directory the symbolic link pointed at.
-
-    QQ: Should we treat this as a warning/note/error to error log
-        but send OK to client in this case?
-  */
-  if (!error && rm_dir_w_symlink(path, true))
-    DBUG_RETURN(true);
-
-  if (error)
-  {
-    if (mysql_bin_log.is_open())
+    if (!error)
     {
-      char *query, *query_pos, *query_end, *query_data_start;
-      char temp_identifier[ 2 * FN_REFLEN + 2];
-
       /*
-        If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
-        statement.  However, the incomplete DROP has already 'committed'
-        (some tables were removed).  So we generate an error and let
-        user fix the situation.
+        We temporarily disable the binary log while dropping SPs
+        in the database. Since the DROP DATABASE statement is always
+        replicated as a statement, execution of it will drop all objects
+        in the database on the slave as well, so there is no need to
+        replicate the removal of the individual objects in the database
+        as well.
+
+        This is more of a safety precaution, since normally no objects
+        should be dropped while the database is being cleaned, but in
+        the event that a change in the code to remove other objects is
+        made, these drops should still not be logged.
+
+        Notice that the binary log have to be enabled over the call to
+        ha_drop_database(), since NDB otherwise detects the binary log
+        as disabled and will not log the drop database statement on any
+        other connected server.
       */
-      if (thd->variables.gtid_next.type == GTID_GROUP
-#ifdef NEEDS_WL7016_TO_BE_READY
-          && dropped_non_atomic
+
+      ha_drop_database(path);
+      thd->clear_error(); /* @todo Do not ignore errors */
+      tmp_disable_binlog(thd);
+      query_cache.invalidate(thd, db.str);
+      error= Events::drop_schema_events(thd, db.str);
+      error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
+      reenable_binlog(thd);
+
+    }
+    thd->pop_internal_handler();
+
+    /*
+      If database exists and there was no error we should
+      write statement to binary log and remove DD entry.
+    */
+    if (!error)
+      error= write_db_cmd_to_binlog(thd, db.str);
+
+    if (!error)
+      error= dd::drop_schema(thd, db.str);
+
+    if (!error)
+      error= trans_commit_stmt(thd) || trans_commit(thd);
+
+    /*
+      In case of error rollback the transaction in order to revert
+      changes which are possible to rollback (e.g. removal of tables
+      in SEs supporting atomic DDL, events and routines).
+    */
+    if (error)
+    {
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+      thd->skip_gtid_rollback= true;
 #endif
-          )
+      trans_rollback_stmt(thd);
+      /*
+        Play safe to be sure that THD::transaction_rollback_request is
+        cleared before work-around code below is run. This also necessary
+        to synchronize state of data-dicitionary on disk and in cache (to
+        clear cache of uncommitted objects).
+      */
+      trans_rollback_implicit(thd);
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+      thd->skip_gtid_rollback= false;
+#endif
+    }
+
+    /*
+      Call post-DDL handlerton hook. For engines supporting atomic DDL
+      tables' files are removed from disk on this step.
+    */
+    for (handlerton *hton: post_ddl_htons)
+      hton->post_ddl(thd);
+
+    /*
+      Now we can try removing database directory.
+
+      If the directory is a symbolic link, remove the link first, then
+      remove the directory the symbolic link pointed at.
+
+      This can happen only after post-DDL handlerton hook removes files
+      from the directory.
+
+      Since the statement is committed already, we do not report unlikely
+      failure to remove the directory as an error. Instead we report it
+      as a warning, which is sent to user and written to server error log.
+    */
+    if (!error)
+    {
+      Rmdir_error_handler rmdir_handler;
+      thd->push_internal_handler(&rmdir_handler);
+      (void) rm_dir_w_symlink(path, true);
+      thd->pop_internal_handler();
+    }
+
+    if (error)
+    {
+      if (mysql_bin_log.is_open())
       {
-        char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
-        thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
-                                                true);
-        my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
-                 path, gtid_buf, db.str);
-        DBUG_RETURN(true);
-      }
+        char *query, *query_pos, *query_end, *query_data_start;
+        char temp_identifier[ 2 * FN_REFLEN + 2];
+
+        /*
+          If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
+          statement.  However, the incomplete DROP has already 'committed'
+          (some tables were removed).  So we generate an error and let
+          user fix the situation.
+        */
+        if (thd->variables.gtid_next.type == GTID_GROUP
+#ifdef NEEDS_WL7016_TO_BE_READY
+            && dropped_non_atomic
+#endif
+            )
+        {
+          char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
+          thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
+                                                  true);
+          my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
+                   path, gtid_buf, db.str);
+          DBUG_RETURN(true);
+        }
 
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
+        DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
 
-      if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
-      {
-        // @todo: abort on out of memory instead
-        /* not much else we can do */
-        DBUG_RETURN(true); /* purecov: inspected */
-      }
-      query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
-      query_end= query + MAX_DROP_TABLE_Q_LEN;
-
-      for (const TABLE_LIST *tbl : dropped_atomic)
-      {
-        /* 3 for the quotes and the comma*/
-        size_t tbl_name_len= strlen(tbl->table_name) + 3;
-        if (query_pos + tbl_name_len + 1 >= query_end)
+        if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
         {
-          DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
-          thd->variables.gtid_next.dbug_print("gtid_next", true);
+          // @todo: abort on out of memory instead
+          /* not much else we can do */
+          DBUG_RETURN(true); /* purecov: inspected */
+        }
+        query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
+        query_end= query + MAX_DROP_TABLE_Q_LEN;
+
+        for (const TABLE_LIST *tbl : dropped_atomic)
+        {
+          /* 3 for the quotes and the comma*/
+          size_t tbl_name_len= strlen(tbl->table_name) + 3;
+          if (query_pos + tbl_name_len + 1 >= query_end)
+          {
+            DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
+            thd->variables.gtid_next.dbug_print("gtid_next", true);
+            /*
+              These DDL methods and logging are protected with the exclusive
+              metadata lock on the schema.
+            */
+
+            thd->is_commit_in_middle_of_statement= true;
+            int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                                     db.length);
+            thd->is_commit_in_middle_of_statement= false;
+            if (ret)
+              DBUG_RETURN(true);
+
+            query_pos= query_data_start;
+          }
+          size_t id_length= my_strmov_quoted_identifier(thd, temp_identifier,
+                                                        tbl->table_name, 0);
+          temp_identifier[id_length]= '\0';
+          query_pos= my_stpcpy(query_pos, (char*)&temp_identifier);
+          *query_pos++ = ',';
+        }
+
+        if (query_pos != query_data_start)
+        {
+          thd->add_to_binlog_accessed_dbs(db.str);
           /*
             These DDL methods and logging are protected with the exclusive
             metadata lock on the schema.
           */
-
-          thd->is_commit_in_middle_of_statement= true;
-          int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                                   db.length);
-          thd->is_commit_in_middle_of_statement= false;
-          if (ret)
+          if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                              db.length))
             DBUG_RETURN(true);
-
-          query_pos= query_data_start;
         }
-        size_t id_length= my_strmov_quoted_identifier(thd, temp_identifier,
-                                                      tbl->table_name, 0);
-        temp_identifier[id_length]= '\0';
-        query_pos= my_stpcpy(query_pos, (char*)&temp_identifier);
-        *query_pos++ = ',';
-      }
-
-      if (query_pos != query_data_start)
-      {
-        thd->add_to_binlog_accessed_dbs(db.str);
-        /*
-          These DDL methods and logging are protected with the exclusive
-          metadata lock on the schema.
-        */
-        if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                            db.length))
-          DBUG_RETURN(true);
-      }
 #endif
+      }
+      DBUG_RETURN(true);
     }
-    DBUG_RETURN(true);
   }
 
-dropped_ok:
   /*
     If this database was the client's selected database, we silently
     change the client's selected database to nothing (to have an empty
@@ -1128,10 +1160,8 @@ static void mysql_change_db_impl(THD *thd,
 
   /* 2. Update security context. */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Cache the effective schema level privilege with roles applied */
   thd->security_context()->cache_current_db_access(new_db_access);
-#endif
 
   /* 3. Update db-charset environment variables. */
 
@@ -1348,7 +1378,6 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   new_db_file_name_cstr.length= new_db_file_name.length;
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (sctx->get_active_roles()->size() == 0)
   {
     db_access= sctx->check_access(DB_ACLS) ?
@@ -1363,7 +1392,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   {
     db_access= sctx->db_acl(new_db_file_name_cstr) | sctx->master_access();
   }
-  
+
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
       check_grant_db(thd, new_db_file_name.str))
@@ -1380,7 +1409,6 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     my_free(new_db_file_name.str);
     DBUG_RETURN(true);
   }
-#endif
 
   if (dd::schema_exists(thd, new_db_file_name.str, &schema_exists))
   {

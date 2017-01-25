@@ -1,12 +1,12 @@
 drop table if exists t1, t2;
-select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
-NULL	NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
-NULL	NULL	1	1	1	1	TRUE	TRUE	1	1
+select null,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
+NULL	1	1	1	1	TRUE	TRUE	1	1
 Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1365	Division by 0
-explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+explain extended select null,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
@@ -14,7 +14,7 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1365	Division by 0
-Note	1003	/* select#1 */ select NULL AS `NULL`,NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
+Note	1003	/* select#1 */ select NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 1 | NULL	1 & NULL	1+NULL	1-NULL
 NULL	NULL	NULL	NULL
@@ -380,3 +380,8 @@ Field	Type	Null	Key	Default	Extra
 IFNULL(NULL, b)	decimal(1,0) unsigned	YES		NULL	
 DROP TABLE t1, t2;
 # End of 5.0 tests
+#
+# WL#7247: Removal of \N
+#
+SELECT \N;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\N' at line 1

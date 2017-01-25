@@ -27,6 +27,7 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "item.h"           // Item_result_field
+#include "item_func.h"      // Item_int_func
 #include "json_dom.h"       // Json_wrapper
 #include "m_ctype.h"
 #include "m_string.h"
@@ -468,7 +469,7 @@ public:
   bool itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const= 0;
-  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+  virtual void fix_after_pullout(SELECT_LEX*,
                                  SELECT_LEX *removed_select) override
   {
     // Just make sure we are not aggregating into a context that is merged up.
@@ -594,7 +595,7 @@ public:
 
   virtual void clear()= 0;
   virtual bool add()= 0;
-  virtual bool setup(THD *thd) { return false; }
+  virtual bool setup(THD*) { return false; }
 
   void cleanup() override;
 };
@@ -789,7 +790,8 @@ public:
 
   Item_sum_int(const POS &pos, PT_item_list *list) :Item_sum_num(pos, list) {}
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
-  double val_real() override { DBUG_ASSERT(fixed); return val_int(); }
+  double val_real() override
+  { DBUG_ASSERT(fixed); return static_cast<double>(val_int()); }
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
@@ -1115,7 +1117,7 @@ public:
   String *val_str(String *str) override;
   void reset_field() override;
   void update_field() override;
-  Item *result_item(Field *field) override
+  Item *result_item(Field*) override
   { return new Item_avg_field(hybrid_type, this); }
   void no_rows_in_result() override {}
   const char *func_name() const override
@@ -1243,7 +1245,7 @@ class Item_sum_std : public Item_sum_variance
     {}
   enum Sumfunctype sum_func() const override { return STD_FUNC; }
   double val_real() override;
-  Item *result_item(Field *field) override
+  Item *result_item(Field*) override
     { return new Item_std_field(this); }
   const char *func_name() const override { return "std("; }
   Item *copy_or_same(THD* thd) override;
@@ -1661,7 +1663,7 @@ class Item_func_group_concat final : public Item_sum
    */
   Unique *unique_filter;
   TABLE *table;
-  Mem_root_array<ORDER , true> order_array;
+  Mem_root_array<ORDER> order_array;
   Name_resolution_context *context;
   /** The number of ORDER BY items. */
   uint arg_count_order;
@@ -1754,6 +1756,27 @@ public:
     context= reinterpret_cast<Name_resolution_context *>(cntx);
     return false;
   }
+};
+
+/**
+  Class for implementation of the GROUPING function. The GROUPING
+  function distinguishes super-aggregate rows from regular grouped
+  rows. GROUP BY extensions such as ROLLUP and CUBE produce
+  super-aggregate rows where the set of all values is represented
+  by null. Using the GROUPING function, you can distinguish a null
+  representing the set of all values in a super-aggregate row from
+  a NULL in a regular row.
+*/
+class Item_func_grouping: public Item_int_func
+{
+public:
+  Item_func_grouping(const POS &pos, PT_item_list *a): Item_int_func(pos,a) {}
+  const char * func_name() const override { return "grouping"; }
+  enum Functype functype() const override { return GROUPING_FUNC; }
+  longlong val_int() override;
+  bool aggregate_check_group(uchar *arg) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  void cleanup() override;
 };
 
 #endif /* ITEM_SUM_INCLUDED */

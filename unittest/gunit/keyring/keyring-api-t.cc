@@ -411,10 +411,4 @@ namespace keyring__api_unittest
   }
 #endif  // HAVE_UBSAN
 
-  int main(int argc, char **argv) {
-    if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
-      return TRUE;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-  }
 }

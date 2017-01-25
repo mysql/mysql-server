@@ -9,8 +9,6 @@ include/sync_slave_sql_with_master.inc
 # Verify that the innodb table and slave_open_temp_table both indicate
 # that there is an open temp table at slave.
 
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 include/assert.inc [Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.]
 
 # Verify that after STOP SLAVE the innodb table and slave_open_temp_table
@@ -34,6 +32,5 @@ include/start_slave.inc
 # Verify that the bug is fixed and hence we have equal values here.
 
 include/assert.inc [count(*) from INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should match.]
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 DROP TEMPORARY TABLE IF EXISTS TEMP1;
 include/rpl_end.inc

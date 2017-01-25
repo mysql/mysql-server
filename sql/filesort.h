@@ -32,6 +32,8 @@ struct TABLE;
 struct st_order;
 struct st_sort_field;
 
+enum class Addon_fields_status;
+
 /**
   Sorting related info.
 */
@@ -67,7 +69,9 @@ public:
 
   Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
                                  Field **ptabfield,
-                                 uint sortlength, uint *plength,
+                                 uint sortlength,
+                                 Addon_fields_status *addon_fields_status,
+                                 uint *plength,
                                  uint *ppackable_length);
 };
 

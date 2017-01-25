@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ public:
   {
     m_locked_for_poll = val;
   }
-  bool is_locked_for_poll()
+  bool is_locked_for_poll() const
   {
     return m_locked_for_poll;
   }
@@ -129,6 +129,17 @@ private:
     PollQueue();
     void assert_destroy() const;
 
+    /**
+     * PQ_WAITING - trp_client either waits in the poll-queue, or
+     *              owns the poll-right. In both cases it waits 
+     *              for a ::wakeup() in order to proceed.
+     * PQ_WOKEN -   trp_client got a ::wakeup() while PQ_WAITING.
+     *              Might be waiting in the poll-queue, needing to
+     *              be signaled, or trp_client is the poller, which
+     *              now can complete.
+     * PQ_IDLE -    This *PollQueue instance* is idle/unused.
+     *              (Thus, the client itself is likely active)
+     */
     enum { PQ_WOKEN, PQ_IDLE, PQ_WAITING } m_waiting;
     bool m_locked;
     bool m_poll_owner;
@@ -167,11 +178,11 @@ public:
   ~PollGuard() { unlock_and_signal(); }
   int wait_n_unlock(int wait_time, Uint32 nodeId, Uint32 state,
                     bool forceSend= false);
-  int wait_for_input_in_loop(int wait_time, bool forceSend);
   void wait_for_input(int wait_time);
   int wait_scan(int wait_time, Uint32 nodeId, bool forceSend);
   void unlock_and_signal();
 private:
+  int wait_for_input_in_loop(int wait_time, bool forceSend);
   class trp_client* m_clnt;
   class NdbWaiter *m_waiter;
   bool  m_complete_poll_called;

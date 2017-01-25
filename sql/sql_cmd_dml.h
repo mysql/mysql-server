@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #ifndef SQL_CMD_DML_INCLUDED
 #define SQL_CMD_DML_INCLUDED
 
+#include "my_dbug.h"
 #include "sql_cmd.h"
 
 struct LEX;
@@ -110,24 +111,6 @@ protected:
     @returns false on success, true on error
   */
   virtual bool execute_inner(THD *thd);
-
-#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  /**
-    DTRACE: log start of statement execution
-
-    @param query query string
-  */
-  virtual void start_stmt_dtrace(char *query) = 0;
-
-  /**
-    DTRACE: log end of statement execution
-
-    @param status   Status value after execution (0 means success)
-    @param rows     Number of rows found during execution
-    @param chg      Number of rows changed during execution (applies to UPDATE)
-  */
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong chg) = 0;
-#endif
 
 protected:
   LEX *lex;                ///< Pointer to LEX for this statement

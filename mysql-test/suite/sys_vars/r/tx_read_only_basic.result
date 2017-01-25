@@ -103,7 +103,7 @@ ERROR 42000: Variable 'tx_read_only' can't be set to the value of 'ONN'
 SET @@session.tx_read_only = ONF;
 ERROR 42000: Variable 'tx_read_only' can't be set to the value of 'ONF'
 SET @@session.tx_read_only = OF;
-ERROR 42000: Variable 'tx_read_only' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.tx_read_only = 'OFN';
 ERROR 42000: Variable 'tx_read_only' can't be set to the value of 'OFN'
 SET @@session.tx_read_only = -2;

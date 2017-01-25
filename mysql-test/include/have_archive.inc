@@ -1,4 +1,5 @@
---disable_query_log
---require r/true.require
-select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'archive';
---enable_query_log
+let $support= `SELECT (support = 'YES' OR support = 'DEFAULT') FROM information_schema.engines WHERE engine = 'archive'`;
+if (!$support)
+{
+  --skip Test requires 'have_archive'
+}

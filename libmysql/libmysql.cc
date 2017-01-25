@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_global.h>
@@ -21,17 +22,20 @@
 #include <mysys_err.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <violite.h>
 
 #include "errmsg.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_pointer_arithmetic.h"
 #include "my_thread_local.h"
 #include "mysql.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "template_utils.h"

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,9 +34,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 # CMake has OLD as default even if OLD is deprecated.
 # See cmake --help-policy CMP0018 / CMP0022
 CMAKE_POLICY(SET CMP0018 NEW)
-# Temporarily set to OLD.
-# TODO: switch to NEW and INTERFACE_LINK_LIBRARIES
-CMAKE_POLICY(SET CMP0022 OLD)
+CMAKE_POLICY(SET CMP0022 NEW)
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
@@ -84,10 +82,19 @@ ENDIF()
 # MAX_INDEXES - Set the maximum number of indexes per table, default 64U
 IF (NOT MAX_INDEXES)
   SET(MAX_INDEXES 64U)
+ELSEIF(MAX_INDEXES MATCHES "^[0-9]+[Uu]?$")
+  # MAX_INDEXES should be unsigned, so add the U suffix if it's missing.
+  STRING(REGEX REPLACE "^([0-9]+).*$" "\\1U" MAX_INDEXES "${MAX_INDEXES}")
+ELSE()
+  MESSAGE(FATAL_ERROR "MAX_INDEXES should be an unsigned integer.")
 ENDIF(NOT MAX_INDEXES)
 
-IF (${MAX_INDEXES} GREATER 255)
+IF(MAX_INDEXES GREATER 255)
   MESSAGE(FATAL_ERROR "MAX_INDEXES values greater than 255 is not supported!")
+ELSEIF(MAX_INDEXES LESS 64)
+  # Per documentation, ignore values less than 64 and use the default instead.
+  MESSAGE(WARNING "MAX_INDEXES option ignored because it is less than 64.")
+  SET(MAX_INDEXES 64U)
 ENDIF()
 MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
@@ -178,7 +185,14 @@ ELSE()
       ${MYSQL_PROJECT_NAME_DOCSTRING} FORCE)
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
+
 PROJECT(${MYSQL_PROJECT_NAME})
+
+SET(BUILD_IS_SINGLE_CONFIG TRUE)
+MESSAGE(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
+IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
+  SET(BUILD_IS_SINGLE_CONFIG FALSE)
+ENDIF()
 
 # Maintainer mode is default on only for debug builds using GCC/G++
 IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
@@ -258,7 +272,6 @@ INCLUDE(readline)
 INCLUDE(protobuf)
 INCLUDE(mysql_version)
 INCLUDE(libutils)
-INCLUDE(dtrace)
 INCLUDE(plugin)
 INCLUDE(component)
 INCLUDE(install_macros)
@@ -444,13 +457,35 @@ IF (USE_LD_GOLD)
   MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
   IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT)
-    IF (HAVE_REAL_DTRACE_INSTRUMENTING)
-      MESSAGE(WARNING " gold is not compatible with DTrace - using regular ld")
-    ELSE()
-      SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
-      SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
-    ENDIF()
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
   ENDIF()
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
+  SET(LINK_RANDOMIZE_SEED "mysql"
+    CACHE STRING "Seed to use for link randomization")
+ELSE()
+  SET(LINK_RANDOMIZE OFF)
+ENDIF()
+IF(LINK_RANDOMIZE)
+  SET(CMAKE_C_FLAGS_DEBUG
+    "${CMAKE_C_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ffunction-sections -fdata-sections")
+  SET(CMAKE_CXX_FLAGS_DEBUG
+    "${CMAKE_CXX_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ffunction-sections -fdata-sections")
+
+  SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--sort-section=name")
+  SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--sort-section=name")
+
+  SET(CMAKE_CXX_ARCHIVE_CREATE "sh -c '${CMAKE_SOURCE_DIR}/scripts/randomize-order.pl ${LINK_RANDOMIZE_SEED} <OBJECTS> && <CMAKE_AR> qc <TARGET> <LINK_FLAGS> <OBJECTS>'")
+  SET(CMAKE_CXX_ARCHIVE_CREATE_APPEND "sh -c '${CMAKE_SOURCE_DIR}/scripts/randomize-order.pl ${LINK_RANDOMIZE_SEED} <OBJECTS> && <CMAKE_AR> q <TARGET> <LINK_FLAGS> <OBJECTS>'")
+  SET(CMAKE_C_ARCHIVE_CREATE ${CMAKE_CXX_ARCHIVE_CREATE})
+  SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE
@@ -626,7 +661,6 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
-  SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS "" CACHE INTERNAL "")
   # Add storage engines and plugins.
   CONFIGURE_PLUGINS()
 ELSE()
@@ -666,7 +700,6 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")
-  SET (MYSQLD_STATIC_EMBEDDED_COMPONENT_LIBS "" CACHE INTERNAL "")
   CONFIGURE_COMPONENTS()
 ENDIF()
 
@@ -682,11 +715,6 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(testclients)
   ADD_SUBDIRECTORY(sql)
-  OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
-  IF(WITH_EMBEDDED_SERVER) 
-   ADD_SUBDIRECTORY(libmysqld)
-   ADD_SUBDIRECTORY(libmysqld/examples)
-  ENDIF(WITH_EMBEDDED_SERVER)
 ENDIF()
 
 # scripts/mysql_config depends on client and server targets loaded above.
@@ -700,6 +728,7 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
+  ADD_SUBDIRECTORY(packaging/rpm-common)
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)
@@ -789,7 +818,8 @@ INCLUDE(CPack)
 # Note that CMakeCache.txt contains cmake builtins for these variables,
 # *not* the values that will actually be used:
 
-IF(CMAKE_GENERATOR MATCHES "Makefiles")
+
+IF(BUILD_IS_SINGLE_CONFIG)
   MESSAGE(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 ENDIF()
 GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
@@ -798,12 +828,12 @@ MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 MESSAGE(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 MESSAGE(STATUS "CMAKE_C_LINK_FLAGS: ${CMAKE_C_LINK_FLAGS}")
 MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS: ${CMAKE_CXX_LINK_FLAGS}")
-IF(CMAKE_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Makefiles")
+IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
   MESSAGE(STATUS "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}")
   MESSAGE(STATUS "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}")
 ENDIF()
-IF(NOT CMAKE_GENERATOR MATCHES "Makefiles")
+IF(NOT BUILD_IS_SINGLE_CONFIG)
   MESSAGE(STATUS "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
   MESSAGE(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
   MESSAGE(STATUS

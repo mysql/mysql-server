@@ -49,13 +49,14 @@
 #include "sql_lex.h"                 // LEX
 #include "sql_list.h"
 #include "sql_parse.h"               // add_join_natural
+#include "table.h"                   // Common_table_expr
 #include "sql_security_ctx.h"
 #include "table.h"
 #include "thr_lock.h"
 
 class PT_field_def_base;
 class PT_hint_list;
-class PT_partition;
+class PT_partition; 
 class PT_query_expression;
 class PT_subquery;
 class Sql_cmd;
@@ -165,10 +166,11 @@ class PT_order_expr : public Parse_tree_node, public ORDER
   typedef Parse_tree_node super;
 
 public:
-  PT_order_expr(Item *item_arg, bool is_asc)
+  PT_order_expr(Item *item_arg, enum_order dir)
   {
     item_ptr= item_arg;
-    direction= is_asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+    direction= (dir == ORDER_DESC) ? ORDER_DESC : ORDER_ASC;
+    is_explicit= (dir != ORDER_NOT_RELEVANT);
   }
 
   virtual bool contextualize(Parse_context *pc)
@@ -228,6 +230,153 @@ public:
 
     return super::contextualize(pc);
   }
+};
+
+
+/**
+  Represents an element of the WITH list:
+  WITH [...], [...] SELECT ...,
+         ^  or  ^
+  i.e. a Common Table Expression (CTE, or Query Name in SQL99 terms).
+*/
+class PT_common_table_expr : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+public:
+  explicit PT_common_table_expr(const LEX_STRING &name,
+                                const LEX_STRING &subq_text,
+                                uint subq_text_offset,
+                                PT_subquery *sn,
+                                const Create_col_name_list *column_names,
+                                MEM_ROOT *mem_root);
+
+  /// The name after AS
+  const LEX_STRING &name() const { return m_name; }
+  /**
+    @param      thd  Thread handler
+    @param[out] node PT_subquery
+    @returns a PT_subquery to attach to a table reference for this CTE
+  */
+  bool make_subquery_node(THD *thd, PT_subquery **node);
+  /**
+    @param tl  Table reference to match
+    @param in_self  If this is a recursive reference
+    @param[out]  found Is set to true/false if matches or not
+    @returns true if error
+  */
+  bool match_table_ref(TABLE_LIST *tl, bool in_self, bool *found);
+  /**
+    @returns true if 'other' is the same instance as 'this'
+  */
+  bool is(const Common_table_expr *other) const
+  { return other == &m_postparse; }
+  void print(THD *thd, String *str, enum_query_type query_type);
+
+private:
+
+  LEX_STRING m_name;
+  /// Raw text of query expression (including parentheses)
+  const LEX_STRING m_subq_text;
+  /**
+    Offset in bytes of m_subq_text in original statement which had the WITH
+    clause.
+  */
+  uint m_subq_text_offset;
+  /// Parsed version of subq_text
+  PT_subquery *const m_subq_node;
+  /// List of explicitely specified column names; if empty, no list.
+  const Create_col_name_list m_column_names;
+  /**
+    A TABLE_LIST representing a CTE needs access to the WITH list
+    element it derives from. However, in order to:
+    - limit the members which TABLE_LIST can access
+    - avoid including this header file everywhere TABLE_LIST needs to access
+    these members,
+    these members are relocated into a separate inferior object whose
+    declaration is in table.h, like that of TABLE_LIST. It's the "postparse"
+    part. TABLE_LIST accesses this inferior object only.
+  */
+  Common_table_expr m_postparse;
+};
+
+
+/**
+   Represents the WITH list.
+   WITH [...], [...] SELECT ...,
+        ^^^^^^^^^^^^
+*/
+class PT_with_list : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+public:
+  /// @param mem_root where interior objects are allocated
+  explicit PT_with_list(MEM_ROOT *mem_root) : m_elements(mem_root) {}
+  bool push_back(PT_common_table_expr *el);
+  const Mem_root_array<PT_common_table_expr *> &elements() const
+  { return m_elements; }
+
+private:
+  Mem_root_array<PT_common_table_expr *> m_elements;
+};
+
+
+/**
+  Represents the WITH clause:
+  WITH [...], [...] SELECT ...,
+  ^^^^^^^^^^^^^^^^^
+*/
+class PT_with_clause : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+public:
+  PT_with_clause(PT_with_list *l, bool r) :
+  m_list(*l), m_recursive(r), m_most_inner_in_parsing(nullptr) {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;            /* purecov: inspected */
+    // WITH complements a query expression (a unit).
+    pc->select->master_unit()->m_with_clause= this;
+    return false;
+  }
+
+  /**
+    Looks up a table reference into the list of CTEs.
+    @param      tl    Table reference to look up
+    @param[out] found Is set to true/false if found or not
+    @returns true if error
+  */
+  bool lookup(TABLE_LIST *tl, PT_common_table_expr **found);
+  /**
+    Call this to record in the WITH clause that we are contextualizing the
+    CTE definition inserted in table reference 'tl'.
+    @returns information which the caller must provide to
+    leave_parsing_definition().
+  */
+  const TABLE_LIST *enter_parsing_definition(TABLE_LIST *tl)
+  {
+    auto old= m_most_inner_in_parsing;
+    m_most_inner_in_parsing= tl;
+    return old;
+  }
+  void leave_parsing_definition(const TABLE_LIST *old)
+  { m_most_inner_in_parsing= old; }
+  void print(THD *thd, String *str, enum_query_type query_type);
+
+private:
+  /// All CTEs of this clause
+  const PT_with_list &m_list;
+  /// True if the user has specified the RECURSIVE keyword.
+  const bool m_recursive;
+  /**
+    The innermost CTE reference which we're parsing at the
+    moment. Used to detect forward references, loops and recursiveness.
+  */
+  const TABLE_LIST *m_most_inner_in_parsing;
 };
 
 
@@ -347,7 +496,7 @@ public:
                                          yyps->m_lock_type,
                                          yyps->m_mdl_type,
                                          opt_key_definition,
-                                         opt_use_partition);
+                                         opt_use_partition, nullptr, pc);
     if (value == NULL)
       return true;
     if (pc->select->add_joined_table(value))
@@ -386,13 +535,16 @@ class PT_derived_table : public PT_table_reference
   typedef PT_table_reference super;
 
 public:
-  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias);
+  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias,
+                   Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
 private:
   PT_subquery *m_subquery;
   LEX_STRING *m_table_alias;
+  /// List of explicitely specified column names; if empty, no list.
+  const Create_col_name_list column_names;
 };
 
 
@@ -701,11 +853,154 @@ public:
 };
 
 
+class PT_locking_clause : public Parse_tree_node
+{
+public:
+  PT_locking_clause(Lock_strength strength, Locked_row_action action)
+    : m_lock_strength(strength),
+      m_locked_row_action(action)
+  {}
+
+  virtual bool contextualize(Parse_context *pc) final;
+
+  virtual bool set_lock_for_tables(Parse_context *pc) = 0;
+
+  virtual bool is_legacy_syntax() const = 0;
+
+  Locked_row_action action() const { return m_locked_row_action; }
+
+protected:
+  Lock_descriptor get_lock_descriptor() const
+  {
+    thr_lock_type lock_type= TL_IGNORE;
+    switch (m_lock_strength)
+    {
+    case Lock_strength::UPDATE:
+      lock_type= TL_WRITE;
+      break;
+    case Lock_strength::SHARE:
+      lock_type= TL_READ_WITH_SHARED_LOCKS;
+      break;
+    }
+
+    return { lock_type, static_cast<thr_locked_row_action>(action()) };
+  }
+
+private:
+  Lock_strength m_lock_strength;
+  Locked_row_action m_locked_row_action;
+};
+
+
+class PT_query_block_locking_clause : public PT_locking_clause
+{
+public:
+  PT_query_block_locking_clause(Lock_strength strength,
+                                Locked_row_action action)
+    : PT_locking_clause(strength, action),
+      m_is_legacy_syntax(strength == Lock_strength::UPDATE &&
+                         action == Locked_row_action::WAIT)
+  {}
+
+  PT_query_block_locking_clause(Lock_strength strength)
+    : PT_locking_clause(strength, Locked_row_action::WAIT),
+      m_is_legacy_syntax(true)
+  {}
+
+  bool set_lock_for_tables(Parse_context *pc) override;
+
+  bool is_legacy_syntax() const override { return m_is_legacy_syntax; }
+
+private:
+  bool m_is_legacy_syntax;
+};
+
+
+class PT_table_locking_clause : public PT_locking_clause
+{
+public:
+  typedef Mem_root_array_YY<Table_ident *> Table_ident_list;
+
+  PT_table_locking_clause(Lock_strength strength,
+                          Mem_root_array_YY<Table_ident *> tables,
+                          Locked_row_action action)
+    : PT_locking_clause(strength, action),
+      m_tables(tables)
+  {}
+
+  bool set_lock_for_tables(Parse_context *pc) override;
+
+  bool is_legacy_syntax() const override { return false; }
+
+private:
+  /// @todo Move this function to Table_ident?
+  void print_table_ident(THD *thd, const Table_ident *ident, String *s)
+  {
+    LEX_CSTRING db= ident->db;
+    LEX_CSTRING table= ident->table;
+    if (db.length > 0)
+    {
+      append_identifier(thd, s, db.str, db.length);
+      s->append('.');
+    }
+    append_identifier(thd, s, table.str, table.length);
+  }
+
+  bool raise_error(THD *thd, const Table_ident *name, int error)
+  {
+    String s;
+    print_table_ident(thd, name, &s);
+    my_error(error, MYF(0), s.ptr());
+    return true;
+  }
+
+  bool raise_error(int error)
+  {
+    my_error(error, MYF(0));
+    return true;
+  }
+
+  Table_ident_list m_tables;
+};
+
+
+class PT_locking_clause_list : public Parse_tree_node
+{
+public:
+  PT_locking_clause_list(MEM_ROOT *mem_root)
+  {
+    m_locking_clauses.init(mem_root);
+  }
+
+  bool push_back(PT_locking_clause *locking_clause)
+  {
+    return m_locking_clauses.push_back(locking_clause);
+  }
+
+  bool is_legacy_syntax() const
+  {
+    return m_locking_clauses.size() == 1 &&
+      m_locking_clauses[0]->is_legacy_syntax();
+  }
+
+  bool contextualize(Parse_context *pc)
+  {
+    for (auto locking_clause : m_locking_clauses)
+      if (locking_clause->contextualize(pc))
+        return true;
+    return false;
+  }
+
+private:
+  Mem_root_array_YY<PT_locking_clause *> m_locking_clauses;
+};
+
+
 class PT_query_expression_body : public Parse_tree_node
 {
 public:
   virtual bool is_union() const = 0;
-  virtual void set_containing_qe(PT_query_expression *qe) {}
+  virtual void set_containing_qe(PT_query_expression*) {}
   virtual bool has_into_clause() const = 0;
 };
 
@@ -1585,24 +1880,6 @@ public:
 };
 
 
-/// Adds a default constructor to select_lock_type.
-class Default_constructible_locking_clause : public Select_lock_type
-{
-public:
-  Default_constructible_locking_clause() { is_set= false; }
-  
-  Default_constructible_locking_clause(const Select_lock_type &slt)
-  {
-    is_set= slt.is_set;
-    if (is_set) // to make memory sanitizers happy
-    {
-      lock_type= slt.lock_type;
-      is_safe_to_cache_query= slt.is_safe_to_cache_query;
-    }
-  }
-};
-
-
 class PT_query_primary : public Parse_tree_node
 {
 public:
@@ -1689,25 +1966,29 @@ public:
                       PT_order *order,
                       PT_limit_clause *limit,
                       PT_procedure_analyse *procedure_analyse,
-                      const Select_lock_type &lock_type)
+                      PT_locking_clause_list *locking_clauses)
     : contextualized(false),
       m_body(body),
       m_order(order),
       m_limit(limit),
       m_procedure_analyse(procedure_analyse),
-      m_lock_type(lock_type),
-      m_parentheses(false)
+      m_locking_clauses(locking_clauses),
+      m_parentheses(false),
+      m_with_clause(NULL)
   {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
-    : PT_query_expression(body, NULL, NULL, NULL,
-                          Default_constructible_locking_clause())
+    : PT_query_expression(body, NULL, NULL, NULL, NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
+    if (contextualize_safe(pc, m_with_clause))
+      return true;                              /* purecov: inspected */
+
     pc->select->set_braces(m_parentheses || pc->select->braces);
     m_body->set_containing_qe(this);
+
     if (Parse_tree_node::contextualize(pc) ||
         m_body->contextualize(pc))
       return true;
@@ -1721,11 +2002,8 @@ public:
     if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
       my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
 
-    if (m_lock_type.is_set && !pc->thd->lex->is_explain())
-    {
-      pc->select->set_lock_for_tables(m_lock_type.lock_type);
-      pc->thd->lex->safe_to_cache_query= m_lock_type.is_safe_to_cache_query;
-    }
+    if (contextualize_safe(pc, m_locking_clauses))
+      return true;
 
     return false;
   }
@@ -1808,8 +2086,11 @@ private:
   PT_order *m_order;
   PT_limit_clause *m_limit;
   PT_procedure_analyse *m_procedure_analyse;
-  Default_constructible_locking_clause m_lock_type;
+  PT_locking_clause_list *m_locking_clauses;
   bool m_parentheses;
+
+public:
+  PT_with_clause *m_with_clause;
 };
 
 
@@ -2023,6 +2304,8 @@ class PT_delete : public PT_statement
 {
   typedef PT_statement super;
 
+private:
+  PT_with_clause *m_with_clause;
   PT_hint_list *opt_hints;
   const int opt_delete_options;
   Table_ident *table_ident;
@@ -2036,14 +2319,15 @@ class PT_delete : public PT_statement
 
 public:
   // single-table DELETE node constructor:
-  PT_delete(PT_hint_list *opt_hints_arg,
+  PT_delete(PT_with_clause *with_clause_arg,
+            PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg,
             Table_ident *table_ident_arg,
             List<String> *opt_use_partition_arg,
             Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg,
             Item *opt_delete_limit_clause_arg)
-  : opt_hints(opt_hints_arg),
+  : m_with_clause(with_clause_arg), opt_hints(opt_hints_arg),
     opt_delete_options(opt_delete_options_arg),
     table_ident(table_ident_arg),
     opt_use_partition(opt_use_partition_arg),
@@ -2056,12 +2340,13 @@ public:
   }
 
   // multi-table DELETE node constructor:
-  PT_delete(PT_hint_list *opt_hints_arg,
+  PT_delete(PT_with_clause *with_clause_arg,
+            PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg,
             const Mem_root_array_YY<Table_ident *> &table_list_arg,
             const Mem_root_array_YY<PT_table_reference *> &join_table_list_arg,
             Item *opt_where_clause_arg)
-  : opt_hints(opt_hints_arg),
+  : m_with_clause(with_clause_arg), opt_hints(opt_hints_arg),
     opt_delete_options(opt_delete_options_arg),
     table_ident(NULL),
     table_list(table_list_arg),
@@ -2096,6 +2381,7 @@ class PT_update : public PT_statement
 {
   typedef PT_statement super;
 
+  PT_with_clause *m_with_clause;
   PT_hint_list *opt_hints;
   thr_lock_type opt_low_priority;
   bool opt_ignore;
@@ -2108,7 +2394,8 @@ class PT_update : public PT_statement
   bool multitable;
 
 public:
-  PT_update(PT_hint_list *opt_hints_arg,
+  PT_update(PT_with_clause *with_clause_arg,
+            PT_hint_list *opt_hints_arg,
             thr_lock_type opt_low_priority_arg,
             bool opt_ignore_arg,
             const Mem_root_array_YY<PT_table_reference *> &join_table_list_arg,
@@ -2117,7 +2404,7 @@ public:
             Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg,
             Item *opt_limit_clause_arg)
-  : opt_hints(opt_hints_arg),
+  : m_with_clause(with_clause_arg), opt_hints(opt_hints_arg),
     opt_low_priority(opt_low_priority_arg),
     opt_ignore(opt_ignore_arg),
     join_table_list(join_table_list_arg),

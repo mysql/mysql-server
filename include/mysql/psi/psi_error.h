@@ -29,7 +29,6 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "psi_base.h"
 
-
 C_MODE_START
 
 #ifdef HAVE_PSI_INTERFACE
@@ -88,7 +87,7 @@ typedef struct PSI_error_bootstrap PSI_error_bootstrap;
 
 enum PSI_error_operation
 {
-  PSI_ERROR_OPERATION_RAISED= 0,
+  PSI_ERROR_OPERATION_RAISED = 0,
   PSI_ERROR_OPERATION_HANDLED
 };
 typedef enum PSI_error_operation PSI_error_operation;
@@ -98,7 +97,8 @@ typedef enum PSI_error_operation PSI_error_operation;
   @param num MySQL error number
   @param error_operation operation on error (PSI_ERROR_OPERATION_*)
 */
-typedef void (*log_error_v1_t)(unsigned int error_num, PSI_error_operation error_operation);
+typedef void (*log_error_v1_t)(unsigned int error_num,
+                               PSI_error_operation error_operation);
 
 /**
   Performance Schema Error Interface, version 1.
@@ -119,7 +119,7 @@ typedef struct PSI_error_service_v1 PSI_error_service_t;
 typedef struct PSI_placeholder PSI_error_service_t;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_error_service_t *psi_error_service;
+extern MYSQL_PLUGIN_IMPORT PSI_error_service_t* psi_error_service;
 
 /** @} (end of group psi_abi_error) */
 

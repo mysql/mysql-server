@@ -133,3 +133,26 @@ CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @a:=1;
 INSERT INTO t12 VALUES ("abc");
 INSERT INTO t12 VALUES ("def");
 DROP TRIGGER trg;
+
+# Tests to show more complex SELECT syntaxes
+
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1),(2);
+
+# Each pair of queries should go into one single class of digest:
+SELECT * FROM (SELECT a,1,1 FROM t1) AS dt (x,y,z);
+SELECT * FROM (SELECT a,2,2 FROM t1) AS dt (x,y,z);
+
+WITH cte (x,y,z)AS (SELECT a,1,1 FROM t1) SELECT 1, cte.* FROM cte;
+WITH cte (x,y,z)AS (SELECT a,2,2 FROM t1) SELECT 2, cte.* FROM cte;
+
+WITH cte (x,y,z)AS (SELECT a,1,1 FROM t1) SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
+WITH cte (x,y,z)AS (SELECT a,2,2 FROM t1) SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;
+
+WITH RECURSIVE cte (x,y,z) AS
+(SELECT a,1,1 FROM t1 UNION ALL SELECT a+1,a*1,11 FROM t1 WHERE 0)
+SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
+
+WITH RECURSIVE cte (x,y,z) AS
+(SELECT a,2,2 FROM t1 UNION ALL SELECT a+2,a*2,22 FROM t1 WHERE 0)
+SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;

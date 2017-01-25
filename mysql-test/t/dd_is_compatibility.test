@@ -212,7 +212,7 @@ TABLE_NAME='TABLES';
 --echo #########################################################
 
 SET @old_join_size= @@session.max_join_size;
-SET @@session.max_join_size= 8;
+SET @@session.max_join_size= 1;
 PREPARE ps1 FROM 'SHOW TABLES FROM no_such_schema';
 PREPARE ps2 FROM 'SHOW TABLES FROM mysql LIKE \'%tables%\'';
 --error ER_BAD_DB_ERROR

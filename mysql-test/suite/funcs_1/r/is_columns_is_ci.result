@@ -116,10 +116,6 @@ def	information_schema	FILES	CHECK_TIME	35		YES	datetime	NULL	NULL	NULL	NULL	NUL
 def	information_schema	FILES	CHECKSUM	36		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21)			select		
 def	information_schema	FILES	STATUS	37		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
 def	information_schema	FILES	EXTRA	38		YES	varchar	85	255	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select		
-def	information_schema	GLOBAL_STATUS	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
-def	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
@@ -248,10 +244,6 @@ def	information_schema	SCHEMA_PRIVILEGES	TABLE_CATALOG	2		NO	varchar	170	512	NUL
 def	information_schema	SCHEMA_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	SCHEMA_PRIVILEGES	PRIVILEGE_TYPE	4		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	5		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select		
-def	information_schema	SESSION_STATUS	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	SESSION_STATUS	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
-def	information_schema	SESSION_VARIABLES	VARIABLE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	SESSION_VARIABLES	VARIABLE_VALUE	2		YES	varchar	341	1024	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select		
 def	information_schema	SHOW_STATISTICS	Database	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	SHOW_STATISTICS	Table	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	SHOW_STATISTICS	Non_unique	3		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select		
@@ -340,6 +332,19 @@ def	information_schema	STATISTICS_DYNAMIC	INDEX_TYPE	14		NO	varchar	11	33	NULL	N
 def	information_schema	STATISTICS_DYNAMIC	COMMENT	15		NO	varchar	8	24	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select		
 def	information_schema	STATISTICS_DYNAMIC	INDEX_COMMENT	16	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select		
 def	information_schema	STATISTICS_DYNAMIC	IS_VISIBLE	17		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_CATALOG	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	COLUMN_NAME	4		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	SRS_NAME	5	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select		
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	1	NULL	NO	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select		
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select		
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_bin	varchar(256)			select		
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select		
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	5	NULL	NO	varchar	4096	12288	NULL	NULL	NULL	utf8	utf8_bin	varchar(4096)			select		
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	6	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select		
 def	information_schema	TABLES	TABLE_CATALOG	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	TABLES	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	TABLES	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
@@ -625,10 +630,6 @@ NULL	information_schema	FILES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	FILES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
 3.3333	information_schema	FILES	STATUS	varchar	6	20	utf8	utf8_general_ci	varchar(20)
 3.0000	information_schema	FILES	EXTRA	varchar	85	255	utf8	utf8_general_ci	varchar(255)
-3.0476	information_schema	GLOBAL_STATUS	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
-3.0476	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -757,10 +758,6 @@ NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 3.0476	information_schema	SCHEMA_PRIVILEGES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	SCHEMA_PRIVILEGES	PRIVILEGE_TYPE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	varchar	1	3	utf8	utf8_general_ci	varchar(3)
-3.0476	information_schema	SESSION_STATUS	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	SESSION_STATUS	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
-3.0476	information_schema	SESSION_VARIABLES	VARIABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0029	information_schema	SESSION_VARIABLES	VARIABLE_VALUE	varchar	341	1024	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	SHOW_STATISTICS	Database	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	SHOW_STATISTICS	Table	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	SHOW_STATISTICS	Non_unique	varchar	1	3	utf8	utf8_general_ci	varchar(1)
@@ -849,6 +846,19 @@ NULL	information_schema	STATISTICS_DYNAMIC	PACKED	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS_DYNAMIC	COMMENT	varchar	8	24	utf8	utf8_general_ci	varchar(8)
 3.0000	information_schema	STATISTICS_DYNAMIC	INDEX_COMMENT	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	information_schema	STATISTICS_DYNAMIC	IS_VISIBLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	ST_GEOMETRY_COLUMNS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+NULL	information_schema	ST_GEOMETRY_COLUMNS	SRS_NAME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	binary	0	0	NULL	NULL	binary(0)
+1.0000	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
+3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
+3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	varchar	256	768	utf8	utf8_bin	varchar(256)
+NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
+3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	varchar	4096	12288	utf8	utf8_bin	varchar(4096)
+3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	information_schema	TABLES	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)

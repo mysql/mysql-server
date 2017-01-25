@@ -18,7 +18,7 @@ struct PSI_placeholder
 C_MODE_START
 struct PSI_transaction_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_transaction_bootstrap PSI_transaction_bootstrap;
 struct PSI_transaction_locker;
@@ -39,34 +39,34 @@ struct PSI_transaction_locker_state_v1
   ulong m_release_savepoint_count;
 };
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
-typedef struct PSI_transaction_locker* (*get_thread_transaction_locker_v1_t)
-  (struct PSI_transaction_locker_state_v1 *state, const void *xid,
-   const ulonglong *trxid, int isolation_level, my_bool read_only,
-   my_bool autocommit);
-typedef void (*start_transaction_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const char *src_file, uint src_line);
-typedef void (*set_transaction_xid_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const void *xid, int xa_state);
-typedef void (*set_transaction_xa_state_v1_t)
-  (struct PSI_transaction_locker *locker,
-   int xa_state);
-typedef void (*set_transaction_gtid_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const void *sid, const void *gtid_spec);
-typedef void (*set_transaction_trxid_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const ulonglong *trxid);
-typedef void (*inc_transaction_savepoints_v1_t)
-  (struct PSI_transaction_locker *locker, ulong count);
-typedef void (*inc_transaction_rollback_to_savepoint_v1_t)
-  (struct PSI_transaction_locker *locker, ulong count);
-typedef void (*inc_transaction_release_savepoint_v1_t)
-  (struct PSI_transaction_locker *locker, ulong count);
-typedef void (*end_transaction_v1_t)
-  (struct PSI_transaction_locker *locker,
-   my_bool commit);
+typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
+  struct PSI_transaction_locker_state_v1 *state,
+  const void *xid,
+  const ulonglong *trxid,
+  int isolation_level,
+  my_bool read_only,
+  my_bool autocommit);
+typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
+                                       const char *src_file,
+                                       uint src_line);
+typedef void (*set_transaction_xid_v1_t)(struct PSI_transaction_locker *locker,
+                                         const void *xid,
+                                         int xa_state);
+typedef void (*set_transaction_xa_state_v1_t)(
+  struct PSI_transaction_locker *locker, int xa_state);
+typedef void (*set_transaction_gtid_v1_t)(struct PSI_transaction_locker *locker,
+                                          const void *sid,
+                                          const void *gtid_spec);
+typedef void (*set_transaction_trxid_v1_t)(
+  struct PSI_transaction_locker *locker, const ulonglong *trxid);
+typedef void (*inc_transaction_savepoints_v1_t)(
+  struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
+  struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_release_savepoint_v1_t)(
+  struct PSI_transaction_locker *locker, ulong count);
+typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
+                                     my_bool commit);
 struct PSI_transaction_service_v1
 {
   get_thread_transaction_locker_v1_t get_thread_transaction_locker;
@@ -76,7 +76,8 @@ struct PSI_transaction_service_v1
   set_transaction_gtid_v1_t set_transaction_gtid;
   set_transaction_trxid_v1_t set_transaction_trxid;
   inc_transaction_savepoints_v1_t inc_transaction_savepoints;
-  inc_transaction_rollback_to_savepoint_v1_t inc_transaction_rollback_to_savepoint;
+  inc_transaction_rollback_to_savepoint_v1_t
+    inc_transaction_rollback_to_savepoint;
   inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
   end_transaction_v1_t end_transaction;
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,9 +71,7 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
     Dictionary_impl::s_instance= d.release();
   }
 
-#ifndef EMBEDDED_LIBRARY
   acl_init(true);
-#endif
 
   /*
     Initialize the cost model, but delete it after the dd is initialized.
@@ -122,9 +120,7 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
   delete_optimizer_cost_module();
 
   // TODO: See above.
-#ifndef EMBEDDED_LIBRARY
   acl_free(true);
-#endif
   return result;
 }
 
@@ -399,7 +395,7 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+                           MDL_EXCLUSIVE, MDL_TRANSACTION, out_mdl_ticket);
 }
 
 bool acquire_exclusive_schema_mdl(THD *thd,

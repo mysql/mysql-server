@@ -66,7 +66,6 @@ public:
 
 namespace
 {
-const char* const DOC = "doc";
 
 void operator<< (::google::protobuf::Message &msg, const std::string& txt)
 {

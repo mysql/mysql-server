@@ -125,7 +125,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
 #include "mysys_priv.h"
-#include "probes_mysql.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 
@@ -2308,15 +2307,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     uint offset;
     int page_st;
 
-    if (MYSQL_KEYCACHE_READ_START_ENABLED())
-    {
-      MYSQL_KEYCACHE_READ_START(my_filename(file), length,
-                                (ulong) (keycache->blocks_used *
-                                         keycache->key_cache_block_size),
-                                (ulong) (keycache->blocks_unused *
-                                         keycache->key_cache_block_size));
-    }
-  
     /*
       When the key cache is once initialized, we use the cache_lock to
       reliably distinguish the cases of normal operation, resizing, and
@@ -2367,8 +2357,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       /* Request the cache block that matches file/pos. */
       keycache->global_cache_r_requests++;
 
-      MYSQL_KEYCACHE_READ_BLOCK(keycache->key_cache_block_size);
-
       block= find_key_block(keycache, thread_var, file, filepos, level, 0,
                             &page_st);
       if (!block)
@@ -2389,7 +2377,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       {
         if (page_st != PAGE_READ)
         {
-          MYSQL_KEYCACHE_READ_MISS();
           /* The requested page is to be read into the block buffer */
           read_block(keycache, thread_var, block,
                      keycache->key_cache_block_size, read_length+offset,
@@ -2413,10 +2400,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
           */
           set_my_errno(-1);
           block->status|= BLOCK_ERROR;
-        }
-        else
-        {
-          MYSQL_KEYCACHE_READ_HIT();
         }
       }
 
@@ -2463,13 +2446,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       offset= 0;
 
     } while ((length-= read_length));
-    if (MYSQL_KEYCACHE_READ_DONE_ENABLED())
-    {
-      MYSQL_KEYCACHE_READ_DONE((ulong) (keycache->blocks_used *
-                                        keycache->key_cache_block_size),
-                               (ulong) (keycache->blocks_unused *
-                                        keycache->key_cache_block_size));
-    }
     goto end;
   }
 
@@ -2799,15 +2775,6 @@ int key_cache_write(KEY_CACHE *keycache,
     uint offset;
     int page_st;
 
-    if (MYSQL_KEYCACHE_WRITE_START_ENABLED())
-    {
-      MYSQL_KEYCACHE_WRITE_START(my_filename(file), length,
-                                 (ulong) (keycache->blocks_used *
-                                          keycache->key_cache_block_size),
-                                 (ulong) (keycache->blocks_unused *
-                                          keycache->key_cache_block_size));
-    }
-
     /*
       When the key cache is once initialized, we use the cache_lock to
       reliably distinguish the cases of normal operation, resizing, and
@@ -2845,7 +2812,6 @@ int key_cache_write(KEY_CACHE *keycache,
       if (!keycache->can_be_used)
 	goto no_key_cache;
 
-      MYSQL_KEYCACHE_WRITE_BLOCK(keycache->key_cache_block_size);
       /* Start writing at the beginning of the cache block. */
       filepos-= offset;
       /* Do not write beyond the end of the cache block. */
@@ -3055,14 +3021,6 @@ end:
     mysql_mutex_unlock(&keycache->cache_lock);
   }
   
-  if (MYSQL_KEYCACHE_WRITE_DONE_ENABLED())
-  {
-    MYSQL_KEYCACHE_WRITE_DONE((ulong) (keycache->blocks_used *
-                                       keycache->key_cache_block_size),
-                              (ulong) (keycache->blocks_unused *
-                                       keycache->key_cache_block_size));
-  }
-
   DBUG_RETURN(error);
 }
 

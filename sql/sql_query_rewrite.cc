@@ -34,7 +34,6 @@
 class Parser_state;
 class THD;
 
-#ifndef EMBEDDED_LIBRARY
 static void raise_query_rewritten_note(THD *thd,
                                        const char *original_query,
                                        const char *rewritten_query)
@@ -184,17 +183,3 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
 
   return err;
 }
-
-
-#else /* EMBEDDED_LIBRARY */
-
-void invoke_pre_parse_rewrite_plugins(THD *thd) {}
-
-void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps) {}
-
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
-{
-  return false;
-}
-
-#endif /* EMBEDDED_LIBRARY */

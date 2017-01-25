@@ -62,6 +62,8 @@ public:
   virtual const Object_table &object_table() const
   { return Tablespace_file::OBJECT_TABLE(); }
 
+  virtual bool store(Open_dictionary_tables_ctx *otx);
+
   virtual bool validate() const;
 
   virtual bool store_attributes(Raw_record *r);

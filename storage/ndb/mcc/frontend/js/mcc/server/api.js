@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -67,6 +67,7 @@ dojo.require("mcc.storage");
 /**************************** External interface  *****************************/
 
 mcc.server.api.hostInfoReq = hostInfoReq;
+mcc.server.api.checkFileReq = checkFileReq;
 mcc.server.api.createFileReq = createFileReq;
 mcc.server.api.appendFileReq = appendFileReq;
 mcc.server.api.runMgmdCommandReq = runMgmdCommandReq;
@@ -175,6 +176,40 @@ function hostInfoReq(hostname, onReply, onError) {
         );
     });
 }
+
+// Send checkFile
+function checkFileReq(hostname, path, filename, contents, overwrite, 
+        onReply, onError) {
+    // Get SSH info from cluster storage
+    mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
+        // Create message
+        var msg = {
+            head: getHead("checkFileReq"),
+            body: {
+                ssh: getSSH(cluster.getValue("ssh_keybased"), 
+                        cluster.getValue("ssh_user"),
+                        mcc.gui.getSSHPwd()),
+                file: {
+                    hostName: hostname,
+                    path: path
+                }
+            }
+        };
+        if (filename) {
+            msg.body.file.name = filename;
+        }
+        if (contents) {
+            msg.body.contentString = contents;
+        }
+        if (overwrite) {
+            msg.body.file.overwrite = overwrite;
+        }
+        // Call do_post, provide callbacks
+        do_post(msg).then(replyHandler(onReply, onError), 
+                errorHandler(msg.head, onError));
+    });
+}
+
 
 // Send createFile
 function createFileReq(hostname, path, filename, contents, overwrite, 

@@ -22,6 +22,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ha_innopart_h
 
 #include "partitioning/partition_handler.h"
+#include "row0mysql.h"
 
 /* Forward declarations */
 class Altered_partitions;
@@ -371,7 +372,7 @@ public:
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -394,7 +395,7 @@ public:
 	by ALTER TABLE and holding data used during in-place alter.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -421,7 +422,7 @@ public:
 	@param[in]	commit		true => Commit, false => Rollback.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
-	@parami[in,out]	new_table_def	dd::Table object for the new version
+	@param[in,out]	new_table_def	dd::Table object for the new version
 	of the table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -501,16 +502,17 @@ public:
 		HA_CHECK_OPT*	check_opt);
 
 	/** Update DD for discard InnoDB tablespace.
-	@param[in]	old table id
+	@param[in]	table_def	dd table
 	@return	0 or error number. */
 	int
 	update_dd_for_discard(
-		table_id_t	old_table_id,
+		dd::Table*	table_def,
 		my_bool		discard);
 
 	int
 	discard_or_import_tablespace(
-		my_bool	discard);
+		my_bool		discard,
+		dd::Table*	table_def);
 
 	/** Compare key and rowid.
 	Helper function for sorting records in the priority queue.

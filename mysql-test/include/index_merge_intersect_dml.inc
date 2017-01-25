@@ -125,7 +125,7 @@ create table t2 (
 INSERT INTO t2 SELECT * FROM t1;
 ANALYZE TABLE t2;
 
---let $query = WHERE pk<2492 AND d=1
+--let $query = WHERE pk<2492 AND d<=1
 --replace_column 10 #
 --eval EXPLAIN UPDATE t2 SET a=2 $query
 --eval UPDATE t2 SET a=2 $query

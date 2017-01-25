@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,28 +24,30 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "buf0lru.h"
+
 #ifndef UNIV_HOTBACKUP
-#include "ut0byte.h"
-#include "ut0rnd.h"
-#include "sync0rw.h"
-#include "hash0hash.h"
-#include "os0event.h"
-#include "fil0fil.h"
 #include "btr0btr.h"
+#include "btr0sea.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
 #include "buf0dblwr.h"
 #include "buf0flu.h"
 #include "buf0rea.h"
 #include "buf0stats.h"
-#include "btr0sea.h"
+#include "fil0fil.h"
+#include "hash0hash.h"
 #include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0recv.h"
+#include "my_dbug.h"
+#include "os0event.h"
 #include "os0file.h"
 #include "page0zip.h"
-#include "log0recv.h"
-#include "srv0srv.h"
 #include "srv0mon.h"
-#include "lock0lock.h"
+#include "srv0srv.h"
+#include "sync0rw.h"
+#include "ut0byte.h"
+#include "ut0rnd.h"
 
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_pool->LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV

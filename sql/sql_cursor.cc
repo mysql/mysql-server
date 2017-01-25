@@ -28,7 +28,6 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
-#include "probes_mysql.h"
 #include "protocol.h"
 #include "query_options.h"
 #include "query_result.h"
@@ -136,12 +135,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
 
   lex->result= result_materialize;
 
-  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id(),
-                         (char *) (thd->db().str ? thd->db().str : ""),
-                         (char *) thd->security_context()->priv_user().str,
-                         (char *) thd->security_context()->host_or_ip().str,
-                         2);
   parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;
   thd->m_digest= NULL;
@@ -150,7 +143,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   thd->m_digest= parent_digest;
   DEBUG_SYNC(thd, "after_table_close");
   thd->m_statement_psi= parent_locker;
-  MYSQL_QUERY_EXEC_DONE(rc);
 
   lex->result= save_result;
   /*
@@ -237,7 +229,7 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg,
                                          TABLE *table_arg)
-  :Server_side_cursor(&table_arg->mem_root, result_arg),
+  :Server_side_cursor(&table_arg->s->mem_root, result_arg),
   fake_unit(CTX_NONE),
   table(table_arg),
   fetch_limit(0),
@@ -399,7 +391,7 @@ void Materialized_cursor::close()
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory.
   */
-  main_mem_root= std::move(table->mem_root);
+  main_mem_root= std::move(table->s->mem_root);
   mem_root= &main_mem_root;
   free_tmp_table(table->in_use, table);
   table= 0;
@@ -433,7 +425,7 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
                           "", FALSE, TRUE))
     return TRUE;
 
-  materialized_cursor= new (&table->mem_root)
+  materialized_cursor= new (&table->s->mem_root)
                        Materialized_cursor(result, table);
 
   if (!materialized_cursor)

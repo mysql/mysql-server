@@ -110,7 +110,6 @@ void item_init(void);			/* Init item functions */
 */
 #define COND_FILTER_STALE_NO_CONST -2.0f
 
-
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 {
@@ -713,7 +712,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM, FIELD_BIT_ITEM};
+             VIEW_FIXER_ITEM, FIELD_BIT_ITEM, NULL_RESULT_ITEM };
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -922,6 +921,8 @@ public:
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
+
+  enum_field_types aggregate_type(Bounds_checked_array<Item *>items);
 
   /*
     Return information about function monotonicity. See comment for
@@ -1826,6 +1827,15 @@ public:
   */
   bool propagate_derived_used(uchar *) { return is_derived_used(); }
 
+  /**
+    Called by Item::walk() to set all the referenced items' derived_used flag.
+  */
+  bool propagate_set_derived_used(uchar *)
+  {
+    set_derived_used();
+    return false;
+  }
+
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *) { return false; }
   /// @see Group_check::check_query()
@@ -2102,9 +2112,6 @@ public:
   // @return true if an expression in select list of derived table is used
   bool is_derived_used() const { return derived_used; }
 
-  // Set an expression from select list of derived table as used
-  void set_derived_used() { derived_used= true; }
-
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
@@ -2140,6 +2147,9 @@ public:
   { return false; }
 private:
   virtual bool subq_opt_away_processor(uchar*) { return false; }
+
+  // Set an expression from select list of derived table as used.
+  void set_derived_used() { derived_used= true; }
 
 public:                            // Start of data fields
   /**
@@ -2196,7 +2206,7 @@ public:
     could return zero rows.
   */
   bool maybe_null;
-  my_bool null_value;              ///< True if item is null
+  bool null_value;              ///< True if item is null
   bool unsigned_flag;
   bool with_sum_func;              ///< True if item is aggregated
 
@@ -3052,6 +3062,7 @@ public:
   enum_field_types field_type() const override { return fld_type; }
   Item_result result_type() const override { return res_type; }
   bool check_gcol_func_processor(uchar *) override { return true; }
+  enum Type type() const override { return NULL_RESULT_ITEM; }
 };
 
 /// Placeholder ('?') of prepared statement.
@@ -3128,7 +3139,7 @@ public:
   */
   uint pos_in_query;
 
-  Item_param(const POS &pos, uint pos_in_query_arg);
+  Item_param(const POS &pos, MEM_ROOT *root, uint pos_in_query_arg);
 
   bool itemize(Parse_context *pc, Item **item) override;
 
@@ -3155,9 +3166,6 @@ public:
   void reset();
   /*
     Assign placeholder value from bind data.
-    Note, that 'len' has different semantics in embedded library (as we
-    don't need to check that packet is not broken there). See
-    sql_prepare.cc for details.
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
@@ -3197,6 +3205,12 @@ public:
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
   void set_param_type_and_swap_value(Item_param *from);
+  /**
+    This should be called after any modification done to this Item, to
+    propagate the said modification to all its clones.
+  */
+  void sync_clones();
+  bool add_clone(Item_param *i) { return m_clones.push_back(i); }
 
 private:
   Settable_routine_parameter *get_settable_routine_parameter() override
@@ -3204,7 +3218,7 @@ private:
     return this;
   }
 
-  bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
+  bool set_value(THD*, sp_rcontext*, Item **it) override;
 
   void set_out_param_info(Send_field *info) override;
 
@@ -3215,6 +3229,27 @@ public:
 
 private:
   Send_field *m_out_param_info;
+  /**
+    If a query expression's text QT, containing a parameter, is internally
+    duplicated and parsed twice (@see reparse_common_table_expression), the
+    first parsing will create an Item_param I, and the re-parsing, which
+    parses a forged "(QT)" parse-this-CTE type of statement, will create an
+    Item_param J. J should not exist:
+    - from the point of view of logging: it is not in the original query so it
+    should not be substituted in the query written to logs (in insert_params()
+    if with_log is true).
+    - from the POV of query cache matching (same).
+    - from the POV of the user:
+        * user provides one single value for I, not one for I and one for J.
+        * user expects mysql_stmt_param_count() to return 1, not 2 (count is
+        sent by the server in send_prep_stmt()).
+    That is why J is part neither of LEX::param_list, nor of param_array; it
+    is considered an inferior clone of I; I::m_clones contains J.
+    The connection between I and J is made once, by comparing their
+    byte position in the statement, in Item_param::itemize().
+    J gets its value from I: @see Item_param::sync_clones.
+  */
+  Mem_root_array<Item_param *> m_clones;
 };
 
 
@@ -3417,7 +3452,7 @@ public:
                const my_decimal *val_arg, uint decimal_par, uint length);
   Item_decimal(my_decimal *value_par);
   Item_decimal(longlong val, bool unsig);
-  Item_decimal(double val, int precision, int scale);
+  Item_decimal(double val);
   Item_decimal(const uchar *bin, int precision, int scale);
 
   enum Type type() const override { return DECIMAL_ITEM; }
@@ -4260,7 +4295,7 @@ public:
   }
 
   bool fix_fields(THD *, Item **) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
     Item *item= Item_ref::get_tmp_table_item(thd);
@@ -4278,7 +4313,10 @@ public:
     */
     Mark_field *mark_field= (Mark_field *)arg;
     if (mark_field->mark != MARK_COLUMNS_NONE)
-      (*ref)->set_derived_used();
+      // Set the same flag for all the objects that *ref depends on.
+      (*ref)->walk(&Item::propagate_set_derived_used,
+                   Item::WALK_SUBQUERY_POSTFIX, NULL);
+
     return false;
   }
   longlong val_int() override;
@@ -4801,7 +4839,7 @@ public:
 class Cached_item :public Sql_alloc
 {
 public:
-  my_bool null_value;
+  bool null_value;
   Cached_item() :null_value(0) {}
   virtual bool cmp()= 0;
   virtual ~Cached_item(); /*line -e1509 */
@@ -5508,7 +5546,7 @@ public:
     DBUG_ASSERT(0);
     return true;
   }
-  bool join_types(THD *thd, Item *);
+  bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);

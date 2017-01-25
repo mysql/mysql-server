@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <fcntl.h>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_event.h"                      // create_event
 #include "dd/dd.h"                            // dd::get_dictionary
+#include "dd/dd_event.h"                      // create_event
 #include "dd/dd_schema.h"                     // create_schema
 #include "dd/dd_table.h"                      // create_dd_user_table
 #include "dd/dd_tablespace.h"                 // create_tablespace
@@ -37,9 +38,10 @@
 #include "handler.h"                          // legacy_db_type
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"                              // sql_print_warning
-#include "mysqld.h"                           // mysql_real_data_home
-#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "my_dbug.h"
 #include "my_user.h"                          // parse_user
+#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "mysqld.h"                           // mysql_real_data_home
 #include "parse_file.h"                       // File_option
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_TABLE
@@ -929,6 +931,7 @@ class Table_upgrade_guard
   sql_mode_t m_sql_mode;
   handler *m_handler;
   bool m_is_table_open;
+  LEX *m_lex_saved;
 public:
 
   void update_mem_root(MEM_ROOT *mem_root)
@@ -941,6 +944,11 @@ public:
     m_handler= handler;
   }
 
+  void update_lex(LEX *lex)
+  {
+    m_lex_saved= lex;
+  }
+
   void set_is_table_open(bool param)
   {
     m_is_table_open= param;
@@ -948,7 +956,7 @@ public:
 
   Table_upgrade_guard(THD *thd, TABLE *table, MEM_ROOT *mem_root)
     :  m_thd(thd), m_table(table), m_mem_root(mem_root), m_handler(nullptr),
-       m_is_table_open(false)
+       m_is_table_open(false), m_lex_saved(nullptr)
   {
     m_sql_mode= m_thd->variables.sql_mode;
     m_thd->variables.sql_mode= m_sql_mode;
@@ -962,6 +970,13 @@ public:
     // Free item list for partitions
     if (m_table->s->m_part_info)
       free_items(m_table->s->m_part_info->item_free_list);
+
+    // Restore thread lex
+    if (m_lex_saved != nullptr)
+    {
+      lex_end(m_thd->lex);
+      m_thd->lex= m_lex_saved;
+    }
 
     /*
       Free item list for generated columns
@@ -1107,7 +1122,7 @@ static bool create_unlinked_view(THD *thd,
   Disable_autocommit_guard autocommit_guard(thd);
 
   bool result= dd::create_view(thd, view_ref, db_name.c_str(),
-                               view_name.c_str());
+                               view_name.c_str(), true);
 
   // Restore
   thd->lex->select_lex= backup_select;
@@ -1233,7 +1248,7 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
     sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
                       "View is no more valid to use", db_name.c_str(),
                       view_name.c_str());
-    update_view_status(thd, db_name.c_str(), view_name.c_str(), false);
+    update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
     error= false;
   }
 
@@ -1437,7 +1452,15 @@ static bool migrate_tablespace_to_dd(THD *thd, const char *name,
   */
   ts_info.data_file_name= name;
 
-  return dd::create_tablespace(thd, &ts_info, hton, true);
+  if (dd::create_tablespace(thd, &ts_info, hton))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 
@@ -1780,12 +1803,6 @@ static bool open_table_for_fk_info(THD *thd,
     memcpy((char *)mem_root, (char*) &table->mem_root, sizeof(*mem_root));
     table_guard->update_mem_root(mem_root);
 
-    // open_table_from_share needs a valid SELECT_LEX to parse generated columns
-    LEX *lex_saved= thd->lex;
-    LEX lex;
-    thd->lex= &lex;
-    lex_start(thd);
-
     if (open_table_from_share(thd, share, share->table_name.str,
                               (uint) (HA_OPEN_KEYFILE |
                                       HA_OPEN_RNDFILE |
@@ -1797,12 +1814,8 @@ static bool open_table_for_fk_info(THD *thd,
     {
       sql_print_error("Error in opening table %s.%s",
                       schema_name.c_str(), table_name.c_str());
-      lex_end(&lex);
-      thd->lex= lex_saved;
       return true;
     }
-    lex_end(&lex);
-    thd->lex= lex_saved;
     table_guard->set_is_table_open(true);
   }
   return false;
@@ -1828,10 +1841,6 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
   Create_field *sql_field;
   bool error_reported= FALSE;
   bool error= false;
-  LEX *lex_saved= thd->lex;
-  LEX lex;
-  thd->lex= &lex;
-  lex_start(thd);
 
   if (table->s->vfields)
   {
@@ -1856,8 +1865,6 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
     }
   }
 
-  lex_end(&lex);
-  thd->lex= lex_saved;
   return error;
 }
 
@@ -2079,6 +2086,14 @@ static bool migrate_table_to_dd(THD *thd,
       return true;
   }
 
+  // open_table_from_share and partition expression parsing needs a
+  // valid SELECT_LEX to parse generated columns
+  LEX *lex_saved= thd->lex;
+  LEX lex;
+  thd->lex= &lex;
+  lex_start(thd);
+  table_guard.update_lex(lex_saved);
+
   if (fill_partition_info_for_upgrade(thd, &share, &frm_context, table))
     return true;
 
@@ -2190,7 +2205,7 @@ static bool migrate_table_to_dd(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  if (!dd::create_dd_user_table(thd,
+  if (dd::create_dd_user_table(thd,
                                schema_name,
                                table_name,
                                &create_info,
@@ -2242,11 +2257,19 @@ bool migrate_plugin_table_to_dd(THD *thd)
 
 
 /**
-   Returns the collation id for the database specified.
+  Returns the collation id for the database specified.
+
+  @param[in]  thd                        Thread handle.
+  @param[in]  db_opt_path                Path for database.
+  @param[out] schema_charset             Character set of database.
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+
 */
 static bool load_db_schema_collation(THD *thd,
                                      const LEX_STRING *db_opt_path,
-                                     const CHARSET_INFO *schema_charset)
+                                     const CHARSET_INFO **schema_charset)
 {
   IO_CACHE cache;
   File file;
@@ -2286,23 +2309,23 @@ static bool load_db_schema_collation(THD *thd,
            it's an old 4.1.0 db.opt file, which didn't have separate
            default-character-set and default-collation commands.
         */
-        if (!(schema_charset= get_charset_by_csname(pos + 1,
+        if (!(*schema_charset= get_charset_by_csname(pos + 1,
                                                     MY_CS_PRIMARY, MYF(0))) &&
-            !(schema_charset= get_charset_by_name(pos + 1, MYF(0))))
+            !(*schema_charset= get_charset_by_name(pos + 1, MYF(0))))
         {
           sql_print_warning("Unable to identify the charset in %s. "
                             "Using default character set.", db_opt_path->str);
 
-          schema_charset= thd->variables.collation_server;
+          *schema_charset= thd->variables.collation_server;
         }
       }
       else if (!strncmp(buf, "default-collation", (pos - buf)))
       {
-        if (!(schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
+        if (!(*schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
         {
           sql_print_warning("Unable to identify the charset in %s. "
                             "Using default character set.", db_opt_path->str);
-          schema_charset= thd->variables.collation_server;
+          *schema_charset= thd->variables.collation_server;
         }
       }
     }
@@ -2340,7 +2363,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
   if (!my_access(dbopt_file_name.str, F_OK))
   {
     // Get the collation id for the database.
-    if (load_db_schema_collation(thd, &dbopt_file_name, schema_charset))
+    if (load_db_schema_collation(thd, &dbopt_file_name, &schema_charset))
       return true;
   }
   else
@@ -2367,7 +2390,6 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Column definitions for 5.7 mysql.event table (5.7.13 and up).
 */
@@ -2700,16 +2722,14 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
                                        char *event_db_name,
                                        char *event_name)
 {
-  const dd::Event *event= nullptr;
   dd::Event *new_event= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (thd->dd_client()->acquire(event_db_name, event_name, &event) ||
-      thd->dd_client()->acquire_for_modification(event_db_name,
+  if (thd->dd_client()->acquire_for_modification(event_db_name,
                                                  event_name,
                                                  &new_event))
     return true;
-  if (event == nullptr)
+  if (new_event == nullptr)
     return true;
 
   if (!table->field[ET_FIELD_LAST_EXECUTED]->is_null())
@@ -2732,10 +2752,7 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
     return true;
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  thd->dd_client()->remove_uncommitted_objects<Event>(!error);
-  return error;
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 
@@ -3008,8 +3025,10 @@ bool migrate_events_to_dd(THD *thd)
   if ((error= event_table->file->ha_index_first(event_table->record[0])))
   {
     if (error == HA_ERR_END_OF_FILE)
+    {
+      my_tz_free();
       return false;
-
+    }
     sql_print_error("Failed to read mysql.event table.");
     goto err;
   }
@@ -3043,7 +3062,6 @@ err:
   free_root(&records_mem_root, MYF(0));
   return true;
 }
-#endif  // !EMBEDDED_LIBRARY
 
 
 /**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,24 +23,25 @@ InnoDB R-tree interfaces
 Created 2013/03/27 Allen Lai and Jimmy Yang
 ***********************************************************************/
 
-#include "fsp0fsp.h"
-#include "page0page.h"
-#include "page0cur.h"
-#include "page0zip.h"
-#include "gis0rtree.h"
-
 #include <cmath>
+
+#include "fsp0fsp.h"
+#include "gis0rtree.h"
+#include "my_dbug.h"
+#include "page0cur.h"
+#include "page0page.h"
+#include "page0zip.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "btr0pcur.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
-#include "trx0trx.h"
-#include "srv0mon.h"
+#include "btr0sea.h"
 #include "gis0geo.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "rem0cmp.h"
+#include "srv0mon.h"
+#include "trx0trx.h"
 
 #endif /* UNIV_HOTBACKUP */
 
@@ -1991,7 +1992,7 @@ rtr_estimate_n_rows_in_range(
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	if (std::isinf(area) || std::isnan(area)) {
+	if (!std::isfinite(area)) {
 		return(HA_POS_ERROR);
 	}
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,13 +21,12 @@
 #ifndef MY_THREAD_OS_ID_INCLUDED
 #define MY_THREAD_OS_ID_INCLUDED
 
-#include "my_global.h"              /* my_bool */
-
+#include "my_config.h"
+#include "my_macros.h"
+#include "my_thread.h"
 #ifndef _WIN32
-#include <sys/types.h>              /* pid_t */
-#include <sys/syscall.h>            /* SYS_gettid */
-#include <unistd.h>                 /* syscall */
-#include <pthread.h>                /* pthread_self */
+#include <sys/syscall.h>
+#include <unistd.h>
 #endif
 
 #ifdef HAVE_PTHREAD_GETTHREADID_NP

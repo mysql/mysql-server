@@ -62,8 +62,6 @@ a	b	c
 7	7	MATCH!
 8	8	MATCH!
 9	9	MATCH!
-SELECT * FROM performance_schema.session_status
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	3

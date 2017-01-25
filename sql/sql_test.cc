@@ -55,9 +55,7 @@
 #include "sql_test.h"
 #include "system_variables.h"
 #include "table.h"
-#ifndef EMBEDDED_LIBRARY
 #include "events.h"
-#endif
 #include <algorithm>
 #include <functional>
 
@@ -533,9 +531,7 @@ Open streams:  %10lu\n",
   malloc_info(0, stdout);
 #endif
 
-#ifndef EMBEDDED_LIBRARY
   Events::dump_internal_status();
-#endif
   puts("");
   fflush(stdout);
 }

@@ -172,7 +172,6 @@ we want to get Doc whose ID is equal to or greater or smaller than supplied
 ID */
 #define	FTS_FETCH_DOC_BY_ID_EQUAL	1
 #define	FTS_FETCH_DOC_BY_ID_LARGE	2
-#define	FTS_FETCH_DOC_BY_ID_SMALL	3
 
 /*************************************************************//**
 Fetch document (= a single row's indexed text) with the given

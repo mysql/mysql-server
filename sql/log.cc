@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@
 
 #include "log.h"
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -35,6 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -59,6 +59,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
@@ -276,10 +277,10 @@ class Silence_log_table_errors : public Internal_error_handler
 public:
   Silence_log_table_errors() { m_message[0]= '\0'; }
 
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sql_state,
-                                Sql_condition::enum_severity_level *level,
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char* msg)
   {
     strmake(m_message, msg, sizeof(m_message)-1);
@@ -753,10 +754,7 @@ bool File_query_log::open()
   {
     char *end;
     size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
-#ifdef EMBEDDED_LIBRARY
-                        "embedded library\n",
-                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif defined(_WIN32)
+#if defined(_WIN32)
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port
@@ -840,8 +838,6 @@ void File_query_log::check_and_print_write_error()
 
 
 bool File_query_log::write_general(ulonglong event_utime,
-                                   const char *user_host,
-                                   size_t user_host_len,
                                    my_thread_id thread_id,
                                    const char *command_type,
                                    size_t command_type_len,
@@ -894,9 +890,8 @@ err:
 
 
 bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
-                                ulonglong query_start_arg,
                                 const char *user_host,
-                                size_t user_host_len, ulonglong query_utime,
+                                size_t, ulonglong query_utime,
                                 ulonglong lock_utime, bool is_command,
                                 const char *sql_text, size_t sql_text_len)
 {
@@ -1145,7 +1140,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                         const char *user_host,
                                         size_t user_host_len,
                                         ulonglong query_utime,
-                                        ulonglong lock_utime, bool is_command,
+                                        ulonglong lock_utime, bool,
                                         const char *sql_text,
                                         size_t sql_text_len)
 {
@@ -1353,7 +1348,7 @@ bool Log_to_csv_event_handler::activate_log(THD *thd,
 
 
 bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
-                                         ulonglong query_start_arg,
+                                         ulonglong,
                                          const char *user_host,
                                          size_t user_host_len,
                                          ulonglong query_utime,
@@ -1367,7 +1362,7 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_slow_log.write_slow(thd, current_utime, query_start_arg,
+  bool retval= mysql_slow_log.write_slow(thd, current_utime,
                                          user_host, user_host_len,
                                          query_utime, lock_utime, is_command,
                                          sql_text, sql_text_len);
@@ -1377,22 +1372,21 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
 
 bool Log_to_file_event_handler::log_general(THD *thd, ulonglong event_utime,
-                                            const char *user_host,
-                                            size_t user_host_len,
+                                            const char*,
+                                            size_t,
                                             my_thread_id thread_id,
                                             const char *command_type,
                                             size_t command_type_len,
                                             const char *sql_text,
                                             size_t sql_text_len,
-                                            const CHARSET_INFO *client_cs)
+                                            const CHARSET_INFO*)
 {
   if (!mysql_general_log.is_open())
     return false;
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_general_log.write_general(event_utime, user_host,
-                                               user_host_len, thread_id,
+  bool retval= mysql_general_log.write_general(event_utime, thread_id,
                                                command_type, command_type_len,
                                                sql_text, sql_text_len);
   thd->pop_internal_handler();
@@ -1507,9 +1501,7 @@ static bool log_command(THD *thd, enum_server_command command)
   if (what_to_log & (1L << (uint) command))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
          && (thd->security_context()->check_access(SUPER_ACL))
-#endif
        )
     {
       /* No logging */
@@ -1524,11 +1516,9 @@ static bool log_command(THD *thd, enum_server_command command)
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length)
 {
-#ifndef EMBEDDED_LIBRARY
   /* Send a general log message to the audit API. */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
-#endif
 
   /*
     Do we want to log this kind of command?
@@ -1575,11 +1565,9 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
       !opt_general_log ||
       !(*general_log_handler_list))
   {
-#ifndef EMBEDDED_LIBRARY
     /* Send a general log message to the audit API. */
     mysql_audit_general_log(thd, command_name[(uint) command].str,
                             command_name[(uint) command].length);
-#endif
     return false;
   }
 
@@ -2092,10 +2080,8 @@ bool open_error_log(const char *filename)
     errors= 0;
     if (!my_freopen(filename, "a", stderr))
       errors++;
-#ifndef EMBEDDED_LIBRARY
     if (!my_freopen(filename, "a", stdout))
       errors++;
-#endif
   }
   while (retries-- && errors);
 
@@ -2141,7 +2127,6 @@ bool reopen_error_log()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 static void print_buffer_to_file(enum loglevel level, const char *buffer,
                                  size_t length)
 {
@@ -2227,7 +2212,6 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
   DBUG_VOID_RETURN;
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 void sql_print_error(const char *format, ...)

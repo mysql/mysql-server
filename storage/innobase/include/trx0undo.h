@@ -374,6 +374,7 @@ trx_undo_free_prepared(
 
 /* Forward declaration. */
 namespace undo {
+	struct Tablespace;
 	class Truncate;
 }
 

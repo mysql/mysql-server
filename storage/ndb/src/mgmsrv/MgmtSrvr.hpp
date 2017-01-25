@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,11 @@ public:
     m_mgmsrv = m;
   }
   
+  ~Ndb_mgmd_event_service()
+  {
+    stop_sessions();
+  }
+
   void add_listener(const Event_listener&);
   void check_listeners();
   void update_max_log_level(const LogLevel&);
@@ -406,7 +411,7 @@ private:
   //**************************************************************************
 
   const MgmtOpts& m_opts;
-  int _blockNumber;
+  BlockNumber _blockNumber;
   NodeId _ownNodeId;
   Uint32 m_port;
   SocketServer m_socket_server;

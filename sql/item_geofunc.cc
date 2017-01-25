@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include <float.h>
 #include <string.h>
 #include <algorithm>
-#include <cmath>          // isfinite
+#include <cmath>          // std::isfinite, std::isnan
 #include <map>
 #include <new>
 #include <stack>
@@ -42,7 +42,6 @@
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/strategies/spherical/distance_haversine.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <boost/math/special_functions/fpclassify.hpp>
 #include <boost/move/utility_core.hpp>
 
 #include "binlog_config.h"
@@ -57,6 +56,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "options_parser.h"
 #include "psi_memory_key.h"
 #include "sql_class.h"    // THD
@@ -187,7 +187,7 @@ bool is_colinear(const Point_range &ls)
   @retval false Success
 */
 static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
-                              my_bool *null_value, const char *func_name)
+                              bool *null_value, const char *func_name)
 {
   longlong arg_srid= arg->val_int();
 
@@ -238,7 +238,7 @@ bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2 || arg_count == 3);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -358,14 +358,32 @@ String *Item_func_geometry_from_text::val_str(String *str)
   Geometry_buffer buffer;
   String arg_val;
   String *wkt= args[0]->val_str_ascii(&arg_val);
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if ((null_value= (!wkt || args[0]->null_value)))
+  if ((null_value= (args[0]->null_value)))
+  {
+    DBUG_ASSERT(maybe_null);
     return nullptr;
+  }
+
+  if (!wkt)
+  {
+    /*
+      We've already found out that args[0]->null_value is false.
+      Therefore, wkt should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
 
   Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
   Geometry::srid_t srid= 0;
 
-  if (arg_count == 2)
+  if (arg_count >= 2)
   {
     if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
       return error_str();
@@ -376,12 +394,91 @@ String *Item_func_geometry_from_text::val_str(String *str)
     }
   }
 
-  str->set_charset(&my_charset_bin);
-  if (str->reserve(GEOM_HEADER_SIZE, 512))
-    return error_str();
-  str->length(0);
-  str->q_append(srid);
-  Geometry *g= Geometry::create_from_wkt(&buffer, &trs, str, 0);
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          srid,
+                          func_name());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (arg_count == 3)
+  {
+    String axis_ordering_tmp;
+    String *axis_order= args[2]->val_str_ascii(&axis_ordering_tmp);
+    null_value= (args[2]->null_value);
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+    std::map<std::string, std::string> options;
+    if (options_parser::parse_string(axis_order, &options, func_name()))
+    {
+      return error_str();
+    }
+
+    for (auto pair : options)
+    {
+      const std::string key= pair.first;
+      const std::string value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+  String temp(wkt->length());
+
+  Geometry *g= Geometry::create_from_wkt(&buffer, &trs, &temp, true);
   if (g == nullptr)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -393,6 +490,22 @@ String *Item_func_geometry_from_text::val_str(String *str)
              g->get_class_info()->m_name.str, func_name());
     return error_str();
   }
+
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
+  str->set_charset(&my_charset_bin);
+  if (str->reserve(SRID_SIZE + temp.length()))
+    return error_str();
+  str->length(0);
+  str->q_append(srid);
+  str->append(temp);
 
   return str;
 }
@@ -1815,9 +1928,6 @@ wkbtype_to_geojson_type(Geometry::wkbType type)
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1825,10 +1935,7 @@ static bool
 append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
                    const char *calling_function,
                    int max_decimal_digits,
-                   bool add_bounding_box,
-                   bool add_short_crs_urn,
-                   bool add_long_crs_urn,
-                   uint32 geometry_srid)
+                   bool add_bounding_box)
 {
   point_xy coordinates;
   if (parser->scan_xy(&coordinates))
@@ -1867,9 +1974,6 @@ append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1877,10 +1981,7 @@ static bool
 append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
                   const char *calling_function,
                   int max_decimal_digits,
-                  bool add_bounding_box,
-                  bool add_short_crs_urn,
-                  bool add_long_crs_urn,
-                  uint32 geometry_srid)
+                  bool add_bounding_box)
 {
   uint32 num_points= 0;
   if (parser->scan_non_zero_uint4(&num_points))
@@ -1895,10 +1996,7 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
     if (point == NULL || points->append_alias(point) ||
         append_coordinates(parser, point, mbr, calling_function,
                            max_decimal_digits,
-                           add_bounding_box,
-                           add_short_crs_urn,
-                           add_long_crs_urn,
-                           geometry_srid))
+                           add_bounding_box))
     {
       return true;
     }
@@ -1920,9 +2018,6 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1930,10 +2025,7 @@ static
 bool append_polygon(Geometry::wkb_parser *parser,
                     Json_array *polygon_rings, MBR *mbr, const char *calling_function,
                     int max_decimal_digits,
-                    bool add_bounding_box,
-                    bool add_short_crs_urn,
-                    bool add_long_crs_urn,
-                    uint32 geometry_srid)
+                    bool add_bounding_box)
 {
   uint32 num_inner_rings= 0;
   if (parser->scan_non_zero_uint4(&num_inner_rings))
@@ -1961,10 +2053,7 @@ bool append_polygon(Geometry::wkb_parser *parser,
       if (point == NULL || polygon_ring->append_alias(point) ||
           append_coordinates(parser, point, mbr, calling_function,
                              max_decimal_digits,
-                             add_bounding_box,
-                             add_short_crs_urn,
-                             add_long_crs_urn,
-                             geometry_srid))
+                             add_bounding_box))
       {
         return true;
       }
@@ -2012,8 +2101,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry)
   over legacy identifiers such as "EPSG:4326""
 
   @param geometry The JSON object to append the CRS object to.
-  @param max_decimal_digits Max length of decimal numbers
-  @param add_bounding_box True if a bounding box should be added
   @param add_short_crs_urn True if we should add short format CRS URN
   @param add_long_crs_urn True if we should add long format CRS URN
   @param geometry_srid Spacial Reference System Identifier being used
@@ -2021,8 +2108,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry)
   @return false on success, true otherwise.
 */
 static bool append_crs(Json_object *geometry,
-                       int max_decimal_digits,
-                       bool add_bounding_box,
                        bool add_short_crs_urn,
                        bool add_long_crs_urn,
                        uint32 geometry_srid)
@@ -2124,10 +2209,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       if (point == NULL || geometry->add_alias("coordinates", point) ||
           append_coordinates(parser, point, mbr, calling_function,
                              max_decimal_digits,
-                             add_bounding_box,
-                             add_short_crs_urn,
-                             add_long_crs_urn,
-                             geometry_srid))
+                             add_bounding_box))
       {
         return true;
       }
@@ -2139,10 +2221,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       if (points == NULL || geometry->add_alias("coordinates", points) ||
           append_linestring(parser, points, mbr, calling_function,
                             max_decimal_digits,
-                            add_bounding_box,
-                            add_short_crs_urn,
-                            add_long_crs_urn,
-                            geometry_srid))
+                            add_bounding_box))
       {
         return true;
       }
@@ -2155,10 +2234,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
           geometry->add_alias("coordinates", polygon_rings) ||
           append_polygon(parser, polygon_rings, mbr, calling_function,
                          max_decimal_digits,
-                         add_bounding_box,
-                         add_short_crs_urn,
-                         add_long_crs_urn,
-                         geometry_srid))
+                         add_bounding_box))
       {
         return true;
       }
@@ -2196,24 +2272,15 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
           if (header.wkb_type == Geometry::wkb_multipoint)
             result= append_coordinates(parser, points, mbr, calling_function,
                                        max_decimal_digits,
-                                       add_bounding_box,
-                                       add_short_crs_urn,
-                                       add_long_crs_urn,
-                                       geometry_srid);
+                                       add_bounding_box);
           else if (header.wkb_type == Geometry::wkb_multipolygon)
             result= append_polygon(parser, points, mbr, calling_function,
                                    max_decimal_digits,
-                                   add_bounding_box,
-                                   add_short_crs_urn,
-                                   add_long_crs_urn,
-                                   geometry_srid);
+                                   add_bounding_box);
           else if (Geometry::wkb_multilinestring)
             result= append_linestring(parser, points, mbr, calling_function,
                                       max_decimal_digits,
-                                      add_bounding_box,
-                                      add_short_crs_urn,
-                                      add_long_crs_urn,
-                                      geometry_srid);
+                                      add_bounding_box);
           else
             DBUG_ASSERT(false);
 
@@ -2274,8 +2341,6 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       geometry_srid > 0)
   {
     append_crs(geometry,
-               max_decimal_digits,
-               add_bounding_box,
                add_short_crs_urn,
                add_long_crs_urn,
                geometry_srid);
@@ -3398,7 +3463,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
 }
 
 
-String *Item_func_validate::val_str(String *str)
+String *Item_func_validate::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&arg_val);
@@ -3742,9 +3807,9 @@ public:
   {
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype == Geometry::wkb_point)
     {
@@ -3818,9 +3883,9 @@ public:
   }
 
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32, bool)
   {
     m_types.push_back(geotype);
     m_ptrs.push_back(wkb);
@@ -3890,7 +3955,7 @@ public:
 template <typename Coordsys>
 bool geometry_collection_centroid(const Geometry *geom,
                                   typename BG_models<Coordsys>::
-                                  Point *respt, my_bool *null_value)
+                                  Point *respt, bool *null_value)
 {
   typename BG_models<Coordsys>::Multipolygon mplgn;
   Geometry_grouper<typename BG_models<Coordsys>::Polygon>
@@ -4295,7 +4360,7 @@ String *Item_func_simplify::val_str(String *str)
     }
   }
 
-  if (max_dist <= 0 || boost::math::isnan(max_dist))
+  if (max_dist <= 0 || std::isnan(max_dist))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -5261,7 +5326,7 @@ public:
 
   bool is_valid() const { return m_isvalid; }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
                             const void *wkb, uint32 len, bool has_hdr)
   {
@@ -5303,7 +5368,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
     if (types.size() > 0)
       types.pop();
@@ -5571,7 +5636,7 @@ String *Item_func_set_x::val_str(String *str)
     return error_str();
   }
 
-  if (std::isnan(x_coordinate) || std::isinf(x_coordinate))
+  if (!std::isfinite(x_coordinate))
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
     return error_str();
@@ -5619,7 +5684,7 @@ String *Item_func_set_y::val_str(String *str)
     return error_str();
   }
 
-  if (std::isnan(y_coordinate) || std::isinf(y_coordinate))
+  if (!std::isfinite(y_coordinate))
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
     return error_str();
@@ -5725,6 +5790,42 @@ double Item_func_get_y::val_real()
   }
   null_value= geom->get_y(&res);
   return res;
+}
+
+
+String *Item_func_swap_xy::val_str(String *str)
+{
+  DBUG_ASSERT(maybe_null);
+  String *swkb= args[0]->val_str(str);
+
+  if ((null_value= (args[0]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+      We've already found out that args[0]->null_value is false.
+      Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry *geom= nullptr;
+  Geometry_buffer buffer;
+  str->copy(*swkb);
+  if (!(geom= Geometry::construct(&buffer, str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  geom->reverse_coordinates();
+
+  return str;
 }
 
 
@@ -6120,9 +6221,9 @@ public:
     :has_invalid(false), x_val(x_range), y_val(y_range)
   {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype == Geometry::wkb_point)
     {
@@ -6149,7 +6250,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
   }
 
@@ -6157,42 +6258,13 @@ public:
 };
 
 
-template <typename CoordinateSystem>
-struct BG_distance
-{};
-
-
-template <>
-struct BG_distance<bg::cs::cartesian>
-{
-  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
-  {
-    // Do the actual computation here for the cartesian CS.
-    return item->bg_distance<bgcs::cartesian>(g1, g2);
-  }
-};
-
-
-template <>
-struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
-{
-  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
-  {
-    // Do the actual computation here for the spherical equatorial CS
-    // with degree units.
-    return item->bg_distance_spherical(g1, g2);
-  }
-};
-
-
 double Item_func_distance::val_real()
 {
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double distance= 0;
-
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
+  String tmp_value1;
+  String tmp_value2;
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
@@ -6227,7 +6299,7 @@ double Item_func_distance::val_real()
     DBUG_RETURN(error_real());
   }
 
-  if (g1->get_srid() != 0 && !is_spherical_equatorial)
+  if (g1->get_srid() != 0)
   {
     bool srs_exists= false;
     if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
@@ -6244,63 +6316,11 @@ double Item_func_distance::val_real()
     }
   }
 
-  if (is_spherical_equatorial)
-  {
-    Geometry::wkbType gt1= g1->get_geotype();
-    Geometry::wkbType gt2= g2->get_geotype();
-    if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
-          (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
-    {
-      my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-
-    if (arg_count == 3)
-    {
-      earth_radius= args[2]->val_real();
-      if (args[2]->null_value)
-        DBUG_RETURN(error_real());
-      if (earth_radius <= 0)
-      {
-        my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-        DBUG_RETURN(error_real());
-      }
-    }
-
-    /*
-      Make sure all points' coordinates are valid:
-      x in (-180, 180], y in [-90, 90].
-    */
-    Numeric_interval<double> x_range(-180, true, 180, false);   // (-180, 180]
-    Numeric_interval<double> y_range(-90, false, 90, false);    // [-90, 90]
-    Point_coordinate_checker checker(x_range, y_range);
-
-    uint32 wkblen= res1->length() - 4;
-    wkb_scanner(res1->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
-                true, &checker);
-    if (checker.has_invalid_point())
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-
-    wkblen= res2->length() - 4;
-    wkb_scanner(res2->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
-                true, &checker);
-    if (checker.has_invalid_point())
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-  }
-
+  double distance;
   if (g1->get_type() != Geometry::wkb_geometrycollection &&
       g2->get_type() != Geometry::wkb_geometrycollection)
   {
-    if (is_spherical_equatorial)
-      distance= BG_distance<bgcssed>::apply(this, g1, g2);
-    else
-      distance= BG_distance<bgcs::cartesian>::apply(this, g1, g2);
+    distance= bg_distance<bgcs::cartesian>(g1, g2);
   }
   else
     distance= geometry_collection_distance(g1, g2);
@@ -6365,17 +6385,10 @@ geometry_collection_distance(const Geometry *g1, const Geometry *g2)
         return error_real();
       }
 
-      if (is_spherical_equatorial)
-      {
-        // For now this is never reached because we only support
-        // distance([multi]point, [multi]point) for spherical.
-        DBUG_ASSERT(false);
-      }
-      else
-        dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j);
+      dist= bg_distance<bgcs::cartesian>(*i, *j);
       if (null_value)
         return error_real();
-      if (dist < 0 || boost::math::isnan(dist))
+      if (dist < 0 || std::isnan(dist))
         return dist;
 
       if (!initialized)
@@ -6400,114 +6413,6 @@ geometry_collection_distance(const Geometry *g1, const Geometry *g2)
     return error_real();
 
   return min_distance;
-}
-
-
-double Item_func_distance::
-distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Point
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-double Item_func_distance::
-distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Multipoint
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-double Item_func_distance::
-bg_distance_spherical(const Geometry *g1, const Geometry *g2)
-{
-  double res= 0;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      res= distance_point_geometry_spherical(g1, g2);
-      break;
-    case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry_spherical(g1, g2);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
-  {
-    null_value= true;
-    handle_gis_exception("st_distance_sphere");
-  }
-
-  return res;
 }
 
 
@@ -6656,3 +6561,212 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
 }
 
 
+double Item_func_distance_sphere::val_real()
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+
+  DBUG_ENTER("Item_func_distance_sphere::val_real");
+  DBUG_ASSERT(fixed);
+
+  String tmp_value1;
+  String tmp_value2;
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
+  Geometry_buffer buffer1, buffer2;
+  Geometry *g1, *g2;
+  // Earth radius in meters.
+  double earth_radius= 6370986.0;
+
+  if ((null_value= (!res1 || args[0]->null_value ||
+                    !res2 || args[1]->null_value)))
+    DBUG_RETURN(0.0);
+
+  if (!(g1= Geometry::construct(&buffer1, res1)) ||
+      !(g2= Geometry::construct(&buffer2, res2)))
+  {
+    // If construction fails, we assume invalid input data.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  // The two geometry operand must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    DBUG_RETURN(error_real());
+  }
+
+  // Normally, we would have called normalize_ring_order() here, but
+  // it's not necessary since we only support points and multipoints.
+
+  Geometry::wkbType gt1= g1->get_geotype();
+  Geometry::wkbType gt2= g2->get_geotype();
+  if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
+        (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
+  {
+    my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  if (arg_count == 3)
+  {
+    earth_radius= args[2]->val_real();
+    if ((null_value= args[2]->null_value))
+      DBUG_RETURN(0.0);
+    if (earth_radius <= 0.0)
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      DBUG_RETURN(error_real());
+    }
+  }
+
+  /*
+    Make sure all points' coordinates are valid:
+    x in (-180, 180], y in [-90, 90].
+  */
+  Numeric_interval<double> x_range(-180.0, true, 180.0, false);   // (-180, 180]
+  Numeric_interval<double> y_range(-90.0, false, 90.0, false);    // [-90, 90]
+  Point_coordinate_checker checker(x_range, y_range);
+
+  uint32 wkblen= res1->length() - SRID_SIZE;
+  wkb_scanner(res1->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
+              true, &checker);
+  if (checker.has_invalid_point())
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  wkblen= res2->length() - SRID_SIZE;
+  wkb_scanner(res2->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
+              true, &checker);
+  if (checker.has_invalid_point())
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  double distance= bg_distance_spherical(g1, g2, earth_radius);
+
+  if (null_value)
+    DBUG_RETURN(error_real());
+
+  if (!std::isfinite(distance) || distance < 0.0)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_RETURN(distance);
+}
+
+
+double Item_func_distance_sphere::
+distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2,
+                                  double earth_radius)
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+  double res= 0.0;
+  bg::strategy::distance::haversine<double, double>
+    dist_strategy(earth_radius);
+
+  BG_models<bgcssed>::Point
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      BG_models<bgcssed>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      BG_models<bgcssed>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return res;
+}
+
+
+double Item_func_distance_sphere::
+distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2,
+                                       double earth_radius)
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+  double res= 0.0;
+  bg::strategy::distance::haversine<double, double>
+    dist_strategy(earth_radius);
+
+  BG_models<bgcssed>::Multipoint
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      BG_models<bgcssed>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      BG_models<bgcssed>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+double Item_func_distance_sphere::bg_distance_spherical(const Geometry *g1,
+                                                        const Geometry *g2,
+                                                        double earth_radius)
+{
+  double res= 0.0;
+
+  try
+  {
+    switch (g1->get_type())
+    {
+    case Geometry::wkb_point:
+      res= distance_point_geometry_spherical(g1, g2, earth_radius);
+      break;
+    case Geometry::wkb_multipoint:
+      res= distance_multipoint_geometry_spherical(g1, g2, earth_radius);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_distance_sphere");
+  }
+
+  return res;
+}

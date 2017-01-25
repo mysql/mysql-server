@@ -15,10 +15,6 @@ if (!$require_case_insensitive_file_system)
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-# Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 #
 # Remove NO_AUTO_CREATE_USER sql mode (default since 5.7).
 #
@@ -1195,7 +1191,7 @@ CREATE EVENT event_status
 BEGIN
   CREATE TABLE server_status
   SELECT variable_name
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
   variable_name LIKE 'BINLOG_CACHE_DISK_USE';
 END$$
@@ -1383,7 +1379,7 @@ drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;";
-select * from information_schema.global_variables where variable_name='init_connect';
+select * from performance_schema.global_variables where variable_name='init_connect';
 set global init_connect="";
 
 #
@@ -1391,9 +1387,9 @@ set global init_connect="";
 #
 
 --disable_warnings
-create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
+create table t0 select * from performance_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
-select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
+select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, performance_schema.global_status a
    where a.VARIABLE_NAME = b.VARIABLE_NAME;
 --enable_warnings
 drop table t0;
@@ -1787,7 +1783,7 @@ use test;
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
 --disable_warnings
-SELECT VARIABLE_VALUE INTO @val1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val1 FROM performance_schema.global_status WHERE
   VARIABLE_NAME LIKE 'Opened_tables';
 --enable_warnings
 --disable_result_log
@@ -1795,7 +1791,7 @@ SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
 --disable_warnings
 --echo # The below SELECT query should give same output as above SELECT query.
-SELECT VARIABLE_VALUE INTO @val2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val2 FROM performance_schema.global_status WHERE
   VARIABLE_NAME LIKE 'Opened_tables';
 --enable_warnings
 --echo # The below select should return '1'
@@ -1916,8 +1912,6 @@ set names default;
 
 SET SESSION information_schema_stats=cached;
 set sql_mode= @orig_sql_mode;
-set @@global.show_compatibility_56=@show_compatibility_56_save;
-
 
 --echo #
 --echo # WL#6599: New Data Dictionary and I_S Integration.
@@ -2115,3 +2109,16 @@ SHOW CREATE TABLE t2;
 # Cleanup
 DROP TABLE t1, t2;
 DROP VIEW v1;
+
+--echo #
+--echo # WL#8582 INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS
+--echo #
+
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+CREATE TABLE t1(g GEOMETRY, pt POINT, ls LINESTRING, py POLYGON, mpt MULTIPOINT,
+  mls MULTILINESTRING, mpy MULTIPOLYGON, gc GEOMETRYCOLLECTION);
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+DROP TABLE t1;

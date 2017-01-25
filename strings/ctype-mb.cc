@@ -783,7 +783,7 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
 
 my_bool my_like_range_mb(const CHARSET_INFO *cs,
 			 const char *ptr,size_t ptr_length,
-			 pbool escape, pbool w_one, pbool w_many,
+			 my_bool escape, my_bool w_one, my_bool w_many,
 			 size_t res_length,
 			 char *min_str,char *max_str,
 			 size_t *min_length,size_t *max_length)
@@ -794,7 +794,7 @@ my_bool my_like_range_mb(const CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs, 0);
+  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -939,7 +939,7 @@ fill_max_and_min:
 my_bool
 my_like_range_generic(const CHARSET_INFO *cs,
                       const char *ptr, size_t ptr_length,
-                      pbool escape, pbool w_one, pbool w_many,
+                      my_bool escape, my_bool w_one, my_bool w_many,
                       size_t res_length,
                       char *min_str,char *max_str,
                       size_t *min_length,size_t *max_length)
@@ -951,7 +951,7 @@ my_like_range_generic(const CHARSET_INFO *cs,
   char *max_end= max_str + res_length;
   size_t charlen= res_length / cs->mbmaxlen;
   size_t res_length_diff;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs, 0);
+  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for ( ; charlen > 0; charlen--)
   {

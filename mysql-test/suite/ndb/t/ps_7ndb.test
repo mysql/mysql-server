@@ -25,6 +25,9 @@ set ndb_join_pushdown = false;
 
 -- source include/have_ndb.inc
 let $type= 'NDB' ;
+# Query cache could affect the result column names of
+# prepared statements. Hence, skipping this test.
+--source include/have_query_cache_disabled.inc
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 

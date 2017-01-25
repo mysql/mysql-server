@@ -18,9 +18,6 @@ ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times o
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 main.mysql_upgrade        : WL#6378 2015-11-06 jhauglid WL6378_UPGRADE
 main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.
-no_binlog_gtid_next_partially_failed_stmts           : WL#7743 DROP TABLES semantics change issue
-no_binlog_gtid_next_partially_failed_stmts_anonymous : WL#7743 DROP TABLES semantics change issue
-no_binlog_gtid_next_partially_failed_stmts_error     : WL#7743 DROP TABLES semantics change issue
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
 mysqld--defaults-file @darwin : Bug#24579973 2016-11-03 Anitha Test fails on Mac OS 10.12
 
@@ -36,6 +33,8 @@ wl6443_deprecation               : WL#9532 disables it, because it creates tempo
 
 dd_upgrade_error                 : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
 dd_upgrade_test                  : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
+dd_upgrade_partition             : WL#9532 disables it, waiting for WL#9357 to do a proper upgrade, currently it reports mysql.ibd is not found
 
 dd_table_access                  : disables it because we are now disabling access to mysql.* tables, see is_dd_table_access_allowed
 commit_1innodb                   : disables it temporarily until WL#7743 fixes it
+audit_plugin_2           : Bug#24970428 2016-10-28 Marc TEST AUDIT_PLUGIN_2 USES DEPRECATED FEATURE SHOW_COMPATIBILITY_56

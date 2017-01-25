@@ -67,7 +67,9 @@ static const char *traditional_extra_tags[ET_total]=
   "unique row not found",              // ET_UNIQUE_ROW_NOT_FOUND
   "Impossible ON condition",           // ET_IMPOSSIBLE_ON_CONDITION
   "",                                  // ET_PUSHED_JOIN
-  "Ft_hints:"                          // ET_FT_HINTS
+  "Ft_hints:",                         // ET_FT_HINTS
+  "Backward index scan",               // ET_BACKWARD_SCAN
+  "Recursive"                          // ET_RECURSIVE
 };
 
 static const char *mod_type_name[]=
@@ -194,7 +196,11 @@ private:
 
 bool Explain_format_traditional::flush_entry()
 {
-  Buffer_cleanup bc(&column_buffer); // release column_buffer
+  /*
+    Buffer_cleanup will empty column_buffer upon exit. So column values start
+    clear for the next row.
+  */
+  Buffer_cleanup bc(&column_buffer);
   List<Item> items;
   if (push(&items, column_buffer.col_id, nil) ||
       push_select_type(&items) ||

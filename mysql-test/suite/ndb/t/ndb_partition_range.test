@@ -110,7 +110,9 @@ select * from t1 where a=6;
 # Test that explicit partition info _is_ shown in show create table
 # result _should_ contain (PARTITION x1 ... etc)
 #
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -325,3 +327,4 @@ select * from t1 where a in (0, 2) order by c;
 --source suite/ndb/include/ndb_scan_counts.inc
 
 drop table t1;
+

@@ -482,10 +482,7 @@ bool update_event(THD *thd, const Event *event,
     DBUG_RETURN(true);
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<Event>(!error);
-  DBUG_RETURN(error);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 bool update_event_time_and_status(THD *thd, const Event *event,
@@ -515,14 +512,11 @@ bool update_event_time_and_status(THD *thd, const Event *event,
     DBUG_RETURN(true);
   }
 
-  bool error= trans_commit_stmt(thd) || trans_commit(thd);
-  // TODO: Remove this call in WL#7743?
-  client->remove_uncommitted_objects<Event>(!error);
-  DBUG_RETURN(error);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
-bool drop_event(THD *thd, const Event *event, bool commit_dd_changes)
+bool drop_event(THD *thd, const Event *event)
 {
   DBUG_ENTER("dd::drop_event");
 
@@ -532,17 +526,13 @@ bool drop_event(THD *thd, const Event *event, bool commit_dd_changes)
 
   if (thd->dd_client()->drop(event))
   {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(commit_dd_changes &&
-              (trans_commit_stmt(thd) || trans_commit(thd)));
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 } // namespace dd

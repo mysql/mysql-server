@@ -34,6 +34,7 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
 {
   BLOCK_CONSTRUCTOR(Dbspj);
 
+  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dbspj::execSIGNAL_DROPPED_REP, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbspj::execDUMP_STATE_ORD);
   addRecSignal(GSN_READ_NODESCONF, &Dbspj::execREAD_NODESCONF);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbspj::execREAD_CONFIG_REQ);

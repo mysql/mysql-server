@@ -20,6 +20,8 @@
 #include <xplatform/byteorder.h>
 #include "xplatform/my_xp_util.h"
 
+#include "my_compiler.h"
+
 /**
   Gcs_message_data implementation
 */
@@ -233,7 +235,7 @@ bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len)
   slider+= payload_len;
   assert(static_cast<uint64_t>(slider - buffer) <= *buffer_len);
 
-  MYSQL_GCS_DEBUG_EXECUTE(
+  MYSQL_GCS_TRACE_EXECUTE(
     uint64_t MY_ATTRIBUTE((unused)) encoded_header_size= get_encode_header_size();
     MYSQL_GCS_LOG_TRACE(
       "Encoded message: (header)=" << encoded_header_size <<

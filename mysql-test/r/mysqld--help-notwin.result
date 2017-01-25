@@ -1038,9 +1038,6 @@ The following options may be given as the first argument:
  to TRUE, the plugin will flag associated authenticated
  accounts to be mapped to proxy users when the server
  option check_proxy_users is enabled.
- --show-compatibility-56 
- SHOW commands / INFORMATION_SCHEMA tables compatible with
- MySQL 5.6
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1446,7 +1443,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1058
+performance-schema-error-size 1074
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
@@ -1529,7 +1526,6 @@ session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 session-track-transaction-info OFF
 sha256-password-proxy-users FALSE
-show-compatibility-56 FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE

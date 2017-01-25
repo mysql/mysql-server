@@ -23,14 +23,15 @@ InnoDB performance_schema tables interface to MySQL.
 *******************************************************/
 
 #include "p_s.h"
-#include "lock0lock.h" // lock_mutex_enter
+
+#include <stdlib.h>
+
 #include "lock0iter.h" // lock_queue_iterator_t
-
-#include "trx0sys.h" // trx_ut_list_t
-#include "trx0i_s.h" // trx_i_s_create_lock_id
-
-#include "table.h" // system_charset_info
+#include "lock0lock.h" // lock_mutex_enter
 #include "sql_table.h" // parse_filename
+#include "table.h" // system_charset_info
+#include "trx0i_s.h" // trx_i_s_create_lock_id
+#include "trx0sys.h" // trx_ut_list_t
 
 /**
   @page PAGE_INNODB_PFS Innodb data lock instrumentation
@@ -626,7 +627,7 @@ print_record_lock_id(
 	snprintf(
 		lock_id,
 		lock_id_size,
-		TRX_ID_FMT ":" SPACE_ID_PF ":" PAGE_NO_PF ":" "%lu",
+		TRX_ID_FMT ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF,
 		lock_get_trx_id(lock),
 		lock_rec_get_space_id(lock),
 		lock_rec_get_page_no(lock),

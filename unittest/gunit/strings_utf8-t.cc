@@ -78,6 +78,15 @@ TEST_F(StringsUTF8Test, MyStrchr)
                  valid_utf8_string + 3,'y');
   ASSERT_EQ(null_pos, pos);
 
+  // Assign an invalid utf8 char to valid_utf8_str
+  valid_utf8_string[0]= '\xED';
+  valid_utf8_string[1]= '\xA0';
+  valid_utf8_string[2]= '\xBF';
+
+  // Invalid utf8 character in str arg passed to my_strchr.
+  pos= my_strchr(system_charset_info, valid_utf8_string,
+                 valid_utf8_string + 3,'y');
+  ASSERT_EQ(null_pos, pos);
 }
 
 TEST_F(StringsUTF8Test, MyStrcasecmpMb)
@@ -96,6 +105,12 @@ TEST_F(StringsUTF8Test, MyStrcasecmpMb)
 
   // dst contain an invalid utf8 string
   utf8_dst[1]= '\xFF';
+  EXPECT_EQ(1, my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
+                                utf8_dst.c_str()));
+
+  utf8_dst[0]= '\xED';
+  utf8_dst[1]= '\xA0';
+  utf8_dst[2]= '\xBF';
   EXPECT_EQ(1, my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
                                 utf8_dst.c_str()));
 }
@@ -171,6 +186,15 @@ TEST_F(StringsUTF8Test, MyWellFormedLenUtf8)
   utf8_src[0]= '\xef';
   utf8_src[1]= '\xbf';
   utf8_src[2]= '\xbf';
+  EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
+                                                           utf8_src,
+                                                           utf8_src + 2,
+                                                           1, &error));
+  ASSERT_EQ(1, error);
+
+  utf8_src[0]= '\xED';
+  utf8_src[1]= '\xA0';
+  utf8_src[2]= '\xBF';
   EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
                                                            utf8_src,
                                                            utf8_src + 2,
@@ -547,6 +571,15 @@ TEST_F(StringsUTF8mb4Test, MyWellFormedLenUtf8mb4)
                                                            utf8_src + 2,
                                                            1, &error));
   ASSERT_EQ(1, error);
+
+  utf8_src[0]= '\xED';
+  utf8_src[1]= '\xA0';
+  utf8_src[2]= '\xBF';
+  EXPECT_EQ(0U, system_charset_info->cset->well_formed_len(system_charset_info,
+                                                           utf8_src,
+                                                           utf8_src + 2,
+                                                           1, &error));
+  ASSERT_EQ(1, error);
 }
 
 TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4)
@@ -599,89 +632,116 @@ class StringsUTF8mb4_900Test : public ::testing::Test
 protected:
   virtual void SetUp()
   {
-    // Save global settings.
-    m_charset= system_charset_info;
-
-    system_charset_info= &my_charset_utf8mb4_0900_ai_ci;
+    MY_CHARSET_LOADER loader;
+    my_charset_loader_init_mysys(&loader);
+    m_charset= my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
   }
 
-  virtual void TearDown()
+  bool equals(const char *a, const char *b)
   {
-    // Restore global settings.
-    system_charset_info= m_charset;
+    return m_charset->coll->strnncollsp(
+      m_charset,
+      pointer_cast<const uchar *>(a), strlen(a),
+      pointer_cast<const uchar *>(b), strlen(b)) == 0;
   }
 
 private:
   CHARSET_INFO *m_charset;
 };
 
+/* Test for string comparison */
 TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate)
 {
-  uchar utf8mb4_src[8], utf8mb4_dst[8];
+  // SOFT HYPHEN equals SPACE.
+  EXPECT_TRUE(equals(u8"\u00ad", " "));
 
-  /* Test for string comparison */
+  // SOFT HYPHEN equals NO-BREAK SPACE.
+  EXPECT_TRUE(equals(u8"\u00ad", u8"\u00a0"));
 
-  /* U+00AD == U+0020 */
-  utf8mb4_src[0]= 0xc2;
-  utf8mb4_src[1]= 0xad;
-  utf8mb4_src[2]= 0;
-  utf8mb4_dst[0]= 0x20;
-  utf8mb4_dst[1]= 0;
-  EXPECT_FALSE(system_charset_info->coll->strnncollsp(system_charset_info,
-                                                      utf8mb4_src, 2,
-                                                      utf8mb4_dst, 1));
-  /* U+00AD == U+00A0 */
-  utf8mb4_src[0]= 0xc2;
-  utf8mb4_src[1]= 0xad;
-  utf8mb4_src[2]= 0;
-  utf8mb4_dst[0]= 0xc2;
-  utf8mb4_dst[1]= 0xa0;
-  utf8mb4_dst[2]= 0;
-  EXPECT_FALSE(system_charset_info->coll->strnncollsp(system_charset_info,
-                                                      utf8mb4_src, 2,
-                                                      utf8mb4_dst, 2));
-  /* U+00C6 != U+0041 */
-  utf8mb4_src[0]= 0xc3;
-  utf8mb4_src[1]= 0x86;
-  utf8mb4_src[2]= 0;
-  utf8mb4_dst[0]= 0x41;
-  utf8mb4_dst[1]= 0;
-  EXPECT_TRUE(system_charset_info->coll->strnncollsp(system_charset_info,
-                                                     utf8mb4_src, 2,
-                                                     utf8mb4_dst, 1));
-  /* U+00DF != U+0053 */
-  utf8mb4_src[0]= 0xc3;
-  utf8mb4_src[1]= 0x9F;
-  utf8mb4_src[2]= 0;
-  utf8mb4_dst[0]= 0x53;
-  utf8mb4_dst[1]= 0;
-  EXPECT_TRUE(system_charset_info->coll->strnncollsp(system_charset_info,
-                                                     utf8mb4_src, 2,
-                                                     utf8mb4_dst, 1));
-  /* U+A73A == U+A738 */
-  utf8mb4_src[0]= 0xea;
-  utf8mb4_src[1]= 0x9c;
-  utf8mb4_src[2]= 0xba;
-  utf8mb4_src[3]= 0;
-  utf8mb4_dst[0]= 0xea;
-  utf8mb4_dst[1]= 0x9c;
-  utf8mb4_dst[2]= 0xb8;
-  utf8mb4_dst[3]= 0;
-  EXPECT_FALSE(system_charset_info->coll->strnncollsp(system_charset_info,
-                                                      utf8mb4_src, 3,
-                                                      utf8mb4_dst, 3));
-  /* U+A73B == U+A739 */
-  utf8mb4_src[0]= 0xea;
-  utf8mb4_src[1]= 0x9c;
-  utf8mb4_src[2]= 0xbb;
-  utf8mb4_src[3]= 0;
-  utf8mb4_dst[0]= 0xea;
-  utf8mb4_dst[1]= 0x9c;
-  utf8mb4_dst[2]= 0xb9;
-  utf8mb4_dst[3]= 0;
-  EXPECT_FALSE(system_charset_info->coll->strnncollsp(system_charset_info,
-                                                      utf8mb4_src, 3,
-                                                      utf8mb4_dst, 3));
+  EXPECT_FALSE(equals(u8"Æ", "A"));
+  EXPECT_FALSE(equals(u8"ß", "S"));
+
+  /*
+    LATIN CAPITAL LETTER AV WITH HORIZONTAL BAR equals
+    LATIN CAPITAL LETTER AV.
+  */
+  EXPECT_TRUE(equals(u8"\ua73a", u8"\ua738"));
+
+  /*
+    LATIN SMALL LETTER AV WITH HORIZONTAL BAR equals
+    LATIN SMALL LETTER AV.
+  */
+  EXPECT_TRUE(equals(u8"\ua73b", u8"\ua739"));
 }
 
+static bool uca_wildcmp(const CHARSET_INFO *cs, const char *str,
+                        const char *pattern)
+{
+  const char *str_end= str + strlen(str);
+  const char *pattern_end= pattern + strlen(pattern);
+  return !cs->coll->wildcmp(cs, str, str_end, pattern, pattern_end,
+                            '\\', '_', '%');
+}
+
+TEST(UCAWildCmpTest, UCA900WildCmp)
+{
+  MY_CHARSET_LOADER loader;
+  my_charset_loader_init_mysys(&loader);
+  CHARSET_INFO *cs= my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
+
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "abc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Abc", "aBc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "_bc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a_c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "ab_"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%d_f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdefg", "a%d%g"));
+  EXPECT_TRUE(uca_wildcmp(cs, "a\\", "a\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "aa\\", "a%\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Y", u8"\u00dd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcd", "abcde"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "abcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "a%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a__d"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a\\bcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "a\\bcd", "abcd"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abdbcd", "a%cd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abecd", "a%bd"));
+
+}
+
+TEST(UCAWildCmpTest, UCA900WildCmpCaseSensitive)
+{
+  MY_CHARSET_LOADER loader;
+  my_charset_loader_init_mysys(&loader);
+  CHARSET_INFO *cs= my_collation_get_by_name(&loader, "utf8mb4_0900_as_cs", MYF(0));
+
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "abc"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Abc", "aBc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "_bc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a_c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "ab_"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abc", "a%"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%d_f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdefg", "a%d%g"));
+  EXPECT_TRUE(uca_wildcmp(cs, "a\\", "a\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "aa\\", "a%\\"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Y", u8"\u00dd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcd", "abcde"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "abcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "a%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcdef", "a%%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a__d"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abcd", "a\\bcd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "a\\bcd", "abcd"));
+  EXPECT_TRUE(uca_wildcmp(cs, "abdbcd", "a%cd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abecd", "a%bd"));
+
+}
 }

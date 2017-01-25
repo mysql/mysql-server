@@ -3103,6 +3103,8 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
     ref->nodeId = getOwnNodeId();
+    ndbout_c("Backup::createTrigReply : CREATE_TRIG_IMPL error %d, backup id %u node %d",
+             ref->errorCode, ref->backupId, ref->nodeId);
     sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
                StartBackupRef::SignalLength, JBB);
     return;
@@ -5092,8 +5094,10 @@ Backup::getFragmentInfo(Signal* signal,
         req->tableId = tabPtr.p->tableId;
         req->hashValue = fragNo;
         req->distr_key_indicator = ZTRUE;
+        req->anyNode = 0;
         req->scan_indicator = ZTRUE;
         req->jamBufferPtr = jamBuffer();
+        req->get_next_fragid_indicator = 0;
         EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                        DiGetNodesReq::SignalLength, 0);
         jamEntry();
@@ -6438,6 +6442,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
   if (ERROR_INSERTED(10043) && eof)
   {
     /* Block indefinitely without closing the file */
+    jam();
     return false;
   }
 
@@ -6454,6 +6459,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
       write that was issued more than 100 milliseconds should be
       completed by now.
     */
+    jam();
     int overflow;
     m_monitor_words_written+= sz;
     m_words_written_this_period += sz;
@@ -6471,6 +6477,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
 #if 0
     ndbout << "Will not write now" << endl << endl;
 #endif
+    jam();
     return false;
   }
 }
@@ -6487,7 +6494,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   Uint32 *tmp = NULL;
   Uint32 sz = 0;
   bool eof = FALSE;
-  bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof); 
+  bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
 #if 0
   ndbout << "Ptr to data = " << hex << tmp << endl;
 #endif
@@ -6575,19 +6582,38 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     }
 #endif
 
-    ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
-    FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
-    req->filePointer   = filePtr.p->filePointer;
-    req->userPointer   = filePtr.i;
-    req->userReference = reference();
-    req->varIndex      = 0;
-    req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
-    req->size          = sz;
-    req->synch_flag    = 0;
+    if (!eof ||
+        !c_defaults.m_o_direct ||
+        (sz % 128 == 0) ||
+        (filePtr.i != ptr.p->dataFilePtr) ||
+        (ptr.p->slaveState.getState() != STOPPING) ||
+        ptr.p->is_lcp())
+    {
+      /**
+       * We always perform the writes for LCPs, for backups we ignore
+       * the writes when we have reached end of file and we are in the
+       * process of stopping a backup (this means we are about to abort
+       * the backup and will not be interested in its results.). We avoid
+       * writing in this case since we don't want to handle errors for
+       * e.g. O_DIRECT calls in this case. However we only avoid this write
+       * for data files since CTL files and LOG files never use O_DIRECT.
+       * Also no need to avoid write if we don't use O_DIRECT at all.
+       */
+      jam();
+      ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
+      FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
+      req->filePointer   = filePtr.p->filePointer;
+      req->userPointer   = filePtr.i;
+      req->userReference = reference();
+      req->varIndex      = 0;
+      req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
+      req->size          = sz;
+      req->synch_flag    = 0;
     
-    sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
-	       FsAppendReq::SignalLength, JBA);
-    return;
+      sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
+	         FsAppendReq::SignalLength, JBA);
+      return;
+    }
   }
 
   Uint32 flags = filePtr.p->m_flags;
@@ -6971,7 +6997,7 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
       jam();
       continue;
     }//if
-    
+
     filePtr.p->operation.dataBuffer.eof();
     if(filePtr.p->m_flags & BackupFile::BF_FILE_THREAD)
     {

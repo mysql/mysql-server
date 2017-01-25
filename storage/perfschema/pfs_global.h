@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,10 +16,11 @@
 #ifndef PFS_GLOBAL_H
 #define PFS_GLOBAL_H
 
-#include "my_global.h"
-#include "my_compiler.h"
-#include "sql_class.h"
 #include "current_thd.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "sql_class.h"
 
 /**
   @file storage/perfschema/pfs_global.h

@@ -22,6 +22,7 @@ package mtr_cases_from_list;
 use strict;
 use mtr_report;
 use base qw(Exporter);
+use My::File::Path qw / get_bld_path /;
 our @EXPORT= qw(collect_test_cases_from_list);
 
 ##############################################################################
@@ -39,6 +40,7 @@ sub collect_test_cases_from_list ($$$$) {
   if ($opt_do_test_list ne "") {
       $opt_do_test_list=~ s/^\~\//$ENV{HOME}\//;
   }
+  $opt_do_test_list= get_bld_path($opt_do_test_list);
   open(FILE, "<", $opt_do_test_list) or $ret= 1;
   if ($ret) {
     mtr_report("Cannot open \"$opt_do_test_list\".");

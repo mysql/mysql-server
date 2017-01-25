@@ -1959,6 +1959,18 @@ Dblqh::sendAddAttrReq(Signal* signal)
 void Dblqh::execLQHFRAGREQ(Signal* signal)
 {
   jamEntry();
+  {
+    LqhFragReq  *req = (LqhFragReq*)signal->getDataPtr();
+    if (signal->length() == LqhFragReq::OldSignalLength)
+    {
+      jam();
+      /**
+       * Upgrade support to specify partitionId
+       */
+      req->partitionId = req->fragmentId;
+    }
+  }
+
   LqhFragReq copy = *(LqhFragReq*)signal->getDataPtr();
   LqhFragReq * req = &copy;
 
@@ -2200,6 +2212,7 @@ Dblqh::sendAddFragReq(Signal* signal)
     tupFragReq->minRowsHigh = addfragptr.p->m_lqhFragReq.minRowsHigh;
     tupFragReq->minRowsLow = addfragptr.p->m_lqhFragReq.minRowsLow;
     tupFragReq->changeMask = addfragptr.p->m_lqhFragReq.changeMask;
+    tupFragReq->partitionId = addfragptr.p->m_lqhFragReq.partitionId;
     sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
                signal, TupFragReq::SignalLength, JBB);
     return;
@@ -2876,6 +2889,7 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
 
+  D("ALTER_TAB_REQ(LQH): requestType: " << requestType);
   Uint32 len = signal->getLength();
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
@@ -2976,6 +2990,7 @@ Dblqh::wait_reorg_suma_filter_enabled(Signal* signal)
     Uint32 connectPtr = signal->theData[3];
     Uint32 senderRef = signal->theData[4];
 
+    D("ALTER_TAB_CONF after suma filter enabled");
     AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = senderData;
@@ -4913,7 +4928,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   if (ERROR_INSERTED_CLEAR(5047) ||
-      ERROR_INSERTED(5079))
+      ERROR_INSERTED(5079) ||
+     (ERROR_INSERTED(5102) &&
+      LqhKeyReq::getNoTriggersFlag(Treqinfo)) ||
+     (ERROR_INSERTED(5103) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZDELETE) ||
+     (ERROR_INSERTED(5104) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZINSERT) ||
+     (ERROR_INSERTED(5105) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE))
   {
     jam();
     releaseSections(handle);
@@ -4923,11 +4946,16 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
-  if (ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
-      !ERROR_INSERTED_CLEAR(5031)) {
+  if ((ctcNumFree > ZNUM_RESERVED_UTIL_CONNECT_RECORDS &&
+       !ERROR_INSERTED_CLEAR(5031)) ||
+      (ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+       LqhKeyReq::getUtilFlag(Treqinfo)))
+  {
     jamEntry();
     seizeTcrec();
-  } else {
+  }
+  else
+  {
 /* ------------------------------------------------------------------------- */
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
@@ -5167,6 +5195,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * bug#14702377
      */
     regTcPtr->m_flags |= TcConnectionrec::OP_NORMAL_PROTOCOL;
+  }
+
+  if (isLongReq && LqhKeyReq::getNoTriggersFlag(Treqinfo))
+  {
+    regTcPtr->m_flags |= TcConnectionrec::OP_NO_TRIGGERS;
   }
 
   UintR TitcKeyLen = 0;
@@ -6652,7 +6685,12 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   sig0 = regTcPtr->m_row_id.m_page_no;
   sig1 = regTcPtr->m_row_id.m_page_idx;
   
-  tupKeyReq->primaryReplica = (tcConnectptr.p->seqNoReplica == 0)?true:false;
+  tupKeyReq->triggers =
+    (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
+    TupKeyReq::OP_NO_TRIGGERS :
+    (regTcPtr->seqNoReplica == 0) ?
+    TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
+
   tupKeyReq->coordinatorTC = tcConnectptr.p->tcBlockref;
   tupKeyReq->tcOpIndex = tcConnectptr.p->tcOprec;
   tupKeyReq->savePointId = tcConnectptr.p->savePointId;
@@ -11330,7 +11368,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
    * Section 1 : Optional KEYINFO section
    */
   const Uint32 numSections= signal->getNoOfSections();
-  bool isLongReq= ( numSections != 0 );
+  const bool isLongReq= ( numSections != 0 );
   
   SectionHandle handle(this, signal);
 
@@ -11368,16 +11406,22 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 senderData = scanFragReq->senderData;
   const Uint32 senderBlockRef = signal->senderBlockRef();
 
-  if (likely(ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+  if (likely(ctcNumFree > ZNUM_RESERVED_UTIL_CONNECT_RECORDS &&
              !ERROR_INSERTED_CLEAR(5055)) ||
       (ScanFragReq::getLcpScanFlag(scanFragReq->requestInfo)) ||
-      (refToMain(senderBlockRef) == BACKUP))
+      (refToMain(senderBlockRef) == BACKUP) ||
+      (refToMain(senderBlockRef) == DBUTIL &&
+       ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS))
   {
     /**
      * We always keep 3 operation records, one for LCP scans and one for
      * Node recovery support (to handle COPY_FRAGREQ when we're aiding a
      * node to startup by synchronizing our data with the starting nodes
      * recovered data and finally one for backup scans.
+     *
+     * We also provide 100 records not available to ordinary transactions
+     * but available to DBUTIL operations. But LCP and Backup operations
+     * still have preference over DBUTIL operations.
      */
     seizeTcrec();
 
@@ -11503,7 +11547,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       /**
        * Correlattion factor for SPJ
        */
-      Uint32 corrFactorHi = scanFragReq->variableData[1];
+      const Uint32 corrFactorHi = scanFragReq->variableData[1];
       regTcPtr->m_corrFactorLo = scanFragReq->variableData[0];
       regTcPtr->m_corrFactorHi = corrFactorHi;
     }
@@ -12180,7 +12224,12 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
     const Uint32 transId1 = regTcPtr->transid[0];
     const Uint32 transId2 = regTcPtr->transid[1];
 
-    tupKeyReq->primaryReplica = (seqNoReplica == 0) ? true : false;
+    tupKeyReq->triggers =
+      (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
+      TupKeyReq::OP_NO_TRIGGERS :
+      (seqNoReplica == 0) ?
+      TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
+
     tupKeyReq->coordinatorTC = coordinatorTC;
     tupKeyReq->tcOpIndex = tcOpIndex;
     tupKeyReq->savePointId = savePointId;
@@ -18609,6 +18658,11 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
 
     mark_end_of_lcp_restore(signal);
 
+    /* Log Event denoting the completion of the LCP restore */
+    signal->theData[0] = NDB_LE_LCPRestored;
+    signal->theData[1] = c_lcpId;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
     csrExecUndoLogState = EULS_STARTED;
     lcpPtr.i = 0;
     ptrAss(lcpPtr, lcpRecord);
@@ -21786,7 +21840,8 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
   tabptr.i = tcConnectptr.p->tableref;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if (getFragmentrec(signal, tcConnectptr.p->fragmentid) &&
-      (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
+      (table_version_major(tabptr.p->schemaVersion) ==
+       table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
         ndbrequire((fragptr.p->execSrNoReplicas - 1) < MAX_REPLICAS);
@@ -22293,6 +22348,8 @@ bool Dblqh::getFragmentrec(Signal* signal, Uint32 fragId)
       return true;
     }//if
   }//for
+  D("getFragmentrec failed to find fragId: " << fragId <<
+    " in table: " << tabptr.i);
   return false;
 }//Dblqh::getFragmentrec()
 

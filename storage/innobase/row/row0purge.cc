@@ -767,11 +767,8 @@ skip_secondaries:
 
 			/* If table is temp then it can't have its undo log
 			residing in rollback segment with REDO log enabled. */
-			bool is_redo_rseg =
-				node->table->is_temporary()
-				? false : true;
-			rseg = trx_sys_get_nth_rseg(
-				trx_sys, rseg_id, is_redo_rseg);
+			bool is_temp = node->table->is_temporary();
+			rseg = trx_rseg_get_on_id(rseg_id, is_temp);
 
 			ut_a(rseg != NULL);
 			ut_a(rseg->id == rseg_id);
@@ -784,7 +781,7 @@ skip_secondaries:
 			index = node->table->first_index();
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
-			mtr.set_undo_space(rseg->space);
+			mtr.set_undo_space(rseg->space_id);
 			mtr.set_named_space(index->space);
 
 			/* NOTE: we must also acquire an X-latch to the
@@ -799,7 +796,7 @@ skip_secondaries:
 			btr_root_get(index, &mtr);
 
 			block = buf_page_get(
-				page_id_t(rseg->space, page_no),
+				page_id_t(rseg->space_id, page_no),
 				univ_page_size, RW_X_LATCH, &mtr);
 
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
@@ -1294,7 +1291,7 @@ purge_node_t::validate_pcur()
 	part in persistent cursor. Both cases we store n_uniq fields of the
 	cluster index and so it is fine to do the comparison. We note this
 	dependency here as pcur and ref belong to different modules. */
-	int st = cmp_dtuple_rec(ref, pcur.old_rec, offsets);
+	int st = cmp_dtuple_rec(ref, pcur.old_rec, clust_index, offsets);
 
 	if (st != 0) {
 		ib::error() << "Purge node pcur validation failed";

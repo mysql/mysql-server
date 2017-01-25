@@ -351,7 +351,7 @@ TEST_F(MemRootTest, KeyUseCompare)
 // Test that Mem_root_array re-expanding works.
 TEST_F(MemRootTest, Reserve)
 {
-  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  Mem_root_array<uint> intarr(m_mem_root_p);
   intarr.reserve(2);
   const uint num_pushes= 20;
   for (uint ix=0; ix < num_pushes; ++ix)
@@ -375,7 +375,7 @@ TEST_F(MemRootTest, Reserve)
 // valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
 TEST_F(MemRootTest, CopyMemRoot)
 {
-  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  Mem_root_array<uint> intarr(m_mem_root_p);
   // Take a copy, we do *not* free_root(own_root)
   MEM_ROOT own_root;
   memcpy(&own_root, m_mem_root_p, sizeof(MEM_ROOT));
@@ -386,7 +386,7 @@ TEST_F(MemRootTest, CopyMemRoot)
 
 TEST_F(MemRootTest, MoveMemRoot)
 {
-  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  Mem_root_array<uint> intarr(m_mem_root_p);
   MEM_ROOT own_root = std::move(*m_mem_root_p);
   intarr.set_mem_root(&own_root);
   intarr.push_back(42);
@@ -409,7 +409,7 @@ private:
 // Test chop() and clear() and that destructors are executed.
 TEST_F(MemRootTest, ChopAndClear)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   const size_t nn= 4;
   array.reserve(nn);
   size_t counter= 0;
@@ -430,7 +430,7 @@ TEST_F(MemRootTest, ChopAndClear)
 // Test that elements are destroyed if push_back() needs to call reserve().
 TEST_F(MemRootTest, ReserveDestroy)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   const size_t nn= 4;
   array.reserve(nn / 2);
   size_t counter= 0;
@@ -448,7 +448,7 @@ TEST_F(MemRootTest, ReserveDestroy)
 
 TEST_F(MemRootTest, ResizeSame)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
   size_t counter= 0;
   DestroyCounter foo(&counter);
@@ -463,7 +463,7 @@ TEST_F(MemRootTest, ResizeSame)
 
 TEST_F(MemRootTest, ResizeGrow)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
   size_t counter= 0;
   DestroyCounter foo(&counter);
@@ -476,7 +476,7 @@ TEST_F(MemRootTest, ResizeGrow)
 
 TEST_F(MemRootTest, ResizeShrink)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
   size_t counter= 0;
   DestroyCounter foo(&counter);

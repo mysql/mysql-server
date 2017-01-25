@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,12 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
 
     if(sig->getDisableFkConstraints(sig->requestInfo))
       fprintf(output, "Disable-FK-constraints ");
+
+    if(sig->getReorgFlag(sig->requestInfo))
+      fprintf(output, "reorg ");
+
+    if(sig->getReadCommittedBaseFlag(sig->requestInfo))
+      fprintf(output, "read_committed_base ");
 
     fprintf(output, "\n");
   }

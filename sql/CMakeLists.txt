@@ -382,8 +382,6 @@ SET(SQL_SHARED_SOURCES
   ${DD_SOURCES}
 )
 
-SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
-
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -393,9 +391,6 @@ SET(SQL_SOURCE
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
-  ../sql-common/my_time.c
-  ../sql-common/my_user.c 
-  ../sql-common/pack.c
   ../sql-common/client_authentication.cc
   ../sql-common/sql_string.cc 
   command_service.cc
@@ -436,21 +431,15 @@ ENDIF()
 # Source files that use Boost
 SET(SQL_BOOST_SOURCES
   debug_sync.cc
-  auth/auth_common.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
-  auth/password.c
-  auth/password_policy_service.cc
   auth/sql_security_ctx.cc
-  auth/service_security_context.cc
   auth/role_tables.cc
-  sql_reload.cc
   handler.cc
   ${SQL_GIS_SOURCES}
-  item_json_func.cc
   spatial.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
@@ -480,6 +469,14 @@ IF(WIN32)
     item_geofunc_internal.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  IF(CMAKEBT MATCHES "^REL")
+    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
 ENDIF()
 
 ADD_COMPILE_FLAGS(
@@ -513,6 +510,8 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Boost source use auto_ptr, deprecated in C++11
   ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
+  # Boost source has unused parameters
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES} COMPILE_FLAGS "-Wno-unused-parameter")
 
   # Only for some versions of GCC/Clang
 
@@ -576,8 +575,6 @@ ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
-DTRACE_INSTRUMENT(sql_main)
-
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
   binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
@@ -630,10 +627,11 @@ ADD_DEPENDENCIES(slave GenError)
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
 ELSE()
-  SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
+  SET(MYSQLD_SOURCE main.cc)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+MYSQL_ADD_EXECUTABLE(mysqld
+  ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
 OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
 MARK_AS_ADVANCED(DEBUG_EXTNAME)
@@ -684,6 +682,9 @@ SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
   binlogevents_static)
+
+# Remove transitive link dependencies when linking plugins
+SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
 MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)

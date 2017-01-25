@@ -28,12 +28,13 @@ namespace mysqlxtest {
 
 static Error_entry global_error_names[] =
 {
-  { "<No error>", (int)-1, "" },
+  { "<No error>", (int)-1, "", NULL, NULL, 0 },
+  { "ER_SUCCESS", (int)0, "Success", NULL, NULL, 0  },
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
 #include "mysqlx_ername.h"
 #endif /* IN_DOXYGEN */
-  { 0, 0, 0 }
+  { 0, 0, 0, NULL, NULL, 0  }
 };
 
 namespace {

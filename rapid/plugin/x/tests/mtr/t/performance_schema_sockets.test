@@ -24,13 +24,13 @@
 -->callmacro check_xconnection_count	%CON_COUNTER%
 -->endrepeat
 
--->echo Verify [Peer addresses of all sockets should be set to 127.0.0.1]
--->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND IP='127.0.0.1'
+-->echo Verify [Peer addresses of all sockets should be set to ::ffff:127.0.0.1]
+-->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND IP='::ffff:127.0.0.1'
 -->recvtovar %NUM%
 -->assert_eq %CON_COUNTER%	%NUM%
 
 -->echo Verify [Peer ports should be unique]
--->stmtsql SELECT COUNT(*) FROM (SELECT `PORT` FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND IP='127.0.0.1' GROUP BY `PORT`) as `temp_table`
+-->stmtsql SELECT COUNT(*) FROM (SELECT `PORT` FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection' AND IP='::ffff:127.0.0.1' GROUP BY `PORT`) as `temp_table`
 -->recvtovar %NUM%
 -->assert_eq %CON_COUNTER%	%NUM%
 
@@ -155,9 +155,9 @@ if ( $XPlugin_socket_count_when_no_Xconnection != 0) {
 --let $XPlugin_ip=   query_get_value(SELECT * FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/tcpip_socket' and STATE='ACTIVE', IP, 1)
 --let $XPlugin_port= query_get_value(SELECT * FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/tcpip_socket', PORT, 1)
 
-if ($XPlugin_ip != "0.0.0.0") {
+if ($XPlugin_ip != "::") {
 --echo X Plugin IP is set to $XPlugin_ip
---die X Plugins TCP server IP should be set to 0.0.0.0
+--die X Plugins TCP server IP should be set to ::
 }
 
 --let $XPlugin_port_expected= query_get_value(SELECT @@mysqlx_port as value, value, 1)

@@ -155,8 +155,9 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 				multiple of XDES_DESCRIBED_PER_PAGE */
 
 #define FSP_FIRST_INODE_PAGE_NO		2	/*!< in every tablespace */
-				/* The following pages exist
-				in the system tablespace (space 0). */
+
+/* The following pages exist in the system tablespace (space 0). */
+
 #define FSP_IBUF_HEADER_PAGE_NO		3	/*!< insert buffer
 						header page, in
 						tablespace 0 */

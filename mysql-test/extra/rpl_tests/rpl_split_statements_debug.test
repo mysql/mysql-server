@@ -32,8 +32,11 @@
 #        the binary log.
 #   3.4. Database has not been created, but the directory exists.
 #   3.5. Database has not created and the directory does not exist.
+#   3.6. Database exists and contains one InnoDB and one MyISAM table,
+#        so the statement gets split into multiple transactions (but
+#        for different reasons than in 3.3).
 #
-#   We run these five scenarios in three ways:
+#   We run these six scenarios in three ways:
 #
 #   - On master with GTID_MODE='AUTOMATIC'
 #   - On master with GTID_MODE!='AUTOMATIC' ('ANONYMOUS'/'UUID:NUMBER',
@@ -114,6 +117,18 @@ EOF
 
 --source include/rpl_sync.inc
 
+--echo # db16, db17, db18: one MyISAM and one InnoDB table.
+CREATE DATABASE db16;
+CREATE DATABASE db17;
+CREATE DATABASE db18;
+CREATE TABLE db16.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db17.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db18.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db16.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db17.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db18.t2 (a INT) ENGINE=MyISAM;
+--source include/rpl_sync.inc
+
 --echo ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
 
 --echo # db1: no table.
@@ -186,6 +201,23 @@ SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db13;
 
 --let $event_sequence= ()
+--source include/assert_binlog_events.inc
+
+--echo # db16: one MyISAM and one InnoDB table.
+--source include/save_binlog_position.inc
+SET GTID_NEXT = 'AUTOMATIC';
+SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
+--error ER_UNKNOWN_ERROR
+DROP DATABASE db16;
+SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+if ($gtid_mode_on)
+{
+  --let $event_sequence= Gtid # !Q(DROP TABLE.*) # Gtid # !Q(DROP TABLE.*)
+}
+if (!$gtid_mode_on)
+{
+  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)
+}
 --source include/assert_binlog_events.inc
 
 --echo ---- DROP DATABASE is split on master; GTID_NEXT=non-automatic ----
@@ -290,6 +322,33 @@ DROP DATABASE db14;
 --source include/assert_binlog_events.inc
 SET GTID_NEXT = 'AUTOMATIC';
 
+--echo # db17: one MyISAM and one InnoDB table.
+--source include/save_binlog_position.inc
+--source include/set_gtid_next_gtid_mode_agnostic.inc
+if (!$gtid_mode_on)
+{
+  SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
+  --error ER_UNKNOWN_ERROR
+  DROP DATABASE db17;
+  SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+
+  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)
+  --source include/assert_binlog_events.inc
+}
+if ($gtid_mode_on)
+{
+  SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
+  --error ER_UNKNOWN_ERROR
+  DROP DATABASE db17;
+  --replace_result $server_1_uuid MASTER_UUID \\ /
+  SHOW WARNINGS;
+  SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+
+  --let $event_sequence= ()
+  --source include/assert_binlog_events.inc
+}
+SET GTID_NEXT = 'AUTOMATIC';
+
 --echo ---- DROP DATABASE is split on slave ----
 
 SET GTID_NEXT = 'AUTOMATIC';
@@ -330,6 +389,20 @@ SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 --error ER_DB_DROP_EXISTS
 DROP DATABASE db12;
 
+--echo # db18: one MyISAM and one InnoDB table.
+--connection slave
+SET GLOBAL DEBUG= '+d, rm_db_fail_after_dropping_tables';
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
+DROP DATABASE db18;
+--source include/sync_slave_io_with_master.inc
+--source include/wait_for_slave_sql_error.inc
+--source include/rpl_skip_to_end_of_relay_log.inc
+--connection slave
+SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
+
 --echo ---- Clean up ----
 
 --remove_file $server_1_datadir/db10/file.txt
@@ -350,6 +423,9 @@ DROP DATABASE IF EXISTS db9;
 DROP DATABASE IF EXISTS db10;
 DROP DATABASE IF EXISTS db11;
 DROP DATABASE IF EXISTS db12;
+DROP DATABASE db16;
+DROP DATABASE db17;
+DROP DATABASE IF EXISTS db18;
 
 --source include/rpl_sync.inc
 

@@ -85,7 +85,7 @@ c1	c2
 8	iiiii
 9	jjjjj
 DROP TABLE t1;
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=KEYRING_PLUGIN_PATH 
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=KEYRING_PLUGIN_PATH 
 SET block_encryption_mode = 'aes-256-cbc';
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;

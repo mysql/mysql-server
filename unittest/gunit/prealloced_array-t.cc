@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <memory>
 
 #include "prealloced_array.h"
 #include "sql_alloc.h"
@@ -309,8 +310,7 @@ private:
 */
 TEST_F(PreallocedArrayTest, NoMemLeaksAssignAt)
 {
-  Prealloced_array<IntWrap, 10, false>
-    array(PSI_NOT_INSTRUMENTED, 0);
+  Prealloced_array<IntWrap, 10> array(PSI_NOT_INSTRUMENTED, 0);
   EXPECT_EQ(0U, array.size());
   
   array.assign_at(3, IntWrap(3));
@@ -337,26 +337,25 @@ TEST_F(PreallocedArrayTest, NoMemLeaksAssignAt)
 TEST_F(PreallocedArrayTest, NoMemLeaksInitializing)
 {
   const size_t initial_capacity= 10;
-  Prealloced_array<IntWrap, initial_capacity, false>
-    array1(PSI_NOT_INSTRUMENTED, 0);
+  Prealloced_array<IntWrap, initial_capacity> array1(PSI_NOT_INSTRUMENTED, 0);
   EXPECT_EQ(0U, array1.size());
 
-  Prealloced_array<IntWrap, initial_capacity, false>
+  Prealloced_array<IntWrap, initial_capacity>
     array2(PSI_NOT_INSTRUMENTED, initial_capacity / 2);
   EXPECT_EQ(5U, array2.size());
 
-  Prealloced_array<IntWrap, 10, false>
+  Prealloced_array<IntWrap, 10>
     array3(PSI_NOT_INSTRUMENTED, initial_capacity);
   EXPECT_EQ(10U, array3.size());
 
-  Prealloced_array<IntWrap, 10, false>
+  Prealloced_array<IntWrap, 10>
     array4(PSI_NOT_INSTRUMENTED, 2 * initial_capacity);
   EXPECT_EQ(20U, array4.size());
 }
 
 TEST_F(PreallocedArrayTest, NoMemLeaksPushing)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   for (int ix= 0; ix < 42; ++ix)
@@ -365,7 +364,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksPushing)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksPopping)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   while (!array.empty())
@@ -374,7 +373,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksPopping)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksErasing)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   for (int ix= 0; !array.empty(); ++ix)
@@ -386,7 +385,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksErasing)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksClearing)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   array.clear();
@@ -395,7 +394,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksClearing)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksResizing)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   array.resize(0);
@@ -404,10 +403,10 @@ TEST_F(PreallocedArrayTest, NoMemLeaksResizing)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksAssigning)
 {
-  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array1(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array1.push_back(IntWrap(ix));
-  Prealloced_array<IntWrap, 1, false> array2(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array2(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 10; ++ix)
     array2.push_back(IntWrap(ix + 100));
   array2= array1;
@@ -418,7 +417,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksAssigning)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksEraseAll)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   array.erase(array.begin(), array.end());
@@ -427,7 +426,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksEraseAll)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksEraseMiddle)
 {
-  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   array.erase(array.begin() + 1, array.end() - 1);
@@ -438,23 +437,23 @@ TEST_F(PreallocedArrayTest, NoMemLeaksEraseMiddle)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksEraseSwap)
 {
-  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array1(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array1.push_back(IntWrap(ix));
-  Prealloced_array<IntWrap, 1, false> array2(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array2(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 10; ++ix)
     array2.push_back(IntWrap(ix + 100));
   array1.swap(array2);
   EXPECT_EQ(10U, array1.size());
   EXPECT_EQ(42U, array2.size());
-  Prealloced_array<IntWrap, 1, false>(PSI_NOT_INSTRUMENTED).swap(array1);
+  Prealloced_array<IntWrap, 1>(PSI_NOT_INSTRUMENTED).swap(array1);
   EXPECT_EQ(0U, array1.size());
 }
 
 TEST_F(PreallocedArrayTest, NoMemLeaksMySwap)
 {
-  Prealloced_array<IntWrap, 2, false> array1(PSI_NOT_INSTRUMENTED);
-  Prealloced_array<IntWrap, 2, false> array2(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 2> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 2> array2(PSI_NOT_INSTRUMENTED);
   array1.push_back(IntWrap(1));
   array2.push_back(IntWrap(2));
   array2.push_back(IntWrap(22));
@@ -468,10 +467,10 @@ TEST_F(PreallocedArrayTest, NoMemLeaksMySwap)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksStdSwap)
 {
-  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array1(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array1.push_back(IntWrap(ix));
-  Prealloced_array<IntWrap, 1, false>
+  Prealloced_array<IntWrap, 1>
     array2(PSI_NOT_INSTRUMENTED, array1.begin(), array1.begin() + 10);
   EXPECT_EQ(10U, array2.size());
   IntWrap *p1= array1.begin();
@@ -486,7 +485,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksStdSwap)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitMalloc)
 {
-  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 1> array1(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array1.push_back(IntWrap(ix));
   IntWrap *p1= array1.begin();
@@ -498,7 +497,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitMalloc)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitSameSize)
 {
-  Prealloced_array<IntWrap, 10, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 10> array1(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array1.push_back(IntWrap(ix));
   for (int ix= 0; array1.size() != array1.capacity(); ++ix)
@@ -510,7 +509,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitSameSize)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitPrealloc)
 {
-  Prealloced_array<IntWrap, 100, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 100> array1(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array1.push_back(IntWrap(ix));
   IntWrap *p1= array1.begin();
@@ -544,11 +543,69 @@ private:
  */
 TEST_F(PreallocedArrayTest, SqlAlloc)
 {
-  Prealloced_array<TestAlloc, 1, false> array(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<TestAlloc, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(TestAlloc(ix));
   for (int ix= 0; ix < 42; ++ix)
     EXPECT_EQ(ix, array[ix].getval());
+}
+
+
+/**
+  A class that wraps an integer. Objects of this class can be moved,
+  but cannot be copied.
+*/
+class IntWrapMove
+{
+  std::unique_ptr<int> m_i;
+public:
+  explicit IntWrapMove(int i) : m_i(new int(i)) {}
+  IntWrapMove(const IntWrapMove &) = delete;
+  IntWrapMove &operator=(const IntWrapMove &) = delete;
+  IntWrapMove(IntWrapMove &&other) = default;
+  IntWrapMove &operator=(IntWrapMove &&other) = default;
+  int getval() const { return *m_i; }
+};
+
+
+/*
+  Test that a Prealloced_array can hold objects that cannot be copied.
+*/
+TEST_F(PreallocedArrayTest, Move)
+{
+  using IntArray= Prealloced_array<IntWrapMove, 1>;
+  IntArray array(PSI_NOT_INSTRUMENTED);
+
+  // Test that we can add non-copyable elements to the array.
+  for (int i= 0; i < 5; ++i)
+    array.push_back(IntWrapMove(i));
+  for (int i= 5; i < 10; ++i)
+    array.emplace_back(i);
+  for (int i= 0; i < 10; ++i)
+    EXPECT_EQ(i, array[i].getval());
+  array.insert(array.begin(), IntWrapMove(100));
+  array.emplace(array.begin() + 1, IntWrapMove(101));
+  EXPECT_EQ(12U, array.size());
+  EXPECT_EQ(100, array[0].getval());
+  EXPECT_EQ(101, array[1].getval());
+  EXPECT_EQ(0, array[2].getval());
+
+  // Test that we can remove non-copyable elements from the array.
+  IntArray::iterator it= array.erase(1);
+  EXPECT_EQ(1, it - array.begin());
+  EXPECT_EQ(0, it->getval());
+  it= array.erase(array.cbegin() + 1);
+  EXPECT_EQ(1, it - array.begin());
+  EXPECT_EQ(1, it->getval());
+  it= array.erase(array.cbegin() + 2, array.cend() - 2);
+  EXPECT_EQ(8, it->getval());
+  EXPECT_EQ(2, array.end() - it);
+  EXPECT_EQ(2, it - array.begin());
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(100, array[0].getval());
+  EXPECT_EQ(1, array[1].getval());
+  EXPECT_EQ(8, array[2].getval());
+  EXPECT_EQ(9, array[3].getval());
 }
 
 }

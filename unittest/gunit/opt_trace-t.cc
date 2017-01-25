@@ -98,14 +98,22 @@ protected:
   }
   virtual void SetUp()
   {
+    /* Save original and install our custom error hook. */
+    m_old_error_handler_hook= error_handler_hook;
     error_handler_hook= my_error_handler;
     oom= false;
     // Setting debug flags triggers enter/exit trace, so redirect to /dev/null
     DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
   }
+  virtual void TearDown()
+  {
+    error_handler_hook= m_old_error_handler_hook;
+  }
 
+  static void (*m_old_error_handler_hook)(uint, const char *, myf);
 };
 bool TraceContentTest::oom;
+void (*TraceContentTest::m_old_error_handler_hook)(uint, const char *, myf);
 
 
 void my_error_handler(uint error, const char *str, myf MyFlags)

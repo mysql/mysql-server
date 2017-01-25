@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <fcntl.h>
 #include <gtest/gtest.h>
-#include "mock_logger.h"
-#include "file_io.h"
-#include "test_utils.h"
+#include <my_global.h>
+
 #include "current_thd.h"
+#include "file_io.h"
+#include "mock_logger.h"
+#include "test_utils.h"
 
 #if defined(HAVE_PSI_INTERFACE)
-#if !defined(MERGE_UNITTESTS)
-namespace keyring
-{
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-  PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}
-#endif
 namespace keyring
 {
   extern PSI_file_key keyring_file_data_key;

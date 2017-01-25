@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,22 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "mock_field_long.h"
-#include <vector>
 #include <sstream>
 #include <string>
+#include <vector>
 
-#include "handler-t.h"
-#include "fake_table.h"
 #include "fake_range_opt_param.h"
-#include "test_utils.h"
-
+#include "fake_table.h"
+#include "handler-t.h"
+#include "mock_field_long.h"
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include "my_dbug.h"
 #include "opt_range.cc"
 #include "parse_tree_helpers.h"
+#include "test_utils.h"
 
 namespace opt_range_unittest {
 
@@ -1248,7 +1247,7 @@ TEST_F(OptRangeTest, SelArgOnevalue)
   uchar range_val7[Fake_TABLE::DEFAULT_PACK_LENGTH];
   field_long7->get_key_image(range_val7, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg7(field_long7, range_val7, range_val7);
+  SEL_ARG sel_arg7(field_long7, range_val7, range_val7, true);
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
   const char expected[]= "7 <= field_1 <= 7";
@@ -1299,7 +1298,7 @@ TEST_F(OptRangeTest, SelArgBetween)
   uchar range_val5[Fake_TABLE::DEFAULT_PACK_LENGTH];
   field_long5->get_key_image(range_val5, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg35(field_long3, range_val3, range_val5);
+  SEL_ARG sel_arg35(field_long3, range_val3, range_val5, true);
 
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg35, &kpi);
@@ -1357,9 +1356,9 @@ TEST_F(OptRangeTest, CopyMax)
   uchar range_val5[Fake_TABLE::DEFAULT_PACK_LENGTH];
   field_long5->get_key_image(range_val5, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg3(field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg3(field_long3, range_val3, range_val3, true);
   sel_arg3.min_flag= NO_MIN_RANGE;
-  SEL_ARG sel_arg5(field_long5, range_val5, range_val5);
+  SEL_ARG sel_arg5(field_long5, range_val5, range_val5, true);
   sel_arg5.min_flag= NO_MIN_RANGE;
 
   String range_string;
@@ -1431,9 +1430,9 @@ TEST_F(OptRangeTest, CopyMin)
   uchar range_val5[Fake_TABLE::DEFAULT_PACK_LENGTH];
   field_long5->get_key_image(range_val5, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg3(field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg3(field_long3, range_val3, range_val3, true);
   sel_arg3.max_flag= NO_MAX_RANGE;
-  SEL_ARG sel_arg5(field_long5, range_val5, range_val5);
+  SEL_ARG sel_arg5(field_long5, range_val5, range_val5, true);
   sel_arg5.max_flag= NO_MAX_RANGE;
 
   String range_string;
@@ -1508,17 +1507,17 @@ TEST_F(OptRangeTest, KeyOr1)
   uchar range_val4[Fake_TABLE::DEFAULT_PACK_LENGTH];
   field_long4->get_key_image(range_val4, kpi.length, Field::itRAW);
 
-  SEL_ARG sel_arg_lt3(field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg_lt3(field_long3, range_val3, range_val3, true);
   sel_arg_lt3.part= 0;
   sel_arg_lt3.min_flag= NO_MIN_RANGE;
   sel_arg_lt3.max_flag= NEAR_MAX;
 
-  SEL_ARG sel_arg_gt3(field_long3, range_val3, range_val3);
+  SEL_ARG sel_arg_gt3(field_long3, range_val3, range_val3, true);
   sel_arg_gt3.part= 0;
   sel_arg_gt3.min_flag= NEAR_MIN;
   sel_arg_gt3.max_flag= NO_MAX_RANGE;
 
-  SEL_ARG sel_arg_lt4(field_long4, range_val4, range_val4);
+  SEL_ARG sel_arg_lt4(field_long4, range_val4, range_val4, true);
   sel_arg_lt4.part= 0;
   sel_arg_lt4.min_flag= NO_MIN_RANGE;
   sel_arg_lt4.max_flag= NEAR_MAX;

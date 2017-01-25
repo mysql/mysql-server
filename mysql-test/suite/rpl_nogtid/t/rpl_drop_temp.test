@@ -41,7 +41,7 @@ sync_slave_with_master;
 # This test verifies if DROP MULTI TEMPORARY TABLE 
 # causes different errors on master and slave and breaks
 # replication, when one or more of these tables do not
-# exist. 
+# exist.
 #
 # Nowadays, we don't drop any tables in multi-table DROP
 # TABLE (without IF EXISTS clause) if one of them does not

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,14 +30,17 @@
  *
  **/
 
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <violite.h>
 
 #include "client_priv.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_loglevel.h"
 #include "my_readline.h"
@@ -78,9 +81,12 @@
 #include <mysqld_error.h>
 #include <sql_common.h>
 #include <algorithm>
+#include <new>
 
 using std::min;
 using std::max;
+
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 const char *VER= "14.14";
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_rapidjson_size_t.h"
 #include "my_sys.h"
@@ -596,7 +597,7 @@ public:
     return false;
   }
 
-  bool String(const char* str, SizeType length, bool copy)
+  bool String(const char* str, SizeType length, bool)
   {
     DUMP_CALLBACK("string", state);
     return seeing_value(new (std::nothrow) Json_string(str, length));
@@ -640,7 +641,7 @@ public:
     return true;
   }
 
-  bool Key(const char* str, SizeType len, bool copy)
+  bool Key(const char* str, SizeType len, bool)
   {
     if (check_json_depth(m_depth + 1))
       return false;
@@ -745,7 +746,8 @@ public:
   bool Uint(unsigned) { return seeing_scalar(); }
   bool Int64(int64_t) { return seeing_scalar(); }
   bool Uint64(uint64_t) { return seeing_scalar(); }
-  bool Double(double, bool is_int= false) { return seeing_scalar(); }
+  bool Double(double, bool is_int MY_ATTRIBUTE((unused)) = false)
+  { return seeing_scalar(); }
   bool String(const char*, SizeType, bool) { return seeing_scalar(); }
   bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
   bool RawNumber(const char*, SizeType, bool)
@@ -1787,15 +1789,42 @@ static int print_string(String *buffer, bool json_quoted,
 
 
 /**
+  Helper function for wrapper_to_string() which adds a newline and indentation
+  up to the specified level.
+
+  @param[in,out] buffer  the buffer to write to
+  @param[in]     level   how many nesting levels to add indentation for
+  @retval false on success
+  @retval true on error
+*/
+static bool newline_and_indent(String *buffer, size_t level)
+{
+  // Append newline and two spaces per indentation level.
+  return buffer->append('\n') ||
+    buffer->fill(buffer->length() + level * 2, ' ');
+}
+
+
+/**
   Helper function which does all the heavy lifting for
   Json_wrapper::to_string(). It processes the Json_wrapper
   recursively. The depth parameter keeps track of the current nesting
   level. When it reaches JSON_DOCUMENT_MAX_DEPTH, it gives up in order
   to avoid running out of stack space.
+
+  @param[in]     wr          the value to convert to a string
+  @param[in,out] buffer      the buffer to write to
+  @param[in]     json_quoted quote strings if true
+  @param[in]     pretty      add newlines and indentation if true
+  @param[in]     func_name   the name of the calling function
+  @param[in]     depth       the nesting level of @a wr
+
+  @retval false on success
+  @retval true on error
 */
 static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
-                              bool json_quoted, const char *func_name,
-                              size_t depth)
+                              bool json_quoted, bool pretty,
+                              const char *func_name, size_t depth)
 {
   if (check_json_depth(++depth))
     return true;
@@ -1825,17 +1854,26 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     {
       if (buffer->append('['))
         return true;                           /* purecov: inspected */
+
       size_t array_len= wr.length();
       for (uint32 i= 0; i < array_len; ++i)
       {
-        if (i > 0 && buffer->append(", "))
+        if (i > 0 && buffer->append(pretty ? "," : ", "))
           return true;                         /* purecov: inspected */
 
-        if (wrapper_to_string(wr[i], buffer, true, func_name, depth))
+        if (pretty && newline_and_indent(buffer, depth))
+          return true;                         /* purecov: inspected */
+
+        if (wrapper_to_string(wr[i], buffer, true, pretty, func_name, depth))
           return true;                         /* purecov: inspected */
       }
+
+      if (pretty && array_len > 0 && newline_and_indent(buffer, depth - 1))
+        return true;                           /* purecov: inspected */
+
       if (buffer->append(']'))
         return true;                           /* purecov: inspected */
+
       break;
     }
   case enum_json_type::J_BOOLEAN:
@@ -1880,11 +1918,17 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     {
       if (buffer->append('{'))
         return true;                           /* purecov: inspected */
-      uint32 i= 0;
+
+      bool first= true;
       for (Json_wrapper_object_iterator iter= wr.object_iterator();
            !iter.empty(); iter.next())
       {
-        if (i++ > 0 && buffer->append(", "))
+        if (!first && buffer->append(pretty ? "," : ", "))
+          return true;                         /* purecov: inspected */
+
+        first= false;
+
+        if (pretty && newline_and_indent(buffer, depth))
           return true;                         /* purecov: inspected */
 
         const std::string &key= iter.elt().first;
@@ -1892,12 +1936,17 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         size_t key_length= key.length();
         if (print_string(buffer, true, key_data, key_length) ||
             buffer->append(": ") ||
-            wrapper_to_string(iter.elt().second, buffer, true, func_name,
-                              depth))
+            wrapper_to_string(iter.elt().second, buffer, true, pretty,
+                              func_name, depth))
           return true;                         /* purecov: inspected */
       }
+
+      if (pretty && wr.length() > 0 && newline_and_indent(buffer, depth - 1))
+        return true;                           /* purecov: inspected */
+
       if (buffer->append('}'))
         return true;                           /* purecov: inspected */
+
       break;
     }
   case enum_json_type::J_OPAQUE:
@@ -1972,8 +2021,16 @@ bool Json_wrapper::to_string(String *buffer, bool json_quoted,
                              const char *func_name) const
 {
   buffer->set_charset(&my_charset_utf8mb4_bin);
-  return wrapper_to_string(*this, buffer, json_quoted, func_name, 0);
+  return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0);
 }
+
+
+bool Json_wrapper::to_pretty_string(String *buffer, const char *func_name) const
+{
+  buffer->set_charset(&my_charset_utf8mb4_bin);
+  return wrapper_to_string(*this, buffer, true, true, func_name, 0);
+}
+
 
 enum_json_type Json_wrapper::type() const
 {
@@ -2286,7 +2343,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     if (m_is_dom)
     {
       Json_wrapper clone(m_dom_value->clone());
-      if (clone.empty() || hits->push_back(Json_wrapper()))
+      if (clone.empty() || hits->emplace_back())
         return true;                          /* purecov: inspected */
       hits->back().steal(&clone);
       return false;
@@ -2472,7 +2529,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   for (Json_dom_vector::iterator it= dhits.begin(); it != dhits.end(); ++it)
   {
     Json_wrapper clone((*it)->clone());
-    if (clone.empty() || hits->push_back(Json_wrapper()))
+    if (clone.empty() || hits->emplace_back())
       return true;                            /* purecov: inspected */
     hits->back().steal(&clone);
   }

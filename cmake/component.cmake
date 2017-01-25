@@ -77,10 +77,6 @@ MACRO(MYSQL_ADD_COMPONENT)
     SET(MYSQLD_STATIC_COMPONENT_LIBS ${MYSQLD_STATIC_COMPONENT_LIBS}
         ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
-    # Update mysqld dependencies (embedded)
-    SET(MYSQLD_STATIC_EMBEDDED_COMPONENT_LIBS
-      ${MYSQLD_STATIC_EMBEDDED_COMPONENT_LIBS}
-      ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
   ELSEIF(ARG_MODULE AND NOT DISABLE_SHARED)
     SET(kind MODULE)
     SET(BUILD_COMPONENT 1)
@@ -91,8 +87,6 @@ MACRO(MYSQL_ADD_COMPONENT)
   IF(BUILD_COMPONENT)
     ADD_VERSION_INFO(${target} ${kind} SOURCES)
     ADD_LIBRARY(${target} ${kind} ${SOURCES})
-
-    DTRACE_INSTRUMENT(${target})
 
     # For internal testing in PB2, append collections files
     IF(DEFINED ENV{PB2WORKDIR})
@@ -122,11 +116,6 @@ MACRO(MYSQL_ADD_COMPONENT)
       INSTALL_DEBUG_TARGET(${target}
       DESTINATION ${INSTALL_PLUGINDIR}/debug
       COMPONENT ${INSTALL_COMPONENT})
-
-      # Add installed files to list for RPMs
-      FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
-      "%attr(755, root, root) %{_prefix}/${INSTALL_COMPONENTDIR}/${target}.so\n"
-      "%attr(755, root, root) %{_prefix}/${INSTALL_COMPONENTDIR}/debug/${target}.so\n")
     ENDIF()
     ENDIF()
   ENDIF()

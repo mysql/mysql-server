@@ -23,6 +23,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef WIN32
 #  include <netdb.h>

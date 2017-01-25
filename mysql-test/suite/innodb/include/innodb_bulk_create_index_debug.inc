@@ -116,6 +116,14 @@ DROP TABLE t1;
 
 # Test Crash Recovery
 
+#
+# The below part of test was disabled until InnoDB truly supports DDL
+# atomicity/WL#9536 is implemented. Otherwise the test creates discrepancy
+# between SQL-layer DD and InnoDB DD.
+#
+
+--disable_parsing
+
 if ($row_format != 'COMPRESSED')
 {
   eval CREATE TABLE t1(
@@ -211,6 +219,8 @@ CHECK TABLE t1;
 SELECT CHAR_LENGTH(b) FROM t1;
 
 DROP TABLE t1;
+
+--enable_parsing
 
 # Restore global variables
 if ($row_format == 'COMPRESSED')

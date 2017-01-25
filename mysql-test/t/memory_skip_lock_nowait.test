@@ -1,0 +1,9 @@
+# Test of SKIP LOCKED and NOWAIT on table in memory engine.
+# Must have no effect.
+CREATE TABLE t1 ( a INT) ENGINE=memory;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 FOR UPDATE;
+SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+DROP TABLE t1;
+

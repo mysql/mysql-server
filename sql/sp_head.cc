@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "mdl.h"
 #include "my_bitmap.h"
 #include "my_config.h"
+#include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
 #include "mysql/psi/mysql_error.h"
@@ -2026,7 +2027,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
-  TABLE *old_derived_tables;
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
@@ -2057,7 +2057,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   */
 
   {
-#if defined(__sparcv9) && defined(__sun)
+#if defined(__sparc) && defined(__SUNPRO_CC)
     const int sp_stack_size= 10 * STACK_MIN_SIZE;
 #else
     const int sp_stack_size=  8 * STACK_MIN_SIZE;
@@ -2125,8 +2125,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     be able properly do close_thread_tables() in instructions.
   */
   old_query_id= thd->query_id;
-  old_derived_tables= thd->derived_tables;
-  thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
   /**
@@ -2336,8 +2334,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
   thd->set_query_id(old_query_id);
-  DBUG_ASSERT(!thd->derived_tables);
-  thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
   thd->pop_reprepare_observer();
 
@@ -2474,7 +2470,6 @@ bool sp_head::execute_trigger(THD *thd,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
   LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
@@ -2526,7 +2521,6 @@ bool sp_head::execute_trigger(THD *thd,
     - connected user != definer: then in sp_head::execute(), when checking the
     security context we will disable tracing.
   */
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
@@ -2570,9 +2564,7 @@ bool sp_head::execute_trigger(THD *thd,
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_security_ctx.restore_security_context(thd, save_ctx);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   delete trigger_runtime_ctx;
   call_arena.free_items();
@@ -2719,14 +2711,12 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   thd->sp_runtime_ctx= func_runtime_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx;
   if (set_security_ctx(thd, &save_security_ctx))
   {
     err_status= TRUE;
     goto err_with_cleanup;
   }
-#endif
 
   if (need_binlog_call)
   {
@@ -2810,9 +2800,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_security_ctx.restore_security_context(thd, save_security_ctx);
-#endif
 
 err_with_cleanup:
   delete func_runtime_ctx;
@@ -2995,11 +2983,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
   thd->sp_runtime_ctx= proc_runtime_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= 0;
   if (!err_status)
     err_status= set_security_ctx(thd, &save_security_ctx);
-#endif
 
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
@@ -3070,10 +3056,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_security_ctx)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
-#endif
 
   if (!sp_runtime_ctx_saved)
     delete parent_sp_runtime_ctx;
@@ -3461,8 +3445,8 @@ bool sp_head::merge_table_list(THD *thd,
                                             temp_table_key_length)) &&
            tab->temp))
       {
-        if (tab->lock_type < table->lock_type)
-          tab->lock_type= table->lock_type; // Use the table with the highest lock type
+        if (tab->lock_type < table->lock_descriptor().type)
+          tab->lock_type= table->lock_descriptor().type; // Use the table with the highest lock type
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
@@ -3486,7 +3470,7 @@ bool sp_head::merge_table_list(THD *thd,
           return false;
         tab->table_name_length= table->table_name_length;
         tab->db_length= table->db_length;
-        tab->lock_type= table->lock_type;
+        tab->lock_type= table->lock_descriptor().type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
         if (my_hash_insert(&m_sptabs, (uchar *)tab))
@@ -3607,7 +3591,6 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 {
   *save_ctx= NULL;
@@ -3639,7 +3622,6 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 
   return false;
 }
-#endif // ! NO_EMBEDDED_ACCESS_CHECKS
 
 
 ///////////////////////////////////////////////////////////////////////////

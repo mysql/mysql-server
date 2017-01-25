@@ -223,9 +223,6 @@ INSERT INTO t_dyn_in_4k VALUES (1,'a'),(2,'b'),(3,'c');
 #
 DROP TABLESPACE s_4k;
 ERROR HY000: Tablespace `s_4k` is not empty.
-SHOW WARNINGS;
-Level	Code	Message
-Error	3120	Tablespace `s_4k` is not empty.
 #
 # Add more data to the existing Tables
 #

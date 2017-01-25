@@ -228,6 +228,69 @@ TEST_F(HandlerTest, IndexInMemoryEstimate)
   EXPECT_DOUBLE_EQ(mock_handler.index_in_memory_estimate(key_no), 0.5);
 }
 
+TEST_F(HandlerTest, SamplingInterfaceAllRows)
+{
+  Mock_field_datetime field_datetime;
+  Fake_TABLE table(&field_datetime);
+  StrictMock<Mock_SAMPLING_HANDLER> mock_handler(nullptr, &table,
+                                                 table.get_share());
+  table.set_handler(&mock_handler);
+
+  uchar buffer[8];
+
+  // rnd_init should be called exactly one time by ha_sample_init.
+  EXPECT_CALL(mock_handler, rnd_init(false)).Times(1);
+  EXPECT_EQ(mock_handler.ha_sample_init(100.0, 0, enum_sampling_method::SYSTEM),
+            0);
+  EXPECT_EQ(mock_handler.inited, handler::SAMPLING);
+
+  /*
+    Since we have set the sampling rate to 100%, all rows should be returned.
+    Thus, rnd_next should be called exactly as many times as ha_sample_next().
+  */
+  const int num_iterations= 100;
+  EXPECT_CALL(mock_handler, rnd_next(buffer)).Times(num_iterations);
+
+  for (int i= 0; i < num_iterations; ++i)
+    mock_handler.ha_sample_next(buffer);
+
+  // rnd_end should be called exactly one time by ha_sample_end.
+  EXPECT_CALL(mock_handler, rnd_end()).Times(1);
+  EXPECT_EQ(mock_handler.ha_sample_end(), 0);
+  EXPECT_EQ(mock_handler.inited, handler::NONE);
+}
+
+TEST_F(HandlerTest, SamplingInterfaceNoRows)
+{
+  Mock_field_datetime field_datetime;
+  Fake_TABLE table(&field_datetime);
+  StrictMock<Mock_SAMPLING_HANDLER> mock_handler(nullptr, &table,
+                                                 table.get_share());
+  table.set_handler(&mock_handler);
+
+  uchar buffer[8];
+
+  // rnd_init should be called exactly one time by ha_sample_init.
+  EXPECT_CALL(mock_handler, rnd_init(false)).Times(1);
+  EXPECT_EQ(mock_handler.ha_sample_init(0.0, 0, enum_sampling_method::SYSTEM),
+            0);
+  EXPECT_EQ(mock_handler.inited, handler::SAMPLING);
+
+  /*
+    Since we have set the sampling rate to 0%, no rows should be returned. Thus,
+    rnd_next should never be called.
+  */
+  EXPECT_CALL(mock_handler, rnd_next(buffer)).Times(0);
+
+  for (int i= 0; i < 100; ++i)
+    mock_handler.ha_sample_next(buffer);
+
+  // rnd_end should be called exactly one time by ha_sample_end.
+  EXPECT_CALL(mock_handler, rnd_end()).Times(1);
+  EXPECT_EQ(mock_handler.ha_sample_end(), 0);
+  EXPECT_EQ(mock_handler.inited, handler::NONE);
+}
+
 }
 
 #endif // HAVE_UBSAN

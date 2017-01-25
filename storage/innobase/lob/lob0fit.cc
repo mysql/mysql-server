@@ -152,7 +152,7 @@ void UnfitBlock::unfit(byte *out, uint size) {
       byte *ptr = m_inf.next_in;
       inflateReset(&m_inf);
       m_inf.next_in = ptr;
-      m_inf.avail_in = (end - ptr);
+      m_inf.avail_in = static_cast<uInt>(end - ptr);
 
       m_inf.next_out = m_output + m_total_out;
       m_inf.avail_out = m_outlen - m_total_out;

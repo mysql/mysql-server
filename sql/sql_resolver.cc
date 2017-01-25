@@ -193,7 +193,7 @@ bool SELECT_LEX::prepare(THD *thd)
       setup_natural_join_row_types(thd, join_list, &context))
     DBUG_RETURN(true);
 
-  Mem_root_array<Item_exists_subselect *, true>
+  Mem_root_array<Item_exists_subselect *>
     sj_candidates_local(thd->mem_root);
   set_sj_candidates(&sj_candidates_local);
 
@@ -932,7 +932,7 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
       if (!tl->is_view_or_derived() ||
           tl->is_merged() ||
           !tl->is_mergeable())
-      continue;
+        continue;
       if (merge_derived(thd, tl))
         DBUG_RETURN(true);        /* purecov: inspected */
     }
@@ -946,7 +946,12 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
                 tl->is_merged() || tl->uses_materialization());
     if (!tl->is_view_or_derived() || tl->is_merged())
       continue;
-    if (tl->setup_materialized_derived(thd))
+    /*
+      If tl->resolve_derived() created the tmp table, don't create it again.
+      @todo in WL#6570, eliminate tests of tl->table in this function.
+    */
+    if (tl->table == nullptr &&
+        tl->setup_materialized_derived(thd))
       DBUG_RETURN(true);
     materialized_derived_table_count++;
   }
@@ -967,7 +972,7 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
       DBUG_ASSERT(!tl->is_merged());
       if (tl->resolve_derived(thd, apply_semijoin))
         DBUG_RETURN(true);        /* purecov: inspected */
-      if (tl->setup_materialized_derived(thd))
+      if (tl->table == nullptr && tl->setup_materialized_derived(thd))
         DBUG_RETURN(true);        /* purecov: inspected */
       /*
         materialized_derived_table_count was incremented during preparation,
@@ -2111,6 +2116,13 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   for (tl= subq_select->leaf_tables; tl; tl= tl->next_leaf, table_no++)
     tl->set_tableno(table_no);
 
+  /*
+    If we leave this function in an error path before subq_select is unlinked,
+    make sure tables are not duplicated, or cleanup code could be confused:
+  */
+  subq_select->table_list.empty();
+  subq_select->leaf_tables= nullptr;
+
   // Adjust table and expression counts in parent query block:
   derived_table_count+= subq_select->derived_table_count;
   materialized_derived_table_count+=
@@ -3090,10 +3102,14 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
     remove_base_options(SELECT_DISTINCT);
   }
 
-  // Remove GROUP BY if there are no aggregate functions and no HAVING clause
+  /*
+    Remove GROUP BY if there are no aggregate functions, no HAVING clause and
+    no ROLLUP.
+  */
 
   if ((possible_changes & REMOVE_GROUP) &&
-      group_list.elements && !agg_func_used() && !having_cond())
+      group_list.elements && !agg_func_used() && !having_cond() &&
+      olap == UNSPECIFIED_OLAP_TYPE)
   {
     changelog|= REMOVE_GROUP;
     for (ORDER *g= group_list.first; g != NULL; g= g->next)
@@ -3545,7 +3561,10 @@ bool SELECT_LEX::setup_group(THD *thd)
     if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
                            fields_list, all_fields, true))
       return true;
-    if ((*group->item)->with_sum_func)
+
+    Item *item= *group->item;
+    if (item->with_sum_func || (item->type() == Item::FUNC_ITEM &&
+         (down_cast<Item_func*>(item)->functype() == Item_func::GROUPING_FUNC)))
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
       return true;
@@ -3565,13 +3584,21 @@ bool SELECT_LEX::setup_group(THD *thd)
   The function replaces occurrences of group by fields in expr
   by ref objects for these fields unless they are under aggregate
   functions.
-  The function also corrects value of the the maybe_null attribute
+  The function also corrects value of the maybe_null attribute
   for the items of all subexpressions containing group by fields.
+  Along with this, it also checks if expressions in the GROUPING
+  function are present in GROUP BY. This cannot be pushed to
+  Item_func_grouping::fix_fields as GROUP BY expressions get
+  resolved at the end. And it cannot be checked later in
+  Item_func_grouping::aggregate_check_group as we replace
+  all occurrences of GROUP BY expressions with ref items.
+  As a result, we cannot compare the objects for equality.
 
   @b EXAMPLES
     @code
       SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
-      SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
+      SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP
+      SELECT a+1, GROUPING(a) FROM t1 GROUP BY a WITH ROLLUP;
   @endcode
 
   @b IMPLEMENTATION
@@ -3599,15 +3626,24 @@ bool SELECT_LEX::setup_group(THD *thd)
 bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 {
   bool arg_changed= false;
+  const bool is_grouping_func= expr->functype() == Item_func::GROUPING_FUNC;
+
   for (uint i= 0; i < expr->arg_count; i++)
   {
     Item **arg= expr->arguments() + i;
     Item *const item= *arg;
-    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+    Item *const real_item= item->real_item();
+    bool found_in_group= false;
+    /*
+      Arguments to GROUPING function must be present in the GROUP BY list.
+      Check that they are.
+    */
+    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM ||
+        is_grouping_func)
     {
       for (ORDER *group= group_list.first; group; group= group->next)
       {
-        if (item->eq(*group->item, 0))
+        if (real_item->eq((*group->item)->real_item(), 0))
         {
           Item *new_item;
           if (!(new_item= new Item_ref(&context, group->item, 0,
@@ -3616,7 +3652,15 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 
           expr->replace_argument(thd, arg, new_item);
           arg_changed= true;
+          found_in_group= true;
+          break;
         }
+      }
+
+      if (is_grouping_func && !found_in_group)
+      {
+        my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i+1));
+        return true;
       }
     }
     else if (item->type() == Item::FUNC_ITEM)
@@ -3781,7 +3825,8 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
         */
         if (!item->is_derived_used() &&
             item->walk(&Item::propagate_derived_used, Item::WALK_POSTFIX, NULL))
-          item->set_derived_used();
+          item->walk(&Item::propagate_set_derived_used,
+                     Item::WALK_SUBQUERY_POSTFIX, NULL);
 
         if (!item->is_derived_used())
         {

@@ -350,6 +350,7 @@ bool
 dd_table_discard_tablespace(
 	THD*			thd,
 	dict_table_t*		table,
+	dd::Table*		table_def,
 	bool			discard);
 
 /** Open an internal handle to a persistent InnoDB table by name.
@@ -492,11 +493,13 @@ dd_process_dd_indexes_rec(
 /** Open foreign tables reference a table.
 @param[in,out]	client		data dictionary client
 @param[in]	fk_list		foreign key name list
+@param[in]	dict_locked	dict_sys mutex is locked or not
 @param[in]	thd		thread THD */
 void
 dd_open_fk_tables(
 	dd::cache::Dictionary_client*	client,
 	dict_names_t&			fk_list,
+	bool				dict_locked,
 	THD*				thd);
 
 /** Get dd tablespace by dd space id

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,7 @@
 #include <mysql.h>
 #include <my_sys.h>
 #include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
 #include <my_default.h>
-#endif
 #include <my_dir.h>
 
 enum ErrorCodes 
@@ -197,6 +195,7 @@ extern const char * g_my_cnf;
 extern const char * g_user;
 extern const char * g_basedir;
 extern const char * g_prefix;
+extern const char * g_prefix0;
 extern const char * g_prefix1;
 extern int          g_baseport;
 extern int          g_fqpn;

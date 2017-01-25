@@ -128,14 +128,12 @@ bool Sql_cmd_call::execute_inner(THD *thd)
       return true;
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_audit_notify(thd,
                          AUDIT_EVENT(MYSQL_AUDIT_STORED_PROGRAM_EXECUTE),
                          proc_name->m_db.str,
                          proc_name->m_name.str,
                          NULL))
     return true;
-#endif /* !EMBEDDED_LIBRARY */
 
   if (sp->m_flags & sp_head::MULTI_RESULTS)
   {

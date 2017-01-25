@@ -170,7 +170,7 @@ utf32_turkish_ci	utf32	169		#	#
 utf32_unicode_520_ci	utf32	182		#	#
 utf32_unicode_ci	utf32	160		#	#
 utf32_vietnamese_ci	utf32	183		#	#
-utf8mb4_0900_ai_ci	utf8mb4	255		#	#
+utf8mb4_0900_ai_ci	utf8mb4	255	Yes	#	#
 utf8mb4_0900_as_cs	utf8mb4	278		#	#
 utf8mb4_bin	utf8mb4	46		#	#
 utf8mb4_croatian_ci	utf8mb4	245		#	#
@@ -192,7 +192,7 @@ utf8mb4_es_trad_0900_ai_ci	utf8mb4	270		#	#
 utf8mb4_es_trad_0900_as_cs	utf8mb4	293		#	#
 utf8mb4_et_0900_ai_ci	utf8mb4	262		#	#
 utf8mb4_et_0900_as_cs	utf8mb4	285		#	#
-utf8mb4_general_ci	utf8mb4	45	Yes	#	#
+utf8mb4_general_ci	utf8mb4	45		#	#
 utf8mb4_german2_ci	utf8mb4	244		#	#
 utf8mb4_hr_0900_ai_ci	utf8mb4	275		#	#
 utf8mb4_hr_0900_as_cs	utf8mb4	298		#	#

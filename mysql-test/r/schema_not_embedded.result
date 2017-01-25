@@ -46,3 +46,34 @@ DROP SCHEMA s;
 #
 USE s;
 ERROR 42000: Unknown database 's'
+#
+# WL#7743 "New data dictionary: changes to DDL-related parts of SE API"
+#
+# Additional test coverage for changes in DROP DATABASE implementation.
+# Check what happens when we fail to remove database directory during
+# the last step of DROP DATABASE, when statement is already committed.
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INT RETURN 0;
+connect  con1, localhost, root,,;
+# Acquire S lock on db1.f1(), so upcoming DROP DATABASE will get
+# blocked.
+BEGIN;
+SELECT db1.f1();
+db1.f1()
+0
+connection default;
+# Send:
+DROP DATABASE db1;
+connection con1;
+# Wait until the above DROP DATABASE is blocked because of S lock.
+# Replace database directory with an empty file.
+# Unblock DROP DATABASE by releasing S lock.
+COMMIT;
+disconnect con1;
+connection default;
+# Reap DROP DATABASE. Statement should succeed, but send warnings
+# about problems with removing database directory to user ...
+Warnings:
+Warning	3585	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './db1', errno: ## - ...). Please remove it manually.
+# ... and error log too. Let's check that.
+# Clean-up.

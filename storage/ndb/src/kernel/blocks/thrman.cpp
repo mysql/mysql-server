@@ -222,6 +222,7 @@ Thrman::execSTTOR(Signal *signal)
     m_overload_handling_activated = false;
     m_current_overload_status = (OverloadStatus)LIGHT_LOAD_CONST;
     m_warning_level = 0;
+    m_max_warning_level = 20;
     m_burstiness = 0;
     m_current_decision_stats = &c_1sec_stats;
     m_send_thread_percentage = 0;
@@ -790,7 +791,7 @@ Thrman::measure_cpu_usage(Signal *signal)
   {
     jam();
     check_20sec = true;
-    c_next_1sec_measure.first(measurePtr);
+    c_next_20sec_measure.first(measurePtr);
     calculate_measurement(measurePtr,
                           &curr_rusage,
                           &m_last_20sec_rusage,

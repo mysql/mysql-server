@@ -17,7 +17,7 @@
   @file include/sslopt-longopts.h
 */
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 #ifdef MYSQL_CLIENT
   {"ssl-mode", OPT_SSL_MODE,
    "SSL connection mode.",

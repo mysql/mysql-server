@@ -1,5 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 set GLOBAL query_cache_size=1355776;
 flush query cache;
 flush query cache;
@@ -1906,4 +1904,3 @@ INSERT INTO spoiled_child VALUES (1),(2);
 DELETE FROM parent WHERE a>1;
 DROP DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
 SET GLOBAL query_cache_size = @query_cache_size.saved;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

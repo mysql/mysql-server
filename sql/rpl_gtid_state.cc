@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -24,6 +24,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysqld.h"                // opt_bin_log
@@ -863,7 +864,9 @@ bool Gtid_state::update_gtids_impl_begin(THD *thd)
   return thd->is_commit_in_middle_of_statement;
 }
 
-void Gtid_state::update_gtids_impl_own_gtid_set(THD *thd, bool is_commit)
+void Gtid_state
+  ::update_gtids_impl_own_gtid_set(THD *thd MY_ATTRIBUTE((unused)),
+                                   bool is_commit MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_GTID_NEXT_LIST
   rpl_sidno prev_sidno= 0;

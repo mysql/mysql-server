@@ -175,7 +175,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "city"
   schema: "xtest"
   catalog: "def"
-  collation: 45
+  collation: 255
   fractional_digits: 0
   length: 140
   flags: 17

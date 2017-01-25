@@ -230,7 +230,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_ge
 
 --echo #####################################################################
 --echo # Retrieving geometries with ST_ASWKB with srid-default axis ordering
---echo # (Default SRID coordination should thus be overridden)
+--echo # (Default SRID coordination should thus be explicitly used)
 --echo #####################################################################
 
 --echo # Retrieve all values from gis_point
@@ -399,6 +399,48 @@ SELECT ST_AsWKB(POINT(1, 1), 'axis-order=lat-long , foo=bar');
 
 --error ER_INVALID_OPTION_VALUE
 DO ST_AsWKB(ST_GeomFromText('POINT(1 1)', 4325), 'axis-order = foo'); 
+
+
+--echo #####################################################################
+--echo # ST_ASBINARY
+--echo #####################################################################
+
+# ST_ASBINARY has the exact same implementation as ST_ASWKB. We still need
+# minimal testing of the interface to detect changes that affect only the one
+# function name.
+
+# These queries are a selection of those done for ST_ASWKB.
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g)))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=srid-defined')))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, '')))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=lat-long')))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=long-lat')))
+FROM gis_geometrycollection ORDER BY fid;
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASBINARY(g, 'invalid_option=invalid-value')
+FROM gis_geometrycollection;
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASBINARY(g, 'axis-order=srid-defined, axis-order2=lat-long')
+FROM gis_geometrycollection;
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_ASBINARY(g, 'axis-order=long-lat', POINT(2, 4))
+FROM gis_geometrycollection;
+
+SELECT ST_ASBINARY(NULL, 'axis-order=srid-defined');
+SELECT ST_ASBINARY(POINT(0, 0), NULL);
+SELECT ST_ASBINARY(NULL, NULL);
 
 DROP TABLE gis_point;
 DROP TABLE gis_linestring;

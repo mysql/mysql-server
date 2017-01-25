@@ -23,7 +23,6 @@
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 #include <NdbEnv.h>
-#include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
 #include <signaldata/IndexStatSignal.hpp>
@@ -669,7 +668,9 @@ NdbTableImpl::init(){
   m_minLoadFactor= 78;
   m_maxLoadFactor= 80;
   m_keyLenInWords= 0;
+  m_partitionBalance = NdbDictionary::Object::PartitionBalance_ForRPByLDM;
   m_fragmentCount= 0;
+  m_partitionCount = 0;
   m_index= NULL;
   m_indexType= NdbDictionary::Object::TypeUndefined;
   m_noOfKeys= 0;
@@ -690,6 +691,26 @@ NdbTableImpl::init(){
   m_storageType = NDB_STORAGETYPE_DEFAULT;
   m_extra_row_gci_bits = 0;
   m_extra_row_author_bits = 0;
+  m_read_backup = 0;
+  m_fully_replicated = false;
+
+#ifdef VM_TRACE
+  {
+    char buf[100];
+    const char* b = NdbEnv_GetEnv("NDB_READ_BACKUP_TABLES", buf, sizeof(buf));
+    if (b)
+    {
+      m_read_backup = 1;
+    }
+    if (NdbEnv_GetEnv("NDB_FULLY_REPLICATED", buf, sizeof(buf)) != 0)
+    {
+      m_read_backup = 1;
+      m_fully_replicated = 1;
+      m_partitionBalance =
+        NdbDictionary::Object::PartitionBalance_ForRAByLDM;
+    }
+  }
+#endif
 }
 
 bool
@@ -734,6 +755,16 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_PRINT("info",("m_range not equal"));
     DBUG_RETURN(false);
   }
+
+  if (m_partitionBalance != obj.m_partitionBalance)
+  {
+    DBUG_RETURN(false);
+  }
+
+  /**
+   * TODO: Why is not fragment count compared??
+   */
+
   if(m_fragmentType != obj.m_fragmentType)
   {
     DBUG_PRINT("info",("m_fragmentType %d != %d",m_fragmentType,
@@ -900,6 +931,19 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_RETURN(false);
   }
 
+  if (m_read_backup != obj.m_read_backup)
+  {
+    DBUG_PRINT("info",("m_read_backup %d != %d",
+                       (int32)m_read_backup,
+                       (int32)obj.m_read_backup));
+    DBUG_RETURN(false);
+  }
+
+  if (m_fully_replicated != obj.m_fully_replicated)
+  {
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(true);
 }
 
@@ -974,10 +1018,13 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_maxLoadFactor = org.m_maxLoadFactor;
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
-  
+  m_partitionCount = org.m_partitionCount;
+  m_partitionBalance = org.m_partitionBalance;
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
   m_extra_row_author_bits = org.m_extra_row_author_bits;
+  m_read_backup = org.m_read_backup;
+  m_fully_replicated = org.m_fully_replicated;
 
   if (m_index != 0)
     delete m_index;
@@ -1004,6 +1051,15 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
   m_storageType = org.m_storageType;
+
+  m_hash_map_id = org.m_hash_map_id;
+  m_hash_map_version = org.m_hash_map_version;
+
+  DBUG_PRINT("info", ("m_logging: %u, m_read_backup %u"
+                      " tableVersion: %u",
+                      m_logging,
+                      m_read_backup,
+                      m_version));
 
   DBUG_RETURN(0);
 }
@@ -1166,6 +1222,11 @@ NdbTableImpl::setFragmentCount(Uint32 count)
 Uint32 NdbTableImpl::getFragmentCount() const
 {
   return m_fragmentCount;
+}
+
+Uint32 NdbTableImpl::getPartitionCount() const
+{
+  return m_partitionCount;
 }
 
 int NdbTableImpl::setFrm(const void* data, Uint32 len)
@@ -2459,6 +2520,23 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       DBUG_RETURN(0);
     }
     
+    if(m_impl->get_ndbapi_config_parameters().m_verbose >= 2)
+    {
+      if (m_error.code == 0)
+      {
+        g_eventLogger->info("dictSignal() request gsn %u to 0x%x on node %u "
+                            "with %u sections failed with no error",
+                            sig->theVerId_signalNumber,
+                            sig->theReceiversBlockNumber,
+                            node,
+                            secs);
+        g_eventLogger->info("dictSignal() poll_guard.wait_n_unlock() "
+                            "returned %d, state is %u",
+                            ret_val,
+                            m_impl->theWaiter.get_state());
+      }
+    }
+
     /**
      * Handle error codes
      */
@@ -2470,6 +2548,15 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     if(m_impl->theWaiter.get_state() == WST_WAIT_TIMEOUT)
     {
       DBUG_PRINT("info", ("dictSignal caught time-out"));
+      if(m_impl->get_ndbapi_config_parameters().m_verbose >= 2)
+      {
+        g_eventLogger->info("NdbDictionaryImpl::dictSignal() WST_WAIT_TIMEOUT for gsn %u"
+                            "to 0x%x on node %u with %u sections.",
+                            sig->theVerId_signalNumber,
+                            sig->theReceiversBlockNumber,
+                            node,
+                            secs);
+      }
       m_error.code = 4008;
       DBUG_RETURN(-1);
     }
@@ -2775,6 +2862,8 @@ objectTypeMapping[] = {
   { DictTabInfo::Datafile,           NdbDictionary::Object::Datafile },
   { DictTabInfo::Undofile,           NdbDictionary::Object::Undofile },
   { DictTabInfo::ReorgTrigger,       NdbDictionary::Object::ReorgTrigger },
+  { DictTabInfo::FullyReplicatedTrigger,
+    NdbDictionary::Object::FullyReplicatedTrigger },
 
   { DictTabInfo::ForeignKey,         NdbDictionary::Object::ForeignKey },
   { DictTabInfo::FKParentTrigger,    NdbDictionary::Object::FKParentTrigger },
@@ -2821,7 +2910,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   SimpleProperties::UnpackStatus s;
   DBUG_ENTER("NdbDictInterface::parseTableInfo");
 
-  tableDesc = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
+  tableDesc = (DictTabInfo::Table*)malloc(sizeof(DictTabInfo::Table));
   if (!tableDesc)
   {
     DBUG_RETURN(4000);
@@ -2833,7 +2922,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 			       true, true);
   
   if(s != SimpleProperties::Break){
-    NdbMem_Free((void*)tableDesc);
+    free(tableDesc);
     DBUG_RETURN(703);
   }
   const char * internalName = tableDesc->TableName;
@@ -2850,6 +2939,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       impl->m_range.assign((Int32*)tableDesc->RangeListData,
                            /* yuck */tableDesc->RangeListDataLen / 4))
   {
+    delete impl;
+    free(tableDesc);
     DBUG_RETURN(4000);
   }
 
@@ -2862,7 +2953,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     Uint32 cnt = tableDesc->FragmentDataLen / 2;
     for (Uint32 i = 0; i<cnt; i++)
       if (impl->m_fd.push_back((Uint32)tableDesc->FragmentData[i]))
+      {
+        delete impl;
+        free(tableDesc);
         DBUG_RETURN(4000);
+      }
   }
 
   impl->m_fragmentCount = tableDesc->FragmentCount;
@@ -2889,10 +2984,20 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   }
   else
   {
-    impl->m_hash_map_id = ~0;
+    impl->m_hash_map_id = RNIL;
     impl->m_hash_map_version = ~0;
   }
-  
+
+  /**
+   * In older version of ndb...hashMapObjectId was initialized to ~0
+   *   instead of RNIL...
+   */
+  if (impl->m_hash_map_id == ~Uint32(0) &&
+      impl->m_hash_map_version == ~Uint32(0))
+  {
+    impl->m_hash_map_id = RNIL;
+  }
+
   Uint64 max_rows = ((Uint64)tableDesc->MaxRowsHigh) << 32;
   max_rows += tableDesc->MaxRowsLow;
   impl->m_max_rows = max_rows;
@@ -2913,6 +3018,20 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_storageType = tableDesc->TableStorageType;
   impl->m_extra_row_gci_bits = tableDesc->ExtraRowGCIBits;
   impl->m_extra_row_author_bits = tableDesc->ExtraRowAuthorBits;
+  impl->m_partitionBalance =
+    (NdbDictionary::Object::PartitionBalance)tableDesc->PartitionBalance;
+  impl->m_read_backup = tableDesc->ReadBackupFlag == 0 ? false : true;
+  impl->m_partitionCount = tableDesc->PartitionCount;
+  impl->m_fully_replicated =
+    tableDesc->FullyReplicatedFlag == 0 ? false : true;
+
+
+  DBUG_PRINT("info", ("m_logging: %u, partitionBalance: %d"
+                      " m_read_backup %u, tableVersion: %u",
+                      impl->m_logging,
+                      impl->m_partitionBalance,
+                      impl->m_read_backup,
+                      impl->m_version));
 
   impl->m_indexType = (NdbDictionary::Object::Type)
     getApiConstant(tableDesc->TableType,
@@ -2927,6 +3046,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       Ndb::externalizeTableName(tableDesc->PrimaryTable, fullyQualifiedNames);
     if (!impl->m_primaryTable.assign(externalPrimary))
     {
+      delete impl;
+      free(tableDesc);
       DBUG_RETURN(4000);
     }
     columnsIndexSourced= true;
@@ -2942,7 +3063,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 true, true);
     if(s != SimpleProperties::Break){
       delete impl;
-      NdbMem_Free((void*)tableDesc);
+      free(tableDesc);
       DBUG_RETURN(703);
     }
     
@@ -2954,7 +3075,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     if (! attrDesc.translateExtType()) {
       delete col;
       delete impl;
-      NdbMem_Free((void*)tableDesc);
+      free(tableDesc);
       DBUG_RETURN(703);
     }
     col->m_type = (NdbDictionary::Column::Type)attrDesc.AttributeExtType;
@@ -2967,7 +3088,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     if (col->getCharType() != (cs_number != 0)) {
       delete col;
       delete impl;
-      NdbMem_Free((void*)tableDesc);
+      free(tableDesc);
       DBUG_RETURN(703);
     }
     if (col->getCharType()) {
@@ -2975,7 +3096,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       if (col->m_cs == NULL) {
         delete col;
         delete impl;
-        NdbMem_Free((void*)tableDesc);
+        free(tableDesc);
         DBUG_RETURN(743);
       }
     }
@@ -2998,8 +3119,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       else if (col->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
         col->m_blobVersion = NDB_BLOB_V2;
       else {
+        delete col;
         delete impl;
-        NdbMem_Free((void*)tableDesc);
+        free(tableDesc);
         DBUG_RETURN(4263);
       }
     }
@@ -3025,6 +3147,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
         {
           delete col;
           delete impl;
+          free(tableDesc);
           DBUG_RETURN(4000);
         }
         
@@ -3067,9 +3190,10 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       pos++; // skip logpart
       for (Uint32 j = 0; j<(Uint32)replicaCount; j++)
       {
-	if (impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[pos++])))
-	{
-          delete impl;
+        if (impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[pos++])))
+	 {
+	   delete impl;
+          free(tableDesc);
           DBUG_RETURN(4000);
         }
       }
@@ -3095,7 +3219,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   * ret = impl;
 
-  NdbMem_Free((void*)tableDesc);
   if (version < MAKE_VERSION(5,1,3))
   {
     ;
@@ -3104,6 +3227,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   {
     DBUG_ASSERT(impl->m_fragmentCount > 0);
   }
+  free(tableDesc);
   DBUG_RETURN(0);
 }
 
@@ -3271,15 +3395,45 @@ NdbDictInterface::createTable(Ndb & ndb,
       /**
        * Make sure that hashmap exists (i.e after upgrade or similar)
        */
+      Uint32 partitionBalance_Count = impl.getPartitionBalance();
+      int req_type = CreateHashMapReq::CreateDefault |
+                     CreateHashMapReq::CreateIfNotExists;
+      if (!impl.getFullyReplicated())
+      {
+        if (partitionBalance_Count == NDB_PARTITION_BALANCE_SPECIFIC)
+        {
+          // For non fully replicated table partition count is fragment count.
+          partitionBalance_Count = impl.getFragmentCount();
+        }
+      }
+      else
+      {
+        if (partitionBalance_Count == NDB_PARTITION_BALANCE_SPECIFIC)
+        {
+          m_error.code = 797; // WrongPartitionBalanceFullyReplicated
+          DBUG_RETURN(-1);
+        }
+        req_type |= CreateHashMapReq::CreateForOneNodegroup;
+      }
+      assert(partitionBalance_Count != 0);
+      DBUG_PRINT("info", ("PartitionBalance: create_hashmap: %x",
+                          partitionBalance_Count));
       NdbHashMapImpl hashmap;
-      ret = create_hashmap(hashmap, 0,
-                           CreateHashMapReq::CreateDefault |
-                           CreateHashMapReq::CreateIfNotExists);
+      ret = create_hashmap(hashmap,
+                           &hashmap,
+                           req_type,
+                           partitionBalance_Count);
       if (ret)
       {
         DBUG_RETURN(ret);
       }
+      impl.m_hash_map_id = hashmap.m_id;
+      impl.m_hash_map_version = hashmap.m_version;
     }
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Hashmap already defined"));
   }
 
   syncInternalName(ndb, impl);
@@ -3408,10 +3562,18 @@ NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
         new_bt.getFragmentType() == old_tab.getFragmentType() &&
         new_bt.getFragmentCount() == old_tab.getFragmentCount() &&
         new_bt.getFragmentCount() != new_tab.getFragmentCount();
-
+    }
+    if (!frag_change)
+    {
+      if (new_bt.getPartitionBalance() == old_tab.getPartitionBalance() &&
+          new_bt.getPartitionBalance() != new_tab.getPartitionBalance())
+      {
+        frag_change = true;
+      }
     }
     if (frag_change)
     {
+      new_bt.setPartitionBalance(new_tab.getPartitionBalance());
       new_bt.setFragmentType(new_tab.getFragmentType());
       new_bt.setDefaultNoPartitionsFlag(new_tab.getDefaultNoPartitionsFlag());
       new_bt.setFragmentCount(new_tab.getFragmentCount());
@@ -3423,8 +3585,22 @@ NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
       }
     }
 
+    bool read_backup_change = false;
+    if (new_tab.getReadBackupFlag() != old_tab.getReadBackupFlag())
+    {
+      read_backup_change = true;
+      if (new_tab.getReadBackupFlag())
+      {
+        new_bt.setReadBackupFlag(true);
+      }
+      else
+      {
+        new_bt.setReadBackupFlag(false);
+      }
+    }
+
     Uint32 changeMask = 0;
-    if (name_change || frag_change)
+    if (name_change || frag_change || read_backup_change)
     {
       int ret = m_receiver.alterTable(m_ndb, bt.m_impl, new_bt.m_impl, changeMask);
       if (ret != 0)
@@ -3433,6 +3609,7 @@ NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
       }
       assert(!name_change || AlterTableReq::getNameFlag(changeMask));
       assert(!frag_change || AlterTableReq::getAddFragFlag(changeMask));
+      assert(!read_backup_change || AlterTableReq::getReadBackupFlag(changeMask));
     }
   }
   DBUG_RETURN(0);
@@ -3532,17 +3709,98 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      impl.m_version != old_impl.m_version ||
      sz < old_sz ||
      impl.m_extra_row_gci_bits != old_impl.m_extra_row_gci_bits ||
-     impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits)
+     impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits ||
+     impl.m_fully_replicated != old_impl.m_fully_replicated)
+
   {
     DBUG_PRINT("info", ("Old and new table not compatible"));
     goto invalid_alter_table;
   }
 
+  /**
+   * PartitionBalance can change with alter table if it increases the
+   * the number of fragments or the number stays the same. Changing to
+   * a smaller number of fragments does however not work as this
+   * requires drop partition to work.
+   */
+
+  if (impl.m_partitionBalance != old_impl.m_partitionBalance)
+  {
+    bool ok;
+    if (old_impl.m_fully_replicated)
+    {
+      /**
+       * Currently do not support changing partition balance of
+       * fully replicated tables.
+       */
+      ok = false;
+    }
+    else if (old_impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_Specific)
+    {
+      ok = false;
+    }
+    else if (impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_Specific)
+    {
+      ok = true;
+    }
+    else if (old_impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_ForRAByNode)
+    {
+      ok = true;
+    }
+    else if (old_impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_ForRPByNode)
+    {
+      if (impl.m_partitionBalance !=
+            NdbDictionary::Object::PartitionBalance_ForRAByNode)
+      {
+        ok = true;
+      }
+      else
+      {
+        ok = false;
+      }
+    }
+    else if (old_impl.m_partitionBalance ==
+             NdbDictionary::Object::PartitionBalance_ForRAByLDM)
+    {
+      if (impl.m_partitionBalance !=
+            NdbDictionary::Object::PartitionBalance_ForRAByNode &&
+          impl.m_partitionBalance !=
+            NdbDictionary::Object::PartitionBalance_ForRPByNode)
+      {
+        ok = true;
+      }
+      else
+      {
+        ok = false;
+      }
+    }
+    else
+    {
+      /**
+       * Unknown partition balance
+       */
+      ok = false;
+    }
+    if (!ok)
+    {
+      goto invalid_alter_table;
+    }
+    AlterTableReq::setAddFragFlag(change_mask, true);
+    AlterTableReq::setPartitionBalanceFlag(change_mask, true);
+  }
   if (impl.m_fragmentCount != old_impl.m_fragmentCount)
   {
     if (impl.m_fragmentType != NdbDictionary::Object::HashMapPartition)
       goto invalid_alter_table;
     AlterTableReq::setAddFragFlag(change_mask, true);
+  }
+  else if (AlterTableReq::getPartitionBalanceFlag(change_mask))
+  {
+    ; // Already handled above
   }
   else
   { // Changing hash map only supported if adding fragments
@@ -3553,7 +3811,19 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
       goto invalid_alter_table;
     }
   }
-
+  if (impl.m_read_backup != old_impl.m_read_backup)
+  {
+    /* Change the read backup flag inplace */
+    DBUG_PRINT("info", ("Set Change ReadBackup Flag, old: %u, new: %u",
+                       old_impl.m_read_backup,
+                       impl.m_read_backup));
+    AlterTableReq::setReadBackupFlag(change_mask, true);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("No ReadBackup change, val: %u",
+                        impl.m_read_backup));
+  }
 
   /*
     Check for new columns.
@@ -3642,9 +3912,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   //validate();
   //aggregate();
 
-  DictTabInfo::Table *tmpTab;
-
-  tmpTab = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
+  DictTabInfo::Table *tmpTab = (DictTabInfo::Table*)malloc(sizeof(DictTabInfo::Table));
   if (!tmpTab)
   {
     m_error.code = 4000;
@@ -3659,7 +3927,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     const NdbColumnImpl * col = impl.m_columns[i];
     if (col == NULL) {
       m_error.code = 4272;
-      NdbMem_Free((void*)tmpTab);
+      free(tmpTab);
       DBUG_RETURN(-1);
     }
     if (col->m_distributionKey)
@@ -3668,7 +3936,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
       if (!col->m_pk)
       {
         m_error.code = 4327;
-        NdbMem_Free((void*)tmpTab);
+        free(tmpTab);
         DBUG_RETURN(-1);
       }
     }
@@ -3681,7 +3949,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
     m_error.code= 1229;
-    NdbMem_Free((void*)tmpTab);
+    free(tmpTab);
     DBUG_RETURN(-1);
   }
   /*
@@ -3712,7 +3980,9 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     memcpy(tmpTab->RangeListData, impl.m_range.getBase(),4*impl.m_range.size());
   }
 
+  tmpTab->PartitionBalance = (Uint32)impl.m_partitionBalance;
   tmpTab->FragmentCount= impl.m_fragmentCount;
+  tmpTab->PartitionCount = impl.m_partitionCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
   tmpTab->TableTemporaryFlag = impl.m_temporary;
   tmpTab->RowGCIFlag = impl.m_row_gci;
@@ -3733,7 +4003,8 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->ForceVarPartFlag = impl.m_force_var_part;
   tmpTab->ExtraRowGCIBits = impl.m_extra_row_gci_bits;
   tmpTab->ExtraRowAuthorBits = impl.m_extra_row_author_bits;
-
+  tmpTab->FullyReplicatedFlag = !!impl.m_fully_replicated;
+  tmpTab->ReadBackupFlag = !!impl.m_read_backup;
   tmpTab->FragmentType = getKernelConstant(impl.m_fragmentType,
  					   fragmentTypeMapping,
 					   DictTabInfo::AllNodesSmallTable);
@@ -3765,7 +4036,7 @@ loop:
       if (m_error.code == 723)
 	m_error.code = 755;
       
-      NdbMem_Free((void*)tmpTab);
+      free(tmpTab);
       DBUG_RETURN(-1);
     }
   } 
@@ -3791,7 +4062,7 @@ loop:
   if(s != SimpleProperties::Eof){
     abort();
   }
-  NdbMem_Free((void*)tmpTab);
+  free(tmpTab);
   
   DBUG_PRINT("info",("impl.m_noOfDistributionKeys: %d impl.m_noOfKeys: %d distKeys: %d",
 		     impl.m_noOfDistributionKeys, impl.m_noOfKeys, distKeys));
@@ -3935,6 +4206,7 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
   req->tableId = impl.m_id;
   req->tableVersion = impl.m_version;
   req->changeMask = change_mask;
+  DBUG_PRINT("info", ("sendAlterTable: changeMask: %x", change_mask));
 
   int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
 
@@ -4614,6 +4886,10 @@ NdbDictInterface::createIndex(Ndb & ndb,
   w.add(DictTabInfo::TableLoggedFlag, impl.m_logging);
   w.add(DictTabInfo::TableTemporaryFlag, impl.m_temporary);
 
+  /**
+   * DICT ensures that the table gets the same partitioning
+   * for unique indexes as the main table.
+   */
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_CREATE_INDX_REQ;
@@ -4636,6 +4912,31 @@ NdbDictInterface::createIndex(Ndb & ndb,
     m_error.code = 4250;
     return -1;
   }
+
+  if (it == DictTabInfo::UniqueHashIndex)
+  {
+    /**
+     * We derive the Read backup flag and Fully replicated flag
+     * from the main table. This is only done in the NDB API
+     * here. This enables us to easily make this settable per
+     * table by changing the NDB API. Setting it in data node
+     * makes it harder to change to a more flexible manner in
+     * the future if need arises.
+     *
+     * Ordered indexes are hardcoded in data nodes to always
+     * use the Read backup and Fully replicated flags from the
+     * base table.
+     */
+    DBUG_PRINT("info", ("Index settings: name: %s, read_backup: %u,"
+                        " fully_replicated: %u",
+                        internalName.c_str(),
+                        table.m_read_backup,
+                        table.m_fully_replicated));
+
+    w.add(DictTabInfo::ReadBackupFlag, table.m_read_backup);
+    w.add(DictTabInfo::FullyReplicatedFlag, table.m_fully_replicated);
+  }
+
   req->indexType = it;
   
   req->tableId = table.m_id;
@@ -7734,9 +8035,8 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       const NdbDictionary::RecordSpecification_v1* oldRecordSpec =
           (const NdbDictionary::RecordSpecification_v1*) recSpec;
 
-      newRecordSpec =(NdbDictionary::RecordSpecification*)
-                      NdbMem_Allocate(length *
-                        sizeof(NdbDictionary::RecordSpecification));
+      newRecordSpec = (NdbDictionary::RecordSpecification*)
+                         malloc(length * sizeof(NdbDictionary::RecordSpecification));
       if(newRecordSpec == NULL)
       {
         m_error.code= 4000;
@@ -7767,7 +8067,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                            elemSize,
                                            flags,
                                            defaultRecord);
-  NdbMem_Free((void*)newRecordSpec);
+  free(newRecordSpec);
   return ndbRec;
 }
 
@@ -8809,12 +9109,16 @@ NdbHashMapImpl::NdbHashMapImpl()
   : NdbDictionary::HashMap(* this),
     NdbDictObjectImpl(NdbDictionary::Object::HashMap), m_facade(this)
 {
+  m_id = RNIL;
+  m_version = ~Uint32(0);
 }
 
 NdbHashMapImpl::NdbHashMapImpl(NdbDictionary::HashMap & f)
   : NdbDictionary::HashMap(* this),
     NdbDictObjectImpl(NdbDictionary::Object::HashMap), m_facade(&f)
 {
+  m_id = RNIL;
+  m_version = ~Uint32(0);
 }
 
 NdbHashMapImpl::~NdbHashMapImpl()
@@ -8980,7 +9284,8 @@ NdbDictInterface::parseHashMapInfo(NdbHashMapImpl &dst,
 int
 NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  NdbDictObjectImpl* obj,
-                                 Uint32 flags)
+                                 Uint32 flags,
+                                 Uint32 partitionBalance_Count)
 {
   {
     DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap(); 
@@ -9026,7 +9331,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
-  req->fragments = 0; // not used from here
+  req->fragments = partitionBalance_Count;
   req->buckets = 0; // not used from here
 
   LinearSectionPtr ptr[3];
@@ -9050,6 +9355,9 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                         " in NdbDictInterface::create_hashmap()"));
     timeout = 1000;
   });
+  DBUG_PRINT("info", ("CREATE_HASH_MAP_REQ: cnt: %u, fragments: %x",
+             seccnt, req->fragments));
+  assert(partitionBalance_Count != 0);
   int ret = dictSignal(&tSignal, ptr, seccnt,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,

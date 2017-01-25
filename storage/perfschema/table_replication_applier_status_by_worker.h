@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 #ifndef TABLE_REPLICATION_APPLIER_STATUS_BY_WORKER_H
 #define TABLE_REPLICATION_APPLIER_STATUS_BY_WORKER_H
@@ -50,9 +49,10 @@ class Master_info;
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enumerated values for service_state of worker thread*/
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1, /* service_state= on */
-  PS_RPL_NO /* service_state= off */
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1, /* service_state= on */
+  PS_RPL_NO       /* service_state= off */
 };
 #endif
 
@@ -60,8 +60,8 @@ enum enum_rpl_yes_no {
   A row in worker's table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_worker {
-
+struct st_row_worker
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   /*
@@ -73,7 +73,7 @@ struct st_row_worker {
   ulonglong thread_id;
   uint thread_id_is_null;
   enum_rpl_yes_no service_state;
-  char last_seen_transaction[Gtid::MAX_TEXT_LENGTH+1];
+  char last_seen_transaction[Gtid::MAX_TEXT_LENGTH + 1];
   uint last_seen_transaction_length;
   uint last_error_number;
   char last_error_message[MAX_SLAVE_ERRMSG];
@@ -87,26 +87,30 @@ struct st_row_worker {
   Index 1 for replication channel
   Index 2 for worker
 */
-struct workers_per_channel
-:public PFS_double_index
+struct workers_per_channel : public PFS_double_index
 {
-  workers_per_channel()
-    :PFS_double_index(0,0)
-  {}
-
-  inline void reset(void)
+  workers_per_channel() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline bool has_more_channels(uint num)
-  { return (m_index_1 < num); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
 
-  inline void next_channel(void)
+  inline bool
+  has_more_channels(uint num)
+  {
+    return (m_index_1 < num);
+  }
+
+  inline void
+  next_channel(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -115,10 +119,12 @@ class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index
 public:
   PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
     : PFS_engine_index(key)
-  {}
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_worker()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi) = 0;
@@ -130,12 +136,13 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
 {
 public:
   PFS_index_rpl_applier_status_by_worker_by_channel()
-    : PFS_index_rpl_applier_status_by_worker(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_worker_by_channel()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -149,12 +156,13 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
 {
 public:
   PFS_index_rpl_applier_status_by_worker_by_thread()
-    : PFS_index_rpl_applier_status_by_worker(&m_key),
-    m_key("THREAD_ID")
-  {}
+    : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_worker_by_thread()
-  {}
+  {
+  }
 
 #ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
@@ -164,16 +172,16 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_worker */
-class table_replication_applier_status_by_worker: public PFS_engine_table
+class table_replication_applier_status_by_worker : public PFS_engine_table
 {
 private:
 #ifdef HAVE_REPLICATION
-  void make_row(Slave_worker *);
+  int make_row(Slave_worker *);
   /*
     Master_info to construct a row to display SQL Thread's status
     information in STS mode
   */
-  void make_row(Master_info *);
+  int make_row(Master_info *);
 #endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
@@ -184,8 +192,6 @@ private:
   /** current row*/
   st_row_worker m_row;
 #endif /* HAVE_REPLICATION */
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   workers_per_channel m_pos;
   /** Next position. */
@@ -216,7 +222,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

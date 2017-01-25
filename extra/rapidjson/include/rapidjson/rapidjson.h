@@ -608,4 +608,8 @@ enum Type {
 
 RAPIDJSON_NAMESPACE_END
 
+#if defined(__clang__) || defined(__GNUC__)
+RAPIDJSON_DIAG_OFF(unused-parameter)
+#endif
+
 #endif // RAPIDJSON_RAPIDJSON_H_

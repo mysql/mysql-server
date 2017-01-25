@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* -*- c-basic-offset: 4; -*- */
 #include <ndb_global.h>
 #include <BaseString.hpp>
 #include "basestring_vsnprintf.h"
@@ -297,48 +296,50 @@ BaseString::split(Vector<BaseString> &v,
 }
 
 ssize_t
-BaseString::indexOf(char c, size_t pos) const {
-
+BaseString::indexOf(char c, size_t pos) const
+{
   if (pos >= m_len)
     return -1;
 
-    char *p = strchr(m_chr + pos, c);
-    if(p == NULL)
-	return -1;
-    return (ssize_t)(p-m_chr);
+  char *p = strchr(m_chr + pos, c);
+  if(p == NULL)
+    return -1;
+  return (ssize_t)(p-m_chr);
 }
 
 ssize_t
-BaseString::indexOf(const char * needle, size_t pos) const {
-
+BaseString::indexOf(const char * needle, size_t pos) const
+{
   if (pos >= m_len)
     return -1;
 
-    char *p = strstr(m_chr + pos, needle);
-    if(p == NULL)
-	return -1;
-    return (ssize_t)(p-m_chr);
+  char *p = strstr(m_chr + pos, needle);
+  if(p == NULL)
+    return -1;
+  return (ssize_t)(p-m_chr);
 }
 
 ssize_t
-BaseString::lastIndexOf(char c) const {
-    char *p;
-    p = strrchr(m_chr, c);
-    if(p == NULL)
-	return -1;
-    return (ssize_t)(p-m_chr);
+BaseString::lastIndexOf(char c) const
+{
+  char *p;
+  p = strrchr(m_chr, c);
+  if(p == NULL)
+    return -1;
+  return (ssize_t)(p-m_chr);
 }
 
 BaseString
-BaseString::substr(ssize_t start, ssize_t stop) const {
-    if(stop < 0)
-	stop = length();
-    ssize_t len = stop-start;
-    if(len <= 0)
-	return BaseString("");
-    BaseString s;
-    s.assign(m_chr+start, len);
-    return s;
+BaseString::substr(ssize_t start, ssize_t stop) const
+{
+  if(stop < 0)
+    stop = length();
+  ssize_t len = stop-start;
+  if(len <= 0)
+    return BaseString("");
+  BaseString s;
+  s.assign(m_chr+start, len);
+  return s;
 }
 
 static bool

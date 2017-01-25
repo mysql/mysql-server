@@ -16,8 +16,6 @@
 #ifndef SQL_SECURITY_CTX_SERVICE_INCLUDED
 #define SQL_SECURITY_CTX_SERVICE_INCLUDED
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
 #include <string.h>
 
 #include "auth_acls.h"
@@ -377,5 +375,4 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
   }
 }
 
-#endif /* !NO_EMBEDDED_ACCESS_CHECKS */
 #endif /* !SQL_SECURITY_CTX_SERVICE_INCLUDED */

@@ -23,6 +23,15 @@
 */
 
 #include <mysql.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "errmsg.h"
+#include "mem_root_fwd.h"
+#include "my_command.h"
+#include "my_inttypes.h"
+#include "my_list.h"
+#include "mysql_com.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -131,7 +140,7 @@ typedef struct st_mysql_methods
 			MYSQL_ROW column, unsigned int field_count);
   void (*flush_use_result)(MYSQL *mysql, my_bool flush_all_results);
   int (*read_change_user_result)(MYSQL *mysql);
-#if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
+#if !defined(MYSQL_SERVER)
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (*stmt_execute)(MYSQL_STMT *stmt);
@@ -189,6 +198,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
 
 /* client side of the pluggable authentication */
 struct st_plugin_vio_info;
+
 void mpvio_info(MYSQL_VIO vio, struct st_plugin_vio_info *info);
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                     const char *data_plugin, const char *db);
@@ -196,6 +206,7 @@ int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 
 struct st_mysql_client_plugin;
+
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
 uchar * send_client_connect_attrs(MYSQL *mysql, uchar *buf);
 extern my_bool libmysql_cleartext_plugin_enabled;

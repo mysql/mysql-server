@@ -16,12 +16,7 @@
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
 ${ZLIB_INCLUDE_DIR}
-${LZ4_INCLUDE_DIR}
-# Following is for perror, in case NDB is compiled in.
-${CMAKE_SOURCE_DIR}/storage/ndb/include
-${CMAKE_BINARY_DIR}/storage/ndb/include
-${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
+${LZ4_INCLUDE_DIR})
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
@@ -92,6 +87,14 @@ SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  # In case NDB is compiled in.
+  TARGET_INCLUDE_DIRECTORIES(perror PUBLIC
+    ${CMAKE_SOURCE_DIR}/storage/ndb/include
+    ${CMAKE_BINARY_DIR}/storage/ndb/include
+    ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
+    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
+ENDIF()
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
 SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)
 
@@ -105,9 +108,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   TARGET_LINK_LIBRARIES(resolveip ${SOLARIS_NSL})
 ENDIF()
 
-
-MYSQL_ADD_EXECUTABLE(replace replace.c)
-TARGET_LINK_LIBRARIES(replace mysys)
 
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)

@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "mysql_com.h"                 // mysql_enum_shutdown_level
-#include "mysql/mysql_lex_string.h"    // LEX_STRING
-#include "sql_string.h"                // String
-#include "mysql_time.h"                // MYSQL_TIME
+#include "my_dbug.h"
 #include "my_decimal.h"                // my_decimal
-
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"    // LEX_STRING
+#include "mysql_com.h"                 // mysql_enum_shutdown_level
+#include "mysql_time.h"                // MYSQL_TIME
+#include "sql_string.h"                // String
 #include "violite.h"                            /* SSL && enum_vio_type */
 #ifdef HAVE_OPENSSL
 #define SSL_handle SSL*

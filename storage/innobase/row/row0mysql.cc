@@ -24,20 +24,21 @@ Contains also create table and other data dictionary operations.
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <debug_sync.h>
 #include <gstream.h>
 #include <spatial.h>
+#include <sql_const.h>
+#include <algorithm>
+#include <deque>
+#include <new>
+#include <vector>
 
-#include "row0mysql.h"
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include <sql_const.h>
 #include "dict0dict.h"
-#include "dict0priv.h"
-#include "dict0crea.h"
 #include "dict0load.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
@@ -45,15 +46,19 @@ Created 9/17/2000 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "my_dbug.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
 #include "row0merge.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
@@ -61,14 +66,9 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include "row0ext.h"
 #include "ut0new.h"
 #include "dict0dd.h"
 #include "current_thd.h"
-
-#include <algorithm>
-#include <deque>
-#include <vector>
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -739,6 +739,7 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 	case DB_COMPUTE_VALUE_FAILED:
+	case DB_LOCK_NOWAIT:
 		DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
 					log_buffer_flush_to_disk();
 					DBUG_SUICIDE(); });
@@ -947,6 +948,7 @@ row_create_prebuilt(
 	btr_pcur_reset(prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
+	prebuilt->select_mode = SELECT_ORDINARY;
 
 	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
@@ -2109,7 +2111,7 @@ row_delete_for_mysql_using_cursor(
 
 		ut_ad(!cmp_dtuple_rec(
 			entry, btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
-			offsets));
+			index, offsets));
 #endif /* UNIV_DEBUG */
 
 		ut_ad(!rec_get_deleted_flag(
@@ -3407,7 +3409,7 @@ row_table_add_foreign_constraints(
                 dict_mem_table_free_foreign_vcol_set(table);
                 dict_mem_table_fill_foreign_vcol_set(table);
 
-                dd_open_fk_tables(client, fk_tables, thd);
+                dd_open_fk_tables(client, fk_tables, true, thd);
 		dd_table_close(table, NULL, NULL, true);
 	}
 
@@ -3776,10 +3778,6 @@ row_discard_tablespace_end(
 	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
-
-	/* Set the TABLESPACE DISCARD flag in the table definition
-	on disk. */
-	dd_table_discard_tablespace(trx->mysql_thd, table, true);
 
 	return(err);
 }
@@ -4973,7 +4971,7 @@ row_rename_table_for_mysql(
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		dd_open_fk_tables(client, fk_tables, thd);
+		dd_open_fk_tables(client, fk_tables, dict_locked, thd);
 	}
 
 funct_exit:
@@ -5164,8 +5162,8 @@ func_exit:
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 
-		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
-						&matched_fields);
+		cmp = cmp_dtuple_rec_with_match(
+			prev_entry, rec, index, offsets, &matched_fields);
 		contains_null = FALSE;
 
 		/* In a unique secondary index we allow equal key values if

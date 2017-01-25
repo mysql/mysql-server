@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 
 #define DUMP_VERSION "10.13"
 
+#include <fcntl.h>
 #include <hash.h>
 #include <m_ctype.h>
 #include <m_string.h>
@@ -48,9 +49,11 @@
 #include <my_user.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "mysql.h"
 #include "mysql/service_my_snprintf.h"
@@ -119,7 +122,8 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-                opt_secure_auth= TRUE, opt_network_timeout= 0;
+                opt_secure_auth= TRUE, opt_network_timeout= 0,
+                stats_tables_included= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -170,7 +174,7 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
-Prealloced_array<uint, 12, true> ignore_error(PSI_NOT_INSTRUMENTED);
+Prealloced_array<uint, 12> ignore_error(PSI_NOT_INSTRUMENTED);
 static int parse_ignore_error();
 
 /*
@@ -740,7 +744,13 @@ static void write_header(FILE *sql_file, char *db_name)
       fprintf(sql_file, "/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\n");
       fprintf(sql_file, "/*!40103 SET TIME_ZONE='+00:00' */;\n");
     }
-
+    if (stats_tables_included)
+    {
+      fprintf(sql_file,
+ "/*!50606 SET @OLD_INNODB_STATS_AUTO_RECALC=@@INNODB_STATS_AUTO_RECALC */;\n");
+      fprintf(sql_file,
+        "/*!50606 SET GLOBAL INNODB_STATS_AUTO_RECALC=OFF */;\n");
+    }
     if (!path)
     {
       fprintf(md_result_file,"\
@@ -769,6 +779,9 @@ static void write_footer(FILE *sql_file)
   {
     if (opt_tz_utc)
       fprintf(sql_file,"/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;\n");
+    if (stats_tables_included)
+      fprintf(sql_file,
+"/*!50606 SET GLOBAL INNODB_STATS_AUTO_RECALC=@OLD_INNODB_STATS_AUTO_RECALC */;\n");
 
     fprintf(sql_file,"\n/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n");
     if (!path)
@@ -1271,10 +1284,10 @@ static char *my_case_str(const char *str,
 {
   my_match_t match;
 
-  uint status= my_charset_latin1.coll->instr(&my_charset_latin1,
-                                             str, str_len,
-                                             token, token_len,
-                                             &match, 1);
+  uint status= my_charset_latin1.coll->strstr(&my_charset_latin1,
+                                              str, str_len,
+                                              token, token_len,
+                                              &match, 1);
 
   return status ? (char *) str + match.end : NULL;
 }
@@ -2652,6 +2665,61 @@ static inline my_bool general_log_or_slow_log_tables(const char *db,
            !my_strcasecmp(charset_info, table, "slow_log"));
 }
 
+/**
+  Check if the table is innodb stats table in mysql database.
+
+   @param [in] db           Database name
+   @param [in] table        Table name
+
+  @return
+    @retval TRUE if it is innodb stats table else FALSE
+*/
+static inline my_bool innodb_stats_tables(const char *db,
+                                          const char *table)
+{
+  return (!my_strcasecmp(charset_info, db, "mysql")) &&
+          (!my_strcasecmp(charset_info, table, "innodb_table_stats") ||
+           !my_strcasecmp(charset_info, table, "innodb_index_stats"));
+}
+
+/**
+  Check if the command line option includes innodb stats table
+  or in any way mysql database.
+
+   @param [in] argc         Total count of positional arguments
+   @param [in] argv         Pointer to positional arguments
+
+  @return
+    @retval TRUE if dump contains innodb stats table or else FALSE
+*/
+static inline my_bool is_innodb_stats_tables_included(int argc, char**argv)
+{
+  if (opt_alldbs)
+    return true;
+  if (argc > 0)
+  {
+    char **names= argv;
+    if (opt_databases)
+    {
+      for (char** obj=names; *obj; obj++)
+        if (!my_strcasecmp(charset_info, *obj, "mysql"))
+          return true;
+    }
+    else
+    {
+      char**obj=names;
+      if (!my_strcasecmp(charset_info, *obj, "mysql"))
+      {
+        for (obj++; *obj; obj++)
+          if (!my_strcasecmp(charset_info, *obj, "innodb_table_stats") ||
+            !my_strcasecmp(charset_info, *obj, "innodb_index_stats"))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 /*
   get_table_structure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat if the table is the type we will
@@ -2671,7 +2739,7 @@ static inline my_bool general_log_or_slow_log_tables(const char *db,
 static uint get_table_structure(char *table, char *db, char *table_type,
                                 char *ignore_flag, my_bool real_columns[])
 {
-  my_bool    init=0, write_data, complete_insert;
+  my_bool    init=0, write_data, complete_insert, skip_ddl;
   my_ulonglong num_fields;
   char       *result_table, *opt_quoted_table;
   const char *insert_option;
@@ -2698,6 +2766,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
   *ignore_flag= check_if_ignore_table(table, table_type);
 
+  /*
+    for mysql.innodb_table_stats, mysql.innodb_index_stats tables we
+    dont dump DDL
+  */
+  skip_ddl= innodb_stats_tables(db, table);
+
   complete_insert= 0;
   if ((write_data= !(*ignore_flag & IGNORE_DATA)))
   {
@@ -2711,7 +2785,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       dynstr_set_checked(&insert_pat, "");
   }
 
-  insert_option= (opt_ignore ? " IGNORE " : "");
+  insert_option= ((opt_ignore || skip_ddl) ? " IGNORE " : "");
 
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
@@ -2731,7 +2805,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff))
   {
     /* using SHOW CREATE statement */
-    if (!opt_no_create_info)
+    if (!opt_no_create_info && !skip_ddl)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
@@ -3821,7 +3895,7 @@ static void dump_table(char *table, char *db)
       goto err;
     }
 
-    if (opt_lock)
+    if (opt_lock && !(innodb_stats_tables(db, table)))
     {
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
       check_io(md_result_file);
@@ -4102,7 +4176,7 @@ static void dump_table(char *table, char *db)
               opt_quoted_table);
       check_io(md_result_file);
     }
-    if (opt_lock)
+    if (opt_lock && !(innodb_stats_tables(db, table)))
     {
       fputs("UNLOCK TABLES;\n", md_result_file);
       check_io(md_result_file);
@@ -5735,7 +5809,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
       fprintf(md_result_file,
           "\n--\n-- GTID state at the beginning of the backup \n--\n\n");
 
-    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED=/*!50800 '+'*/ '");
+    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '");
 
     /* formatting is not required, even for multiple gtid sets */
     for (idx= 0; idx< num_sets-1; idx++)
@@ -6109,6 +6183,9 @@ int main(int argc, char **argv)
     free_resources();
     exit(EX_MYSQLERR);
   }
+
+  stats_tables_included= is_innodb_stats_tables_included(argc, argv);
+
   if (!path)
     write_header(md_result_file, *argv);
 

@@ -35,7 +35,6 @@ static const char *ha_ndb_ext=".ndb";
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-extern native_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
 /*
@@ -94,14 +93,7 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
 
-
-/*
-  Setup function for the ndb binlog component. The function should be
-  called on startup until it succeeds(to allow initial setup) and with
-  regular intervals afterwards to reconnect after a lost cluster
-  connection
-*/
-bool ndb_binlog_setup(THD *thd);
+int ndbcluster_binlog_end();
 
 /*
   Will return true when the ndb binlog component is properly setup

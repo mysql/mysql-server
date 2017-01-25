@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,12 +61,23 @@ class PartitionKeyImpl implements PartitionKey {
      * The partition key will actually be constructed when needed, at enlist time.
      */
     public void addIntKey(final Column storeColumn, final int key) {
-        keyPartBuilders.add(new KeyPartBuilder() {
+        keyPartBuilders.add(new KeyPartBuilderImpl(4) {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(4);
+                this.bufferManager = bufferManager;
+                buffer = bufferManager.borrowPartitionKeyPartBuffer(length);
+                if (buffer.capacity() < length || buffer.position() != 0 || buffer.position() + length > buffer.limit()) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PartitionKeyImpl.addIntKey.addKeyPart() got buffer for length: " + length +
+                        " buffer: " + buffer.capacity() + " " + buffer.position() + " " + buffer.limit());
+                buffer.position(0);
+                buffer.limit(length);
+                }
                 Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
+            }
+            public void release() {
+//                System.out.println("PartitionKeyImpl.addIntKey.release()" + length);
+//                bufferManager.returnPartitionKeyPartBuffer(length, buffer);
             }
         });
     }
@@ -75,12 +86,20 @@ class PartitionKeyImpl implements PartitionKey {
      * The partition key will actually be constructed when needed, at enlist time.
      */
     public void addShortKey(final Column storeColumn, final short key) {
-        keyPartBuilders.add(new KeyPartBuilder() {
+        keyPartBuilders.add(new KeyPartBuilderImpl(2) {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(2);
+                this.bufferManager = bufferManager;
+                buffer = bufferManager.borrowPartitionKeyPartBuffer(length);
+                if (buffer.capacity() < length || buffer.position() != 0 || buffer.position() + length < buffer.limit()) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PartitionKeyImpl.addIntKey.addKeyPart() got buffer for length: " + length +
+                        " buffer: " + buffer.capacity() + " " + buffer.position() + " " + buffer.limit());
+                }
                 Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
+            }
+            public void release() {
+//                System.out.println("PartitionKeyImpl.addShortKey.release()" + length);
             }
         });
     }
@@ -89,12 +108,20 @@ class PartitionKeyImpl implements PartitionKey {
      * The partition key will actually be constructed when needed, at enlist time.
      */
     public void addByteKey(final Column storeColumn, final byte key) {
-        keyPartBuilders.add(new KeyPartBuilder() {
+        keyPartBuilders.add(new KeyPartBuilderImpl(1) {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(1);
+                this.bufferManager = bufferManager;
+                buffer = bufferManager.borrowPartitionKeyPartBuffer(length);
+                if (buffer.capacity() < length || buffer.position() != 0 || buffer.position() + length < buffer.limit()) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PartitionKeyImpl.addByteKey.addKeyPart() got buffer for length: " + length +
+                        " buffer: " + buffer.capacity() + " " + buffer.position() + " " + buffer.limit());
+                }
                 Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
+            }
+            public void release() {
+//                System.out.println("PartitionKeyImpl.addByteKey.release()" + length);
             }
         });
     }
@@ -103,12 +130,20 @@ class PartitionKeyImpl implements PartitionKey {
      * The partition key will actually be constructed when needed, at enlist time.
      */
     public void addLongKey(final Column storeColumn, final long key) {
-        keyPartBuilders.add(new KeyPartBuilder() {
+        keyPartBuilders.add(new KeyPartBuilderImpl(8) {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(8);
+                this.bufferManager = bufferManager;
+                buffer = bufferManager.borrowPartitionKeyPartBuffer(length);
+                if (buffer.capacity() < length || buffer.position() != 0 || buffer.position() + length < buffer.limit()) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PartitionKeyImpl.addLongKey.addKeyPart() got buffer for length: " + length +
+                        " buffer: " + buffer.capacity() + " " + buffer.position() + " " + buffer.limit());
+                }
                 Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
+            }
+            public void release() {
+//                System.out.println("PartitionKeyImpl.addLongKey.release() " + length);
             }
         });
     }
@@ -120,15 +155,26 @@ class PartitionKeyImpl implements PartitionKey {
      * is called.
      */
     public void addStringKey(final Column storeColumn, final String string) {
-        keyPartBuilders.add(new KeyPartBuilder() {
+        keyPartBuilders.add(new KeyPartBuilderImpl(0) {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = Utility.encode(string, storeColumn, bufferManager);
+                this.bufferManager = bufferManager;
+                ByteBuffer original = Utility.encode(string, storeColumn, bufferManager);
                 // allocate a new buffer because the shared buffer might be overwritten by another key field
-                ByteBuffer copy = bufferManager.borrowPartitionKeyPartBuffer(buffer.limit() - buffer.position());
-                copy.put(buffer);
-                copy.flip();
-                KeyPart keyPart = new KeyPart(copy, copy.limit());
+                length = original.limit() - original.position();
+                buffer = bufferManager.borrowPartitionKeyPartBuffer(length);
+                if (buffer.capacity() < length || buffer.position() != 0 || buffer.position() + length < buffer.limit()) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PartitionKeyImpl.addStringKey.addKeyPart() got buffer for length: " + length +
+                        " buffer: " + buffer.capacity() + " " + buffer.position() + " " + buffer.limit());
+                buffer.position(0);
+                buffer.limit(length);
+                }
+                buffer.put(original);
+                buffer.flip();
+                KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
+            }
+            public void release() {
+//                System.out.println("PartitionKeyImpl.addStringKey.release() " + length);
             }
         });
     }
@@ -137,13 +183,21 @@ class PartitionKeyImpl implements PartitionKey {
      * The partition key will actually be constructed when needed, at enlist time.
      */
     public void addBytesKey(final Column storeColumn, final byte[] key) {
-        keyPartBuilders.add(new KeyPartBuilder() {
+        // the length needs to include the length prefix up to three bytes
+        keyPartBuilders.add(new KeyPartBuilderImpl(key.length + 3) {
             public void addKeyPart(BufferManager bufferManager) {
-                // the length needs to include the length prefix up to three bytes
-                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(key.length + 3);
+                this.bufferManager = bufferManager;
+                buffer = bufferManager.borrowPartitionKeyPartBuffer(length);
+                if (buffer.capacity() < length || buffer.position() != 0 || buffer.position() + length < buffer.limit()) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PartitionKeyImpl.addBytesKey.addKeyPart() got buffer for length: " + length +
+                        " buffer: " + buffer.capacity() + " " + buffer.position() + " " + buffer.limit());
+                }
                 Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
+            }
+            public void release() {
+//                System.out.println("PartitionKeyImpl.addBytesKey.release() " + length);
             }
         });
     }
@@ -193,6 +247,10 @@ class PartitionKeyImpl implements PartitionKey {
                     + " table: " + (tableName==null?"null":tableName));
             result = db.enlist(tableName, keyParts);
         }
+        // return the byte buffers borrowed for the enlist
+        for (KeyPartBuilder keyPartBuilder: keyPartBuilders) {
+            keyPartBuilder.release();
+        }
         return result;
     }
 
@@ -206,6 +264,21 @@ class PartitionKeyImpl implements PartitionKey {
 
     private static interface KeyPartBuilder {
         public void addKeyPart(BufferManager bufferManager);
+        public void release();
     }
 
+    private class KeyPartBuilderImpl implements KeyPartBuilder {
+        private KeyPartBuilderImpl(int length) {
+            this.length = length;
+        }
+        protected ByteBuffer buffer;
+        protected BufferManager bufferManager;
+        protected int length = 0;
+        public void addKeyPart(BufferManager bufferManager) {}
+        public void release() {
+            if (this.bufferManager != null && this.buffer != null && this.length != 0) {
+                this.bufferManager.returnPartitionKeyPartBuffer(this.length, this.buffer);
+            }
+        }
+    }
 }

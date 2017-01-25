@@ -18,11 +18,13 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
-#include "my_alloc.h"        // MEM_ROOT
-#include "my_bitmap.h"       // MY_BITMAP
-#include "my_global.h"
-#include "ndbapi/Ndb.hpp"    // Ndb::TupleIdRange
-#include "thr_lock.h"        // THR_LOCK
+#include <my_global.h>
+#include <my_alloc.h>        // MEM_ROOT
+#include <thr_lock.h>        // THR_LOCK
+#include <my_bitmap.h>       // MY_BITMAP
+#include <mysql/psi/mysql_thread.h>
+
+#include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
@@ -58,9 +60,10 @@ struct Ndb_statistics {
 
 
 struct NDB_SHARE {
+  MY_BITMAP stored_columns;
   NDB_SHARE_STATE state;
   THR_LOCK lock;
-  native_mutex_t mutex;
+  mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
   uint use_count;
   uint commit_count_lock;
@@ -84,7 +87,7 @@ struct NDB_SHARE {
   static void destroy(NDB_SHARE* share);
 
   class Ndb_event_data* get_event_data_ptr() const;
-
+  void set_binlog_flags_for_table(struct TABLE *);
   void print(const char* where, FILE* file = stderr) const;
 
   /*
@@ -113,9 +116,9 @@ NDB_SHARE_STATE
 get_ndb_share_state(NDB_SHARE *share)
 {
   NDB_SHARE_STATE state;
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   state= share->state;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
   return state;
 }
 
@@ -124,9 +127,9 @@ inline
 void
 set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
 {
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   share->state= state;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 }
 
 

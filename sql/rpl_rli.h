@@ -608,9 +608,9 @@ public:
     Container for references of involved partitions for the current event group
   */
   // CGAP dynarray holds id:s of partitions of the Current being executed Group
-  Prealloced_array<db_worker_hash_entry*, 4, true> curr_group_assigned_parts;
+  Prealloced_array<db_worker_hash_entry*, 4> curr_group_assigned_parts;
   // deferred array to hold partition-info-free events
-  Prealloced_array<Slave_job_item, 8, true> curr_group_da;  
+  Prealloced_array<Slave_job_item, 8> curr_group_da;
 
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
   bool curr_group_seen_begin;   // current group started with B-event or not

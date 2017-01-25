@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,7 +105,7 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC };
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const override { return FUNC_ITEM; }
@@ -1615,7 +1615,7 @@ class Item_func_bit_two_param: public Item_func_bit
 protected:
   bool binary_result_requires_binary_second_arg() const { return true; }
   template<class Char_func, class Int_func>
-  String * eval_str_op(String *str, Char_func char_func, Int_func int_func);
+  String * eval_str_op(String*, Char_func char_func, Int_func int_func);
   template<class Int_func> longlong eval_int_op(Int_func int_func);
 public:
   Item_func_bit_two_param(const POS &pos, Item *a, Item *b)
@@ -1931,7 +1931,10 @@ public:
     :Item_udf_func(pos, udf_arg, opt_list)
   {}
   longlong val_int() override;
-  double val_real() override { return Item_func_udf_int::val_int(); }
+  double val_real() override
+  {
+    return static_cast<double>(Item_func_udf_int::val_int());
+  }
   String *val_str(String *str) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
   {
@@ -2666,10 +2669,10 @@ public:
   size_t length() const { return m_length; }
   Item_result type() const { return m_type; }
   /* Item-alike routines to access the value */
-  double val_real(my_bool *null_value) const;
-  longlong val_int(my_bool *null_value) const;
-  String *val_str(my_bool *null_value, String *str, uint decimals) const;
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *result) const;
+  double val_real(bool *null_value) const;
+  longlong val_int(bool *null_value) const;
+  String *val_str(bool *null_value, String *str, uint decimals) const;
+  my_decimal *val_decimal(bool *null_value, my_decimal *result) const;
 };
 
 
@@ -2869,9 +2872,12 @@ class Item_func_get_system_var final : public Item_var_func
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
-  my_bool cached_null_value;
+  bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
+
+  template <typename T>
+  longlong get_sys_var_safe(THD *thd);
 
 public:
   Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,

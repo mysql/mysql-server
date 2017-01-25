@@ -13,11 +13,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
-#include <stdexcept>                        // std::exception subclasses
 #include <my_sys.h>                         // my_error
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <sql_class.h>
+#include <new>
+#include <stdexcept>                        // std::exception subclasses
+
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"

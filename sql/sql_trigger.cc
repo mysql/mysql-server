@@ -20,6 +20,8 @@
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/dd_schema.h"
 #include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"  // dd::enum_table_type
@@ -28,7 +30,7 @@
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
+#include "my_global.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_sp.h"
@@ -456,6 +458,11 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   DBUG_ENTER("mysql_create_trigger");
 
+  // This auto releaser will own the DD objects that we commit
+  // at the bottom of this function.
+  dd::Schema_MDL_locker schema_mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   /* Charset of the buffer for statement must be system one. */
   stmt_query.set_charset(system_charset_info);
 
@@ -464,6 +471,9 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
     my_error(ER_NO_DB_ERROR, MYF(0));
     DBUG_RETURN(true);
   }
+
+  if (schema_mdl_locker.ensure_locked(m_trigger_table->db))
+    DBUG_RETURN(true);
 
   /*
     We don't allow creating triggers on tables in the 'mysql' schema
@@ -579,6 +589,10 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
   TABLE_LIST *tables= nullptr;
 
   DBUG_ENTER("Sql_cmd_drop_trigger::execute");
+
+  // This auto releaser will own the DD objects that we commit
+  // at the bottom of this function.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* Charset of the buffer for statement must be system one. */
   stmt_query.set_charset(system_charset_info);

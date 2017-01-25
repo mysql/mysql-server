@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,11 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_service_command.h"
-#include "plugin_log.h"
+
 #include <sstream>
+
+#include "my_dbug.h"
+#include "plugin_log.h"
 
 using std::string;
 
@@ -182,14 +185,14 @@ long Sql_service_command::kill_session(uint32_t session_id,
   DBUG_RETURN(srv_err);
 }
 
-long Sql_service_command::get_server_super_read_only()
+longlong Sql_service_command::get_server_super_read_only()
 {
   DBUG_ENTER("Sql_service_command::get_server_super_read_only");
 
   DBUG_ASSERT(server_interface != NULL);
 
   Sql_resultset rset;
-  long server_super_read_only= -1;
+  longlong server_super_read_only= -1;
 
   long srv_error=
       server_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
@@ -206,14 +209,14 @@ long Sql_service_command::get_server_super_read_only()
   DBUG_RETURN(server_super_read_only);
 }
 
-long Sql_service_command::get_server_read_only()
+longlong Sql_service_command::get_server_read_only()
 {
   DBUG_ENTER("Sql_service_command::get_server_read_only");
 
   DBUG_ASSERT(server_interface != NULL);
 
   Sql_resultset rset;
-  long server_read_only= -1;
+  longlong server_read_only= -1;
   long srv_error= server_interface->execute_query("SELECT @@GLOBAL.read_only", &rset);
   if (srv_error == 0)
   {

@@ -34,25 +34,25 @@ using my_testing::Server_initializer;
 */
 
 // Default value for Server_cost_constants::ROW_EVALUATE_COST
-const double default_row_evaluate_cost= 0.2;
+const double default_row_evaluate_cost= 0.1;
 
 // Default value for Server_cost_constants::KEY_COMPARE_COST
-const double default_key_compare_cost= 0.1;
+const double default_key_compare_cost= 0.05;
 
 // Default value for Server_cost_constants::HEAP_TEMPTABLE_CREATE_COST
-const double default_memory_temptable_create_cost= 2.0;
+const double default_memory_temptable_create_cost= 1.0;
 
 // Default value for Server_cost_constants::HEAP_TEMPTABLE_ROW_COST
-const double default_memory_temptable_row_cost= 0.2;
+const double default_memory_temptable_row_cost= 0.1;
 
 // Default value for Server_cost_constants::DISK_TEMPTABLE_CREATE_COST
-const double default_disk_temptable_create_cost= 40.0;
+const double default_disk_temptable_create_cost= 20.0;
 
 // Default value for Server_cost_constants::DISK_TEMPTABLE_ROW_COST
-const double default_disk_temptable_row_cost= 1.0;
+const double default_disk_temptable_row_cost= 0.5;
 
 //  Default value SE_cost_constants::MEMORY_BLOCK_READ_COST
-const double default_memory_block_read_cost= 1.0;
+const double default_memory_block_read_cost= 0.25;
 
 //  Default value SE_cost_constants::IO_BLOCK_READ_COST
 const double default_io_block_read_cost= 1.0;

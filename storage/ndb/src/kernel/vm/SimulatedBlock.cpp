@@ -76,6 +76,7 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theReference(numberToRef(blockNumber, instanceNumber, globalData.ownId)),
     theInstanceList(0),
     theMainInstance(0),
+    m_pHighResTimer(0),
     m_ctx(ctx),
     m_global_page_pool(globalData.m_global_page_pool),
     m_shared_page_pool(globalData.m_shared_page_pool),
@@ -130,6 +131,11 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_global_variables = new Ptr<void> * [1];
   m_global_variables[0] = 0;
   m_global_variables_save = 0;
+#endif
+
+#ifndef NDBD_MULTITHREADED
+  /* Ndbd, init from GlobalScheduler */
+  m_pHighResTimer = globalScheduler.getHighResTimerPtr();
 #endif
 }
 
@@ -265,6 +271,7 @@ SimulatedBlock::assignToThread(ThreadContext ctx)
   m_jamBuffer = ctx.jamBuffer;
   m_watchDogCounter = ctx.watchDogCounter;
   m_sectionPoolCache = ctx.sectionPoolCache;
+  m_pHighResTimer = ctx.pHighResTimer;
 }
 
 Uint32
@@ -521,16 +528,6 @@ SimulatedBlock::getSignalsInJBB()
   num_signals = globalScheduler.getBOccupancy();
 #endif
   return num_signals;
-}
-
-NDB_TICKS
-SimulatedBlock::getHighResTimer()
-{
-#ifdef NDBD_MULTITHREADED
-  return mt_getHighResTimer(m_threadId);
-#else
-  return globalScheduler.getHighResTimer();
-#endif
 }
 
 void

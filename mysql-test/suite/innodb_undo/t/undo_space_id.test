@@ -1,4 +1,4 @@
---source include/have_innodb_max_16k.inc
+--source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
 --source include/big_test.inc
@@ -103,5 +103,4 @@ if ($size1 == $size2)
 }
 
 --remove_file $BOOTSTRAP_SQL
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1

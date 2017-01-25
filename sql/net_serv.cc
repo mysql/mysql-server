@@ -24,15 +24,8 @@
   Read packets are reallocated dynamicly when reading big packets.
   Each logical packet has the following pre-info:
   3 byte length & 1 byte package-number.
-
-  This file needs to be written in C as it's used by the libmysql client as a
-  C file.
 */
 
-/*
-  HFTODO this must be hidden if we don't want client capabilities in 
-  embedded library
- */
 #include <string.h>
 #include <sys/types.h>
 #include <violite.h>
@@ -47,16 +40,9 @@
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
 #include "my_sys.h"
-#include "probes_mysql.h"
 
 using std::min;
 using std::max;
-
-#ifdef EMBEDDED_LIBRARY
-#undef MYSQL_SERVER
-#undef MYSQL_CLIENT
-#define MYSQL_CLIENT
-#endif /*EMBEDDED_LIBRARY */
 
 #ifndef MYSQL_CLIENT
 #include "psi_memory_key.h"
@@ -201,10 +187,8 @@ void net_clear(NET *net,
 {
   DBUG_ENTER("net_clear");
 
-#if !defined(EMBEDDED_LIBRARY)
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
   DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
-#endif
 
   /* Ready for new command */
   net->pkt_nr= net->compress_pkt_nr= 0;
@@ -382,8 +366,6 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
   if (unlikely(!net->vio)) /* nowhere to write */
     return 0;
 
-  MYSQL_NET_WRITE_START(len);
-
   DBUG_EXECUTE_IF("simulate_net_write_failure", {
                   my_error(ER_NET_ERROR_ON_WRITE, MYF(0));
                   return 1;
@@ -403,7 +385,6 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
     if (net_write_buff(net, buff, NET_HEADER_SIZE) ||
         net_write_buff(net, packet, z_size))
     {
-      MYSQL_NET_WRITE_DONE(1);
       return 1;
     }
     packet += z_size;
@@ -414,14 +395,12 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net, buff, NET_HEADER_SIZE))
   {
-    MYSQL_NET_WRITE_DONE(1);
     return 1;
   }
 #ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
   rc= MY_TEST(net_write_buff(net,packet,len));
-  MYSQL_NET_WRITE_DONE(rc);
   return rc;
 }
 
@@ -465,8 +444,6 @@ net_write_command(NET *net,uchar command,
   DBUG_ENTER("net_write_command");
   DBUG_PRINT("enter",("length: %lu", (ulong) len));
 
-  MYSQL_NET_WRITE_START(length);
-
   buff[4]=command;				/* For first packet */
 
   if (length >= MAX_PACKET_LENGTH)
@@ -481,7 +458,6 @@ net_write_command(NET *net,uchar command,
           net_write_buff(net, header, head_len) ||
           net_write_buff(net, packet, len))
       {
-        MYSQL_NET_WRITE_DONE(1);
         DBUG_RETURN(1);
       }
       packet+= len;
@@ -497,7 +473,6 @@ net_write_command(NET *net,uchar command,
   rc= MY_TEST(net_write_buff(net, buff, header_size) ||
               (head_len && net_write_buff(net, header, head_len)) ||
               net_write_buff(net, packet, len) || net_flush(net));
-  MYSQL_NET_WRITE_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -983,8 +958,6 @@ my_net_read(NET *net)
 {
   size_t len, complen;
 
-  MYSQL_NET_READ_START();
-
   if (!net->compress)
   {
     len= net_read_packet(net, &complen);
@@ -1006,7 +979,6 @@ my_net_read(NET *net)
     net->read_pos = net->buff + net->where_b;
     if (len != packet_error)
       net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
-    MYSQL_NET_READ_DONE(0, len);
     return static_cast<ulong>(len);
   }
   else
@@ -1095,7 +1067,6 @@ my_net_read(NET *net)
       net->where_b=buf_length;
       if ((packet_len= net_read_packet(net, &complen)) == packet_error)
       {
-        MYSQL_NET_READ_DONE(1, 0);
         return packet_error;
       }
       if (my_uncompress(net->buff + net->where_b, packet_len,
@@ -1106,7 +1077,6 @@ my_net_read(NET *net)
 #ifdef MYSQL_SERVER
         my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
 #endif
-        MYSQL_NET_READ_DONE(1, 0);
         return packet_error;
       }
       buf_length+= complen;
@@ -1120,7 +1090,6 @@ my_net_read(NET *net)
     net->save_char= net->read_pos[len];	/* Must be saved */
     net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
   }
-  MYSQL_NET_READ_DONE(0, len);
   return static_cast<ulong>(len);
 }
 

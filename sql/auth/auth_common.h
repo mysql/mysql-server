@@ -27,7 +27,7 @@
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_config.h"
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_global.h"
 #include "sql_string.h"                         /* String */
 #include "template_utils.h"
 #include "thr_malloc.h"
@@ -49,13 +49,12 @@ typedef struct user_conn USER_CONN;
 class Security_context;
 struct TABLE;
 struct TABLE_LIST;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 /** user, host tuple which reference either acl_cache or g_default_roles */
 typedef std::pair< LEX_CSTRING, LEX_CSTRING > Auth_id_ref;
 typedef std::vector< Auth_id_ref >  List_of_auth_id_refs;
 
 bool operator<(const Auth_id_ref &a, const Auth_id_ref &b);
-#endif
 
 /* Classes */
 
@@ -266,6 +265,75 @@ enum mysql_user_table_field
   MYSQL_USER_FIELD_CREATE_ROLE_PRIV,
   MYSQL_USER_FIELD_DROP_ROLE_PRIV,
   MYSQL_USER_FIELD_COUNT
+};
+
+enum mysql_proxies_priv_table_feild
+{
+  MYSQL_PROXIES_PRIV_FIELD_HOST = 0,
+  MYSQL_PROXIES_PRIV_FIELD_USER,
+  MYSQL_PROXIES_PRIV_FIELD_PROXIED_HOST,
+  MYSQL_PROXIES_PRIV_FIELD_PROXIED_USER,
+  MYSQL_PROXIES_PRIV_FIELD_WITH_GRANT,
+  MYSQL_PROXIES_PRIV_FIELD_GRANTOR,
+  MYSQL_PROXIES_PRIV_FIELD_TIMESTAMP,
+  MYSQL_PROXIES_PRIV_FIELD_COUNT
+};
+
+enum mysql_procs_priv_table_field
+{
+  MYSQL_PROCS_PRIV_FIELD_HOST = 0,
+  MYSQL_PROCS_PRIV_FIELD_DB,
+  MYSQL_PROCS_PRIV_FIELD_USER,
+  MYSQL_PROCS_PRIV_FIELD_ROUTINE_NAME,
+  MYSQL_PROCS_PRIV_FIELD_ROUTINE_TYPE,
+  MYSQL_PROCS_PRIV_FIELD_GRANTOR,
+  MYSQL_PROCS_PRIV_FIELD_PROC_PRIV,
+  MYSQL_PROCS_PRIV_FIELD_TIMESTAMP,
+  MYSQL_PROCS_PRIV_FIELD_COUNT
+};
+
+enum mysql_columns_priv_table_field
+{
+  MYSQL_COLUMNS_PRIV_FIELD_HOST = 0,
+  MYSQL_COLUMNS_PRIV_FIELD_DB,
+  MYSQL_COLUMNS_PRIV_FIELD_USER,
+  MYSQL_COLUMNS_PRIV_FIELD_TABLE_NAME,
+  MYSQL_COLUMNS_PRIV_FIELD_COLUMN_NAME,
+  MYSQL_COLUMNS_PRIV_FIELD_TIMESTAMP,
+  MYSQL_COLUMNS_PRIV_FIELD_COLUMN_PRIV,
+  MYSQL_COLUMNS_PRIV_FIELD_COUNT
+};
+
+enum mysql_tables_priv_table_field
+{
+  MYSQL_TABLES_PRIV_FIELD_HOST = 0,
+  MYSQL_TABLES_PRIV_FIELD_DB,
+  MYSQL_TABLES_PRIV_FIELD_USER,
+  MYSQL_TABLES_PRIV_FIELD_TABLE_NAME,
+  MYSQL_TABLES_PRIV_FIELD_GRANTOR,
+  MYSQL_TABLES_PRIV_FIELD_TIMESTAMP,
+  MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV,
+  MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV,
+  MYSQL_TABLES_PRIV_FIELD_COUNT
+};
+
+enum mysql_role_edges_table_field
+{
+  MYSQL_ROLE_EDGES_FIELD_FROM_HOST = 0,
+  MYSQL_ROLE_EDGES_FIELD_FROM_USER,
+  MYSQL_ROLE_EDGES_FIELD_TO_HOST,
+  MYSQL_ROLE_EDGES_FIELD_TO_USER,
+  MYSQL_ROLE_EDGES_FIELD_WITH_ADMIN_OPTION,
+  MYSQL_ROLE_EDGES_FIELD_COUNT
+};
+
+enum mysql_default_roles_table_field
+{
+  MYSQL_DEFAULT_ROLES_FIELD_HOST = 0,
+  MYSQL_DEFAULT_ROLES_FIELD_USER,
+  MYSQL_DEFAULT_ROLES_FIELD_DEFAULT_ROLE_HOST,
+  MYSQL_DEFAULT_ROLES_FIELD_DEFAULT_ROLE_USER,
+  MYSQL_DEFAULT_ROLES_FIELD_COUNT
 };
 
 /* When we run mysql_upgrade we must make sure that the server can be run
@@ -550,9 +618,7 @@ extern my_bool disconnect_on_expired_password;
 extern const char *any_db;	// Special symbol for check_access
 /** controls the extra checks on plugin availability for mysql.user records */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern my_bool validate_user_plugins;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /* Function Declarations */
 
@@ -621,6 +687,7 @@ ulong acl_get(THD *thd, const char *host, const char *ip,
 bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
+bool check_acl_tables_intact(THD *thd);
 
 /* sql_authorization */
 bool has_grant_role_privilege(THD *thd);
@@ -659,10 +726,8 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
                        const char *field_name);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool mysql_show_grants(THD *, LEX_USER *,
                        const List_of_auth_id_refs &);
-#endif
 bool mysql_show_create_user(THD *thd, LEX_USER *user);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
@@ -689,8 +754,6 @@ bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
 
 bool is_secure_transport(int vio_type);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
@@ -729,42 +792,12 @@ bool is_role_id(LEX_USER *authid);
 void shutdown_acl_cache();
 bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host,
                      LEX_CSTRING role, LEX_CSTRING role_host);
-#else
-inline bool check_one_table_access(THD*, ulong, TABLE_LIST*)
-{ return false; }
-inline bool check_single_table_access(THD*, ulong, TABLE_LIST *, bool)
-{ return false; }
-inline bool check_routine_access(THD*, ulong, const char*, char*, bool, bool)
-{ return false; }
-
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-
-inline bool check_some_routine_access(THD*, const char*, const char*, bool)
-{ return false; }
-inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
-                         GRANT_INTERNAL_INFO *, bool, bool)
-{
-  if (save_priv)
-    *save_priv= GLOBAL_ACLS;
-  return false;
-}
-inline bool
-check_table_access(THD*, ulong, TABLE_LIST*, bool, uint, bool)
-{ return false; }
-#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-
 bool check_show_access(THD *thd, TABLE_LIST *table);
 bool check_global_access(THD *thd, ulong want_access);
-
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-#define check_grant(A,B,C,D,E,F) 0
-#define check_grant_db(A,B) 0
-#endif
 
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
 
-#ifndef EMBEDDED_LIBRARY
 typedef enum ssl_artifacts_status
 {
   SSL_ARTIFACTS_NOT_FOUND= 0,
@@ -774,7 +807,6 @@ typedef enum ssl_artifacts_status
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
-#endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;

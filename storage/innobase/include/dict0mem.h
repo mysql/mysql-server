@@ -770,6 +770,7 @@ struct dict_field_t{
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
 					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
+	unsigned	is_ascending:1;	/*!< 0=DESC, 1=ASC */
 };
 
 /**********************************************************************//**
@@ -1150,8 +1151,9 @@ struct dict_index_t{
 	by the column name may be released only after publishing the index.
 	@param[in] name		column name
 	@param[in] prefix_len	0 or the column prefix length in a MySQL index
-				like INDEX (textcol(25)) */
-	void add_field(const char* name, ulint prefix_len)
+				like INDEX (textcol(25))
+	@param[in] is_ascending	true=ASC, false=DESC */
+	void add_field(const char* name, ulint prefix_len, bool	is_ascending)
 	{
 		dict_field_t*	field;
 
@@ -1163,6 +1165,7 @@ struct dict_index_t{
 
 		field->name = name;
 		field->prefix_len = (unsigned int) prefix_len;
+		field->is_ascending = is_ascending;
 	}
 
 	/** Gets the nth field of an index.
@@ -1513,6 +1516,10 @@ enum table_dirty_status {
 	for this table in DDTableBuffer table */
 	METADATA_CLEAN
 };
+
+/** A vector to collect prebuilt from different readers working on the same
+temp table */
+typedef	std::vector<row_prebuilt_t*>		temp_prebuilt_vec;
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
@@ -1957,6 +1964,9 @@ public:
 
 	/** remove the dict_table_t from cache after DDL operation */
 	bool					discard_after_ddl;
+
+	/** multiple cursors can be active on this temporary table */
+	temp_prebuilt_vec*			temp_prebuilt;
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const

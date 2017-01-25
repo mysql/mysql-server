@@ -3393,7 +3393,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "18.43"
+      "query_cost": "6.71"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -3406,9 +3406,9 @@ EXPLAIN
             "rows_produced_per_join": 8,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "2.03",
-              "eval_cost": "1.60",
-              "prefix_cost": "3.63",
+              "read_cost": "0.51",
+              "eval_cost": "0.80",
+              "prefix_cost": "1.31",
               "data_read_per_join": "128"
             },
             "used_columns": [
@@ -3435,9 +3435,9 @@ EXPLAIN
             "rows_produced_per_join": 8,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "8.00",
-              "eval_cost": "1.60",
-              "prefix_cost": "18.43",
+              "read_cost": "2.00",
+              "eval_cost": "0.80",
+              "prefix_cost": "6.71",
               "data_read_per_join": "128"
             },
             "used_columns": [
@@ -3519,7 +3519,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "58.67"
+      "query_cost": "28.32"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -3532,9 +3532,9 @@ EXPLAIN
             "rows_produced_per_join": 20,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "2.03",
-              "eval_cost": "4.00",
-              "prefix_cost": "6.03",
+              "read_cost": "0.51",
+              "eval_cost": "2.00",
+              "prefix_cost": "2.51",
               "data_read_per_join": "160"
             },
             "used_columns": [
@@ -3551,9 +3551,9 @@ EXPLAIN
             "filtered": "10.00",
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "2.02",
-              "eval_cost": "0.22",
-              "prefix_cost": "58.67",
+              "read_cost": "0.50",
+              "eval_cost": "0.11",
+              "prefix_cost": "28.32",
               "data_read_per_join": "8"
             },
             "used_columns": [
@@ -3780,7 +3780,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "170.03"
+      "query_cost": "59.01"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -3793,9 +3793,9 @@ EXPLAIN
             "rows_produced_per_join": 1,
             "filtered": "10.00",
             "cost_info": {
-              "read_cost": "3.82",
-              "eval_cost": "0.20",
-              "prefix_cost": "4.02",
+              "read_cost": "1.40",
+              "eval_cost": "0.10",
+              "prefix_cost": "1.50",
               "data_read_per_join": "8"
             },
             "used_columns": [
@@ -3813,9 +3813,9 @@ EXPLAIN
             "filtered": "100.00",
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "2.02",
-              "eval_cost": "2.00",
-              "prefix_cost": "8.03",
+              "read_cost": "0.50",
+              "eval_cost": "1.00",
+              "prefix_cost": "3.01",
               "data_read_per_join": "80"
             },
             "used_columns": [
@@ -3843,9 +3843,9 @@ EXPLAIN
             "rows_produced_per_join": 100,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "100.00",
-              "eval_cost": "20.00",
-              "prefix_cost": "170.03",
+              "read_cost": "25.00",
+              "eval_cost": "10.00",
+              "prefix_cost": "59.01",
               "data_read_per_join": "10K"
             },
             "used_columns": [
@@ -4322,14 +4322,14 @@ where (a1, a2) IN
 where t2.b2 = substring(t2_16.b2,1,6) and
 t2.b1 IN (select c1 from t3 where c2 > '0')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2_16` join `test`.`t2` join `test`.`t1_16`) where ((`test`.`t1_16`.`a2` = `test`.`t2_16`.`b2`) and (`test`.`t1_16`.`a1` = `test`.`t2_16`.`b1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (`test`.`t3`.`c2` > '0') and (concat(`test`.`t1`.`a1`,'x') = left(`test`.`t1_16`.`a1`,8)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2_16` join `test`.`t2` join `test`.`t1_16`) where ((`test`.`t2_16`.`b2` = `test`.`t1_16`.`a2`) and (`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (`test`.`t3`.`c2` > '0') and (concat(`test`.`t1`.`a1`,'x') = left(`test`.`t1_16`.`a1`,8)))
 drop table t1_16, t2_16, t3_16, t1, t2, t3;
 set @blob_len = 512;
 set @suffix_len = @blob_len - @prefix_len;
@@ -7106,7 +7106,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "14.83"
+      "query_cost": "5.26"
     },
     "nested_loop": [
       {
@@ -7121,9 +7121,9 @@ EXPLAIN
           "rows_produced_per_join": 2,
           "filtered": "9.55",
           "cost_info": {
-            "read_cost": "6.18",
-            "eval_cost": "0.42",
-            "prefix_cost": "6.60",
+            "read_cost": "2.54",
+            "eval_cost": "0.21",
+            "prefix_cost": "2.75",
             "data_read_per_join": "83"
           },
           "used_columns": [
@@ -7155,9 +7155,9 @@ EXPLAIN
           "filtered": "3.33",
           "loosescan": true,
           "cost_info": {
-            "read_cost": "6.30",
-            "eval_cost": "0.06",
-            "prefix_cost": "14.67",
+            "read_cost": "1.57",
+            "eval_cost": "0.03",
+            "prefix_cost": "5.21",
             "data_read_per_join": "14"
           },
           "used_columns": [
@@ -7187,9 +7187,9 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "75.00",
           "cost_info": {
-            "read_cost": "0.10",
-            "eval_cost": "0.31",
-            "prefix_cost": "14.83",
+            "read_cost": "0.03",
+            "eval_cost": "0.16",
+            "prefix_cost": "5.26",
             "data_read_per_join": "113"
           },
           "used_columns": [
@@ -7265,12 +7265,12 @@ where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	5	100.00	Using where; Start temporary
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	20.00	Using where; End temporary
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	20.00	Using where
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t0`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t0`.`a` = `test`.`t1`.`a`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 create temporary table tmp select * from t0 where t0.a in 
@@ -7987,10 +7987,10 @@ WHERE (varchar_nokey, varchar_nokey) IN (SELECT varchar_key, varchar_nokey
 FROM t2  
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	varchar_key	NULL	NULL	NULL	15	63.34	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	10.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	NULL
+1	SIMPLE	t2	NULL	ref	varchar_key	varchar_key	3	test.t1.varchar_nokey	2	6.67	Using where; Start temporary; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`varchar_nokey` = `test`.`t2`.`varchar_key`) and (`test`.`t1`.`varchar_nokey` = `test`.`t2`.`varchar_key`) and ((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`varchar_key` = `test`.`t1`.`varchar_nokey`) and (`test`.`t2`.`varchar_nokey` = `test`.`t1`.`varchar_nokey`) and ((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t2`.`pk`))
 DROP TABLE t1, t2;
 # End of the test for bug#45174.
 #
@@ -8420,13 +8420,13 @@ WHERE parent1.col_varchar_key IN
 FROM t1 AS child1 LEFT JOIN t2 AS child2
 ON (child1.col_varchar_key > child2.col_varchar_nokey)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	parent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	15	100.00	Using where; Start temporary
-1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where; Start temporary
 1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	parent1	NULL	ref	col_varchar_key	col_varchar_key	4	test.child1.col_varchar_nokey	2	100.00	Using where
 1	SIMPLE	grandparent1	NULL	ref	col_varchar_key	col_varchar_key	4	test.parent1.col_varchar_nokey	2	100.00	End temporary
 1	SIMPLE	grandparent2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t1` `child1` left join `test`.`t2` `child2` on((`test`.`child1`.`col_varchar_key` > `test`.`child2`.`col_varchar_nokey`)) join `test`.`t1` `parent1`) left join `test`.`t2` `grandparent2` on((`test`.`grandparent2`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_nokey`)) where ((`test`.`grandparent1`.`col_varchar_key` = `test`.`parent1`.`col_varchar_nokey`) and (`test`.`child1`.`col_varchar_nokey` = `test`.`parent1`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t1` `child1` left join `test`.`t2` `child2` on((`test`.`child1`.`col_varchar_key` > `test`.`child2`.`col_varchar_nokey`)) join `test`.`t1` `parent1`) left join `test`.`t2` `grandparent2` on((`test`.`grandparent2`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_nokey`)) where ((`test`.`grandparent1`.`col_varchar_key` = `test`.`parent1`.`col_varchar_nokey`) and (`test`.`parent1`.`col_varchar_key` = `test`.`child1`.`col_varchar_nokey`))
 SELECT grandparent1.col_varchar_nokey
 FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
 WHERE (grandparent1.col_varchar_key) IN
@@ -8985,7 +8985,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "5.53"
+            "query_cost": "2.08"
           },
           "nested_loop": [
             {
@@ -9007,9 +9007,9 @@ EXPLAIN
                 "rows_produced_per_join": 0,
                 "filtered": "9.09",
                 "cost_info": {
-                  "read_cost": "2.00",
-                  "eval_cost": "0.04",
-                  "prefix_cost": "2.40",
+                  "read_cost": "0.50",
+                  "eval_cost": "0.02",
+                  "prefix_cost": "0.70",
                   "data_read_per_join": "2"
                 },
                 "used_columns": [
@@ -9042,9 +9042,9 @@ EXPLAIN
                       "rows_produced_per_join": 0,
                       "filtered": "100.00",
                       "cost_info": {
-                        "read_cost": "0.36",
-                        "eval_cost": "0.07",
-                        "prefix_cost": "2.84",
+                        "read_cost": "0.09",
+                        "eval_cost": "0.04",
+                        "prefix_cost": "0.83",
                         "data_read_per_join": "5"
                       },
                       "used_columns": [
@@ -9074,9 +9074,9 @@ EXPLAIN
                       "filtered": "100.00",
                       "using_index": true,
                       "cost_info": {
-                        "read_cost": "0.37",
-                        "eval_cost": "0.04",
-                        "prefix_cost": "5.54",
+                        "read_cost": "0.09",
+                        "eval_cost": "0.02",
+                        "prefix_cost": "2.08",
                         "data_read_per_join": "2"
                       },
                       "used_columns": [
@@ -9313,11 +9313,11 @@ ON child1.pk < child2.col_int_nokey
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	grandparent1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	grandparent2	NULL	index	col_int_key	col_int_key	5	NULL	3	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	grandparent1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	3	100.00	Using where; Start temporary
 1	SIMPLE	parent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	grandparent2	NULL	ref	col_int_key	col_int_key	5	test.grandparent1.col_int_key	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t2` `child1` left join `test`.`t3` `child2` on((`test`.`child1`.`pk` < `test`.`child2`.`col_int_nokey`)) join `test`.`t2` `parent1`) join `test`.`t1` `grandparent2` where ((`test`.`grandparent2`.`col_int_key` = `test`.`grandparent1`.`col_int_key`) and (`test`.`parent1`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_key`) and (`test`.`child1`.`col_varchar_nokey` = `test`.`parent1`.`col_varchar_key`))
 SELECT grandparent1.col_varchar_nokey
@@ -10222,14 +10222,14 @@ FROM ( view_c AS sq2_alias1, t1 AS sq2_alias2 )
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	col_int_key	col_int_key	5	NULL	5	100.00	Using index; Start temporary
-1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias2	NULL	index	col_varchar_key	col_varchar_key	9	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where; Start temporary
+1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	2	100.00	Using index
+1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	test.alias3.pk	2	100.00	Using index
 1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using index; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`alias3`.`pk` = `test`.`t2`.`col_int_key`))
+Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_int_key` = `test`.`alias3`.`pk`))
 PREPARE prep_stmt_7430 FROM 'SELECT SUM( alias1.col_varchar_key ) AS field1
 FROM t1 AS alias1
 RIGHT JOIN t2 AS alias2
@@ -10800,7 +10800,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "18.27"
+      "query_cost": "7.62"
     },
     "nested_loop": [
       {
@@ -10815,9 +10815,9 @@ EXPLAIN
                 "rows_produced_per_join": 6,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.20",
-                  "prefix_cost": "3.23",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "1.11",
                   "data_read_per_join": "48"
                 },
                 "used_columns": [
@@ -10834,9 +10834,9 @@ EXPLAIN
                 "filtered": "16.67",
                 "using_join_buffer": "Block Nested Loop",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "0.20",
-                  "prefix_cost": "15.86",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.10",
+                  "prefix_cost": "6.91",
                   "data_read_per_join": "8"
                 },
                 "used_columns": [
@@ -10858,9 +10858,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.40",
-            "prefix_cost": "18.27",
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "7.62",
             "data_read_per_join": "16"
           },
           "used_columns": [
@@ -10965,7 +10965,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "56.53"
+      "query_cost": "23.73"
     },
     "nested_loop": [
       {
@@ -10983,9 +10983,9 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.03",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "3.43",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "1.21",
                   "data_read_per_join": "56"
                 },
                 "used_columns": [
@@ -11014,9 +11014,9 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "14.00",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "26.43",
+                  "read_cost": "3.50",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "9.21",
                   "data_read_per_join": "112"
                 },
                 "used_columns": [
@@ -11030,7 +11030,7 @@ EXPLAIN
                   "query_block": {
                     "select_id": 2,
                     "cost_info": {
-                      "query_cost": "3.43"
+                      "query_cost": "1.21"
                     },
                     "table": {
                       "table_name": "t2",
@@ -11039,9 +11039,9 @@ EXPLAIN
                       "rows_produced_per_join": 7,
                       "filtered": "100.00",
                       "cost_info": {
-                        "read_cost": "2.03",
-                        "eval_cost": "1.40",
-                        "prefix_cost": "3.43",
+                        "read_cost": "0.51",
+                        "eval_cost": "0.70",
+                        "prefix_cost": "1.21",
                         "data_read_per_join": "56"
                       },
                       "used_columns": [
@@ -11065,9 +11065,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.10",
-            "eval_cost": "28.00",
-            "prefix_cost": "56.53",
+            "read_cost": "0.52",
+            "eval_cost": "14.00",
+            "prefix_cost": "23.73",
             "data_read_per_join": "1K"
           },
           "used_columns": [
@@ -11130,7 +11130,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "108.53"
+      "query_cost": "52.73"
     },
     "nested_loop": [
       {
@@ -11148,9 +11148,9 @@ EXPLAIN
                 "rows_produced_per_join": 20,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "2.04",
-                  "eval_cost": "4.00",
-                  "prefix_cost": "6.04",
+                  "read_cost": "0.51",
+                  "eval_cost": "2.00",
+                  "prefix_cost": "2.51",
                   "data_read_per_join": "320"
                 },
                 "used_columns": [
@@ -11169,9 +11169,9 @@ EXPLAIN
                 "filtered": "10.00",
                 "using_join_buffer": "Block Nested Loop",
                 "cost_info": {
-                  "read_cost": "2.05",
-                  "eval_cost": "0.40",
-                  "prefix_cost": "98.49",
+                  "read_cost": "0.51",
+                  "eval_cost": "0.20",
+                  "prefix_cost": "48.22",
                   "data_read_per_join": "32"
                 },
                 "used_columns": [
@@ -11193,9 +11193,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.04",
-            "eval_cost": "8.00",
-            "prefix_cost": "108.53",
+            "read_cost": "0.51",
+            "eval_cost": "4.00",
+            "prefix_cost": "52.73",
             "data_read_per_join": "640"
           },
           "used_columns": [
@@ -11344,7 +11344,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "110.59"
+      "query_cost": "52.68"
     },
     "nested_loop": [
       {
@@ -11359,9 +11359,9 @@ EXPLAIN
                 "rows_produced_per_join": 6,
                 "filtered": "33.33",
                 "cost_info": {
-                  "read_cost": "4.78",
-                  "eval_cost": "1.33",
-                  "prefix_cost": "6.12",
+                  "read_cost": "1.86",
+                  "eval_cost": "0.67",
+                  "prefix_cost": "2.53",
                   "data_read_per_join": "159"
                 },
                 "used_columns": [
@@ -11383,9 +11383,9 @@ EXPLAIN
                 "filtered": "10.00",
                 "using_join_buffer": "Block Nested Loop",
                 "cost_info": {
-                  "read_cost": "2.12",
-                  "eval_cost": "2.67",
-                  "prefix_cost": "34.90",
+                  "read_cost": "0.53",
+                  "eval_cost": "1.33",
+                  "prefix_cost": "16.39",
                   "data_read_per_join": "319"
                 },
                 "used_columns": [
@@ -11405,9 +11405,9 @@ EXPLAIN
                 "filtered": "10.00",
                 "using_join_buffer": "Block Nested Loop",
                 "cost_info": {
-                  "read_cost": "2.12",
-                  "eval_cost": "0.40",
-                  "prefix_cost": "98.07",
+                  "read_cost": "0.53",
+                  "eval_cost": "0.20",
+                  "prefix_cost": "47.45",
                   "data_read_per_join": "48"
                 },
                 "used_columns": [
@@ -11438,9 +11438,9 @@ EXPLAIN
           "rows_produced_per_join": 2,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "0.40",
-            "prefix_cost": "100.47",
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "48.15",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -11458,9 +11458,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.12",
-            "eval_cost": "8.00",
-            "prefix_cost": "110.59",
+            "read_cost": "0.53",
+            "eval_cost": "4.00",
+            "prefix_cost": "52.68",
             "data_read_per_join": "960"
           },
           "used_columns": [
@@ -12127,7 +12127,7 @@ AND t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
-1	SIMPLE	t1	NULL	ALL	uid	NULL	NULL	NULL	11	36.36	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	4	100.00	Using where; End temporary
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
@@ -12150,12 +12150,12 @@ I
 SHOW STATUS LIKE '%handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	16
+Handler_read_key	20
 Handler_read_last	0
-Handler_read_next	4
+Handler_read_next	15
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	12
+Handler_read_rnd_next	0
 DROP TABLE t1,t2,t3,t4;
 # End of test for Bug#18194196
 #

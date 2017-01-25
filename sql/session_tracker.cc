@@ -922,10 +922,6 @@ Transaction_state_tracker::Transaction_state_tracker()
 
 bool Transaction_state_tracker::update(THD *thd)
 {
-#ifdef EMBEDDED_LIBRARY
-  return true;
-
-#else
   if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
   {
     /*
@@ -947,7 +943,6 @@ bool Transaction_state_tracker::update(THD *thd)
     m_enabled= false;
 
   return false;
-#endif
 }
 
 

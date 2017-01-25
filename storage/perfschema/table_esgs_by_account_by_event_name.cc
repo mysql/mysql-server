@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,26 +11,29 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 /**
   @file storage/perfschema/table_esgs_by_account_by_event_name.cc
   Table EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME (implementation).
 */
 
+#include "field.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
-#include "table_esgs_by_account_by_event_name.h"
 #include "pfs_global.h"
+#include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "pfs_buffer_container.h"
-#include "field.h"
+#include "table_esgs_by_account_by_event_name.h"
 
 THR_LOCK table_esgs_by_account_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -74,15 +77,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_esgs_by_account_by_event_name::m_field_def=
-{ 8, field_types };
+table_esgs_by_account_by_event_name::m_field_def = {8, field_types};
 
-PFS_engine_table_share
-table_esgs_by_account_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_stages_summary_by_account_by_event_name") },
+PFS_engine_table_share table_esgs_by_account_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_stages_summary_by_account_by_event_name")},
   &pfs_truncatable_acl,
   table_esgs_by_account_by_event_name::create,
   NULL, /* write_row */
@@ -95,33 +96,41 @@ table_esgs_by_account_by_event_name::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_esgs_by_account_by_event_name::match(PFS_account *pfs)
+bool
+PFS_index_esgs_by_account_by_event_name::match(PFS_account *pfs)
 {
   if (m_fields >= 1)
   {
     if (!m_key_1.match(pfs))
+    {
       return false;
+    }
   }
 
   if (m_fields >= 2)
   {
     if (!m_key_2.match(pfs))
+    {
       return false;
+    }
   }
   return true;
 }
 
-bool PFS_index_esgs_by_account_by_event_name::match(PFS_instr_class *instr_class)
+bool
+PFS_index_esgs_by_account_by_event_name::match(PFS_instr_class *instr_class)
 {
   if (m_fields >= 3)
   {
     if (!m_key_3.match(instr_class))
+    {
       return false;
+    }
   }
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_esgs_by_account_by_event_name::create(void)
 {
   return new table_esgs_by_account_by_event_name();
@@ -142,41 +151,41 @@ table_esgs_by_account_by_event_name::get_row_count(void)
 }
 
 table_esgs_by_account_by_event_name::table_esgs_by_account_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_esgs_by_account_by_event_name::reset_position(void)
+void
+table_esgs_by_account_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_esgs_by_account_by_event_name::rnd_init(bool)
+int
+table_esgs_by_account_by_event_name::rnd_init(bool)
 {
-  m_normalizer= time_normalizer::get(stage_timer);
+  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
-int table_esgs_by_account_by_event_name::rnd_next(void)
+int
+table_esgs_by_account_by_event_name::rnd_next(void)
 {
   PFS_account *account;
   PFS_stage_class *stage_class;
-  bool has_more_account= true;
+  bool has_more_account = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_account;
-       m_pos.next_account())
+  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account())
   {
-    account= global_account_container.get(m_pos.m_index_1, & has_more_account);
+    account = global_account_container.get(m_pos.m_index_1, &has_more_account);
     if (account != NULL)
     {
-      stage_class= find_stage_class(m_pos.m_index_2);
+      stage_class = find_stage_class(m_pos.m_index_2);
       if (stage_class)
       {
-        make_row(account, stage_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(account, stage_class);
       }
     }
   }
@@ -192,57 +201,58 @@ table_esgs_by_account_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  account= global_account_container.get(m_pos.m_index_1);
+  account = global_account_container.get(m_pos.m_index_1);
   if (account != NULL)
   {
-    stage_class= find_stage_class(m_pos.m_index_2);
+    stage_class = find_stage_class(m_pos.m_index_2);
     if (stage_class)
     {
-      make_row(account, stage_class);
-      return 0;
+      return make_row(account, stage_class);
     }
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esgs_by_account_by_event_name::index_init(uint idx, bool)
+int
+table_esgs_by_account_by_event_name::index_init(uint idx, bool)
 {
-  m_normalizer= time_normalizer::get(stage_timer);
+  m_normalizer = time_normalizer::get(stage_timer);
 
-  PFS_index_esgs_by_account_by_event_name *result= NULL;
+  PFS_index_esgs_by_account_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_esgs_by_account_by_event_name);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_esgs_by_account_by_event_name);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_esgs_by_account_by_event_name::index_next(void)
+int
+table_esgs_by_account_by_event_name::index_next(void)
 {
   PFS_account *account;
   PFS_stage_class *stage_class;
-  bool has_more_account= true;
+  bool has_more_account = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_account;
-       m_pos.next_account())
+  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account())
   {
-    account= global_account_container.get(m_pos.m_index_1, &has_more_account);
+    account = global_account_container.get(m_pos.m_index_1, &has_more_account);
     if (account != NULL)
     {
       if (m_opened_index->match(account))
       {
         do
         {
-          stage_class= find_stage_class(m_pos.m_index_2);
+          stage_class = find_stage_class(m_pos.m_index_2);
           if (stage_class)
           {
             if (m_opened_index->match(stage_class))
             {
-              make_row(account, stage_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
+              if (!make_row(account, stage_class))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
             }
             m_pos.m_index_2++;
           }
@@ -254,16 +264,18 @@ int table_esgs_by_account_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-void table_esgs_by_account_by_event_name
-::make_row(PFS_account *account, PFS_stage_class *klass)
+int
+table_esgs_by_account_by_event_name::make_row(PFS_account *account,
+                                              PFS_stage_class *klass)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   account->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(account))
-    return;
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -271,33 +283,35 @@ void table_esgs_by_account_by_event_name
   PFS_connection_iterator::visit_account(account,
                                          true,  /* threads */
                                          false, /* THDs */
-                                         & visitor);
+                                         &visitor);
 
-  if (! account->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!account->m_lock.end_optimistic_lock(&lock))
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
-  m_row_exists= true;
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  return 0;
 }
 
-int table_esgs_by_account_by_event_name
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_esgs_by_account_by_event_name::read_row_values(TABLE *table,
+                                                     unsigned char *buf,
+                                                     Field **fields,
+                                                     bool read_all)
 {
   Field *f;
 
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
-
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* USER */
       case 1: /* HOST */

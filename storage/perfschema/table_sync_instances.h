@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,26 +52,28 @@ struct row_mutex_instances
 class PFS_index_mutex_instances : public PFS_engine_index
 {
 public:
-  PFS_index_mutex_instances(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_mutex_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
   ~PFS_index_mutex_instances()
-  {}
+  {
+  }
 
-  virtual bool match(PFS_mutex *pfs)= 0;
+  virtual bool match(PFS_mutex *pfs) = 0;
 };
 
 class PFS_index_mutex_instances_by_instance : public PFS_index_mutex_instances
 {
 public:
   PFS_index_mutex_instances_by_instance()
-    : PFS_index_mutex_instances(&m_key),
-    m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_mutex_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_mutex_instances_by_instance()
-  {}
+  {
+  }
 
   virtual bool match(PFS_mutex *pfs);
 
@@ -83,12 +85,13 @@ class PFS_index_mutex_instances_by_name : public PFS_index_mutex_instances
 {
 public:
   PFS_index_mutex_instances_by_name()
-    : PFS_index_mutex_instances(&m_key),
-    m_key("NAME")
-  {}
+    : PFS_index_mutex_instances(&m_key), m_key("NAME")
+  {
+  }
 
   ~PFS_index_mutex_instances_by_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_mutex *pfs);
 
@@ -100,12 +103,13 @@ class PFS_index_mutex_instances_by_thread_id : public PFS_index_mutex_instances
 {
 public:
   PFS_index_mutex_instances_by_thread_id()
-    : PFS_index_mutex_instances(&m_key),
-    m_key("LOCKED_BY_THREAD_ID")
-  {}
+    : PFS_index_mutex_instances(&m_key), m_key("LOCKED_BY_THREAD_ID")
+  {
+  }
 
   ~PFS_index_mutex_instances_by_thread_id()
-  {}
+  {
+  }
 
   virtual bool match(PFS_mutex *pfs);
 
@@ -119,7 +123,7 @@ class table_mutex_instances : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -139,10 +143,11 @@ private:
 
 public:
   ~table_mutex_instances()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_mutex *pfs);
+  int make_row(PFS_mutex *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -151,8 +156,6 @@ protected:
 
   /** Current row. */
   row_mutex_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -181,26 +184,28 @@ struct row_rwlock_instances
 class PFS_index_rwlock_instances : public PFS_engine_index
 {
 public:
-  PFS_index_rwlock_instances(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_rwlock_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
   ~PFS_index_rwlock_instances()
-  {}
+  {
+  }
 
-  virtual bool match(PFS_rwlock *pfs)= 0;
+  virtual bool match(PFS_rwlock *pfs) = 0;
 };
 
 class PFS_index_rwlock_instances_by_instance : public PFS_index_rwlock_instances
 {
 public:
   PFS_index_rwlock_instances_by_instance()
-    : PFS_index_rwlock_instances(&m_key),
-    m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_rwlock_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_rwlock_instances_by_instance()
-  {}
+  {
+  }
 
   virtual bool match(PFS_rwlock *pfs);
 
@@ -212,12 +217,13 @@ class PFS_index_rwlock_instances_by_name : public PFS_index_rwlock_instances
 {
 public:
   PFS_index_rwlock_instances_by_name()
-    : PFS_index_rwlock_instances(&m_key),
-    m_key("NAME")
-  {}
+    : PFS_index_rwlock_instances(&m_key), m_key("NAME")
+  {
+  }
 
   ~PFS_index_rwlock_instances_by_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_rwlock *pfs);
 
@@ -225,16 +231,18 @@ private:
   PFS_key_event_name m_key;
 };
 
-class PFS_index_rwlock_instances_by_thread_id : public PFS_index_rwlock_instances
+class PFS_index_rwlock_instances_by_thread_id
+  : public PFS_index_rwlock_instances
 {
 public:
   PFS_index_rwlock_instances_by_thread_id()
-    : PFS_index_rwlock_instances(&m_key),
-    m_key("WRITE_LOCKED_BY_THREAD_ID")
-  {}
+    : PFS_index_rwlock_instances(&m_key), m_key("WRITE_LOCKED_BY_THREAD_ID")
+  {
+  }
 
   ~PFS_index_rwlock_instances_by_thread_id()
-  {}
+  {
+  }
 
   virtual bool match(PFS_rwlock *pfs);
 
@@ -248,7 +256,7 @@ class table_rwlock_instances : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -268,10 +276,11 @@ private:
 
 public:
   ~table_rwlock_instances()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_rwlock *pfs);
+  int make_row(PFS_rwlock *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -280,8 +289,6 @@ protected:
 
   /** Current row. */
   row_rwlock_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -304,26 +311,28 @@ struct row_cond_instances
 class PFS_index_cond_instances : public PFS_engine_index
 {
 public:
-  PFS_index_cond_instances(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_cond_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
   ~PFS_index_cond_instances()
-  {}
+  {
+  }
 
-  virtual bool match(PFS_cond *pfs)= 0;
+  virtual bool match(PFS_cond *pfs) = 0;
 };
 
 class PFS_index_cond_instances_by_instance : public PFS_index_cond_instances
 {
 public:
   PFS_index_cond_instances_by_instance()
-    : PFS_index_cond_instances(&m_key),
-    m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_cond_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_cond_instances_by_instance()
-  {}
+  {
+  }
 
   virtual bool match(PFS_cond *pfs);
 
@@ -335,12 +344,13 @@ class PFS_index_cond_instances_by_name : public PFS_index_cond_instances
 {
 public:
   PFS_index_cond_instances_by_name()
-    : PFS_index_cond_instances(&m_key),
-    m_key("NAME")
-  {}
+    : PFS_index_cond_instances(&m_key), m_key("NAME")
+  {
+  }
 
   ~PFS_index_cond_instances_by_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_cond *pfs);
 
@@ -354,7 +364,7 @@ class table_cond_instances : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -374,10 +384,11 @@ private:
 
 public:
   ~table_cond_instances()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_cond *pfs);
+  int make_row(PFS_cond *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -386,8 +397,6 @@ protected:
 
   /** Current row. */
   row_cond_instances m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

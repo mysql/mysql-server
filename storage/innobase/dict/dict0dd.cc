@@ -205,7 +205,8 @@ dd_table_open_on_dd_obj(
 
 	init_tmp_table_share(thd,
 			     &ts, table_cache_key, table_cache_key_len,
-			     dd_table.name().c_str(), ""/* file name */);
+			     dd_table.name().c_str(), ""/* file name */,
+			     nullptr);
 
 	error = open_table_def(thd, &ts, false, &dd_table);
 
@@ -607,16 +608,13 @@ bool
 dd_table_discard_tablespace(
 	THD*			thd,
 	dict_table_t*		table,
+	dd::Table*		table_def,
 	bool			discard)
 {
-	char			db_buf[NAME_LEN + 1];
-	char			tbl_buf[NAME_LEN + 1];
-	MDL_ticket*		mdl;
-	const dd::Table*	dd_table = nullptr;
-	dd::Table*		new_dd_table = nullptr;
 	bool			ret = false;
 
 	DBUG_ENTER("dd_table_set_discard_flag");
+
 	ut_ad(thd == current_thd);
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
@@ -624,62 +622,36 @@ dd_table_discard_tablespace(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	innobase_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, NULL);
+	if (table_def->se_private_id() != dd::INVALID_OBJECT_ID) {
+		ut_ad(table_def->table().partitions()->empty());
 
-	if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
-		DBUG_RETURN(false);
-	}
-
-	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
-
-	if (!client->acquire(db_buf, tbl_buf, &dd_table)
-	    && dd_table != nullptr) {
-		if (dd_table->se_private_id() != dd::INVALID_OBJECT_ID) {
-			ut_ad(dd_table->partitions().empty());
-			/* Clone the dd table object. The clone is owned here,
-			and must be deleted eventually. */
-			/* Acquire the new dd tablespace for modification */
-			if (client->acquire_for_modification(
-					db_buf, tbl_buf, &new_dd_table)) {
-				ut_a(false);
-			}
-
-			/* For discarding, we need to set new private
-			id to dd_table */
-			if (discard) {
-				/* Set the new private id to dd_table object. */
-				new_dd_table->set_se_private_id(table->id);
-			} else {
-				ut_ad(new_dd_table->se_private_id() == table->id);
-			}
-
-			/* Set index root page. */
-			const dict_index_t* index = table->first_index();
-			for (auto dd_index : *new_dd_table->indexes()) {
-				ut_ad(index != NULL);
-
-				dd::Properties& p = dd_index->se_private_data();
-				p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
-			}
-
-			/* Set discard flag. */
-			new_dd_table->table().options().set_bool("discard",
-								 discard);
-			client->update(new_dd_table);
-
-			/* Remove uncommitted_ojects for cleaning dd cacahe. */
-			client->remove_uncommitted_objects<dd::Table>(true);
-
-			ret = true;
+		/* For discarding, we need to set new private
+		id to dd_table */
+		if (discard) {
+			/* Set the new private id to dd_table object. */
+			table_def->set_se_private_id(table->id);
 		} else {
-			ret = false;
+			ut_ad(table_def->se_private_id() == table->id);
 		}
+
+		/* Set index root page. */
+		const dict_index_t* index = table->first_index();
+		for (auto dd_index : *table_def->indexes()) {
+			ut_ad(index != NULL);
+
+			dd::Properties& p = dd_index->se_private_data();
+			p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT],
+				index->page);
+		}
+
+		/* Set discard flag. */
+		table_def->table().options().set_bool("discard",
+							 discard);
+
+		ret = true;
 	} else {
 		ret = false;
 	}
-
-	dd_mdl_release(thd, &mdl);
 
 	DBUG_RETURN(ret);
 }
@@ -1277,6 +1249,12 @@ dd_fill_one_dict_index(
 			index->type |= DICT_VIRTUAL;
 		}
 
+		bool	is_asc = true;
+
+		if (key_part->key_part_flag & HA_REVERSE_SORT) {
+			is_asc = false;
+		}
+			
 #if 1//WL#7743 FIXME: do not set HA_PART_KEY_SEG for SPATIAL indexes
 		if (key.flags & HA_SPATIAL) {
 			prefix_len = 0;
@@ -1325,7 +1303,7 @@ dd_fill_one_dict_index(
 			col = &table->cols[field->field_index - t_num_v];
 		}
 
-		dict_index_add_col(index, table, col, prefix_len);
+		dict_index_add_col(index, table, col, prefix_len, is_asc);
 	}
 
 	ut_ad(((key.flags & HA_FULLTEXT) == HA_FULLTEXT)
@@ -1593,7 +1571,7 @@ dd_fill_dict_index(
 				m_table->name.m_name,
 				FTS_DOC_ID_INDEX_NAME,
 				0, DICT_UNIQUE, 1);
-			doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0);
+			doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0, true);
 
 			dberr_t	new_err = dict_index_add_to_cache(
 				m_table, doc_id_index,
@@ -2715,7 +2693,8 @@ dd_open_table_one(
 
 	bool	implicit;
 
-	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
+	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id
+	    || dd_table->tablespace_id() == 10001) {
 		/* DD tables are in shared DD tablespace */
 		implicit = false;
 	} else if (dd_tablespace_is_implicit(
@@ -2770,7 +2749,8 @@ dd_open_table_one(
 			dd_index->tablespace_id();
 		dd::Tablespace*	index_space = nullptr;
 
-		if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
+		if (dd_table->tablespace_id() == dict_sys_t::dd_space_id
+		    || dd_table->tablespace_id() == 10001) {
 			sid = dict_sys_t::space_id;
 		} else if (dd_table->tablespace_id()
 			   == dict_sys_t::dd_temp_space_id) {
@@ -2822,6 +2802,10 @@ dd_open_table_one(
 		index->id = id;
 		index->trx_id = trx_id;
                 index = index->next();
+	}
+
+	if (!implicit) {
+		dict_get_and_save_space_name(m_table, false);
 	}
 
 	if (fail) {
@@ -2883,6 +2867,7 @@ void
 dd_open_fk_tables(
 	dd::cache::Dictionary_client*	client,
 	dict_names_t&			fk_list,
+	bool				dict_locked,
 	THD*				thd)
 {
 	while (!fk_list.empty()) {
@@ -2892,10 +2877,16 @@ dd_open_fk_tables(
 
 		fk_table_name.m_name =
 			const_cast<char*>(fk_list.front());
-		mutex_enter(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
+
 		fk_table = dict_table_check_if_in_cache_low(
 			fk_table_name.m_name);
-		mutex_exit(&dict_sys->mutex);
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
+
 		if (!fk_table) {
 			MDL_ticket*     fk_mdl = nullptr;
 			char		db_buf[NAME_LEN + 1];
@@ -2923,7 +2914,7 @@ dd_open_fk_tables(
 			init_tmp_table_share(thd,
 				&ts, db_buf, strlen(db_buf),
 				dd_table->name().c_str(),
-				""/* file name */);
+				""/* file name */, nullptr);
 
 			ulint error = open_table_def(thd, &ts, false,
 						     dd_table);
@@ -3003,7 +2994,7 @@ dd_open_table(
 		dd::cache::Dictionary_client::Auto_releaser
 			releaser(client);
 
-		dd_open_fk_tables(client, fk_list, thd);
+		dd_open_fk_tables(client, fk_list, false, thd);
 	}
 
 	return(m_table);

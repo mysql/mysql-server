@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "json_dom.h"
 #include "my_base.h"
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
@@ -463,7 +464,7 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
   @see Item_sum::check_sum_func()
   @see remove_redundant_subquery_clauses()
  */
-bool Item_sum::clean_up_after_removal(uchar *arg)
+bool Item_sum::clean_up_after_removal(uchar*)
 {
   /*
     Don't do anything if
@@ -582,7 +583,7 @@ bool Item_sum::aggregate_check_group(uchar *arg)
 }
 
 
-Field *Item_sum::create_tmp_field(bool group, TABLE *table)
+Field *Item_sum::create_tmp_field(bool, TABLE *table)
 {
   Field *field;
   switch (result_type()) {
@@ -791,7 +792,7 @@ static int simple_raw_key_cmp(const void* arg,
 }
 
 
-static int item_sum_distinct_walk(void *element, element_count num_of_dups,
+static int item_sum_distinct_walk(void *element, element_count,
                                   void *item)
 {
   return ((Aggregator_distinct*) (item))->unique_walk_function(element);
@@ -3535,7 +3536,7 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
                   table->s->null_bytes);
     int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
     if (res)
-      return ((order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
+      return ((order_item)->direction == ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
@@ -4114,7 +4115,7 @@ void Item_func_group_concat::make_unique()
 }
 
 
-String* Item_func_group_concat::val_str(String* str)
+String* Item_func_group_concat::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)
@@ -4156,7 +4157,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
       if (i)
         str->append(',');
       args[i + arg_count_field]->print(str, query_type);
-      if (order_array[i].direction == ORDER::ORDER_ASC)
+      if (order_array[i].direction == ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
         str->append(STRING_WITH_LEN(" DESC"));
@@ -4282,7 +4283,7 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t)
 {
   if (null_value || m_wrapper.empty())
     return true;
@@ -4444,7 +4445,7 @@ bool Item_sum_json_object::add()
     size_t safe_length;        // length of safep
 
     if (get_json_string(key_item, &m_tmp_key_value, &m_conversion_buffer,
-                        func_name(), &safep, &safe_length))
+                        &safep, &safe_length))
     {
       my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
       return error_json();
@@ -4485,4 +4486,171 @@ bool Item_sum_json_object::add()
 Item *Item_sum_json_object::copy_or_same(THD *thd)
 {
   return new (thd->mem_root) Item_sum_json_object(thd, this);
+}
+
+/**
+  Resolve the fields in the GROUPING function.
+  The GROUPING function can only appear in SELECT list or
+  in HAVING clause and requires WITH ROLLUP. Check that this holds.
+  We also need to check if all the arguments of the function
+  are present in GROUP BY clause. As GROUP BY columns are not
+  resolved at this time, we do it in SELECT_LEX::resolve_rollup().
+  However, if the GROUPING function is found in HAVING clause,
+  we can check here. Also, resolve_rollup() does not
+  check for items present in HAVING clause.
+
+  @param[in]     thd        current thread
+  @param[in,out] ref        reference to place where item is
+                            stored
+  @retval
+    TRUE  if error
+  @retval
+    FALSE on success
+
+*/
+bool Item_func_grouping::fix_fields(THD *thd, Item **ref)
+{
+  /*
+    We do not allow GROUPING by position. However GROUP BY allows
+    it for now.
+  */
+  Item **arg,**arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+  {
+    if ((*arg)->type() == Item::INT_ITEM && (*arg)->basic_const_item())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "GROUPING function");
+      return true;
+    }
+  }
+
+  if (Item_func::fix_fields(thd, ref))
+    return true;
+
+  /*
+    More than 64 args cannot be supported as the bitmask which is
+    used to represent the result cannot accomodate.
+  */
+  if (arg_count > 64)
+  {
+    my_error(ER_INVALID_NO_OF_ARGS, MYF(0), "GROUPING", arg_count, "64");
+    return true;
+  }
+
+  /*
+    GROUPING() is allowed to be present only in SELECT list and
+    HAVING clause.
+  */
+  SELECT_LEX *select= thd->lex->current_select();
+
+  if (select->olap == UNSPECIFIED_OLAP_TYPE ||
+      (select->resolve_place != SELECT_LEX::RESOLVE_SELECT_LIST &&
+       select->resolve_place != SELECT_LEX::RESOLVE_HAVING))
+  {
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+    return true;
+  }
+
+  /*
+    If GROUPING() is present in HAVING clause, check if all the
+    arguments are present in GROUP BY.
+  */
+  if (select->resolve_place == SELECT_LEX::RESOLVE_HAVING)
+  {
+    for (uint i= 0; i < arg_count; i++)
+    {
+      Item *const real_item= args[i]->real_item();
+      bool found_in_group= false;
+
+      for (ORDER *group= select->group_list.first; group; group= group->next)
+      {
+        if (real_item->eq((*group->item)->real_item(), 0))
+        {
+          found_in_group= true;
+          break;
+        }
+      }
+      if (!found_in_group)
+      {
+        my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i+1));
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+  Evaluation of the GROUPING function.
+  We check the type of the item for all the arguments of
+  GROUPING function. If it's a NULL_RESULT_ITEM, set the bit for
+  the field in the result. The result of the GROUPING function
+  would be the integer bit mask having 1's for the arguments
+  of type NULL_RESULT_ITEM.
+
+  @return
+  integer bit mask having 1's for the arguments which have a
+  NULL in their result becuase of ROLLUP operation.
+*/
+longlong Item_func_grouping::val_int()
+{
+  longlong result= 0;
+  for (uint i= 0; i<arg_count; i++)
+  {
+    Item *real_item = args[i];
+    while (real_item->type() == REF_ITEM)
+      real_item = *((down_cast<Item_ref *>(real_item))->ref);
+    /*
+      Note: if the current input argument is an 'Item_null_result',
+      then we know it is generated by rollup handler to fill the
+      subtotal rows.
+    */
+    if (real_item->type() == NULL_RESULT_ITEM)
+      result+= 1<<(arg_count-(i+1));
+  }
+  return result;
+}
+
+
+/**
+  This function is expected to check if GROUPING function with
+  its arguments is "group-invariant".
+  However, GROUPING function produces only one value per
+  group similar to the other set functions and the arguments
+  to the GROUPING function are always present in GROUP BY (this
+  is checked in resolve_rollup() which is called much earlier to
+  aggregate_check_group). As a result, aggregate_check_group does
+  not have to determine if the result of this function is
+  "group-invariant".
+
+  @retval
+    TRUE  if error
+  @retval
+    FALSE on success
+*/
+bool Item_func_grouping::aggregate_check_group(uchar *arg)
+{
+  Group_check *gc= reinterpret_cast<Group_check *>(arg);
+
+  if (gc->is_stopped(this))
+    return false;
+
+  if (gc->is_fd_on_source(this))
+  {
+    gc->stop_at(this);
+    return false;
+  }
+  return true;
+}
+
+
+/**
+  Resets 'with_sum_func' which was set during creation
+  of references to GROUP BY fields in SELECT_LEX::change_group_ref.
+  Calls Item_int_func::cleanup() to do the rest of the cleanup.
+*/
+void Item_func_grouping::cleanup()
+{
+  with_sum_func= 0;
+  Item_int_func::cleanup();
 }

@@ -6041,3 +6041,15 @@ SELECT MIN(duration) AS dmin, MAX(duration) AS dmax FROM v1;
 
 DROP VIEW v1, v2;
 DROP TABLE t;
+
+--echo #
+--echo # Bug24786327 SIG 11 IN __STPCPY_SSE2_UNALIGNED FROM MY_STPCPY() IN SQL/AUTH/SQL_AUTH_CACHE.CC
+--echo #
+CREATE TABLE t1_base_N3 (pk INT, col_int INT);
+CREATE VIEW t1_view_N3 AS SELECT * FROM t1_base_N3 WHERE `pk` BETWEEN 1 AND
+2;
+CREATE VIEW t1_view_N4 AS SELECT * FROM ( SELECT * FROM t1_view_N3 ) AS A;
+UPDATE t1_view_N3 AS A JOIN t1_view_N4 B SET A. col_int = 1 , B. col_int = 2;
+DROP VIEW t1_view_N3, t1_view_N4;
+DROP TABLE t1_base_N3;
+

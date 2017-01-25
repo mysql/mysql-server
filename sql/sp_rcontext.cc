@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "derror.h"            // ER_THD
 #include "field.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
@@ -600,7 +601,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 ///////////////////////////////////////////////////////////////////////////
 
 
-int sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
+bool sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
                                                 SELECT_LEX_UNIT *u)
 {
   /*

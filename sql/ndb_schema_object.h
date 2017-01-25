@@ -30,14 +30,14 @@
   the entry.
 */
 
-#include "my_bitmap.h"
 #include "my_global.h"
-#include "thr_mutex.h"
-#include "thr_cond.h"
+#include "my_bitmap.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
 struct NDB_SCHEMA_OBJECT {
-  native_mutex_t mutex; //Protects NDB_SCHEMA_OBJ and 'cond'
-  native_cond_t cond;   //Signal/wait slock_bitmap changes
+  mysql_mutex_t mutex; //Protects NDB_SCHEMA_OBJ and 'cond'
+  mysql_cond_t cond;   //Signal/wait slock_bitmap changes
   char *key;
   size_t key_length;
   uint use_count;

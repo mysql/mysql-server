@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,19 @@
 #ifndef DD_SERIALIZE_IMPL_H_INCLUDED
 #define	DD_SERIALIZE_IMPL_H_INCLUDED
 
-#include "my_global.h"
+#include <memory>
 
 #include "base64.h"           // base64_encode
-#include "m_string.h"         // STRING_WITH_LEN
-#include "prealloced_array.h" // Prealloced_array
-
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
 #include "dd/object_id.h"                   // Object_id typedef
-#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include "m_string.h"         // STRING_WITH_LEN
+#include "my_dbug.h"
+#include "my_global.h"
+#include "prealloced_array.h" // Prealloced_array
 
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
-
-#include <memory>
 
 /**
   @file
@@ -209,11 +208,10 @@ bool lookup_tablespace_ref(Sdi_rcontext *rctx, const String_type &name,
 typedef dd::String_type binary_t;
 template <typename T, size_t PREALLOC=16>
 struct dd_vector :
-  public Prealloced_array<T, PREALLOC,
-                          std::is_trivial<T>::value >
+  public Prealloced_array<T, PREALLOC>
 {
   dd_vector(PSI_memory_key psi_key = 0) :
-    Prealloced_array<T, PREALLOC, std::is_trivial<T>::value>(psi_key)
+    Prealloced_array<T, PREALLOC>(psi_key)
   {}
 };
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.02"
+VERSION="autotest-run.sh version 1.05"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -74,7 +74,7 @@ do
                 --version) echo $VERSION; exit;;
 	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
 	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
-	        --install-dir=*) install_dir0=`echo $1 | sed s/--install-dir=//`;;
+	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
 	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
 	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
 	        --clone=*) clone0=`echo $1 | sed s/--clone=//`;;
@@ -95,6 +95,9 @@ done
 #if it does not exit. if it does#
 # (.) load it			# 
 #################################
+
+install_dir=${install_dir:-$install_dir0}
+install_dir0=${install_dir0:-$install_dir}
 
 install_dir_save=$install_dir0
 if [ -f $conf ]
@@ -173,15 +176,15 @@ fi
 # Check that all interesting files are present#
 ###############################################
 
-test_dir=$install_dir0/mysql-test/ndb
+test_dir=$install_dir/mysql-test/ndb
 
 # Check if executables in $install_dir0 is executable at current
 # platform, they could be built for another kind of platform
 unset NDB_CPCC_HOSTS
-if ${install_dir0}/bin/ndb_cpcc 2>/dev/null ; then
+if ${install_dir}/bin/ndb_cpcc 2>/dev/null ; then
   # Use atrt and ndb_cpcc from test build
   atrt="${test_dir}/atrt"
-  ndb_cpcc="${install_dir0}/bin/ndb_cpcc"
+  ndb_cpcc="${install_dir}/bin/ndb_cpcc"
 else
   echo "Note: Cross platform testing, atrt and ndb_cpcc is not used from test build" >&2
   atrt=`which atrt`
@@ -308,8 +311,8 @@ fi
 choose $conf $hosts > d.tmp.$$
 sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 
-prefix="--prefix=$install_dir0"
-if [ "$install_dir1" ]
+prefix="--prefix=$install_dir --prefix0=$install_dir0"
+if [ -n "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
 fi
@@ -332,7 +335,7 @@ args="$args ${baseport_arg}"
 args="$args ${site_arg} ${clusters_arg}"
 args="$args $prefix"
 args="$args ${verbose_arg}"
-$atrt $args my.cnf
+$atrt $args my.cnf || echo "ERROR: $?: $atrt $args my.cnf"
 
 # Make tar-ball
 [ -f log.txt ] && mv log.txt $res_dir

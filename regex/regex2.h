@@ -18,6 +18,8 @@
 #ifndef	__regex2_h__
 #define __regex2_h__
 
+#include "utils.h"
+
 #define	MAGIC1	((('r'^0200)<<8) | 'e')
 
 /*

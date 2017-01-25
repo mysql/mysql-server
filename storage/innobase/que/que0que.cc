@@ -23,23 +23,23 @@ Query graph
 Created 5/27/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "que0que.h"
-#include "usr0sess.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "row0undo.h"
-#include "row0ins.h"
-#include "row0upd.h"
-#include "row0sel.h"
-#include "row0purge.h"
 #include "dict0crea.h"
-#include "log0log.h"
-#include "eval0proc.h"
-#include "lock0lock.h"
 #include "eval0eval.h"
+#include "eval0proc.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "my_dbug.h"
 #include "pars0types.h"
+#include "que0que.h"
+#include "row0ins.h"
+#include "row0purge.h"
+#include "row0sel.h"
+#include "row0undo.h"
+#include "row0upd.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
+#include "usr0sess.h"
 
 /* Short introduction to query graphs
    ==================================

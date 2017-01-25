@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,13 +35,9 @@ SET(EXCLUDE_DIRS
 # be exluded from the wxs. Used through get_include() macro below
 SET(EXCLUDE_FILES
      bin/echo.exe
-     bin/mysql_client_test_embedded.exe
      bin/mysqld-debug.exe
-     bin/mysqltest_embedded.exe
      bin/replace.exe
      lib/debug/mysqlserver.lib
-     lib/libmysqld.dll
-     lib/libmysqld.lib
      lib/mysqlserver.lib
      lib/mysqlservices.lib
 )

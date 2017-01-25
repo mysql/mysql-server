@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCXXSourceCompiles)
 INCLUDE(CheckCXXSourceRuns)
 INCLUDE(ndb_require_variable)
-INCLUDE(ndb_check_mysql_include_file)
 
 CHECK_FUNCTION_EXISTS(posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
@@ -67,8 +66,14 @@ CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
 CHECK_FUNCTION_EXISTS(pthread_setschedparam HAVE_PTHREAD_SETSCHEDPARAM)
 CHECK_FUNCTION_EXISTS(bzero HAVE_BZERO)
+CHECK_FUNCTION_EXISTS(priocntl HAVE_PRIOCNTL)
+CHECK_FUNCTION_EXISTS(processor_affinity HAVE_PROCESSOR_AFFINITY)
+CHECK_FUNCTION_EXISTS(cpuset_setaffinity HAVE_CPUSET_SETAFFINITY)
+CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
+CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
+CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
 
 CHECK_CXX_SOURCE_RUNS("
 unsigned A = 7;
@@ -208,11 +213,6 @@ IF(WITH_NDB_PORT GREATER 0)
   SET(NDB_PORT ${WITH_NDB_PORT})
   MESSAGE(STATUS "Setting MySQL Cluster management server port to ${NDB_PORT}")
 ENDIF()
-
-#
-# Check which MySQL include files exists
-#
-NDB_CHECK_MYSQL_INCLUDE_FILE(my_default.h HAVE_MY_DEFAULT_H)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)

@@ -23,19 +23,24 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <my_aes.h>
+#include <vector>
 
-#include "row0import.h"
 #include "btr0pcur.h"
-#include "que0que.h"
 #include "dict0boot.h"
+#include "dict0crea.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
 #include "pars0pars.h"
-#include "row0upd.h"
-#include "row0sel.h"
+#include "que0que.h"
+#include "row0import.h"
 #include "row0mysql.h"
-#include "srv0start.h"
 #include "row0quiesce.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "srv0start.h"
 #include "ut0new.h"
 #include "dict0crea.h"
 #include "lob0lob.h"
@@ -2261,8 +2266,6 @@ row_import_cleanup(
 	trx_t*		trx,		/*!< in/out: transaction for import */
 	dberr_t		err)		/*!< in: error code */
 {
-	THD*	thd = trx->mysql_thd;
-
 	ut_a(prebuilt->trx != trx);
 
 	if (err != DB_SUCCESS) {
@@ -2287,10 +2290,6 @@ row_import_cleanup(
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
-
-	/* Set the TABLESPACE DISCARD flag in the table definition
-	on disk. */
-	dd_table_discard_tablespace(thd, prebuilt->table, false);
 
 	return(err);
 }
@@ -3141,7 +3140,7 @@ row_import_read_v1(
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			"Tablespace to be imported has a different"
 			" page size than this server. Server page size"
-			" is " ULINTPF ", whereas tablespace page size"
+			" is %u, whereas tablespace page size"
 			" is " ULINTPF,
 			univ_page_size.logical(),
 			logical_page_size);

@@ -16,22 +16,22 @@
 # Gather port + serverid
 
 select @primary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $PRIMARY_SERVER_ID= query_get_value('select @primary_server_id as v',v,1);
 select @primary_server_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $PRIMARY_SERVER_PORT= query_get_value('select @primary_server_port as v', v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Gather port + serverid
 select @secondary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $SECONDARY_SERVER_ID= query_get_value('select @secondary_server_id as v',v,1);
 select @secondary_server_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v', v,1);
 

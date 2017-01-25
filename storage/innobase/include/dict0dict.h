@@ -664,6 +664,16 @@ dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
 	MY_ATTRIBUTE((warn_unused_result));
+
+/** Check whether the index consists of descending columns only.
+@param[in]	index  index tree
+@retval true if index has any descending column
+@retval false if index has only ascending columns */
+UNIV_INLINE
+bool
+dict_index_has_desc(
+	const dict_index_t*	index)
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
@@ -2014,7 +2024,7 @@ dict_sdi_get_table(
 	bool		dict_locked);
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace_id
 @param[in,out]	sdi_tables	Array of sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void

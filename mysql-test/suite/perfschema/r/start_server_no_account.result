@@ -1,4 +1,3 @@
-set @@global.show_compatibility_56=ON;
 show databases;
 Database
 information_schema
@@ -125,4 +124,3 @@ select variable_value > 0 from performance_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_ACCOUNTS_LOST';
 variable_value > 0
 1
-set @@global.show_compatibility_56=OFF;

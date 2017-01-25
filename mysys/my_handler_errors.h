@@ -109,7 +109,8 @@ static const char *handler_error_messages[]=
   "Incorrect file name",
   "Operation is not allowed",
   "Compute generate value failed",
-  "Row format changed in storage engine"
+  "Row format changed in storage engine",
+  "Do not wait for lock"
 };
 
 extern void my_handler_error_register(void);

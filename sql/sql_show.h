@@ -216,7 +216,5 @@ bool
 try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern TYPELIB grant_types;
-#endif
 #endif /* SQL_SHOW_H */

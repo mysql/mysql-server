@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
   @file include/welcome_copyright_notice.h
 */
 
-#define COPYRIGHT_NOTICE_CURRENT_YEAR "2016"
+#include <string.h>
+
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2017"
 
 /*
   This define specifies copyright notice which is displayed by every MySQL

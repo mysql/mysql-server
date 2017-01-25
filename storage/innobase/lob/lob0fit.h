@@ -81,11 +81,11 @@ struct FitBlock {
 
   /** Get the number of uncompressed data bytes consumed.
   @return number of uncompressed data bytes consumed */
-  ulint getInputBytes() const { return (m_total_in); }
+  uint getInputBytes() const { return (m_total_in); }
 
   /** Get the number of compressed data bytes written out.
   @return number of compressed data bytes written. */
-  ulint getOutputBytes() const { return (m_total_out); }
+  uint getOutputBytes() const { return (m_total_out); }
 
   /** Close the two zlib streams and free the two internal buffers. */
   void destroy();

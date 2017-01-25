@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,21 +16,24 @@
 
 
 #define MYSQL_SERVER 1
+#include <fcntl.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
 #include <stdarg.h>
 #include <algorithm>
+#include <new>
 
 #include "current_thd.h"
 #include "derror.h"
 #include "ha_myisam.h"
 #include "key.h"                                // key_copy
 #include "log.h"
+#include "my_dbug.h"
 #include "my_psi_config.h"
+#include "myisam.h"
 #include "myisamdef.h"
 #include "mysqld.h"
-#include "probes_mysql.h"
 #include "rt_index.h"
 #include "sql_class.h"                          // THD
 #include "sql_plugin.h"
@@ -657,7 +660,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
-                  HA_GENERATED_COLUMNS | 
+                  HA_GENERATED_COLUMNS |
                   HA_ATTACHABLE_TRX_COMPATIBLE),
    can_enable_indexes(1), ds_mrr(this)
 {}
@@ -1752,12 +1755,10 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
                               key_part_map keypart_map,
                               enum ha_rkey_function find_flag)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1767,69 +1768,57 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
 {
   DBUG_ASSERT(pushed_idx_cond == NULL);
   DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
                                    key_part_map keypart_map)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map,
                     HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   DBUG_RETURN(error);
 }
 
 int ha_myisam::index_next(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error=mi_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_prev(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error=mi_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_first(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error=mi_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_last(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error=mi_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1839,14 +1828,12 @@ int ha_myisam::index_next_same(uchar *buf,
 {
   int error;
   DBUG_ASSERT(inited==INDEX);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   do
   {
     error= mi_rnext_same(file,buf);
   } while (error == HA_ERR_RECORD_DELETED);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1860,23 +1847,17 @@ int ha_myisam::rnd_init(bool scan)
 
 int ha_myisam::rnd_next(uchar *buf)
 {
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error=mi_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::rnd_pos(uchar *buf, uchar *pos)
 {
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1995,23 +1976,6 @@ int ha_myisam::delete_all_rows()
   return mi_delete_all_rows(file);
 }
 
-
-/*
-  Intended to support partitioning.
-  Allows a particular partition to be truncated.
-*/
-
-int ha_myisam::truncate(dd::Table*)
-{
-  int error= delete_all_rows();
-  return error ? error : reset_auto_increment(0);
-}
-
-int ha_myisam::reset_auto_increment(ulonglong value)
-{
-  file->s->state.auto_increment= value;
-  return 0;
-}
 
 int ha_myisam::delete_table(const char *name, const dd::Table*)
 {

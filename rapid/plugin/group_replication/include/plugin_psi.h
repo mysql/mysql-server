@@ -27,7 +27,7 @@
   @param[in]  mutex_count    The number of elements in mutexes
 */
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
-                                               int mutex_count);
+                                               size_t mutex_count);
 
 /*
   Register the psi keys for conditions
@@ -37,7 +37,7 @@ void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
 
 */
 void register_group_replication_cond_psi_keys(PSI_cond_info conditions[],
-                                               int cond_count);
+                                               size_t cond_count);
 
 /*
   Register the psi keys for threads
@@ -46,7 +46,7 @@ void register_group_replication_cond_psi_keys(PSI_cond_info conditions[],
   @param[in]  thread_count   The number of elements in threads
 */
 void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
-                                                int thread_count);
+                                                size_t thread_count);
 
 /*
   Register the psi keys for rwlocks
@@ -55,7 +55,7 @@ void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
   @param[in]  count          The number of elements in keys
 */
 void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
-                                                int count);
+                                                size_t count);
 
 
 /*
