@@ -126,12 +126,6 @@ void Dblqh::initData()
   c_totalCopyRowsDel = 0;
   c_totalBytesCopied = 0;
 
-  /**
-   * Start pessimistic by assuming that we use some old
-   * v1 format tablespaces. After restart is completed
-   * we know for sure if only v2 format is used.
-   */
-  c_use_only_v2_format = false;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

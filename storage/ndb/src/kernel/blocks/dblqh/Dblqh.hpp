@@ -2987,12 +2987,6 @@ private:
   Lgman* c_lgman;
 
   /**
-   * We can only use disk scans if we have first ensured that all tablespaces use the new
-   * v2 format. It isn't safe to perform disk scans using the old format.
-   */
-  bool c_use_only_v2_format;
-
-  /**
    * Read primary key from tup
    */
   Uint32 readPrimaryKeys(ScanRecord*, TcConnectionrec*, Uint32 * dst);

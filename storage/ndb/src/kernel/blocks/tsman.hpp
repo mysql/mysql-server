@@ -263,7 +263,6 @@ private:
                                         Uint32 extent_size,
                                         Uint64 data_pages,
                                         bool v2);
-  bool is_only_using_v2_format();
 };
 
 inline
@@ -404,9 +403,9 @@ public:
   int get_tablespace_info(CreateFilegroupImplReq* rep);
 
   /**
-   * Check if we only use tablespaces with v2 format.
+   * Update lsn of page corresponing to key
    */
-  bool is_only_using_v2_format();
+  int update_lsn(Local_key* key, Uint64 lsn);
 };
 
 inline
@@ -493,13 +492,6 @@ int
 Tablespace_client::unmap_page(Local_key *key, unsigned uncommitted_bits)
 {
   return m_tsman->unmap_page(m_signal, key, uncommitted_bits);
-}
-
-inline
-bool
-Tablespace_client::is_only_using_v2_format()
-{
-  return m_tsman->is_only_using_v2_format();
 }
 
 inline
