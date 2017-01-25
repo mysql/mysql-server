@@ -726,7 +726,7 @@ protected:
 
 protected:
   const uint16 *contraction_find(my_wc_t wc0, size_t *chars_skipped);
-  uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
+  inline uint16 *previous_context_find(my_wc_t wc0, my_wc_t wc1);
 };
 
 /*
@@ -1024,7 +1024,7 @@ my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2
   @retval   TRUE  - can be previous context head
 */
 
-static my_bool
+static inline my_bool
 my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
@@ -1042,7 +1042,7 @@ my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
   @retval   TRUE - can be contraction tail
 */
 
-static my_bool
+static inline my_bool
 my_uca_can_be_previous_context_tail(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
@@ -1095,6 +1095,36 @@ my_uca_contraction_weight(const MY_CONTRACTIONS *list, const my_wc_t *wc, size_t
   return NULL;
 }
 
+/*
+  Check whether one contraction's character sequence can be sorted before
+  another contraction's character sequence. The ordering is arbitrary, but
+  lexical on code points.
+*/
+static inline bool
+contraction_chars_cmp(const MY_CONTRACTION &a, const MY_CONTRACTION &b)
+{
+  return memcmp(a.ch, b.ch, sizeof(a.ch)) < 0;
+}
+
+/**
+  Return length of a 0-terminated wide string, analogous to strnlen().
+
+  @param  s       Pointer to wide string
+  @param  maxlen  Mamixum string length
+
+  @return         string length, or maxlen if no '\0' is met.
+*/
+static size_t
+my_wstrnlen(my_wc_t *s, size_t maxlen)
+{
+  for (size_t i= 0; i < maxlen; i++)
+  {
+    if (s[i] == 0)
+      return i;
+  }
+  return maxlen;
+}
+
 
 /**
   Find a contraction in the input stream and return its weight array
@@ -1118,10 +1148,13 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
 {
   size_t clen= 1;
   int flag;
-  my_wc_t wc[MY_UCA_MAX_CONTRACTION];
-  wc[0]= wc0;
-  uchar *s, *beg[MY_UCA_MAX_CONTRACTION];
-  memset(beg, 0, sizeof(beg));
+  uchar *s, *beg;
+  const MY_CONTRACTION *contraction_begin= cs->uca->contractions.item;
+  const MY_CONTRACTION *contraction_end=
+    contraction_begin + cs->uca->contractions.nitems;
+  MY_CONTRACTION tofind;
+  memset(&tofind, 0, sizeof(tofind));
+  tofind.ch[0]= wc0;
 
   /*
     Find the length of the longest possible contraction starting from
@@ -1133,53 +1166,79 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
     before further down), but it helps us narrow down the maximum length
     efficiently.
   */
+  const MY_CONTRACTION *longest_contraction= nullptr;
+  auto mb_wc= cs->cset->mb_wc;
   for (s= (uchar*)sbeg, flag= MY_UCA_CNT_MID1;
        clen < MY_UCA_MAX_CONTRACTION;
-       flag<<= 1)
+       clen++, flag<<= 1)
   {
     int mblen;
-    if ((mblen= cs->cset->mb_wc(cs, &wc[clen], s, send)) <= 0)
+    my_wc_t wc;
+    if ((mblen= mb_wc(cs, &wc, s, send)) <= 0)
       break;
     s+= mblen;
-    beg[clen]= s;
 
+    tofind.ch[clen]= wc;
+    if (my_uca_can_be_contraction_tail(&uca->contractions,
+                                       wc))
+    {
+      /*
+        We use std::lower_bound to find contraction in the contraction list
+        which is already sorted in init_weight_level(). std::lower_bound()
+        returns the first element which is equal OR greater than what you
+        are looking for. So we need to check whether the returned contraction
+        is what we want. If not, we update contraction_begin, because the
+        character sequence is not in the contraction list, and we'll continue
+        to looking for new character sequence which adds one more character,
+        which is obviously greater than the current one.
+      */
+      auto candidate= std::lower_bound(contraction_begin,
+                                       contraction_end,
+                                       tofind,
+                                       contraction_chars_cmp);
+      if (candidate == contraction_end)
+        break;
+      if (!contraction_chars_cmp(tofind, *candidate))
+      {
+        /*
+          std::lower_bound() ensures *candidate is greater than or equal to
+          tofind. And contraction_chars_cmp() returns false which means
+          tofind is greater than or equal to *candidate. So tofind has to
+          equal to *candidate.
+        */
+        contraction_begin= longest_contraction= candidate;
+        beg= s;
+        *chars_skipped= clen;
+      }
+    }
     /*
       NOTE: The test here will be bogus for maximum-length contractions
       (flag overflows into MY_UCA_PREVIOUS_CONTEXT_HEAD),
       but we'll be breaking anyway.
     */
     if (!my_uca_can_be_contraction_part(&uca->contractions,
-                                        wc[clen++], flag))
+                                        wc, flag))
       break;
   }
 
-  /* Find among candidates the longest real contraction */
-  for ( ; clen > 1; clen--)
+  if (longest_contraction != nullptr)
   {
-    const uint16 *cweight;
-    if (my_uca_can_be_contraction_tail(&uca->contractions,
-                                       wc[clen - 1]) &&
-        (cweight= my_uca_contraction_weight(&uca->contractions,
-                                            wc, clen)))
+    const uint16 *cweight= longest_contraction->weight;
+    if (cs->uca->version == UCA_V900)
     {
-      if (cs->uca->version == UCA_V900)
-      {
-        cweight+= weight_lv;
-        wbeg= cweight + MY_UCA_900_CE_SIZE;
-        wbeg_stride= MY_UCA_900_CE_SIZE;
-        num_of_ce_left= 7;
-      }
-      else
-      {
-        wbeg= cweight + 1;
-        wbeg_stride= MY_UCA_900_CE_SIZE;
-      }
-      sbeg= beg[clen - 1];
-      *chars_skipped= clen - 1;
-      return cweight;
+      cweight+= weight_lv;
+      wbeg= cweight + MY_UCA_900_CE_SIZE;
+      wbeg_stride= MY_UCA_900_CE_SIZE;
+      num_of_ce_left= 7;
     }
+    else
+    {
+      wbeg= cweight + 1;
+      wbeg_stride= MY_UCA_900_CE_SIZE;
+    }
+    sbeg= beg;
+    return cweight;
   }
-
   return NULL; /* No contractions were found */
 }
 
@@ -1195,30 +1254,35 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
   @retval   NULL - no contraction with context found
   @retval   ptr  - contraction weight array
 */
-
+ALWAYS_INLINE
 uint16 *
 my_uca_scanner::previous_context_find(my_wc_t wc0, my_wc_t wc1)
 {
-  const MY_CONTRACTIONS *list= &uca->contractions;
-  MY_CONTRACTION *c, *last;
-  for (c= list->item, last= c + list->nitems; c < last; c++)
+  const MY_CONTRACTIONS *contractions= &uca->contractions;
+  MY_CONTRACTION tofind;
+  memset(&tofind, 0, sizeof(tofind));
+  tofind.ch[0]= wc0;
+  tofind.ch[1]= wc1;
+  MY_CONTRACTION *contraction_end= contractions->item + contractions->nitems;
+  MY_CONTRACTION *c= std::lower_bound(contractions->item,
+                                      contraction_end,
+                                      tofind, contraction_chars_cmp);
+  if (c == contraction_end || c->ch[0] != wc0 || c->ch[1] != wc1 || c->ch[2])
+    return NULL;
+  if (c->with_context)
   {
-    if (c->with_context && wc0 == c->ch[0] && wc1 == c->ch[1])
+    if (cs->uca->version == UCA_V900)
     {
-      if (cs->uca->version == UCA_V900)
-      {
-        wbeg= c->weight + MY_UCA_900_CE_SIZE +
-                       weight_lv;
-        wbeg_stride= MY_UCA_900_CE_SIZE;
-        num_of_ce_left= 7;
-      }
-      else
-      {
-        wbeg= c->weight + 1;
-        wbeg_stride= MY_UCA_900_CE_SIZE;
-      }
-      return c->weight + weight_lv;
+      wbeg= c->weight + MY_UCA_900_CE_SIZE + weight_lv;
+      wbeg_stride= MY_UCA_900_CE_SIZE;
+      num_of_ce_left= 7;
     }
+    else
+    {
+      wbeg= c->weight + 1;
+      wbeg_stride= MY_UCA_900_CE_SIZE;
+    }
+    return c->weight + weight_lv;
   }
   return NULL;
 }
@@ -2960,27 +3024,6 @@ typedef struct my_coll_rule_item_st
 
 
 /**
-  Return length of a 0-terminated wide string, analog to strnlen().
-
-  @param  s       Pointer to wide string
-  @param  maxlen  Mamixum string length
-
-  @return         string length, or maxlen if no '\0' is met.
-*/
-static size_t
-my_wstrnlen(my_wc_t *s, size_t maxlen)
-{
-  size_t i;
-  for (i= 0; i < maxlen; i++)
-  {
-    if (s[i] == 0)
-      return i;
-  }
-  return maxlen;
-}
-
-
-/**
   Return length of the "reset" string of a rule.
 
   @param  r  Collation customization rule
@@ -4502,6 +4545,11 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     if (apply_one_rule(cs, loader, rules, r, level, dst))
       return TRUE;
   }
+  // Sort contractions by the code points.
+  if (ncontractions)
+    std::sort(dst->contractions.item,
+              dst->contractions.item + dst->contractions.nitems,
+              contraction_chars_cmp);
   return FALSE;
 }
 
