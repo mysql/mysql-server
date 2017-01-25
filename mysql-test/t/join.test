@@ -1148,6 +1148,8 @@ CREATE TABLE t4
 
 INSERT INTO t4 VALUES ('RUXDY',8);
 
+ANALYZE TABLE t1, t2, t3, t4;
+
 let $query=
 SELECT alias1.pk AS field5
 FROM t3 AS alias1
