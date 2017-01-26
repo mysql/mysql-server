@@ -23,7 +23,7 @@
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
 #include "my_dbug.h"
-#include "mysqld.h"         // LOCK_*, mysqld_server_started 
+#include "mysqld.h"         // LOCK_*, mysqld_server_started
 
 
 /* from other files */
