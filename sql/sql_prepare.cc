@@ -640,7 +640,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       param->item_result_type= STRING_RESULT;
     }
   }
-  param->param_type= param_type;
+  param->set_data_type(param_type);
 }
 
 
@@ -651,8 +651,8 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 */
 inline bool is_param_long_data_type(Item_param *param)
 {
-  return ((param->param_type >= MYSQL_TYPE_TINY_BLOB) &&
-          (param->param_type <= MYSQL_TYPE_STRING));
+  return ((param->data_type() >= MYSQL_TYPE_TINY_BLOB) &&
+          (param->data_type() <= MYSQL_TYPE_STRING));
 }
 
 /**
@@ -884,7 +884,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
         the parameter's members that might be needed further
         (e.g. value.cs_info.character_set_client is used in the query_val_str()).
       */
-      setup_one_conversion_function(thd, param, param->param_type);
+      setup_one_conversion_function(thd, param, param->data_type());
       if (param->set_from_user_var(thd, entry))
         goto error;
       val= param->query_val_str(thd, &buf);

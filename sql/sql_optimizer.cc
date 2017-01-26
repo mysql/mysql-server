@@ -6088,7 +6088,7 @@ static uint get_tmp_table_rec_length(List<Item> &items)
       break;
     case STRING_RESULT:
       /* DATE/TIME and GEOMETRY fields have STRING_RESULT result type.  */
-      if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
+      if (item->is_temporal() || item->data_type() == MYSQL_TYPE_GEOMETRY)
         len += 8;
       else
         len += item->max_length;
@@ -7146,7 +7146,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
         comparing '{}' and '"{}"', which don't compare equal.
       */
       if (value[0]->result_type() == STRING_RESULT &&
-          value[0]->field_type() == MYSQL_TYPE_JSON)
+          value[0]->data_type() == MYSQL_TYPE_JSON)
       {
         warn_index_not_applicable(stat->join()->thd, field, possible_keys);
         return;
@@ -10707,7 +10707,7 @@ create_distinct_group(THD *thd,
 	return 0;
 
       if (item->type() == Item::FIELD_ITEM &&
-          item->field_type() == MYSQL_TYPE_BIT)
+          item->data_type() == MYSQL_TYPE_BIT)
       {
         /*
           Because HEAP tables can't index BIT fields we need to use an
@@ -11446,7 +11446,7 @@ bool JOIN::optimize_rollup()
   for (uint i= 0; i < send_group_parts; i++, group= group->next)
   {
     rollup.null_items[i]=
-      new (thd->mem_root) Item_null_result((*group->item)->field_type(),
+      new (thd->mem_root) Item_null_result((*group->item)->data_type(),
                                            (*group->item)->result_type());
     if (rollup.null_items[i] == NULL)
       return true;           /* purecov: inspected */
@@ -11524,7 +11524,7 @@ static uint32 get_key_length_tmp_table(Item *item)
     len+= HA_KEY_NULL_LENGTH;
 
   // references KEY_PART_INFO::init_from_field()
-  enum_field_types type= item->field_type();
+  enum_field_types type= item->data_type();
   if (type == MYSQL_TYPE_BLOB ||
       type == MYSQL_TYPE_VARCHAR ||
       type == MYSQL_TYPE_GEOMETRY)

@@ -91,13 +91,13 @@ static int check_geometry_valid(Geometry *geom);
 */
 static bool is_item_null(Item *item)
 {
-  if (item->field_type() == MYSQL_TYPE_NULL || item->type() == Item::NULL_ITEM)
+  if (item->data_type() == MYSQL_TYPE_NULL || item->type() == Item::NULL_ITEM)
     return true;
 
   // The following will detect the usage of SQL NULL in user-defined variables.
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
   if (is_binary_charset && item->type() == Item::FUNC_ITEM &&
-      item->field_type() == MYSQL_TYPE_MEDIUM_BLOB)
+      item->data_type() == MYSQL_TYPE_MEDIUM_BLOB)
   {
     return true;
   }
@@ -124,7 +124,7 @@ static bool is_item_geometry_type(Item *item)
 {
   if (is_item_null(item))
     return true;
-  else if (item->field_type() == MYSQL_TYPE_GEOMETRY)
+  else if (item->data_type() == MYSQL_TYPE_GEOMETRY)
     return true;
   else if (item->type() == Item::PARAM_ITEM)
     return true;
@@ -224,8 +224,8 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 
 bool Item_geometry_func::resolve_type(THD *)
 {
+  set_data_type(MYSQL_TYPE_GEOMETRY);
   collation.set(&my_charset_bin);
-  decimals=0;
   max_length= 0xFFFFFFFFU;
   maybe_null= true;
   return false;
@@ -660,7 +660,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     MySQL standard (little) endian. Note that users can pass via client
     any WKB/Geometry byte string, including those of big endianess.
   */
-  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
+  if (args[0]->data_type() == MYSQL_TYPE_GEOMETRY)
   {
     Geometry_buffer buff;
     Geometry *g= Geometry::construct(&buff, wkb->ptr(), wkb->length());
@@ -1781,7 +1781,7 @@ bool Item_func_geomfromgeojson::check_argument_valid_integer(Item *argument)
   bool is_binary_charset= (argument->collation.collation == &my_charset_bin);
   bool is_parameter_marker= (argument->type() == PARAM_ITEM);
 
-  switch (argument->field_type())
+  switch (argument->data_type())
   {
   case MYSQL_TYPE_NULL:
     return true;
@@ -1835,7 +1835,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       */
       bool is_binary_charset= (args[0]->collation.collation == &my_charset_bin);
       bool is_parameter_marker= (args[0]->type() == PARAM_ITEM);
-      switch (args[0]->field_type())
+      switch (args[0]->data_type())
       {
       case MYSQL_TYPE_NULL:
         break;
@@ -2591,7 +2591,7 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
   */
   bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
   bool is_field_type_valid= false;
-  switch (arg->field_type())
+  switch (arg->data_type())
   {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
@@ -2618,14 +2618,14 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
 
   /*
     Parameters and parameter markers always have
-    field_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
+    data_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
     parameter marker or parameter (PREPARE or EXECUTE, respectively).
   */
   bool is_parameter= (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
                       arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
-                     (arg->field_type() == MYSQL_TYPE_VARCHAR);
+                     (arg->data_type() == MYSQL_TYPE_VARCHAR);
   bool is_parameter_marker= (arg->type() == PARAM_ITEM &&
-                             arg->field_type() == MYSQL_TYPE_VARCHAR);
+                             arg->data_type() == MYSQL_TYPE_VARCHAR);
 
   if (is_field_type_valid || is_parameter_marker || is_parameter)
     return true;
@@ -2805,8 +2805,8 @@ String *Item_func_geohash::val_str_ascii(String *str)
 
 bool Item_func_geohash::resolve_type(THD *)
 {
-  fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
-                         default_charset());
+  set_data_type_string(Item_func_geohash::upper_limit_output_length,
+                       default_charset());
   return false;
 }
 
@@ -2882,7 +2882,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     (args[geohash_length_arg_index]->type() == PARAM_ITEM ||
      args[geohash_length_arg_index]->type() == INT_ITEM);
 
-  switch (args[geohash_length_arg_index]->field_type())
+  switch (args[geohash_length_arg_index]->data_type())
   {
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
@@ -3018,13 +3018,13 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
     return true;
 
   /*
-    If charset is not binary and field_type() is BLOB,
+    If charset is not binary and data_type() is BLOB,
     we have a TEXT column (which is allowed).
   */
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
   bool is_parameter_marker= (item->type() == PARAM_ITEM);
 
-  switch (item->field_type())
+  switch (item->data_type())
   {
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
@@ -3416,7 +3416,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
 bool Item_func_as_wkt::resolve_type(THD *)
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-  max_length=MAX_BLOB_WIDTH;
+  set_data_type_string(uint32(MAX_BLOB_WIDTH));
   maybe_null= true;
   return false;
 }
@@ -4741,8 +4741,8 @@ String *Item_func_point::val_str(String *str)
     The coordinates of a point can't be another geometry, but other types
     are allowed as before.
   */
-  if ((null_value= (args[0]->field_type() == MYSQL_TYPE_GEOMETRY ||
-                    args[1]->field_type() == MYSQL_TYPE_GEOMETRY)))
+  if ((null_value= (args[0]->data_type() == MYSQL_TYPE_GEOMETRY ||
+                    args[1]->data_type() == MYSQL_TYPE_GEOMETRY)))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -4802,7 +4802,7 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
     return true;
   }
 
-  switch (args[1]->field_type())
+  switch (args[1]->data_type())
   {
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:

@@ -177,7 +177,7 @@ TEST_F(ItemTest, ItemInt)
 
   EXPECT_EQ(Item::INT_ITEM,      item_int->type());
   EXPECT_EQ(INT_RESULT,          item_int->result_type());
-  EXPECT_EQ(MYSQL_TYPE_LONGLONG, item_int->field_type());
+  EXPECT_EQ(MYSQL_TYPE_LONGLONG, item_int->data_type());
   EXPECT_EQ(val,                 item_int->val_int());
   EXPECT_DOUBLE_EQ((double) val, item_int->val_real());
   EXPECT_TRUE(item_int->basic_const_item());

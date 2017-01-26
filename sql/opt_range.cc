@@ -7500,7 +7500,7 @@ static bool comparable_in_index(Item *cond_func,
     comparing '{}' and '"{}"', which don't compare equal.
   */
   if (value->result_type() == STRING_RESULT &&
-      value->field_type() == MYSQL_TYPE_JSON)
+      value->data_type() == MYSQL_TYPE_JSON)
     return false;
 
   return true;

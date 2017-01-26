@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -726,7 +726,64 @@ public:
     WALK_SUBQUERY_PREFIX= 0x05,   // Combine prefix and subquery traversal
     WALK_SUBQUERY_POSTFIX= 0x06   // Combine postfix and subquery traversal
   };
-  
+
+  /**
+    Provide data type for a user or system variable, based on the type of
+    the item that is assigned to the variable.
+
+    @param src_type Source type that variable's type is derived from
+    @param max_l    Maximum string size in bytes, used for string types
+  */
+  static enum_field_types type_for_variable(enum_field_types src_type,
+                                            uint32 max_bytes)
+  {
+    switch (src_type)
+    {
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_LONGLONG:
+        return MYSQL_TYPE_LONGLONG;
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_NEWDECIMAL:
+        return MYSQL_TYPE_NEWDECIMAL;
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+        return MYSQL_TYPE_DOUBLE;
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_STRING:
+        return MYSQL_TYPE_VARCHAR;
+      case MYSQL_TYPE_YEAR:
+        return MYSQL_TYPE_LONGLONG;
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_NEWDATE:
+      case MYSQL_TYPE_BIT:
+      case MYSQL_TYPE_TIMESTAMP2:
+      case MYSQL_TYPE_DATETIME2:
+      case MYSQL_TYPE_TIME2:
+      case MYSQL_TYPE_JSON:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_GEOMETRY:
+      case MYSQL_TYPE_NULL:
+        return MYSQL_TYPE_VARCHAR;
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+        return string_field_type(max_bytes);
+      default:
+        DBUG_ASSERT(false);
+        return MYSQL_TYPE_NULL;
+    }
+  }
+
+
   /// Item constructor for general use.
   Item();
 
@@ -917,12 +974,281 @@ public:
     return is_temporal_with_date() ?
            (decimals ? DECIMAL_RESULT : INT_RESULT) : result_type();
   }
+
+  /// Retrieve the derived data type of the Item.
+  inline enum_field_types data_type() const
+  {
+    return static_cast<enum_field_types>(m_data_type);
+  }
+
+  /**
+    Set the data type of the current Item. It is however recommended to
+    use one of the type-specific setters if possible.
+
+    @param data_type The data type of this Item.
+  */
+  inline void set_data_type(enum_field_types data_type)
+  {
+    m_data_type= static_cast<uint8>(data_type);
+  }
+
+  /**
+    Set the data type of the Item to be longlong.
+    Maximum display width is set to be the maximum of a 64-bit integer,
+    but it may be adjusted later. The unsigned property is not affected.
+  */
+  inline void set_data_type_longlong()
+  {
+    set_data_type(MYSQL_TYPE_LONGLONG);
+    collation.set_numeric();
+    fix_char_length(21);
+  }
+
+  /**
+    Set the data type of the Item to be decimal.
+    The unsigned property must have been set before calling this function.
+
+    @param precision Number of digits of precision
+    @param dec       Number of digits after decimal point.
+  */
+  inline void set_data_type_decimal(uint8 precision, uint8 dec)
+  {
+    set_data_type(MYSQL_TYPE_NEWDECIMAL);
+    collation.set_numeric();
+    decimals= dec;
+    fix_char_length(
+      my_decimal_precision_to_length_no_truncation(precision, dec,
+                                                   unsigned_flag));
+  }
+
+  /// Set the data type of the Item to be double precision floating point.
+  inline void set_data_type_double()
+  {
+    set_data_type(MYSQL_TYPE_DOUBLE);
+    decimals= NOT_FIXED_DEC;
+    max_length= float_length(decimals);
+    collation.set_numeric();
+  }
+
+  /// Initialize an Item to be of VARCHAR type, other properties undetermined.
+  inline void set_data_type_string_init()
+  {
+    set_data_type(MYSQL_TYPE_VARCHAR);
+    decimals= NOT_FIXED_DEC;
+  }
+
+  /**
+    Set the Item to be variable length string. Actual type is determined from
+    maximum string size. Collation must have been set before calling function.
+
+    @param max_l  Maximum number of characters in string
+  */
+  inline void set_data_type_string(uint32 max_l)
+  {
+    max_length= max_l * collation.collation->mbmaxlen;
+    if (max_length < 65536)
+      set_data_type(MYSQL_TYPE_VARCHAR);
+    else if (max_length < 16777216)
+      set_data_type(MYSQL_TYPE_MEDIUM_BLOB);
+    else
+      set_data_type(MYSQL_TYPE_LONG_BLOB);
+  }
+
+  /**
+    Set the Item to be variable length string. Like function above, but with
+    larger string length precision.
+
+    @param max_l  Maximum number of characters in string
+  */
+  inline void set_data_type_string(ulonglong max_char_length_arg)
+  {
+    ulonglong max_result_length= max_char_length_arg *
+                                 collation.collation->mbmaxlen;
+    if (max_result_length >= MAX_BLOB_WIDTH)
+    {
+      max_result_length= MAX_BLOB_WIDTH;
+      maybe_null= true;
+    }
+    set_data_type_string(uint32(max_result_length/collation.collation->mbmaxlen));
+  }
+
+  /**
+    Set the Item to be variable length string. Like function above, but will
+    also set character set and collation.
+
+    @param max_l  Maximum number of characters in string
+    @param cs     Pointer to character set and collation struct
+  */
+  inline void set_data_type_string(uint32 max_l, const CHARSET_INFO *cs)
+  {
+    collation.collation= cs;
+    set_data_type_string(max_l);
+  }
+
+  /**
+    Set the Item to be variable length string. Like function above, but will
+    also set full collation information.
+
+    @param max_l  Maximum number of characters in string
+    @param coll   Ref to collation data, including derivation and repertoire
+  */
+  inline void set_data_type_string(uint32 max_l, const DTCollation &coll)
+  {
+    collation.set(coll);
+    set_data_type_string(max_l);
+  }
+
+  /**
+    Set the Item to be fixed length string. Collation must have been set
+    before calling function.
+
+    @param max_l Number of characters in string
+  */
+  inline void set_data_type_char(uint32 max_l)
+  {
+    max_length= max_l * collation.collation->mbmaxlen;
+    DBUG_ASSERT(max_length < 65536);
+    set_data_type(MYSQL_TYPE_STRING);
+  }
+
+  /**
+    Set the Item to be fixed length string. Like function above, but will
+    also set character set and collation.
+
+    @param max_l  Maximum number of characters in string
+    @param cs     Pointer to character set and collation struct
+  */
+  inline void set_data_type_char(uint32 max_l, const CHARSET_INFO *cs)
+  {
+    collation.collation= cs;
+    set_data_type_char(max_l);
+  }
+
+  /**
+    Set the Item to be of BLOB type.
+
+    @param max_l Maximum number of bytes in data type
+  */
+  inline void set_data_type_blob(uint32 max_l)
+  {
+    set_data_type(MYSQL_TYPE_LONG_BLOB);
+    max_length= max_l;
+  }
+
+  /// Set all type properties for Item of DATE type.
+  inline void set_data_type_date()
+  {
+    set_data_type(MYSQL_TYPE_DATE);
+    collation.set_numeric();
+    decimals= 0;
+    max_length= MAX_DATE_WIDTH;
+  }
+
+  /**
+    Set all type properties for Item of TIME type.
+
+    @param fsp Fractional seconds precision
+  */
+  inline void set_data_type_time(uint8 fsp)
+  {
+    set_data_type(MYSQL_TYPE_TIME);
+    collation.set_numeric();
+    decimals= fsp;
+    max_length= MAX_TIME_WIDTH + fsp + (fsp > 0 ? 1 : 0);
+  }
+
+  /**
+    Set all properties for Item of DATETIME type.
+
+    @param fsp Fractional seconds precision
+  */
+  inline void set_data_type_datetime(uint8 fsp)
+  {
+    set_data_type(MYSQL_TYPE_DATETIME);
+    collation.set_numeric();
+    decimals= fsp;
+    max_length= MAX_DATETIME_WIDTH + fsp + (fsp > 0 ? 1 : 0);
+  }
+
+  /**
+    Set all properties for Item of TIMESTAMP type.
+
+    @param fsp Fractional seconds precision
+  */
+  inline void set_data_type_timestamp(uint8 fsp)
+  {
+    set_data_type(MYSQL_TYPE_TIMESTAMP);
+    collation.set_numeric();
+    decimals= fsp;
+    max_length= MAX_DATE_WIDTH + fsp + (fsp > 0 ? 1 : 0);
+  }
+
+  /**
+    Set type information of Item from "result" information.
+    For String types, type is set based on maximum string size.
+    For other types, the associated type with the largest precision is set.
+
+    @param result Either Integer, Decimal, Double or String
+    @param length Maximum string size, used only for String result.
+  */
+  void set_data_type_from_result(Item_result result, uint32 length)
+  {
+    switch (result)
+    {
+    case INT_RESULT:
+      set_data_type(MYSQL_TYPE_LONGLONG);
+      break;
+    case DECIMAL_RESULT:
+      set_data_type(MYSQL_TYPE_NEWDECIMAL);
+      break;
+    case REAL_RESULT:
+      set_data_type(MYSQL_TYPE_DOUBLE);
+      break;
+    case STRING_RESULT:
+      set_data_type_string(length);
+      break;
+    case ROW_RESULT:
+    case INVALID_RESULT:
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+
+  /**
+    Set data type properties of the item from the properties of another item.
+
+    @param item Item to set data type properties from.
+  */
+  inline void set_data_type_from_item(Item *item)
+  {
+    set_data_type(item->data_type());
+    collation= item->collation;
+    max_length= item->max_length;
+    decimals= item->decimals;
+    unsigned_flag= item->unsigned_flag;
+  }
+
+
+  /**
+    Determine correct string field type, based on string length
+
+    @param max_l Maximum string size, in number of bytes @todo
+  */
+  static enum_field_types string_field_type(uint32 max_bytes)
+  {
+    if (max_bytes >= 16777216)
+      return MYSQL_TYPE_LONG_BLOB;
+    else if (max_bytes >= 65536)
+      return MYSQL_TYPE_MEDIUM_BLOB;
+    else
+      return MYSQL_TYPE_VARCHAR;
+  }
+
   virtual Item_result cast_to_int_type() const { return result_type(); }
-  virtual enum_field_types string_field_type() const;
-  virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
 
-  enum_field_types aggregate_type(Bounds_checked_array<Item *>items);
+  void aggregate_type(Bounds_checked_array<Item *>items);
 
   /*
     Return information about function monotonicity. See comment for
@@ -1007,7 +1333,7 @@ public:
   */
   longlong val_temporal_by_field_type()
   {
-    if (field_type() == MYSQL_TYPE_TIME)
+    if (data_type() == MYSQL_TYPE_TIME)
       return val_time_temporal();
     DBUG_ASSERT(is_temporal_with_date());
     return val_date_temporal();
@@ -1988,19 +2314,19 @@ public:
   }
   inline bool is_temporal_with_date() const
   {
-    return is_temporal_type_with_date(field_type());
+    return is_temporal_type_with_date(data_type());
   }
   inline bool is_temporal_with_date_and_time() const
   {
-    return is_temporal_type_with_date_and_time(field_type());
+    return is_temporal_type_with_date_and_time(data_type());
   }
   inline bool is_temporal_with_time() const
   {
-    return is_temporal_type_with_time(field_type());
+    return is_temporal_type_with_time(data_type());
   }
   inline bool is_temporal() const
   {
-    return is_temporal_type(field_type());
+    return is_temporal_type(data_type());
   }
   /**
     Check whether this and the given item has compatible comparison context.
@@ -2050,43 +2376,27 @@ public:
     return MY_TEST(is_expensive_cache);
   }
   virtual bool can_be_evaluated_now() const;
+
+  /**
+    @return maximum number of characters that this Item can store
+    If Item is of string or blob type, return max string length in bytes
+    divided by bytes per character, otherwise return max_length.
+    @todo - check if collation for other types should have mbmaxlen = 1
+  */
   uint32 max_char_length() const
-  { return max_length / collation.collation->mbmaxlen; }
-  void fix_length_and_charset(uint32 max_char_length_arg,
-                              const CHARSET_INFO *cs)
   {
-    max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);
-    collation.collation= cs;
+    if (result_type() == STRING_RESULT)
+      return max_length / collation.collation->mbmaxlen;
+    else
+      return max_length;
   }
-  void fix_char_length(uint32 max_char_length_arg)
+
+  inline void fix_char_length(uint32 max_char_length_arg)
   {
     max_length= char_to_byte_length_safe(max_char_length_arg,
                                          collation.collation->mbmaxlen);
   }
-  void fix_char_length_ulonglong(ulonglong max_char_length_arg)
-  {
-    ulonglong max_result_length= max_char_length_arg *
-                                 collation.collation->mbmaxlen;
-    if (max_result_length >= MAX_BLOB_WIDTH)
-    {
-      max_length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
-    }
-    else
-      max_length= (uint32) max_result_length;
-  }
-  void fix_length_and_charset_datetime(uint32 max_char_length_arg)
-  {
-    collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
-    fix_char_length(max_char_length_arg);
-  }
-  void fix_length_and_dec_and_charset_datetime(uint32 max_char_length_arg,
-                                               uint8 dec_arg)
-  {
-    decimals= dec_arg;
-    fix_length_and_charset_datetime(max_char_length_arg +
-                                    (dec_arg ? dec_arg + 1 : 0));
-  }
+
   /*
     Return TRUE if the item points to a column of an outer-joined table.
   */
@@ -2170,6 +2480,21 @@ public:                            // Start of data fields
   DTCollation collation;
   Item_name_string item_name;      ///< Name from query
   Item_name_string orig_name;      ///< Original item name (if it was renamed)
+  /**
+    Maximum length of result of evaluating this item, in number of bytes.
+    - For character or blob data types, max char length multiplied by max
+      character size (collation.mbmaxlen).
+    - For decimal type, it is the precision in digits plus sign (unless
+      unsigned) plus decimal point (unless it has zero decimals).
+    - For other numeric types, the default or specific display length.
+    - For date/time types, the display length (10 for DATE, 10 + optional FSP
+      for TIME, 19 + optional fsp for datetime/timestamp).
+    - For bit, the number of bits.
+    - For enum, the string length of the widest enum element.
+    - For set, the sum of the string length of each set element plus separators.
+    - For geometry, the maximum size of a BLOB (it's underlying storage type).
+    - For json, the maximum size of a BLOB (it's underlying storage type).
+  */
   uint32 max_length;               ///< Maximum length, in bytes
   /**
     This member has several successive meanings, depending on the phase we're
@@ -2192,8 +2517,17 @@ private:
   */
   bool runtime_item;
   int8 is_expensive_cache;         ///< Cache of result of is_expensive()
+  uint8 m_data_type;               ///< Data type assigned to Item
 public:
   bool fixed;                      ///< True if item has been resolved
+  /**
+    Number of decimals in result when evaluating this item
+    - For integer type, always zero.
+    - For decimal type, number of decimals.
+    - For float type, it may be DECIMAL_NOT_SPECIFIED
+    - For time, datetime and timestamp, number of decimals in fractional second
+    - For string types, may be decimals of cast source or DECIMAL_NOT_SPECIFIED
+  */
   uint8 decimals;
   /**
     True if this item may be null.
@@ -2307,6 +2641,7 @@ public:
   longlong val_int() override;
   String *val_str(String *sp) override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
+  bool val_json(Json_wrapper *result) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   bool is_null() override;
@@ -2356,7 +2691,6 @@ class Item_splocal final : public Item_sp_variable,
 
   Type m_type;
   Item_result m_result_type;
-  enum_field_types m_field_type;
 public:
   /*
     If this variable is a parameter in LIMIT clause.
@@ -2402,7 +2736,6 @@ public:
 
   inline enum Type type() const override { return m_type; }
   inline Item_result result_type() const override { return m_result_type; }
-  inline enum_field_types field_type() const override { return m_field_type; }
   bool val_json(Json_wrapper *result) override;
 
 private:
@@ -2733,6 +3066,7 @@ public:
   {}
 
   enum Type type() const override { return FIELD_ITEM; }
+  virtual bool fix_fields(THD *thd, Item **ref) override;
   double val_real() override { return field->val_real(); }
   longlong val_int() override { return field->val_int(); }
   String *val_str(String *str) override { return field->val_str(str); }
@@ -2847,7 +3181,6 @@ public:
   {
     return field->cast_to_int_type();
   }
-  enum_field_types field_type() const override { return field->type(); }
   enum_monotonicity_info get_monotonicity_info() const override
   {
     return MONOTONIC_STRICT_INCREASING;
@@ -2893,7 +3226,7 @@ public:
   }
   Field::geometry_type get_geometry_type() const override
   {
-    DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
+    DBUG_ASSERT(data_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
   }
   const CHARSET_INFO *charset_for_protocol(void) const override
@@ -2975,6 +3308,7 @@ class Item_null : public Item_basic_constant
   {
     maybe_null= true;
     null_value= TRUE;
+    set_data_type(MYSQL_TYPE_NULL);
     max_length= 0;
     fixed= 1;
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
@@ -3019,7 +3353,6 @@ public:
   bool val_json(Json_wrapper *wr) override;
   bool send(Protocol *protocol, String *str) override;
   enum Item_result result_type() const override { return STRING_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_NULL; }
   bool basic_const_item() const override { return true; }
   Item *clone_item() const override { return new Item_null(item_name); }
   bool is_null() override { return true; }
@@ -3044,22 +3377,22 @@ public:
  */
 class Item_null_result final : public Item_null
 {
-  /** Field type for this NULL value */
-  enum_field_types fld_type;
   /** Result type for this NULL value */
   Item_result res_type;
 
 public:
   Field *result_field;
   Item_null_result(enum_field_types fld_type, Item_result res_type)
-    : Item_null(), fld_type(fld_type), res_type(res_type), result_field(0) {}
+    : Item_null(), res_type(res_type), result_field(NULL)
+  {
+    set_data_type(fld_type);
+  }
   bool is_result_field() const override { return result_field != nullptr; }
   void save_in_result_field(bool no_conversions) override
   {
     save_in_field(result_field, no_conversions);
   }
   bool check_partition_func_processor(uchar *) override { return true; }
-  enum_field_types field_type() const override { return fld_type; }
   Item_result result_type() const override { return res_type; }
   bool check_gcol_func_processor(uchar *) override { return true; }
   enum Type type() const override { return NULL_RESULT_ITEM; }
@@ -3125,14 +3458,14 @@ public:
   enum Type item_type;
 
   /*
-    Used when this item is used in a temporary table.
+    data_type() is used when this item is used in a temporary table.
     This is NOT placeholder metadata sent to client, as this value
     is assigned after sending metadata (in setup_one_conversion_function).
     For example in case of 'SELECT ?' you'll get MYSQL_TYPE_STRING both
     in result set and placeholders metadata, no matter what type you will
     supply for this placeholder in mysql_stmt_execute.
   */
-  enum enum_field_types param_type;
+
   /*
     Offset of placeholder inside statement text. Used to create
     no-placeholders version of this statement for the binary log.
@@ -3145,7 +3478,6 @@ public:
 
   enum Item_result result_type() const override { return item_result_type; }
   enum Type type() const override { return item_type; }
-  enum_field_types field_type() const override { return param_type; }
 
   double val_real() override;
   longlong val_int() override;
@@ -3260,43 +3592,54 @@ public:
   longlong value;
   Item_int(int32 i,uint length= MY_INT32_NUM_DECIMAL_DIGITS)
     :value((longlong) i)
-    { max_length=length; fixed= 1; }
+  { set_data_type(MYSQL_TYPE_LONGLONG); max_length= length; fixed= true; }
   Item_int(const POS &pos, int32 i,uint length= MY_INT32_NUM_DECIMAL_DIGITS)
     :super(pos), value((longlong) i)
-  { max_length=length; fixed= 1; }
-
+  { set_data_type(MYSQL_TYPE_LONGLONG); max_length= length; fixed= true; }
   Item_int(longlong i,uint length= MY_INT64_NUM_DECIMAL_DIGITS)
     :value(i)
-    { max_length=length; fixed= 1; }
+  { set_data_type(MYSQL_TYPE_LONGLONG); max_length= length; fixed= true; }
   Item_int(ulonglong i, uint length= MY_INT64_NUM_DECIMAL_DIGITS)
     :value((longlong)i)
-    { max_length=length; fixed= 1; unsigned_flag= 1; }
+  {
+    set_data_type(MYSQL_TYPE_LONGLONG);
+    max_length= length;
+    fixed= true;
+    unsigned_flag= true;
+  }
   Item_int(const Item_int *item_arg)
   {
+    set_data_type(item_arg->data_type());
     value= item_arg->value;
     item_name= item_arg->item_name;
     max_length= item_arg->max_length;
     fixed= true;
   }
-
   Item_int(const Name_string &name_arg, longlong i, uint length) :value(i)
   {
+    set_data_type(MYSQL_TYPE_LONGLONG);
     max_length= length;
     item_name= name_arg;
-    fixed= 1;
+    fixed= true;
   }
   Item_int(const POS &pos, const Name_string &name_arg, longlong i, uint length)
     :super(pos), value(i)
   {
+    set_data_type(MYSQL_TYPE_LONGLONG);
     max_length= length;
     item_name= name_arg;
-    fixed= 1;
+    fixed= true;
   }
-
   Item_int(const char *str_arg, uint length)
-  { init(str_arg, length); }
+  {
+    set_data_type(MYSQL_TYPE_LONGLONG);
+    init(str_arg, length);
+  }
   Item_int(const POS &pos, const char *str_arg, uint length) : super(pos)
-  { init(str_arg, length); }
+  {
+    set_data_type(MYSQL_TYPE_LONGLONG);
+    init(str_arg, length);
+  }
 
   Item_int(const POS &pos, const LEX_STRING &num, int dummy_error= 0)
   : Item_int(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
@@ -3313,7 +3656,6 @@ protected:
 public:
   enum Type type() const override { return INT_ITEM; }
   enum Item_result result_type() const override { return INT_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_LONGLONG; }
   longlong val_int() override { DBUG_ASSERT(fixed); return value; }
   double val_real() override
   {
@@ -3368,27 +3710,26 @@ public:
 */
 class Item_temporal final : public Item_int
 {
-  enum_field_types cached_field_type;
 protected:
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
     override;
 public:
-  Item_temporal(enum_field_types field_type_arg, longlong i): Item_int(i),
-    cached_field_type(field_type_arg)
+  Item_temporal(enum_field_types field_type_arg, longlong i): Item_int(i)
   {
     DBUG_ASSERT(is_temporal_type(field_type_arg));
+    set_data_type(field_type_arg);
   }
   Item_temporal(enum_field_types field_type_arg, const Name_string &name_arg,
-                longlong i, uint length): Item_int(i),
-    cached_field_type(field_type_arg)
+                longlong i, uint length): Item_int(i)
   {
     DBUG_ASSERT(is_temporal_type(field_type_arg));
+    set_data_type(field_type_arg);
     max_length= length;
     item_name= name_arg;
     fixed= true;
   }
   Item *clone_item() const override
-  { return new Item_temporal(field_type(), value); }
+  { return new Item_temporal(data_type(), value); }
   longlong val_time_temporal() override { return val_int(); }
   longlong val_date_temporal() override { return val_int(); }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override
@@ -3400,10 +3741,6 @@ public:
   {
     DBUG_ASSERT(0);
     return false;
-  }
-  enum_field_types field_type() const override
-  {
-    return cached_field_type;
   }
 };
 
@@ -3457,7 +3794,6 @@ public:
 
   enum Type type() const override { return DECIMAL_ITEM; }
   enum Item_result result_type() const override { return DECIMAL_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_NEWDECIMAL; }
   longlong val_int() override;
   double val_real() override;
   String *val_str(String *) override;
@@ -3508,6 +3844,7 @@ public:
   {
     presentation= name_arg;
     item_name= name_arg;
+    set_data_type(MYSQL_TYPE_DOUBLE);
     decimals= (uint8) decimal_par;
     max_length= length;
     fixed= 1;
@@ -3518,6 +3855,7 @@ public:
   {
     presentation= name_arg;
     item_name= name_arg;
+    set_data_type(MYSQL_TYPE_DOUBLE);
     decimals= (uint8) decimal_par;
     max_length= length;
     fixed= 1;
@@ -3525,6 +3863,7 @@ public:
 
   Item_float(double value_par, uint decimal_par) :value(value_par)
   {
+    set_data_type(MYSQL_TYPE_DOUBLE);
     decimals= (uint8) decimal_par;
     fixed= 1;
   }
@@ -3538,7 +3877,6 @@ protected:
 
 public:
   enum Type type() const override { return REAL_ITEM; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_DOUBLE; }
   double val_real() override { DBUG_ASSERT(fixed); return value; }
   longlong val_int() override
   {
@@ -3595,10 +3933,15 @@ class Item_string :public Item_basic_constant
   typedef Item_basic_constant super;
 
 protected:
-  explicit Item_string(const POS &pos) : super(pos), m_cs_specified(FALSE) {}
+  explicit Item_string(const POS &pos) : super(pos), m_cs_specified(FALSE)
+  {
+    set_data_type(MYSQL_TYPE_VARCHAR);
+  }
+
   void init(const char *str, size_t length,
             const CHARSET_INFO *cs, Derivation dv, uint repertoire)
   {
+    set_data_type(MYSQL_TYPE_VARCHAR);
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
     /*
@@ -3643,6 +3986,7 @@ public:
     : m_cs_specified(FALSE)
   {
     collation.set(cs, dv);
+    set_data_type(MYSQL_TYPE_VARCHAR);
     max_length= 0;
     decimals= NOT_FIXED_DEC;
     fixed= 1;
@@ -3656,6 +4000,7 @@ public:
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
+    set_data_type(MYSQL_TYPE_VARCHAR);
     max_length= static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
@@ -3669,6 +4014,7 @@ public:
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
+    set_data_type(MYSQL_TYPE_VARCHAR);
     max_length= static_cast<uint32>(str_value.numchars()*cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
@@ -3686,6 +4032,7 @@ public:
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
                                   literal.str ? literal.length : 0, cs);
     collation.set(cs, dv, repertoire);
+    set_data_type(MYSQL_TYPE_VARCHAR);
     max_length= static_cast<uint32>(str_value.numchars()*cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
@@ -3727,7 +4074,6 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_VARCHAR; }
   bool basic_const_item() const override { return true; }
   bool eq(const Item *item, bool binary_cmp) const override;
   Item *clone_item() const override
@@ -3844,9 +4190,8 @@ public:
   Item_blob(const char *name, size_t length) :
     Item_partition_func_safe_string(Name_string(name, strlen(name)),
                                     length, &my_charset_bin)
-  { }
+  { set_data_type(MYSQL_TYPE_BLOB); }
   enum Type type() const override { return TYPE_HOLDER; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_BLOB; }
 };
 
 
@@ -3872,16 +4217,15 @@ public:
 
 class Item_return_int :public Item_int
 {
-  enum_field_types int_field_type;
 public:
   Item_return_int(const char *name_arg, uint length,
 		  enum_field_types field_type_arg, longlong value= 0)
     :Item_int(Name_string(name_arg, name_arg ? strlen(name_arg) : 0),
-              value, length), int_field_type(field_type_arg)
+              value, length)
   {
-    unsigned_flag=1;
+    set_data_type(field_type_arg);
+    unsigned_flag= true;
   }
-  enum_field_types field_type() const override { return int_field_type; }
 };
 
 
@@ -3895,7 +4239,8 @@ protected:
 
 public:
   Item_hex_string();
-  explicit Item_hex_string(const POS &pos) : super(pos) {}
+  explicit Item_hex_string(const POS &pos) : super(pos)
+  { set_data_type(MYSQL_TYPE_VARCHAR); }
 
   Item_hex_string(const char *str,uint str_length);
   Item_hex_string(const POS &pos, const LEX_STRING &literal);
@@ -3925,7 +4270,6 @@ public:
   Item_result result_type() const override { return STRING_RESULT; }
   Item_result numeric_context_result_type() const override {return INT_RESULT;}
   Item_result cast_to_int_type() const override { return INT_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_VARCHAR; }
   void print(String *str, enum_query_type query_type) override;
   bool eq(const Item *item, bool binary_cmp) const override;
   Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
@@ -4092,7 +4436,6 @@ public:
                          SELECT_LEX *removed_select) override;
   void save_org_in_field(Field *field) override;
   Item_result result_type() const override { return (*ref)->result_type(); }
-  enum_field_types field_type() const override { return (*ref)->field_type(); }
   Field *get_tmp_table_field() override
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd) override;
@@ -4459,7 +4802,6 @@ public:
 
 class Item_int_with_ref :public Item_int
 {
-  enum_field_types cached_field_type;
 protected:
   Item *ref;
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
@@ -4470,13 +4812,13 @@ protected:
 public:
   Item_int_with_ref(enum_field_types field_type, longlong i, Item *ref_arg,
                     my_bool unsigned_arg)
-    : Item_int(i), cached_field_type(field_type), ref(ref_arg)
+    : Item_int(i), ref(ref_arg)
   {
+    set_data_type(field_type);
     unsigned_flag= unsigned_arg;
   }
   Item *clone_item() const override;
   Item *real_item() override { return ref; }
-  enum_field_types field_type() const override { return cached_field_type; }
 };
 
 
@@ -4591,12 +4933,6 @@ class Item_copy :public Item
 {
 protected:
 
-  /**
-    Stores the type of the resulting field that would be used to store the data
-    in the cache. This is to avoid calls to the original item.
-  */
-  enum enum_field_types cached_field_type;
-
   /** The original item that is copied */
   Item *item;
 
@@ -4619,7 +4955,7 @@ protected:
     decimals=item->decimals;
     max_length=item->max_length;
     item_name= item->item_name;
-    cached_field_type= item->field_type();
+    set_data_type(item->data_type());
     cached_result_type= item->result_type();
     unsigned_flag= item->unsigned_flag;
     fixed= item->fixed;
@@ -4652,7 +4988,6 @@ public:
   virtual Item *get_item() { return item; }
   /** All of the subclasses should have the same type tag */
   enum Type type() const override { return COPY_STR_ITEM; }
-  enum_field_types field_type() const override { return cached_field_type; }
   enum Item_result result_type() const override { return cached_result_type; }
 
   void make_field(Send_field *field) override { item->make_field(field); }
@@ -5134,7 +5469,6 @@ protected:
     by IN->EXISTS transformation.
   */  
   Field *cached_field;
-  enum enum_field_types cached_field_type;
   /*
     TRUE <=> cache holds value of the last stored item (i.e actual value).
     store() stores item to be cached and sets this flag to FALSE.
@@ -5145,19 +5479,18 @@ protected:
   bool value_cached;
 public:
   Item_cache():
-    example(0), used_table_map(0), cached_field(0),
-    cached_field_type(MYSQL_TYPE_STRING),
-    value_cached(0)
+    example(NULL), used_table_map(0), cached_field(NULL),
+    value_cached(false)
   {
     fixed= true;
     maybe_null= true;
     null_value= TRUE;
   }
   Item_cache(enum_field_types field_type_arg):
-    example(0), used_table_map(0), cached_field(0),
-    cached_field_type(field_type_arg),
-    value_cached(0)
+    example(NULL), used_table_map(0), cached_field(NULL),
+    value_cached(false)
   {
+    set_data_type(field_type_arg);
     fixed= true;
     maybe_null= true;
     null_value= TRUE;
@@ -5197,7 +5530,6 @@ public:
     return 0;
   };
   enum Type type() const override { return CACHE_ITEM; }
-  enum_field_types field_type() const override { return cached_field_type; }
   static Item_cache* get_cache(const Item *item);
   static Item_cache* get_cache(const Item* item, const Item_result type);
   table_map used_tables() const override { return used_table_map; }
@@ -5252,7 +5584,7 @@ public:
   {
     if (!example)
       return INT_RESULT;
-    return Field::result_merge_type(example->field_type());
+    return Field::result_merge_type(example->data_type());
   }
 };
 
@@ -5262,10 +5594,12 @@ class Item_cache_int final : public Item_cache
 protected:
   longlong value;
 public:
-  Item_cache_int(): Item_cache(),
-    value(0) {}
+  Item_cache_int(): Item_cache(MYSQL_TYPE_LONGLONG),
+    value(0)
+  {}
   Item_cache_int(enum_field_types field_type_arg):
-    Item_cache(field_type_arg), value(0) {}
+    Item_cache(field_type_arg), value(0)
+  {}
 
   void store(Item *item) override { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
@@ -5292,8 +5626,8 @@ class Item_cache_real final : public Item_cache
 {
   double value;
 public:
-  Item_cache_real(): Item_cache(),
-    value(0) {}
+  Item_cache_real(): Item_cache(MYSQL_TYPE_DOUBLE), value(0)
+  {}
 
   double val_real() override;
   longlong val_int() override;
@@ -5317,7 +5651,8 @@ class Item_cache_decimal final : public Item_cache
 protected:
   my_decimal decimal_value;
 public:
-  Item_cache_decimal(): Item_cache() {}
+  Item_cache_decimal(): Item_cache(MYSQL_TYPE_NEWDECIMAL)
+  {}
 
   double val_real() override;
   longlong val_int() override;
@@ -5348,9 +5683,9 @@ protected:
 
 public:
   Item_cache_str(const Item *item) :
-    Item_cache(item->field_type()), value(0),
+    Item_cache(item->data_type()), value(0),
     is_varbinary(item->type() == FIELD_ITEM &&
-                 cached_field_type == MYSQL_TYPE_VARCHAR &&
+                 data_type() == MYSQL_TYPE_VARCHAR &&
                  !((const Item_field *) item)->field->has_charset())
   {
     collation.set(const_cast<DTCollation&>(item->collation));
@@ -5519,7 +5854,6 @@ class Item_type_holder final : public Item
 {
 protected:
   TYPELIB *enum_set_typelib;
-  enum_field_types fld_type;
   Field::geometry_type geometry_type;
 
   void get_full_info(Item *item);
@@ -5530,7 +5864,6 @@ public:
   Item_type_holder(THD*, Item*);
 
   Item_result result_type() const override;
-  enum_field_types field_type() const override { return fld_type; };
   enum Type type() const override { return TYPE_HOLDER; }
   double val_real() override;
   longlong val_int() override;
@@ -5549,7 +5882,7 @@ public:
   bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
-  static enum_field_types get_real_type(Item *);
+  static enum_field_types real_data_type(Item *);
   Field::geometry_type get_geometry_type() const override
   { return geometry_type; };
   void make_field(Send_field *field) override

@@ -431,52 +431,52 @@ public:
 
   bool has_timestamp_args()
   {
-    DBUG_ASSERT(fixed == TRUE);
+    DBUG_ASSERT(fixed);
     for (uint i= 0; i < arg_count; i++)
     {
       if (args[i]->type() == Item::FIELD_ITEM &&
-          args[i]->field_type() == MYSQL_TYPE_TIMESTAMP)
-        return TRUE;
+          args[i]->data_type() == MYSQL_TYPE_TIMESTAMP)
+        return true;
     }
-    return FALSE;
+    return false;
   }
 
   bool has_date_args()
   {
-    DBUG_ASSERT(fixed == TRUE);
+    DBUG_ASSERT(fixed);
     for (uint i= 0; i < arg_count; i++)
     {
       if (args[i]->type() == Item::FIELD_ITEM &&
-          (args[i]->field_type() == MYSQL_TYPE_DATE ||
-           args[i]->field_type() == MYSQL_TYPE_DATETIME))
-        return TRUE;
+          (args[i]->data_type() == MYSQL_TYPE_DATE ||
+           args[i]->data_type() == MYSQL_TYPE_DATETIME))
+        return true;
     }
-    return FALSE;
+    return false;
   }
 
   bool has_time_args()
   {
-    DBUG_ASSERT(fixed == TRUE);
+    DBUG_ASSERT(fixed);
     for (uint i= 0; i < arg_count; i++)
     {
       if (args[i]->type() == Item::FIELD_ITEM &&
-          (args[i]->field_type() == MYSQL_TYPE_TIME ||
-           args[i]->field_type() == MYSQL_TYPE_DATETIME))
-        return TRUE;
+          (args[i]->data_type() == MYSQL_TYPE_TIME ||
+           args[i]->data_type() == MYSQL_TYPE_DATETIME))
+        return true;
     }
-    return FALSE;
+    return false;
   }
 
   bool has_datetime_args()
   {
-    DBUG_ASSERT(fixed == TRUE);
+    DBUG_ASSERT(fixed);
     for (uint i= 0; i < arg_count; i++)
     {
       if (args[i]->type() == Item::FIELD_ITEM &&
-          args[i]->field_type() == MYSQL_TYPE_DATETIME)
-        return TRUE;
+          args[i]->data_type() == MYSQL_TYPE_DATETIME)
+        return true;
     }
-    return FALSE;
+    return false;
   }
 
   /*
@@ -573,21 +573,44 @@ protected:
 class Item_real_func :public Item_func
 {
 public:
-  Item_real_func() :Item_func() { collation.set_numeric(); }
+  Item_real_func() :Item_func()
+  {
+    set_data_type_double();
+  }
   explicit
-  Item_real_func(const POS &pos) :Item_func(pos) { collation.set_numeric(); }
+  Item_real_func(const POS &pos) :Item_func(pos)
+  {
+    set_data_type_double();
+  }
 
-  Item_real_func(Item *a) :Item_func(a) { collation.set_numeric(); }
+  Item_real_func(Item *a) :Item_func(a)
+  {
+    set_data_type_double();
+  }
   Item_real_func(const POS &pos, Item *a) :Item_func(pos, a)
-  { collation.set_numeric(); }
+  {
+    set_data_type_double();
+  }
 
-  Item_real_func(Item *a,Item *b) :Item_func(a,b) { collation.set_numeric(); }
+  Item_real_func(Item *a,Item *b) :Item_func(a,b)
+  {
+    set_data_type_double();
+  }
+
   Item_real_func(const POS &pos, Item *a,Item *b) :Item_func(pos, a,b)
-  { collation.set_numeric(); }
+  {
+    set_data_type_double();
+  }
 
-  Item_real_func(List<Item> &list) :Item_func(list) { collation.set_numeric(); }
+  Item_real_func(List<Item> &list) :Item_func(list)
+  {
+    set_data_type_double();
+  }
+
   Item_real_func(const POS &pos, PT_item_list *list) :Item_func(pos, list)
-  { collation.set_numeric(); }
+  {
+    set_data_type_double();
+  }
 
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
@@ -604,8 +627,6 @@ public:
   enum Item_result result_type() const override { return REAL_RESULT; }
   bool resolve_type(THD *) override
   {
-    decimals= NOT_FIXED_DEC;
-    max_length= float_length(decimals);
     return false;
   }
 };
@@ -639,7 +660,7 @@ public:
   enum Item_result result_type() const override { return hybrid_type; }
   bool resolve_type(THD *thd) override;
   void fix_num_length_and_dec() override;
-  virtual void find_num_type()= 0; // To be called from resolve_type()
+  virtual void set_numeric_type()= 0; // To be called from resolve_type()
 
   double val_real() override;
   longlong val_int() override;
@@ -706,7 +727,7 @@ public:
   {}
 
   void fix_num_length_and_dec() override;
-  void find_num_type() override;
+  void set_numeric_type() override;
   String *str_op(String *) override { DBUG_ASSERT(0); return 0; }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override
   { DBUG_ASSERT(0); return 0; }
@@ -730,7 +751,7 @@ class Item_num_op :public Item_func_numhybrid
     print_op(str, query_type);
   }
 
-  void find_num_type() override;
+  void set_numeric_type() override;
   String *str_op(String *) override { DBUG_ASSERT(0); return 0; }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override
   { DBUG_ASSERT(0); return 0; }
@@ -743,39 +764,39 @@ class Item_int_func :public Item_func
 {
 public:
   Item_int_func() :Item_func()
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
   explicit Item_int_func(const POS &pos) :Item_func(pos)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
 
   Item_int_func(Item *a) :Item_func(a)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
   Item_int_func(const POS &pos, Item *a) :Item_func(pos, a)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
 
   Item_int_func(Item *a,Item *b) :Item_func(a,b)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
   Item_int_func(const POS &pos, Item *a,Item *b) :Item_func(pos, a,b)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
 
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
   Item_int_func(const POS &pos, Item *a,Item *b,Item *c) :Item_func(pos, a,b,c)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
 
   Item_int_func(Item *a, Item *b, Item *c, Item *d): Item_func(a,b,c,d)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
   Item_int_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
     :Item_func(pos,a,b,c,d)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
 
   Item_int_func(List<Item> &list) :Item_func(list)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
   Item_int_func(const POS &pos, PT_item_list *opt_list)
     :Item_func(pos, opt_list)
-  { collation.set_numeric(); fix_char_length(21); }
+  { set_data_type_longlong(); }
 
   Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item)
-  { collation.set_numeric(); }
+  { set_data_type_longlong(); }
   double val_real() override;
   String *val_str(String *str) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
@@ -814,7 +835,7 @@ class Item_func_signed : public Item_int_func
 public:
   Item_func_signed(const POS &pos, Item *a) : Item_int_func(pos, a)
   {
-    unsigned_flag= 0;
+    unsigned_flag= false;
   }
   const char *func_name() const override { return "cast_as_signed"; }
   longlong val_int() override;
@@ -847,10 +868,7 @@ public:
   Item_decimal_typecast(const POS &pos, Item *a, int len, int dec)
     :Item_func(pos, a)
   {
-    decimals= dec;
-    collation.set_numeric();
-    fix_char_length(my_decimal_precision_to_length_no_truncation(len, dec,
-                                                                 unsigned_flag));
+    set_data_type_decimal(len, dec);
   }
   String *val_str(String *str) override;
   double val_real() override;
@@ -865,7 +883,6 @@ public:
   }
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return DECIMAL_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_NEWDECIMAL; }
   bool resolve_type(THD *) override { return false; }
   const char *func_name() const override { return "decimal_typecast"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
@@ -1171,7 +1188,7 @@ public:
   Item_func_int_val(Item *a) :Item_func_num1(a) {}
   Item_func_int_val(const POS &pos, Item *a) :Item_func_num1(pos, a) {}
   void fix_num_length_and_dec() override;
-  void find_num_type() override;
+  void set_numeric_type() override;
 };
 
 
@@ -1290,7 +1307,6 @@ class Item_func_min_max :public Item_func
   /* An item used for issuing warnings while string to DATETIME conversion. */
   Item *datetime_item;
 protected:
-  enum_field_types cached_field_type;
   uint cmp_datetimes(longlong *value);
   uint cmp_times(longlong *value);
 public:
@@ -1313,7 +1329,7 @@ public:
   {
     /*
       If we compare as dates, then:
-      - field_type is MYSQL_TYPE_VARSTRING, MYSQL_TYPE_DATETIME
+      - data type is MYSQL_TYPE_VARSTRING, MYSQL_TYPE_DATETIME
         or MYSQL_TYPE_DATE.
       - cmp_type is INT_RESULT or DECIMAL_RESULT,
         depending on the amount of fractional digits.
@@ -1329,7 +1345,6 @@ public:
     */
     return compare_as_dates ? INT_RESULT : result_type();
   }
-  enum_field_types field_type() const override { return cached_field_type; }
 };
 
 class Item_func_min final : public Item_func_min_max
@@ -1381,14 +1396,12 @@ public:
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override
   {
-    collation= args[0]->collation;
-    max_length= args[0]->max_length;
-    decimals= args[0]->decimals;
-    /* The item could be a NULL constant. */
+    set_data_type_from_item(args[0]);
+
+    // The item could be a NULL constant.
     null_value= args[0]->is_null();
     return false;
   }
-  enum_field_types field_type() const override { return args[0]->field_type(); }
 };
 
 
@@ -1918,7 +1931,8 @@ class Item_func_udf_float final : public Item_udf_func
   }
   bool resolve_type(THD *) override
   {
-    fix_num_length_and_dec();
+    set_data_type_double();
+    fix_num_length_and_dec(); // @todo - needed?
     return false;
   }
 };
@@ -1947,8 +1961,7 @@ public:
   enum Item_result result_type() const override { return INT_RESULT; }
   bool resolve_type(THD *) override
   {
-    decimals= 0;
-    max_length= 21;
+    set_data_type_longlong();
     return false;
   }
 };
@@ -2137,7 +2150,6 @@ public:
   const char *func_name() const override { return "wait_for_executed_gtid_set"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2163,7 +2175,6 @@ public:
   { return "wait_until_sql_thread_after_gtids"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2181,7 +2192,6 @@ public:
   const char *func_name() const override { return "gtid_subset"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= false;
     return false;
   }
@@ -2937,7 +2947,6 @@ public:
   bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   enum Item_result result_type() const override;
-  enum_field_types field_type() const override;
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *) override;
@@ -3290,7 +3299,6 @@ public:
   const char *func_name() const override { return "row_count"; }
   bool resolve_type(THD *) override
   {
-    decimals= 0;
     maybe_null= false;
     return false;
   }
@@ -3347,8 +3355,6 @@ public:
   void cleanup() override;
 
   const char *func_name() const override;
-
-  enum enum_field_types field_type() const override;
 
   Field *tmp_table_field(TABLE *t_arg) override;
 
@@ -3446,7 +3452,6 @@ public:
   const char *func_name() const override { return "found_rows"; }
   bool resolve_type(THD *) override
   {
-    decimals= 0;
     maybe_null= false;
     return false;
   }
@@ -3467,7 +3472,6 @@ public:
   longlong val_int() override;
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     unsigned_flag= true;
     return false;
   }

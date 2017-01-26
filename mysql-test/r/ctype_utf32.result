@@ -1146,7 +1146,7 @@ def	test	t1	t1	s1	s1	252	255	0	Y	16	0	60
 def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	60
 def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	60
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	60
-def					HEX(s1)	253	8160	0	Y	0	0	255
+def					HEX(s1)	253	8160	0	Y	0	31	255
 s1	s2	s3	s4	HEX(s1)
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
@@ -1155,7 +1155,7 @@ def	test	t1	t1	s1	s1	252	63	0	Y	16	0	8
 def	test	t1	t1	s2	s2	252	16383	0	Y	16	0	8
 def	test	t1	t1	s3	s3	252	4194303	0	Y	16	0	8
 def	test	t1	t1	s4	s4	252	1073741823	0	Y	16	0	8
-def					HEX(s1)	253	2040	0	Y	0	0	8
+def					HEX(s1)	253	2040	0	Y	0	31	8
 s1	s2	s3	s4	HEX(s1)
 SET NAMES utf8mb4;
 SELECT *, HEX(s1) FROM t1;
@@ -1164,7 +1164,7 @@ def	test	t1	t1	s1	s1	252	252	0	Y	16	0	255
 def	test	t1	t1	s2	s2	252	65532	0	Y	16	0	255
 def	test	t1	t1	s3	s3	252	16777212	0	Y	16	0	255
 def	test	t1	t1	s4	s4	252	4294967292	0	Y	16	0	255
-def					HEX(s1)	253	8160	0	Y	0	0	255
+def					HEX(s1)	253	8160	0	Y	0	31	255
 s1	s2	s3	s4	HEX(s1)
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;

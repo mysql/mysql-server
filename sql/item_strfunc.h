@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,40 +56,79 @@ class Item_str_func :public Item_func
   typedef Item_func super;
 
 public:
-  Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
-  explicit Item_str_func(const POS &pos) :super(pos) { decimals=NOT_FIXED_DEC; }
+  Item_str_func() :Item_func()
+  {
+    set_data_type_string_init();
+  }
 
-  Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
+  explicit Item_str_func(const POS &pos) :super(pos)
+  {
+    set_data_type_string_init();
+  }
+
+  Item_str_func(Item *a) :Item_func(a)
+  {
+    set_data_type_string_init();
+  }
+
   Item_str_func(const POS &pos, Item *a) :Item_func(pos, a)
-  {decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
 
-  Item_str_func(Item *a,Item *b) :Item_func(a,b) { decimals=NOT_FIXED_DEC; }
+  Item_str_func(Item *a,Item *b) :Item_func(a,b)
+  {
+    set_data_type_string_init();
+  }
+
   Item_str_func(const POS &pos, Item *a,Item *b) :Item_func(pos, a,b)
-  { decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
 
   Item_str_func(Item *a, Item *b, Item *c) :Item_func(a, b, c)
-  { decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c)
     :Item_func(pos, a,b,c)
-  { decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
 
   Item_str_func(Item *a, Item *b, Item *c, Item *d) :Item_func(a, b, c, d)
-  {decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
+
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
     :Item_func(pos, a,b,c,d)
-  {decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
 
   Item_str_func(Item *a, Item *b, Item *c, Item *d, Item* e)
     :Item_func(a, b, c, d, e)
-  {decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
+
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
     :Item_func(pos, a, b, c, d, e)
-  {decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
 
-  Item_str_func(List<Item> &list) :Item_func(list) {decimals=NOT_FIXED_DEC; }
+  Item_str_func(List<Item> &list) :Item_func(list)
+  {
+    set_data_type_string_init();
+  }
+
   Item_str_func(const POS &pos, PT_item_list *opt_list)
     :Item_func(pos, opt_list)
-  {decimals=NOT_FIXED_DEC; }
+  {
+    set_data_type_string_init();
+  }
 
   longlong val_int() override;
   double val_real() override;
@@ -237,7 +276,7 @@ class Item_func_random_bytes : public Item_str_func
   typedef Item_str_func super;
 
   /** limitation from the SSL library */
-  static const longlong MAX_RANDOM_BYTES_BUFFER;
+  static const ulonglong MAX_RANDOM_BYTES_BUFFER;
 public:
   Item_func_random_bytes(const POS &pos, Item *a) : Item_str_func(pos, a)
   {}
@@ -567,7 +606,7 @@ public:
   {
     maybe_null= true;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    max_length = args[0]->max_length + 9;
+    set_data_type_string(args[0]->max_length + 9U);
     return false;
   }
   const char *func_name() const override { return "des_encrypt"; }
@@ -589,6 +628,7 @@ public:
     max_length= args[0]->max_length;
     if (max_length >= 9U)
       max_length-= 9U;
+    set_data_type_string(max_length);
     return false;
   }
   const char *func_name() const override { return "des_decrypt"; }
@@ -620,7 +660,7 @@ public:
   bool resolve_type(THD *) override
   {
     maybe_null= true;
-    max_length= 13;
+    set_data_type_string(13U);
     return false;
   }
   const char *func_name() const override { return "encrypt"; }
@@ -699,7 +739,8 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen;
+    DBUG_ASSERT(collation.collation == system_charset_info);
+    set_data_type_string(uint32(MAX_FIELD_NAME));
     maybe_null= true;
     return false;
   }
@@ -740,8 +781,7 @@ public:
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override
   {
-    max_length= (USERNAME_LENGTH +
-                 (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
+    set_data_type_string(uint32(USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1U));
     return false;
   }
   const char *func_name() const override { return "user"; }
@@ -872,7 +912,7 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    max_length= arg_count * 4;
+    set_data_type_string(arg_count * 4U);
     return false;
   }
   const char *func_name() const override { return "char"; }
@@ -999,9 +1039,7 @@ public:
   String *val_str_ascii(String *) override;
   bool resolve_type(THD *) override
   {
-    collation.set(default_charset());
-    decimals=0;
-    fix_char_length(args[0]->max_length * 2);
+    set_data_type_string(args[0]->max_length * 2U, default_charset());
     return false;
   }
 };
@@ -1019,9 +1057,7 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=(1+args[0]->max_length)/2;
+    set_data_type_string((1U + args[0]->max_length) / 2U, &my_charset_bin);
     return false;
   }
 };
@@ -1041,9 +1077,7 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    collation.set(args[0]->collation);
-    decimals=0;
-    max_length= MAX_BLOB_WIDTH;
+    set_data_type_string(uint32(MAX_BLOB_WIDTH), args[0]->collation);
     return false;
   }
 };
@@ -1108,8 +1142,7 @@ public:
   }
   bool resolve_type(THD *) override
   {
-    collation.set(&my_charset_bin);
-    max_length=args[0]->max_length;
+    set_data_type_string(args[0]->max_length, &my_charset_bin);
     return false;
   }
   void print(String *str, enum_query_type query_type) override;
@@ -1132,8 +1165,8 @@ public:
   bool resolve_type(THD *) override
   {
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
+    set_data_type_blob(MAX_BLOB_WIDTH);
     maybe_null= true;
-    max_length= MAX_BLOB_WIDTH;
     return false;
   }
   bool check_gcol_func_processor(uchar *) override { return true; }
@@ -1167,10 +1200,10 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    collation.set(args[0]->collation);
-    ulong max_result_length= (ulong) args[0]->max_length * 2 +
-                                  2 * collation.collation->mbmaxlen;
-    max_length= std::min<ulong>(max_result_length, MAX_BLOB_WIDTH);
+    uint32 max_result_length= args[0]->max_length * 2U +
+                              2U * collation.collation->mbmaxlen;
+    set_data_type_string(std::min<uint32>(max_result_length, MAX_BLOB_WIDTH),
+                         args[0]->collation);
     return false;
   }
 };
@@ -1254,8 +1287,7 @@ public:
   const char *func_name() const override { return "charset"; }
   bool resolve_type(THD *) override
   {
-     collation.set(system_charset_info);
-     max_length= 64 * collation.collation->mbmaxlen; // should be enough
+     set_data_type_string(64U, system_charset_info);
      maybe_null= false;
      return false;
   };
@@ -1270,8 +1302,7 @@ public:
   const char *func_name() const override { return "collation"; }
   bool resolve_type(THD *) override
   {
-     collation.set(system_charset_info);
-     max_length= 64 * collation.collation->mbmaxlen; // should be enough
+     set_data_type_string(64U, system_charset_info);
      maybe_null= false;
      return false;
   };
@@ -1341,7 +1372,7 @@ public:
   Item_func_compress(const POS &pos, Item *a):Item_str_func(pos, a){}
   bool resolve_type(THD *) override
   {
-    max_length= (args[0]->max_length*120)/100+12;
+    set_data_type_string((args[0]->max_length * 120U) / 100U + 12U);
     return false;
   }
   const char *func_name() const override { return "compress"; }
@@ -1356,7 +1387,7 @@ public:
   bool resolve_type(THD *) override
   {
     maybe_null= true;
-    max_length= MAX_BLOB_WIDTH;
+    set_data_type_string(uint32(MAX_BLOB_WIDTH));
     return false;
   }
   const char *func_name() const override { return "uncompress"; }

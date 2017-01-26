@@ -963,12 +963,19 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
+      Item *item;
       if (table_list->is_view())
-        field_list.push_back(new Item_ident_for_show(field,
-                                                     table_list->view_db.str,
-                                                     table_list->view_name.str));
+      {
+        item= new Item_ident_for_show(field,
+                                      table_list->view_db.str,
+                                      table_list->view_name.str);
+        (void)item->fix_fields(thd, NULL);
+      }
       else
-        field_list.push_back(new Item_field(field));
+      {
+        item= new Item_field(field);
+      }
+      field_list.push_back(item);
     }
   }
   restore_record(table, s->default_values);              // Get empty record

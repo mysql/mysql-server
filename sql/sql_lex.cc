@@ -2718,7 +2718,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd)
       */
       if (item->fixed &&
           item->type() == Item::FIELD_ITEM &&
-          item->field_type() == MYSQL_TYPE_BIT)
+          item->data_type() == MYSQL_TYPE_BIT)
         ++bitcount;
     }
     order_group_num+= bitcount;

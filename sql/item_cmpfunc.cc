@@ -170,12 +170,10 @@ static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 
 enum_field_types agg_field_type(Item **items, uint nitems)
 {
-  uint i;
-  if (!nitems || items[0]->result_type() == ROW_RESULT )
-    return (enum_field_types)-1;
-  enum_field_types res= items[0]->field_type();
-  for (i= 1 ; i < nitems ; i++)
-    res= Field::field_type_merge(res, items[i]->field_type());
+  DBUG_ASSERT(nitems > 0 && items[0]->result_type() != ROW_RESULT);
+  enum_field_types res= items[0]->data_type();
+  for (uint i= 1; i < nitems; i++)
+    res= Field::field_type_merge(res, items[i]->data_type());
   return real_type_to_type(res);
 }
 
@@ -496,7 +494,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
         In case of GC it's possible that this func will be called on an
         already converted constant. Don't convert it again.
       */
-      !((*item)->field_type() == field_item->field_type() &&
+      !((*item)->data_type() == field_item->data_type() &&
         (*item)->basic_const_item()))
   {
     TABLE *table= field->table;
@@ -937,7 +935,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg,
       ((Item_func*) str_arg)->functype() != Item_func::GUSERVAR_FUNC))
   {
     ulonglong value;
-    if (str_arg->field_type() == MYSQL_TYPE_TIME)
+    if (str_arg->data_type() == MYSQL_TYPE_TIME)
     {
       // Convert from TIME to DATETIME
       value= str_arg->val_date_temporal();
@@ -950,7 +948,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg,
       DBUG_ASSERT(str_arg->result_type() == STRING_RESULT);
       bool error;
       String tmp, *str_val= 0;
-      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
+      timestamp_type t_type= (date_arg->data_type() == MYSQL_TYPE_DATE ?
                               MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
       str_val= str_arg->val_str(&tmp);
       if (str_arg->null_value)
@@ -1059,8 +1057,8 @@ get_time_value(THD*, Item ***item_arg, Item **cache_arg,
     Note, it's wrong to assume that we always get
     a TIME expression or NULL here:
 
-  DBUG_ASSERT(item->field_type() == MYSQL_TYPE_TIME || 
-              item->field_type() == MYSQL_TYPE_NULL);
+  DBUG_ASSERT(item->data_type() == MYSQL_TYPE_TIME ||
+              item->data_type() == MYSQL_TYPE_NULL);
 
     because when this condition is optimized:
 
@@ -1092,7 +1090,7 @@ get_time_value(THD*, Item ***item_arg, Item **cache_arg,
       (item->type() != Item::FUNC_ITEM ||
        ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
-    Item_cache_datetime *cache= new Item_cache_datetime(item->field_type());
+    Item_cache_datetime *cache= new Item_cache_datetime(item->data_type());
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store(item, value);
@@ -1123,9 +1121,9 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
 
   if (type != ROW_RESULT &&
       (((*a)->result_type() == STRING_RESULT &&
-        (*a)->field_type() == MYSQL_TYPE_JSON) ||
+        (*a)->data_type() == MYSQL_TYPE_JSON) ||
        ((*b)->result_type() == STRING_RESULT &&
-        (*b)->field_type() == MYSQL_TYPE_JSON)))
+        (*b)->data_type() == MYSQL_TYPE_JSON)))
   {
     // Use the JSON comparator if at least one of the arguments is JSON.
     is_nulls_eq= is_owner_equal_func();
@@ -1175,8 +1173,8 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   else if ((type == STRING_RESULT ||
             // When comparing time field and cached/converted time constant
             type == REAL_RESULT) &&
-           (*a)->field_type() == MYSQL_TYPE_TIME &&
-           (*b)->field_type() == MYSQL_TYPE_TIME)
+           (*a)->data_type() == MYSQL_TYPE_TIME &&
+           (*b)->data_type() == MYSQL_TYPE_TIME)
   {
     /* Compare TIME values as integers. */
     a_cache= 0;
@@ -1244,8 +1242,8 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
   if (type == ROW_RESULT)
     return FALSE;
 
-  bool a_is_year= (*a)->field_type() == MYSQL_TYPE_YEAR;
-  bool b_is_year= (*b)->field_type() == MYSQL_TYPE_YEAR;
+  bool a_is_year= (*a)->data_type() == MYSQL_TYPE_YEAR;
+  bool b_is_year= (*b)->data_type() == MYSQL_TYPE_YEAR;
 
   if (!a_is_year && !b_is_year)
     return FALSE;
@@ -1385,7 +1383,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (str)
   {
     bool error;
-    enum_field_types f_type= warn_item->field_type();
+    enum_field_types f_type= warn_item->data_type();
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
     value= (longlong) get_date_from_str(thd, str, t_type, warn_item->item_name.ptr(), &error);
@@ -1538,8 +1536,8 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
     argument. Note, however, that geometry types are not converted
     to scalars. They are converted to JSON objects by get_json_atom_wrapper().
   */
-  if ((arg->field_type() != MYSQL_TYPE_JSON) &&
-      (arg->field_type() != MYSQL_TYPE_GEOMETRY))
+  if ((arg->data_type() != MYSQL_TYPE_JSON) &&
+      (arg->data_type() != MYSQL_TYPE_GEOMETRY))
   {
     /*
       If it's a constant item, and we've already read it, just return
@@ -1851,8 +1849,8 @@ int Arg_comparator::compare_time_packed()
 {
   /*
     Note, we cannot do this:
-    DBUG_ASSERT((*a)->field_type() == MYSQL_TYPE_TIME);
-    DBUG_ASSERT((*b)->field_type() == MYSQL_TYPE_TIME);
+    DBUG_ASSERT((*a)->data_type() == MYSQL_TYPE_TIME);
+    DBUG_ASSERT((*b)->data_type() == MYSQL_TYPE_TIME);
     
     SELECT col_time_key FROM t1
     WHERE
@@ -2072,7 +2070,6 @@ bool Item_func_truth::resolve_type(THD *)
 {
   maybe_null= false;
   null_value= FALSE;
-  decimals= 0;
   max_length= 1;
   return false;
 }
@@ -2701,7 +2698,7 @@ bool Item_func_interval::resolve_type(THD *)
                             INT_RESULT));
   if (rows > 8)
   {
-    bool not_null_consts= TRUE;
+    bool not_null_consts= true;
 
     for (uint i= 1; not_null_consts && i < rows; i++)
     {
@@ -2938,7 +2935,6 @@ void Item_func_between::fix_after_pullout(SELECT_LEX *parent_select,
 bool Item_func_between::resolve_type(THD *thd)
 {
   max_length= 1;
-  int i;
   int datetime_items_found= 0;
   int time_items_found= 0;
   compare_as_dates_with_strings= false;
@@ -2975,12 +2971,11 @@ bool Item_func_between::resolve_type(THD *thd)
   */
   if (cmp_type == STRING_RESULT)
   {
-    for (i= 0; i < 3; i++)
+    for (int i= 0; i < 3; i++)
     {
       if (args[i]->is_temporal_with_date())
         datetime_items_found++;
-      else
-      if (args[i]->field_type() == MYSQL_TYPE_TIME)
+      else if (args[i]->data_type() == MYSQL_TYPE_TIME)
         time_items_found++;
     }
   }
@@ -3059,7 +3054,7 @@ bool Item_func_between::resolve_type(THD *thd)
               BETWEEN Item_datetime_with_ref1
               AND     Item_datetime_with_ref2
         */
-        if (field_item->field_type() == MYSQL_TYPE_TIME)
+        if (field_item->data_type() == MYSQL_TYPE_TIME)
           compare_as_temporal_times= true;
         else if (field_item->is_temporal_with_date())
           compare_as_temporal_dates= true;
@@ -3304,9 +3299,9 @@ void Item_func_between::print(String *str, enum_query_type query_type)
 bool Item_func_ifnull::resolve_type(THD *)
 {
   uint32 char_length;
-  cached_field_type= aggregate_type(make_array(args, 2));
-  hybrid_type= Field::result_merge_type(cached_field_type);
+  aggregate_type(make_array(args, 2));
   maybe_null= args[1]->maybe_null;
+  hybrid_type= Field::result_merge_type(data_type());
 
   if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
   {
@@ -3323,7 +3318,7 @@ bool Item_func_ifnull::resolve_type(THD *)
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (count_string_result_length(cached_field_type, args, 2))
+    if (count_string_result_length(data_type(), args, 2))
       return true;
     break;
   case DECIMAL_RESULT:
@@ -3514,12 +3509,12 @@ void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
 bool Item_func_if::resolve_type(THD*)
 {
   maybe_null= args[1]->maybe_null || args[2]->maybe_null;
-  cached_field_type= aggregate_type(make_array(args + 1, 2));
-  cached_result_type= Field::result_merge_type(cached_field_type);
+  aggregate_type(make_array(args + 1, 2));
+  cached_result_type= Field::result_merge_type(data_type());
 
   if (cached_result_type == STRING_RESULT)
   {
-    if (count_string_result_length(cached_field_type, args + 1, 2))
+    if (count_string_result_length(data_type(), args + 1, 2))
       return true;
   }
   else
@@ -3565,7 +3560,7 @@ Item_func_if::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 
-  switch (field_type())
+  switch (data_type())
   {
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
@@ -3635,16 +3630,12 @@ bool Item_func_nullif::resolve_type(THD *thd)
     return true;
 
   maybe_null= true;
-  if (args[0])					// Only false if EOM
-  {
-    max_length=args[0]->max_length;
-    decimals=args[0]->decimals;
-    unsigned_flag= args[0]->unsigned_flag;
-    cached_result_type= args[0]->result_type();
-    if (cached_result_type == STRING_RESULT &&
-        agg_arg_charsets_for_comparison(collation, args, arg_count))
-      return true;
-  }
+  set_data_type_from_item(args[0]);
+  cached_result_type= args[0]->result_type();
+  if (cached_result_type == STRING_RESULT &&
+      agg_arg_charsets_for_comparison(collation, args, arg_count))
+    return true;
+
   return false;
 }
 
@@ -3792,7 +3783,7 @@ Item *Item_func_case::find_item(String*)
 String *Item_func_case::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  switch (field_type()) {
+  switch (data_type()) {
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
     return val_string_from_datetime(str);
@@ -3991,11 +3982,8 @@ static void fix_num_type_shared_for_case(Item_func *item_func,
 
 bool Item_func_case::resolve_type(THD *thd)
 {
-  Item **agg;
-  uint nagg;
-  uint found_types= 0;
-
-  if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
+  Item **agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1));
+  if (agg == NULL)
     return true;
 
   // Determine nullability based on THEN and ELSE expressions:
@@ -4010,18 +3998,19 @@ bool Item_func_case::resolve_type(THD *thd)
     and collations when string result
   */
 
+  uint nagg;
   for (nagg= 0; nagg < ncases / 2; nagg++)
     agg[nagg]= args[nagg * 2 + 1];
 
   if (else_expr_num != -1)
     agg[nagg++]= args[else_expr_num];
 
-  cached_field_type= aggregate_type(make_array(agg, nagg));
-  cached_result_type= Field::result_merge_type(cached_field_type);
+  aggregate_type(make_array(agg, nagg));
+  cached_result_type= Field::result_merge_type(data_type());
   if (cached_result_type == STRING_RESULT)
   {
     /* Note: String result type is the same for CASE and COALESCE. */
-    if (count_string_result_length(cached_field_type, agg, nagg))
+    if (count_string_result_length(data_type(), agg, nagg))
       return true;
     /*
       Copy all THEN and ELSE items back to args[] array.
@@ -4045,7 +4034,6 @@ bool Item_func_case::resolve_type(THD *thd)
   */
   if (first_expr_num != -1)
   {
-    uint i;
     agg[0]= args[first_expr_num];
     left_result_type= agg[0]->result_type();
 
@@ -4058,7 +4046,7 @@ bool Item_func_case::resolve_type(THD *thd)
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    found_types= collect_cmp_types(agg, nagg);
+    uint found_types= collect_cmp_types(agg, nagg);
     if (found_types == 0)
       return true;
     if (found_types & (1U << STRING_RESULT))
@@ -4099,7 +4087,7 @@ bool Item_func_case::resolve_type(THD *thd)
       for (nagg= 0; nagg < ncases / 2; nagg++)
         change_item_tree_if_needed(thd, &args[nagg * 2], agg[nagg + 1]);
     }
-    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+    for (uint i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
       if (found_types & (1U << i) && !cmp_items[i])
       {
@@ -4116,7 +4104,7 @@ bool Item_func_case::resolve_type(THD *thd)
       zerofill argument into a string constant. Such a change would
       require rebuilding cmp_items.
     */
-    for (i= 0; i < ncases; i+= 2)
+    for (uint i= 0; i < ncases; i+= 2)
       args[i]->cmp_context= item_cmp_type(left_result_type,
                                           args[i]->result_type());
   }
@@ -4293,11 +4281,11 @@ bool Item_func_coalesce::time_op(MYSQL_TIME *ltime)
 
 bool Item_func_coalesce::resolve_type(THD *)
 {
-  cached_field_type= aggregate_type(make_array(args, arg_count));
-  hybrid_type= Field::result_merge_type(cached_field_type);
+  aggregate_type(make_array(args, arg_count));
+  hybrid_type= Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT)
   {
-    if (count_string_result_length(cached_field_type, args, arg_count))
+    if (count_string_result_length(data_type(), args, arg_count))
       return true;
   }
   else
@@ -5364,7 +5352,7 @@ bool Item_func_in::resolve_type(THD *thd)
             */
             if (!date_arg)
               date_arg= itm;
-            else if (itm->field_type() == MYSQL_TYPE_DATETIME)
+            else if (itm->data_type() == MYSQL_TYPE_DATETIME)
             {
               date_arg= itm;
               /* All arguments are already checked to have the STRING result. */
@@ -5445,7 +5433,7 @@ bool Item_func_in::resolve_type(THD *thd)
         break;
       case INT_RESULT:
         array= datetime_as_longlong ?
-               args[0]->field_type() == MYSQL_TYPE_TIME ?
+               args[0]->data_type() == MYSQL_TYPE_TIME ?
           static_cast<in_vector *>
             (new (thd->mem_root) in_time_as_longlong(thd, arg_count - 1)) :
           static_cast<in_vector *>
@@ -6132,11 +6120,10 @@ float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
 
 bool Item_func_isnull::resolve_type(THD *thd)
 {
-  decimals= 0;
   max_length= 1;
   maybe_null= false;
   update_used_tables();
-  return thd->is_error();
+  return false;
 }
 
 
@@ -7287,7 +7274,7 @@ bool Item_equal::fix_fields(THD *thd, Item**)
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
-  const_item_cache= 0;
+  const_item_cache= false;
   while ((item= li++))
   {
     used_tables_cache|= item->used_tables();

@@ -1223,14 +1223,6 @@ enum Item_result Item_singlerow_subselect::result_type() const
   return engine->type();
 }
 
-/* 
- Don't rely on the result type to calculate field type. 
- Ask the engine instead.
-*/
-enum_field_types Item_singlerow_subselect::field_type() const
-{
-  return engine->field_type();
-}
 
 bool Item_singlerow_subselect::resolve_type(THD *)
 {
@@ -1245,6 +1237,7 @@ bool Item_singlerow_subselect::resolve_type(THD *)
     engine->fix_length_and_dec(row);
     value= *row;
   }
+  set_data_type(engine->field_type());
   unsigned_flag= value->unsigned_flag;
   /*
     Check if NULL values may be returned by the subquery. Either
@@ -1553,7 +1546,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 
 bool Item_exists_subselect::resolve_type(THD *thd)
 {
-   decimals= 0;
+   set_data_type_longlong();
    max_length= 1;
    max_columns= engine->cols();
    if (exec_method == EXEC_EXISTS)
@@ -3058,12 +3051,12 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row,
   Item *sel_item;
   List_iterator_fast<Item> li(item_list);
   res_type= STRING_RESULT;
-  res_field_type= MYSQL_TYPE_VAR_STRING;
+  res_field_type= MYSQL_TYPE_VARCHAR;
   for (uint i= 0; (sel_item= li++); i++)
   {
     item->max_length= sel_item->max_length;
     res_type= sel_item->result_type();
-    res_field_type= sel_item->field_type();
+    res_field_type= sel_item->data_type();
     item->decimals= sel_item->decimals;
     item->unsigned_flag= sel_item->unsigned_flag;
     maybe_null|= sel_item->maybe_null;
@@ -3075,6 +3068,8 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row,
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
+  else
+    item->set_data_type(res_field_type);
 }
 
 

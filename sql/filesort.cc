@@ -1475,7 +1475,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     {						// Item
       Item *item=sort_field->item;
       maybe_null= item->maybe_null;
-      DBUG_ASSERT(sort_field->field_type == item->field_type());
+      DBUG_ASSERT(sort_field->field_type == item->data_type());
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
@@ -1582,7 +1582,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       }
       case INT_RESULT:
 	{
-          longlong value= item->field_type() == MYSQL_TYPE_TIME ?
+          longlong value= item->data_type() == MYSQL_TYPE_TIME ?
                           item->val_time_temporal_result() :
                           item->is_temporal_with_date() ?
                           item->val_date_temporal_result() :
@@ -2455,7 +2455,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
     {
       const Item *item= sortorder->item;
       sortorder->result_type= item->result_type();
-      sortorder->field_type= item->field_type();
+      sortorder->field_type= item->data_type();
       if (sortorder->field_type == MYSQL_TYPE_JSON)
         sortorder->is_varlen= true;
       else

@@ -313,7 +313,7 @@ static bool fill_dd_view_columns(THD *thd,
       }
       else
       {
-        switch (item->field_type())
+        switch (item->data_type())
         {
         case MYSQL_TYPE_TINY_BLOB:
         case MYSQL_TYPE_MEDIUM_BLOB:

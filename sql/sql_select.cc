@@ -3612,7 +3612,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
-        else if (group_item->field_type() == MYSQL_TYPE_BLOB)
+        else if (group_item->data_type() == MYSQL_TYPE_BLOB)
           key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
@@ -3927,7 +3927,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	      set to NULL in this level
 	    */
             Item_null_result *null_item=
-              new (thd->mem_root) Item_null_result(item->field_type(),
+              new (thd->mem_root) Item_null_result(item->data_type(),
                                                    item->result_type());
             if (!null_item)
               return 1;
