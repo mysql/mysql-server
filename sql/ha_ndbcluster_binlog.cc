@@ -1405,7 +1405,7 @@ int find_all_files(THD *thd, Ndb* ndb)
       /* finalize construction of path */
       end+= tablename_to_filename(elmt.name, end,
                                   (uint)(sizeof(key)-(end-key)));
-      uchar *data;
+      uchar* data = NULL;
       size_t length;
       int discover= 0;
       if (readfrm(key, &data, &length))
@@ -2973,7 +2973,7 @@ class Ndb_schema_event_handler {
     build_table_filename(key, sizeof(key)-1,
                          db_name, table_name, NullS, 0);
 
-    uchar *data;
+    uchar *data = NULL;
     size_t length;
     if (readfrm(key, &data, &length) == 0 &&
         cmp_unpacked_frm(ndbtab, data, length))
