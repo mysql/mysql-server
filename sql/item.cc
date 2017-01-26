@@ -10418,8 +10418,6 @@ bool Item_type_holder::join_types(THD*, Item *item)
   DBUG_PRINT("info:", ("in type %d len %d, dec %d",
                        real_data_type(item),
                        item->max_length, item->decimals));
-  enum_field_types data_type_old= data_type();
-  DBUG_PRINT("info:", ("in type %d", data_type_old));
   set_data_type(Field::field_type_merge(data_type(), real_data_type(item)));
   {
     int item_decimals= item->decimals;

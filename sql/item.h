@@ -731,8 +731,8 @@ public:
     Provide data type for a user or system variable, based on the type of
     the item that is assigned to the variable.
 
-    @param src_type Source type that variable's type is derived from
-    @param max_l    Maximum string size in bytes, used for string types
+    @param src_type  Source type that variable's type is derived from
+    @param max_bytes Maximum string size in bytes, used for string types
   */
   static enum_field_types type_for_variable(enum_field_types src_type,
                                             uint32 max_bytes)
@@ -1058,7 +1058,7 @@ public:
     Set the Item to be variable length string. Like function above, but with
     larger string length precision.
 
-    @param max_l  Maximum number of characters in string
+    @param max_char_length_arg  Maximum number of characters in string
   */
   inline void set_data_type_string(ulonglong max_char_length_arg)
   {
@@ -1233,7 +1233,7 @@ public:
   /**
     Determine correct string field type, based on string length
 
-    @param max_l Maximum string size, in number of bytes @todo
+    @param max_bytes Maximum string size, in number of bytes @todo
   */
   static enum_field_types string_field_type(uint32 max_bytes)
   {
