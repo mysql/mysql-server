@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,11 +19,12 @@
 
 
 #include "auth_mysql41.h"
-#include "sql_data_context.h"
 
-#include "mysql_com.h"
 #include "crypt_genhash_impl.h"
+#include "my_inttypes.h"
+#include "mysql_com.h"
 #include "password.h"
+#include "sql_data_context.h"
 
 // C -> S: authenticationStart(MYSQL41)
 // S -> C: authenticationContinue(20 byte salt/scramble)
@@ -130,8 +131,6 @@ ngs::Error_code Sasl_mysql41_auth::sasl_message(const char *client_hostname, con
   }
   return ngs::Error_code();
 }
-
-#include "mysql_com.h"
 
 bool Sasl_mysql41_auth::check_password_hash(const std::string &password_scramble, const std::string &password_hash)
 {

@@ -31,6 +31,7 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_stacktrace.h"             // my_safe_printf_stderr
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"

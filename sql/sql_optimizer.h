@@ -41,6 +41,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "opt_explain_format.h"                 // Explain_sort_clause
 #include "sql_alloc.h"
 #include "sql_array.h"

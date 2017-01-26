@@ -20,6 +20,7 @@
 #include <sstream>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "ngs/log.h"
 #include "ngs_common/connection_type.h"
 #include "ngs_common/connection_vio.h"

@@ -21,6 +21,7 @@
 #include "log.h"                  // sql_print_error
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"

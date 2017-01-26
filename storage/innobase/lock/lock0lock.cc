@@ -37,6 +37,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0priv.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/psi_thread.h"
 #include "pars0pars.h"

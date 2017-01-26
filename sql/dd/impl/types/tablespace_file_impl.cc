@@ -17,18 +17,19 @@
 
 #include <sstream>
 
-#include "dd/string_type.h"                  // dd::String_type
 #include "dd/impl/properties_impl.h"         // Properties_impl
 #include "dd/impl/raw/raw_record.h"          // Raw_record
 #include "dd/impl/sdi_impl.h"                // sdi read/write functions
 #include "dd/impl/tables/tablespace_files.h" // Tablespace_files
 #include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
 #include "dd/impl/types/tablespace_impl.h"   // Tablespace_impl
+#include "dd/string_type.h"                  // dd::String_type
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
 #include "error_handler.h"                   // Internal_error_handler
 #include "m_string.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                    // ER_*
 #include "rapidjson/document.h"

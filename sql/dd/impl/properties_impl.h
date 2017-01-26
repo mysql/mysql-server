@@ -26,9 +26,8 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"                // strmake_root
-
-#include <memory>
 
 namespace dd {
 

@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include "my_global.h"
+#include "my_inttypes.h"
 
 class Relay_log_info;
 struct TABLE;

@@ -15,8 +15,8 @@
 
 #include "dd_tablespace.h"
 
-#include <memory>
 #include <stddef.h>
+#include <memory>
 #include <string>
 
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
@@ -32,6 +32,7 @@
 #include "handler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql_class.h"                        // THD

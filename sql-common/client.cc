@@ -31,12 +31,20 @@
   server.
 */ 
 
+#include <m_ctype.h>
+#include <m_string.h>
 #include <my_global.h>
+#include <my_sys.h>
+#include <mysys_err.h>
 #include <stdio.h>
+#include <violite.h>
 
+#include "errmsg.h"
 #include "hash.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql.h"
@@ -45,19 +53,10 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "template_utils.h"
-#include "typelib.h"
-
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_sys.h>
-#include <mysys_err.h>
-#include <violite.h>
-
-#include "errmsg.h"
-#include "my_default.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "template_utils.h"
+#include "typelib.h"
 
 #if !defined(_WIN32)
 #include <my_thread.h>				/* because of signal()	*/

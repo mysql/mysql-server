@@ -21,6 +21,8 @@
   Performance schema timers (declarations).
 */
 #include <my_rdtsc.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 
 /** Conversion factor, from micro seconds to pico seconds. */

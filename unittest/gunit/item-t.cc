@@ -13,23 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include "test_utils.h"
-
+#include "fake_table.h"
 #include "item.h"
 #include "item_cmpfunc.h"
 #include "item_create.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
-#include "sql_class.h"
-#include "tztime.h"
-
-#include "fake_table.h"
 #include "mock_field_timestamp.h"
+#include "my_inttypes.h"
+#include "sql_class.h"
+#include "test_utils.h"
+#include "tztime.h"
 
 namespace item_unittest {
 

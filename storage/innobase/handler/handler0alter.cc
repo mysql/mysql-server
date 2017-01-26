@@ -47,6 +47,7 @@ Smart ALTER TABLE
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "partition_info.h"
 #include "rem0types.h"

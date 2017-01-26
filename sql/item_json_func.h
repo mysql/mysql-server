@@ -30,6 +30,7 @@
 #include "mem_root_array.h"     // Mem_root_array
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"

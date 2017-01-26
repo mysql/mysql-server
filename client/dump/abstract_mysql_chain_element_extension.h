@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,12 +20,13 @@
 
 #include <functional>
 
+#include "abstract_data_object.h"
+#include "base/message_data.h"
 #include "i_chain_element.h"
 #include "i_connection_provider.h"
-#include "base/message_data.h"
-#include "nullable.h"
+#include "my_inttypes.h"
 #include "mysql_chain_element_options.h"
-#include "abstract_data_object.h"
+#include "nullable.h"
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
 #define MAX_NAME_LEN    (64 * 3)

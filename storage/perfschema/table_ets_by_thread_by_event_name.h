@@ -21,10 +21,11 @@
   Table EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**

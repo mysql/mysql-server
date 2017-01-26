@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,10 @@
 
 #include "dd/string_type.h"
 
+#include "my_inttypes.h"
+#include "my_murmur3.h"                 // my_murmur3_32
 #include "my_sys.h"                     // MY_WME, MY_FATALERROR
 #include "mysql/service_mysql_alloc.h"  // my_malloc
-#include "my_murmur3.h"                 // my_murmur3_32
 #include "psi_memory_key.h"             // key_memory_DD_String_type
 
 

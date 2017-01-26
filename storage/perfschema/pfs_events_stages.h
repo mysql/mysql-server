@@ -22,6 +22,7 @@
 */
 
 #include "pfs_events.h"
+#include "pfs_global.h"
 
 struct PFS_thread;
 struct PFS_account;

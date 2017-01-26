@@ -28,8 +28,8 @@ other files in library. The code in this file is used to make a library for
 external tools. */
 
 #include "ha_prototypes.h"
-
 #include "mem0mem.h"
+#include "my_inttypes.h"
 #ifndef UNIV_LIBRARY
 #include "buf0buf.h"
 #include "srv0srv.h"

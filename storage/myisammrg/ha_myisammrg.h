@@ -23,6 +23,7 @@
 #include <myisammrg.h>
 
 #include "my_double2ulonglong.h"
+#include "my_inttypes.h"
 #include "table.h"
 
 /** 

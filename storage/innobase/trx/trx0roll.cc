@@ -28,6 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "lock0lock.h"
 #include "mach0data.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"

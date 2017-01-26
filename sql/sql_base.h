@@ -24,6 +24,7 @@
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql_array.h"              // Bounds_checked_array
 #include "thr_lock.h"               // thr_lock_type

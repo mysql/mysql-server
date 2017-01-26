@@ -15,6 +15,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #include "sp_defs.h"
 

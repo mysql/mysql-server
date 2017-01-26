@@ -25,6 +25,7 @@
 
 #include "ftdefs.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisam_sys.h"
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */

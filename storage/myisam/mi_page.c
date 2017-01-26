@@ -19,6 +19,7 @@
 #include <fcntl.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 	/* Fetch a key-page in memory */

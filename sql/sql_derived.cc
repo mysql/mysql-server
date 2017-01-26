@@ -28,9 +28,12 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "mysqld.h"                        // internal_tmp_disk_storage_engine
 #include "opt_trace.h"                        // opt_trace_disable_etc
 #include "query_options.h"
+#include "sql_base.h"                         // EXTRA_RECORD
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_derived.h"
@@ -41,8 +44,6 @@
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_tmp_table.h"                    // Tmp tables
 #include "sql_union.h"                        // Query_result_union
-#include "sql_base.h"                         // EXTRA_RECORD
-#include "mysqld.h"                        // internal_tmp_disk_storage_engine
 #include "sql_view.h"                         // check_duplicate_names
 #include "system_variables.h"
 #include "table.h"

@@ -13,12 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <my_dir.h>
-#include "transparent_file.h"
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "handler.h"
+#include "my_inttypes.h"
 #include "sql_string.h"
+#include "transparent_file.h"
 
 #define DEFAULT_CHAIN_LENGTH 512
 /*

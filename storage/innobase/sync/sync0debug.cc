@@ -31,14 +31,15 @@ Created 2012-08-21 Sunny Bains
 
 #include "sync0debug.h"
 
-#include "ut0new.h"
-#include "srv0start.h"
-
-#include <map>
-#include <vector>
-#include <string>
 #include <algorithm>
 #include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "my_inttypes.h"
+#include "srv0start.h"
+#include "ut0new.h"
 
 #ifdef UNIV_DEBUG
 

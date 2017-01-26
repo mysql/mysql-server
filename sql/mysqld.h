@@ -16,11 +16,10 @@
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
 
-#include <atomic>
-
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -32,6 +31,7 @@
 #include "my_dbug.h"
 #include "my_getopt.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"                 // SQLCOM_END
 #include "my_sys.h"                        // MY_TMPDIR

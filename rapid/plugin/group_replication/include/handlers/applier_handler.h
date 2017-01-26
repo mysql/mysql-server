@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
 #ifndef SQL_THREAD_APPLIER_INCLUDE
 #define SQL_THREAD_APPLIER_INCLUDE
 
+#include <mysql/group_replication_priv.h>
+
+#include "my_inttypes.h"
 #include "pipeline_handlers.h"
 #include "replication_threads_api.h"
-#include <mysql/group_replication_priv.h>
 
 
 class Applier_handler : public Event_handler

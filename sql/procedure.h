@@ -27,6 +27,7 @@
 #include "m_ctype.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "sql_string.h"

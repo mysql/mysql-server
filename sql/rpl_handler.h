@@ -20,6 +20,7 @@
 
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                        // free_root
 #include "mysql/psi/mysql_rwlock.h"

@@ -24,6 +24,7 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "partition_element.h"       // partition_state
 #include "typelib.h"

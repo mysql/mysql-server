@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,16 +18,19 @@
    Unit test of the Optimizer trace API (WL#5257)
 */
 
+#include <gtest/gtest.h>
+
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
+#include "my_inttypes.h"
 
 #ifdef OPTIMIZER_TRACE
 
-#include <opt_trace.h>
 #include <mysys_err.h>                          // for testing of OOM
-#include "mysqld.h"                             // system_charset_info
+#include <opt_trace.h>
+
 #include "m_string.h"                           // llstr
+#include "mysqld.h"                             // system_charset_info
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>                           // for WEXITSTATUS
 #endif

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,6 +46,7 @@ Created July 17, 2007 Vasil Dimov
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "mem0mem.h"
+#include "my_inttypes.h"
 #include "page0page.h"
 #include "rem0rec.h"
 #include "row0row.h"

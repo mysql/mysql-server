@@ -20,6 +20,7 @@
 #include <time.h>
 
 #include "m_string.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"

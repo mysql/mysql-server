@@ -25,6 +25,7 @@
 #include "auth_internal.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"

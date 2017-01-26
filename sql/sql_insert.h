@@ -22,6 +22,7 @@
 #include "handler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml

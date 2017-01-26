@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,40 +13,38 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <boost/lexical_cast.hpp>
 #include <gtest/gtest.h>
-#include "../../sql/dd/impl/sdi.h"
+#include <m_string.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
-#include "../../sql/dd/types/object_type.h"
 #include "../../sql/dd/dd.h"
-#include "../../sql/dd/sdi_file.h"
-#include "../../sql/dd/impl/types/weak_object_impl.h"
+#include "../../sql/dd/impl/sdi.h"
 #include "../../sql/dd/impl/sdi_impl.h"
+#include "../../sql/dd/impl/types/column_impl.h"
+#include "../../sql/dd/impl/types/entity_object_impl.h"
+#include "../../sql/dd/impl/types/index_impl.h"
+#include "../../sql/dd/impl/types/table_impl.h"
+#include "../../sql/dd/impl/types/weak_object_impl.h"
+#include "../../sql/dd/sdi_file.h"
 #include "../../sql/dd/types/column.h"
 #include "../../sql/dd/types/column_type_element.h"
-#include "../../sql/dd/types/foreign_key_element.h"
 #include "../../sql/dd/types/foreign_key.h"
-#include "../../sql/dd/types/index_element.h"
+#include "../../sql/dd/types/foreign_key_element.h"
 #include "../../sql/dd/types/index.h"
+#include "../../sql/dd/types/index_element.h"
+#include "../../sql/dd/types/object_type.h"
 #include "../../sql/dd/types/partition.h"
 #include "../../sql/dd/types/partition_index.h"
 #include "../../sql/dd/types/partition_value.h"
 #include "../../sql/dd/types/schema.h"
 #include "../../sql/dd/types/table.h"
-#include "../../sql/dd/types/tablespace_file.h"
 #include "../../sql/dd/types/tablespace.h"
-
-#include "../../sql/dd/impl/types/entity_object_impl.h"
-#include "../../sql/dd/impl/types/column_impl.h"
-#include "../../sql/dd/impl/types/index_impl.h"
-#include "../../sql/dd/impl/types/table_impl.h"
-
-
-#include <m_string.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/document.h>
-
-#include <boost/lexical_cast.hpp>
+#include "../../sql/dd/types/tablespace_file.h"
+#include "my_inttypes.h"
 
 namespace {
 int FANOUT= 3;

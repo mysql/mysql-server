@@ -23,6 +23,7 @@
 
 
 #include "my_compiler.h"
+#include "my_inttypes.h"
 
 #define MYSQL41_HASH_SIZE 20 /* Hash size in bytes */
 

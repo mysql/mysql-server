@@ -17,6 +17,7 @@
 /* As mi_rsame but supply a position */
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 

@@ -18,6 +18,7 @@
 #include "azlib.h"
 #include "handler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sql_string.h"
 
 /**

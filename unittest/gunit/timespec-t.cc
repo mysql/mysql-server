@@ -17,6 +17,7 @@
 
 #include "my_config.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_systime.h"
 #include "sql_const.h"
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,25 +43,26 @@
 #include "dd/object_id.h"
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/types/column.h"                  // dd::Column
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/object_table.h"            // dd::Object_table
+#include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/schema.h"
 #include "dd/types/table.h"
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "dd/types/tablespace.h"
+#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "dd/types/view.h"                    // dd::View
 #include "error_handler.h"                    // No_such_table_error_handler
 #include "handler.h"                          // dict_init_mode_t
 #include "log.h"                              // sql_print_warning()
 #include "m_ctype.h"
-#include "mdl.h"
 #include "m_string.h"                         // STRING_WITH_LEN
+#include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
-#include "mysqld_error.h"
-#include "mysqld.h"
-#include "mysql/plugin.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
 #include "sql_class.h"                        // THD
 #include "sql_error.h"
 #include "sql_list.h"
@@ -73,9 +74,6 @@
 #include "system_variables.h"
 #include "table.h"
 #include "transaction.h"                      // trans_rollback
-
-#include <vector>
-#include <memory>
 
 /*
   The variable is used to differentiate between a normal server restart

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,24 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
+#include <limits>            // std::numeric_limits
+#include <map>               // std::map
+#include <string>            // std::string
 
-#include "template_utils.h"  // down_cast
 #include "equi_height.h"     // Equi_height
 #include "histogram.h"       // Histogram, Histogram_comparator
 #include "json_dom.h"        // Json_object
 #include "m_ctype.h"         // my_charset_latin1, my_charset_bin
-#include "my_time.h"         // MYSQL_TIME
 #include "my_decimal.h"      // my_decimal
+#include "my_inttypes.h"
+#include "my_time.h"         // MYSQL_TIME
 #include "singleton.h"       // Singleton
 #include "sql_time.h"        // my_time_compare
+#include "template_utils.h"  // down_cast
 #include "tztime.h"          // my_tz_UTC
-
-#include <map>               // std::map
-#include <string>            // std::string
-#include <limits>            // std::numeric_limits
 
 namespace histograms_unittest {
 

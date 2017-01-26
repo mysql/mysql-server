@@ -29,6 +29,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql/service_my_snprintf.h"
 #include "vio_priv.h"
 

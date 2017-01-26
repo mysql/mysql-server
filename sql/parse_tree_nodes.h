@@ -32,6 +32,7 @@
 #include "my_bit.h"                  // is_single_bit
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld.h"                  // table_alias_charset
@@ -49,9 +50,9 @@
 #include "sql_lex.h"                 // LEX
 #include "sql_list.h"
 #include "sql_parse.h"               // add_join_natural
-#include "table.h"                   // Common_table_expr
 #include "sql_security_ctx.h"
 #include "table.h"
+#include "table.h"                   // Common_table_expr
 #include "thr_lock.h"
 
 class PT_field_def_base;

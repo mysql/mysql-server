@@ -54,6 +54,7 @@
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
@@ -72,6 +73,7 @@
 #include "opt_trace.h"        // Opt_trace_start
 #include "parse_location.h"
 #include "parse_tree_node_base.h"
+#include "parse_tree_nodes.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"
@@ -133,7 +135,6 @@
 #include "table_cache.h"      // table_cache_manager
 #include "thr_lock.h"
 #include "transaction.h"      // trans_rollback_implicit
-#include "parse_tree_nodes.h"
 #include "transaction_info.h"
 #include "violite.h"
 

@@ -21,10 +21,11 @@
   Events transactions data structures (declarations).
 */
 
+#include "my_inttypes.h"
+#include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 #include "pfs_column_types.h"
 #include "pfs_events.h"
 #include "rpl_gtid.h"
-#include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 
 struct PFS_thread;
 struct PFS_account;

@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h" // string2my_decimal
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

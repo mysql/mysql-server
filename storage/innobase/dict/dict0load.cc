@@ -43,6 +43,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql_version.h"
 #include "page0page.h"
 #include "rem0cmp.h"

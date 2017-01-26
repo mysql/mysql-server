@@ -27,6 +27,7 @@
 #include <mysql/service_rpl_transaction_ctx.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 static MYSQL_PLUGIN plugin_info_ptr;
 

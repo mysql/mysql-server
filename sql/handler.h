@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -23,11 +23,11 @@
 
 #include <fcntl.h>
 #include <float.h>
-#include <random>       // std::mt19937
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
 #include <algorithm>
+#include <random>       // std::mt19937
 #include <string>
 
 #include "dd/object_id.h"      // dd::Object_id
@@ -42,6 +42,7 @@
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
 #include "mysql/psi/psi_table.h"

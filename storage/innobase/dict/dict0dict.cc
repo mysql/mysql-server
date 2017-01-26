@@ -35,6 +35,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "ha_prototypes.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysqld.h"                             // system_charset_info
 #include "que0types.h"
 #include "row0sel.h"

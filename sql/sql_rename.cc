@@ -29,6 +29,7 @@
 #include "log.h"              // query_logger
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names
 #include "mysqld_error.h"

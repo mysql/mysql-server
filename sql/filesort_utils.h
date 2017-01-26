@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "my_base.h"                   // ha_rows
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h" // my_free
 #include "sql_array.h"                 // Bounds_checked_array
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define	OBSERVER_SERVER_ACTIONS_INCLUDE
 
 #include <mysql/group_replication_priv.h>
+
+#include "my_inttypes.h"
 
 int group_replication_reset_master_logs(Binlog_transmit_param *param);
 

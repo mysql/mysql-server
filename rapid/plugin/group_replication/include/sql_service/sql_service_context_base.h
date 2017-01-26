@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define SQL_SERVICE_CONTEXT_BASE_INCLUDE
 
 #include <mysql/plugin.h>
+
+#include "my_inttypes.h"
 #include "sql_resultset.h"
 
 class Sql_service_context_base

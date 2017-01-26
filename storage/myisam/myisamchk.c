@@ -20,8 +20,6 @@
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <my_getopt.h>
-#include "print_version.h"
-#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -29,8 +27,11 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "myisam_sys.h"
+#include "print_version.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

@@ -19,6 +19,7 @@
 
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myrg_def.h"
 
 static MYRG_TABLE *find_table(MYRG_TABLE *start,MYRG_TABLE *end,ulonglong pos);

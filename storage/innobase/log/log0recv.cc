@@ -43,6 +43,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "page0cur.h"
 #include "page0zip.h"

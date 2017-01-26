@@ -33,6 +33,7 @@
 #include "item_strfunc.h"      // Item_str_func
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"

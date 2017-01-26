@@ -38,6 +38,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "lob0lob.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "row0sel.h"
 #include "ut0new.h"
 #include "ut0rbt.h"

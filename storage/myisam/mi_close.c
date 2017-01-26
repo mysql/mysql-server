@@ -24,6 +24,7 @@
 #include <stdlib.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 int mi_close_share(register MI_INFO *info, my_bool *closed_share)

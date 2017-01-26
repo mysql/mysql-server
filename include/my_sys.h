@@ -25,6 +25,7 @@
 #include "my_alloc.h"                   /* USED_MEM */
 #include "my_compiler.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"              /* IWYU pragma: keep */
 
 #ifdef HAVE_ALLOCA_H

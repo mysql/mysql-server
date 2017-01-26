@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,20 +21,20 @@
   its identification by the Protocol Client.
 */
 
-#include <string>
-#include <map>
-#include <vector>
-#include <set>
-
-#include <mysql/gcs/gcs_member_identifier.h>
-#include "gcs_plugin_messages.h"
-#include "member_version.h"
-
 /*
   Since this file is used on unit tests includes must set here and
   not through plugin_server_include.h.
 */
 #include <my_sys.h>
+#include <mysql/gcs/gcs_member_identifier.h>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "gcs_plugin_messages.h"
+#include "member_version.h"
+#include "my_inttypes.h"
 
 /*
   Encoding of the group_replication_enforce_update_everywhere_checks

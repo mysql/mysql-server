@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
+#include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
 #include "registry.h"

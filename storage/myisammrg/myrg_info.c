@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myrg_def.h"
 
 ulonglong myrg_position(MYRG_INFO *info)

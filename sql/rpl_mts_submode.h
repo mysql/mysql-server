@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "binlog_event.h"      // SEQ_UNINIT
 #include "my_atomic.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array
 

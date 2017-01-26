@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
 #include "dd/sdi_file.h"
 
 #include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -27,10 +29,10 @@
 #include "dd/types/entity_object.h" // dd::Entity_object
 #include "dd/types/schema.h"        // dd::Schema
 #include "dd/types/table.h"         // dd::Table
-
 #include "handler.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h" // mysql_file_create

@@ -29,6 +29,7 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "gis0rtree.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0cur.h"
 #include "page0page.h"
 #include "page0zip.h"

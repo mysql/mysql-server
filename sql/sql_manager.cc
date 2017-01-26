@@ -30,6 +30,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_systime.h"
 #include "my_thread.h"         // my_thread_t
 #include "mysql/psi/mysql_cond.h"

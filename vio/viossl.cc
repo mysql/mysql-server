@@ -23,6 +23,7 @@
 #include <errno.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL

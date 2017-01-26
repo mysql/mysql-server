@@ -38,6 +38,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0size.h"
 #ifndef UNIV_HOTBACKUP
 #include "btr0sea.h"

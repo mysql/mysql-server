@@ -34,6 +34,7 @@
 
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,

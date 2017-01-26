@@ -18,6 +18,7 @@
 #include <m_ctype.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,

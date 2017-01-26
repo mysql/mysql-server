@@ -22,6 +22,7 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysqld_error.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define	RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
 
 #include "channel_observation_manager.h"
+#include "my_inttypes.h"
 #include "recovery_state_transfer.h"
 
 class Recovery_channel_state_observer : public Channel_state_observer

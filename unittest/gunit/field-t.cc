@@ -13,16 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
-#include "fake_table.h"
-
-#include "field.h"
-#include "sql_time.h"
 #include <my_decimal.h>
+
+#include "fake_table.h"
+#include "field.h"
+#include "my_inttypes.h"
+#include "sql_time.h"
+#include "test_utils.h"
 
 namespace field_unittests {
 

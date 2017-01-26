@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,11 @@
 #include <string>
 
 #include "dd/object_id.h"
+#include "dd/string_type.h"                 // dd::String_type
 #include "handler.h"                        // ha_statistics
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "sql_string.h"                     // String
-#include "dd/string_type.h"                 // dd::String_type
 
 class THD;
 struct TABLE_LIST;

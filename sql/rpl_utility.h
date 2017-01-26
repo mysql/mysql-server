@@ -25,6 +25,7 @@
 #include "binary_log_types.h"   // enum_field_types
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 
 #ifdef MYSQL_SERVER
 #include "handler.h"

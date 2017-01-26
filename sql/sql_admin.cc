@@ -40,6 +40,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "myisam.h"                          // TT_USEFRM
 #include "mysql/psi/mysql_file.h"
@@ -65,9 +66,9 @@
 #include "sql_partition.h"                   // set_part_state
 #include "sql_plugin.h"
 #include "sql_plugin_ref.h"
+#include "sql_prepare.h"                     // mysql_test_show
 #include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "sql_prepare.h"                     // mysql_test_show
 #include "sql_table.h"                       // mysql_recreate_table
 #include "system_variables.h"
 #include "table.h"

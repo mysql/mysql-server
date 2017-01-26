@@ -22,6 +22,7 @@
 #include "m_ctype.h"
 #include "my_base.h"          // ha_rows
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"  // my_thread_id
 #include "rpl_gtid.h"         // Gitd_specification

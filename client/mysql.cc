@@ -44,6 +44,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
@@ -112,10 +113,10 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "completion_hash.h"
+#include "print_version.h"
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"

@@ -20,6 +20,7 @@
 
 #include "base64.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "observer_trans.h"
 #include "plugin_log.h"
 #include "sql_command_test.h"

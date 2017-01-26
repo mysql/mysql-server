@@ -19,6 +19,7 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "sql_class.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"

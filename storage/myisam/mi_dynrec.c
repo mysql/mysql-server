@@ -27,6 +27,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"

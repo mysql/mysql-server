@@ -21,9 +21,10 @@
   Events statements data structures (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
-#include "pfs_events.h"
 #include "pfs_digest.h"
+#include "pfs_events.h"
 
 struct PFS_thread;
 struct PFS_account;

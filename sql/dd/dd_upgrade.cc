@@ -40,6 +40,7 @@
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"                              // sql_print_warning
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_user.h"                          // parse_user
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
 #include "mysqld.h"                           // mysql_real_data_home

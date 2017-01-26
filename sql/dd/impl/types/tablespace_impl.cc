@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,10 @@
 
 #include "dd/impl/types/tablespace_impl.h"
 
-#include <memory>
 #include <string.h>
+#include <memory>
 #include <sstream>
 
-#include "dd/string_type.h"                      // dd::String_type
 #include "dd/impl/properties_impl.h"             // Properties_impl
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
@@ -32,10 +31,12 @@
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
 #include "dd/properties.h"
+#include "dd/string_type.h"                      // dd::String_type
 #include "dd/types/tablespace_file.h"
 #include "dd/types/weak_object.h"
 #include "m_string.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                        // ER_*
 #include "rapidjson/document.h"

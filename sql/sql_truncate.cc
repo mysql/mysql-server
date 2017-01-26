@@ -21,8 +21,8 @@
 #include "auth_acls.h"
 #include "auth_common.h"    // DROP_ACL
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_table.h"    // dd::recreate_table
 #include "dd/dd_schema.h"   // dd::Schema_MDL_locker
+#include "dd/dd_table.h"    // dd::recreate_table
 #include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC
@@ -33,6 +33,7 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"

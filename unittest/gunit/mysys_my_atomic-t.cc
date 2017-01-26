@@ -21,6 +21,7 @@
 
 #include "my_compiler.h"
 #include "my_config.h"
+#include "my_inttypes.h"
 
 
 namespace mysys_my_atomic_unittest {

@@ -25,6 +25,8 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "buf0lru.h"
 
+#include "my_inttypes.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "btr0btr.h"
 #include "btr0sea.h"

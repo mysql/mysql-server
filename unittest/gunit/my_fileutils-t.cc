@@ -22,6 +22,7 @@
 #endif
 
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"

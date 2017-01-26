@@ -16,6 +16,7 @@
 #include <sstream>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "observer_server_actions.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"

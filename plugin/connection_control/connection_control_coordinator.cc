@@ -20,6 +20,7 @@
 
 #include "connection_control.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 namespace connection_control
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 
 #include "dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "dd/dd_tablespace.h"            // dd::get_tablespace_name
-#include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
 #include "dd/impl/sdi.h"                 // dd::serialize
+#include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
 #include "dd/properties.h"               // dd::Properties
 #include "dd/string_type.h"              // dd::String_type
 #include "dd/types/schema.h"             // dd::Schema
@@ -27,6 +27,7 @@
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "sql_class.h"                   // THD
 
 /**

@@ -35,6 +35,7 @@
 
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "sql_string.h"                         /* String */
 
 typedef struct st_mysql_time MYSQL_TIME;

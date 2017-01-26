@@ -41,6 +41,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
@@ -54,7 +55,6 @@
 #endif
 #include <my_stacktrace.h>
 #include <signal.h>
-#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <algorithm>
 #include <functional>
@@ -62,6 +62,7 @@
 #include <string>
 
 #include "prealloced_array.h"
+#include "print_version.h"
 #include "template_utils.h"
 
 using std::min;

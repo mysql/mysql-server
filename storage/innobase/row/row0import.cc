@@ -35,6 +35,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "lob0lob.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0import.h"

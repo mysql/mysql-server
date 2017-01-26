@@ -27,6 +27,7 @@
 #include "binary_log_types.h"
 #include "my_dbug.h"
 #include "my_global.h"                          /* ulong */
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
 #include "sql_error.h"                          /* Sql_condition */

@@ -32,6 +32,7 @@
 #include "dd/types/routine.h"
 #include "dd/types/view.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 
 namespace dd {
 

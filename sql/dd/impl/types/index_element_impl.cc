@@ -29,6 +29,7 @@
 #include "dd_table_share.h"                     // dd_get_old_field_type()
 #include "m_string.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                       // ER_*
 #include "rapidjson/document.h"

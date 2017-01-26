@@ -17,6 +17,7 @@
 
 #include "handlers/pipeline_handlers.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "plugin.h"
 #include "plugin_log.h"
 #include "sql_service_gr_user.h"

@@ -37,6 +37,7 @@
 
 #include "errmsg.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql.h"
 #include "mysql/psi/mysql_memory.h"

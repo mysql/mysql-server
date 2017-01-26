@@ -30,6 +30,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "log0log.h"
 #include "mach0data.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "que0que.h"
 #include "row0log.h"
 #include "row0row.h"

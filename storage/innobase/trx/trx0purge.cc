@@ -34,6 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0thread.h"
 #include "que0que.h"
 #include "read0read.h"

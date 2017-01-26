@@ -22,6 +22,7 @@
 #include "connection_delay_api.h"       /* connection_delay apis */
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql_version.h"
 
 namespace connection_control

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,18 +24,19 @@ The page cursor
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
-
 #include "page0cur.h"
-#include "page0zip.h"
-#include "btr0btr.h"
-#include "mtr0log.h"
-#include "log0recv.h"
-#ifndef UNIV_HOTBACKUP
-#include "rem0cmp.h"
-#include "gis0rtree.h"
 
+#include "btr0btr.h"
+#include "ha_prototypes.h"
+#include "log0recv.h"
+#include "mtr0log.h"
+#include "my_inttypes.h"
+#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
 #include <algorithm>
+
+#include "gis0rtree.h"
+#include "rem0cmp.h"
 
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT

@@ -112,6 +112,7 @@
 */
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,14 +122,12 @@
 #include <string>
 #include <vector>
 
-#include "m_string.h"		/* To get my_stpcpy() */
-
-#include <ctype.h>
-
 #include "cpp11_lib_check.h"
+#include "m_string.h"		/* To get my_stpcpy() */
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql_com.h"
 #include "thr_mutex.h"
 

@@ -24,6 +24,7 @@
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "my_thread.h"

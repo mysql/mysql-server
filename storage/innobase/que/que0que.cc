@@ -31,6 +31,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0types.h"
 #include "que0que.h"
 #include "row0ins.h"

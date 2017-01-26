@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,16 @@
 
 #include <my_global.h>
 #include <mysql/plugin.h>
-#include "i_keyring_io.h"
-#include "logger.h"
-#include "keyring_memory.h"
+
 #include "buffer.h"
-#include "hash_to_buffer_serializer.h"
-#include "digest.h"
 #include "checker/checker_factory.h"
+#include "digest.h"
 #include "file_io.h"
+#include "hash_to_buffer_serializer.h"
+#include "i_keyring_io.h"
+#include "keyring_memory.h"
+#include "logger.h"
+#include "my_inttypes.h"
 
 namespace keyring {
 

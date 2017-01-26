@@ -19,6 +19,7 @@
 
 #include "fulltext.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 int mi_rename(const char *old_name, const char *new_name)
 {

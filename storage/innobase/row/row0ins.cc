@@ -42,6 +42,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0ins.h"

@@ -21,6 +21,7 @@
 
 #include "my_bitmap.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"                     // my_start_routine
 #include "mysql/psi/mysql_cond.h"          // mysql_cond_t

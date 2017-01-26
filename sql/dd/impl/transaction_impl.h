@@ -27,6 +27,7 @@
 #include "field.h"
 #include "handler.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "set_var.h"
 #include "sql_class.h"                // THD::killed_state
 #include "thr_lock.h"

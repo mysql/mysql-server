@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <deque>
+#include <list>
+#include <memory>
+#include <vector>
 
 #include "malloc_allocator.h"
 #include "memroot_allocator.h"
+#include "my_inttypes.h"
 #include "psi_memory_key.h"
 #include "stateless_allocator.h"
-
-#include <vector>
-#include <list>
-#include <deque>
-#include <algorithm>
-#include <memory>
 
 using std::vector;
 using std::list;

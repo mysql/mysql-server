@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,15 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include <memory>                    // std:unique_ptr
 #include <sys/types.h>
+#include <memory>                    // std:unique_ptr
 #include <string>
 
 #include "binary_log_types.h"        // enum_field_types
 #include "dd/types/column.h"         // dd::enum_column_types
 #include "handler.h"                 // legacy_db_type
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql_alter.h"               // Alter_info::enum_enable_or_disable
 #include "system_variables.h"

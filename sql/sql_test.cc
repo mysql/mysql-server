@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,15 @@
 
 /* Write some debug info */
 
+#include "sql_test.h"
 
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
+#include <functional>
 
+#include "events.h"
 #include "field.h"
 #include "hash.h"
 #include "item.h"
@@ -32,15 +36,18 @@
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_list.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"         // LOCK_status
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "opt_explain.h"    // join_type_str
 #include "opt_range.h"      // QUICK_SELECT_I
 #include "opt_trace.h"
 #include "opt_trace_context.h"
+#include "prealloced_array.h"
 #include "psi_memory_key.h"
 #include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
 #include "sql_bitmap.h"
@@ -52,15 +59,8 @@
 #include "sql_select.h"
 #include "sql_show.h" // calc_sum_of_all_status
 #include "sql_string.h"
-#include "sql_test.h"
 #include "system_variables.h"
 #include "table.h"
-#include "events.h"
-#include <algorithm>
-#include <functional>
-
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "prealloced_array.h"
 #include "table_cache.h" // table_cache_manager
 
 #if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)

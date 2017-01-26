@@ -26,6 +26,7 @@
 #include "composite_options_provider.h"
 #include "i_connection_factory.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "nullable.h"
 
 namespace Mysql{

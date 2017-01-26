@@ -27,6 +27,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
@@ -51,12 +52,12 @@ struct TABLE_SHARE;
 #include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
+#include "mem_root_array.h"
 #include "opt_costmodel.h" // Cost_model_table
 #include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
-#include "mem_root_array.h"
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;

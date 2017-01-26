@@ -30,6 +30,7 @@ Created 11/29/1995 Heikki Tuuri
 #include "mtr0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0page.h"
 #include "page0zip.h"
 #include "ut0byte.h"

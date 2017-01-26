@@ -34,12 +34,12 @@
 #include "derror.h"
 #include "field.h"
 #include "handler.h"
-#include "item_func.h"
 #include "item.h"
+#include "item_func.h"
 #include "item_timefunc.h"  // Item_func_now_local
 #include "load_data_events.h"
-#include "log_event.h"  // Delete_file_log_event,
 #include "log.h"
+#include "log_event.h"  // Delete_file_log_event,
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -47,15 +47,16 @@
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_global.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
-#include "mysqld.h"                             // mysql_real_data_home
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "my_sys.h"
-#include "my_thread_local.h"
+#include "mysql_com.h"
+#include "mysqld.h"                             // mysql_real_data_home
+#include "mysqld_error.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
 #include "query_result.h"

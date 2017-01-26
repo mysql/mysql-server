@@ -24,6 +24,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_thread.h"
 #include "pfs.h"

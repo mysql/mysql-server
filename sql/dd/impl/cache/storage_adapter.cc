@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,16 +38,17 @@
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/table.h"                   // Table
-#include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/table_stat.h"              // Table_stat
+#include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/view.h"                    // View
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "log.h"                              // sql_print_error
+#include "mutex_lock.h"                       // Mutex_lock
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
-#include "mutex_lock.h"                       // Mutex_lock
 #include "sql_class.h"                        // THD
 
 namespace dd {
