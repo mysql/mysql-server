@@ -80,6 +80,8 @@
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename
 #include "log.h"            // sql_print_error
+#include "sql_class.h"
+
 
 using std::min;
 using std::max;

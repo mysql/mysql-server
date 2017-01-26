@@ -18,6 +18,7 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
+#include <stdio.h>           // FILE, stderr
 #include <my_global.h>
 #include <my_alloc.h>        // MEM_ROOT
 #include <thr_lock.h>        // THR_LOCK
