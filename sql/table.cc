@@ -3086,7 +3086,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (prgflag & (READ_ALL+EXTRA_RECORD))
     records++;
 
-  if (!(record= (uchar*) alloc_root(root, share->rec_buff_length * records)))
+  record= pointer_cast<uchar *>
+    (alloc_root(root, share->rec_buff_length * records + share->null_bytes));
+  if (record == NULL)
     goto err;                                   /* purecov: inspected */
 
   if (records == 0)
@@ -3102,6 +3104,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
+  outparam->null_flags_saved= record + (records * share->rec_buff_length);
 
   if (!(field_ptr = (Field **) alloc_root(root,
                                           (uint) ((share->fields+1)*

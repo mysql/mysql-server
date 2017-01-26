@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -694,8 +694,8 @@ public:
   /** Cleanup this JOIN. Not a full cleanup. reusable? */
   void cleanup();
 
-  MY_ATTRIBUTE((warn_unused_result))
-  bool clear();
+  bool clear_fields(table_map *save_nullinfo);
+  void restore_fields(table_map save_nullinfo);
 
   /**
     Return whether the caller should send a row even if the join 

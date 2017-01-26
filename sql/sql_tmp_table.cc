@@ -1353,7 +1353,7 @@ update_hidden:
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
     share->rec_buff_length= alloc_length;
     if (!(table->record[0]= (uchar*)
-          alloc_root(&share->mem_root, alloc_length*3)))
+          alloc_root(&share->mem_root, alloc_length*3 + null_pack_length)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
     /*
@@ -1363,6 +1363,7 @@ update_hidden:
       TABLE instance.
     */
     share->default_values= table->record[1]+alloc_length;
+    table->null_flags_saved= share->default_values + alloc_length;
   }
   param->func_count= copy_func->size();
   DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated

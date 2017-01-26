@@ -1216,9 +1216,10 @@ public:
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;
-  ORDER		*group;
-  const char	*alias;            	  /* alias or table name */
-  uchar		*null_flags;
+  ORDER	        *group;
+  const char    *alias;           ///< alias or table name
+  uchar         *null_flags;      ///< Pointer to the null flags of record[0]
+  uchar         *null_flags_saved;///< Saved null_flags while null_row is true
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
   /*
     Bitmap of fields that one or more query condition refers to. Only
@@ -1657,6 +1658,20 @@ public:
 
   /// @return true if current row has been deleted (multi-table delete)
   bool has_deleted_row() const { return m_status & STATUS_DELETED; }
+
+  /// Save the NULL flags of the current row into the designated buffer
+  void save_null_flags()
+  {
+    if (s->null_bytes > 0)
+      memcpy(null_flags_saved, null_flags, s->null_bytes);
+  }
+
+  /// Restore the NULL flags of the current row from the designated buffer
+  void restore_null_flags()
+  {
+    if (s->null_bytes > 0)
+      memcpy(null_flags, null_flags_saved, s->null_bytes);
+  }
 
   /**
     Initialize the optimizer cost model.

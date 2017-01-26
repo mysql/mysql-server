@@ -1890,8 +1890,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref().key_parts=keyparts;
   j->ref().key_length=length;
   j->ref().key=(int) key;
-  if (!(j->ref().key_buff= (uchar*) thd->mem_calloc(ALIGN_SIZE(length)*2 +
-                                                    table->s->null_bytes)) ||
+  if (!(j->ref().key_buff= (uchar*) thd->mem_calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref().key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
                                                    (keyparts)))) ||
       !(j->ref().items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
@@ -1900,7 +1899,6 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     DBUG_RETURN(TRUE);
   }
   j->ref().key_buff2=j->ref().key_buff+ALIGN_SIZE(length);
-  j->ref().saved_null_flags= j->ref().key_buff2+ALIGN_SIZE(length);
   j->ref().key_err=1;
   j->ref().null_rejecting= 0;
   j->ref().use_count= 0;
@@ -3951,38 +3949,6 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   }
   sum_funcs_end[0]= *func;			// Point to last function
   return 0;
-}
-
-
-/**
-  clear results if there are not rows found for group
-  (end_send_group/end_write_group)
-  @retval
-    FALSE if OK
-  @retval
-    TRUE on error  
-*/
-
-MY_ATTRIBUTE((warn_unused_result))
-bool JOIN::clear()
-{
-  /* 
-    must clear only the non-const tables, as const tables
-    are not re-calculated.
-  */
-  for (uint tableno= const_tables; tableno < primary_tables; tableno++)
-    qep_tab[tableno].table()->set_null_row();  // All fields are NULL
-
-  if (copy_fields(&tmp_table_param, thd))
-    return true;
-
-  if (sum_funcs)
-  {
-    Item_sum *func, **func_ptr= sum_funcs;
-    while ((func= *(func_ptr++)))
-      func->clear();
-  }
-  return false;
 }
 
 
