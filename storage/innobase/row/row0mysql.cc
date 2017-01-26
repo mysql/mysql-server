@@ -3024,8 +3024,6 @@ row_create_table_for_mysql(
 		goto error_handling;
 	}
 
-	heap = mem_heap_create(512);
-
 	if (err == DB_SUCCESS) {
 		heap = mem_heap_create(512);
 

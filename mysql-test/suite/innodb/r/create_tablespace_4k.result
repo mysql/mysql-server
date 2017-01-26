@@ -45,11 +45,11 @@ Level	Code	Message
 Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because INNODB_PAGE_SIZE=4096.
 Error	1528	Failed to create TABLESPACE s_64k
 Error	1031	Table storage engine for 's_64k' doesn't have this option
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -255,37 +255,37 @@ CREATE TABLE t_zip2k_in_2k_from_1k TABLESPACE s_2k KEY_BLOCK_SIZE=2 AS (SELECT *
 CREATE TABLE t_red_in_4k_from_1k TABLESPACE s_4k ROW_FORMAT=redundant AS (SELECT * FROM t_zip1k_in_1k);
 CREATE TABLE t_com_in_4k_from_1k TABLESPACE s_4k ROW_FORMAT=compact AS (SELECT * FROM t_zip1k_in_1k);
 CREATE TABLE t_dyn_in_4k_from_1k TABLESPACE s_4k ROW_FORMAT=dynamic AS (SELECT * FROM t_zip1k_in_1k);
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_com_in_4k	s_4k	129	5	Compact	0	General
-test/t_com_in_4k_as	s_4k	129	5	Compact	0	General
-test/t_com_in_4k_from_1k	s_4k	129	5	Compact	0	General
-test/t_com_in_4k_like	s_4k	129	5	Compact	0	General
-test/t_dyn_in_4k	s_4k	161	5	Dynamic	0	General
-test/t_dyn_in_4k_as	s_4k	161	5	Dynamic	0	General
-test/t_dyn_in_4k_from_1k	s_4k	161	5	Dynamic	0	General
-test/t_dyn_in_4k_like	s_4k	161	5	Dynamic	0	General
-test/t_red_in_4k	s_4k	128	5	Redundant	0	General
-test/t_red_in_4k_as	s_4k	128	5	Redundant	0	General
-test/t_red_in_4k_from_1k	s_4k	128	5	Redundant	0	General
-test/t_red_in_4k_like	s_4k	128	5	Redundant	0	General
-test/t_zip1k_in_1k	s_1k	163	5	Compressed	1024	General
-test/t_zip1k_in_1k_as	s_1k	163	5	Compressed	1024	General
-test/t_zip1k_in_1k_like	s_1k	163	5	Compressed	1024	General
-test/t_zip2k_in_2k	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_in_2k_as	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_in_2k_from_1k	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_in_2k_like	s_2k	165	5	Compressed	2048	General
+test/t_com_in_4k	s_4k	0	5	Compact	0	General
+test/t_com_in_4k_as	s_4k	0	5	Compact	0	General
+test/t_com_in_4k_from_1k	s_4k	0	5	Compact	0	General
+test/t_com_in_4k_like	s_4k	0	5	Compact	0	General
+test/t_dyn_in_4k	s_4k	0	5	Dynamic	0	General
+test/t_dyn_in_4k_as	s_4k	0	5	Dynamic	0	General
+test/t_dyn_in_4k_from_1k	s_4k	0	5	Dynamic	0	General
+test/t_dyn_in_4k_like	s_4k	0	5	Dynamic	0	General
+test/t_red_in_4k	s_4k	0	5	Redundant	0	General
+test/t_red_in_4k_as	s_4k	0	5	Redundant	0	General
+test/t_red_in_4k_from_1k	s_4k	0	5	Redundant	0	General
+test/t_red_in_4k_like	s_4k	0	5	Redundant	0	General
+test/t_zip1k_in_1k	s_1k	0	5	Compressed	0	General
+test/t_zip1k_in_1k_as	s_1k	0	5	Compressed	0	General
+test/t_zip1k_in_1k_like	s_1k	0	5	Compressed	0	General
+test/t_zip2k_in_2k	s_2k	0	5	Compressed	0	General
+test/t_zip2k_in_2k_as	s_2k	0	5	Compressed	0	General
+test/t_zip2k_in_2k_from_1k	s_2k	0	5	Compressed	0	General
+test/t_zip2k_in_2k_like	s_2k	0	5	Compressed	0	General
 # Directory of MYSQLD_DATADIR/
 mysql.ibd
 s_1k.ibd
@@ -296,37 +296,37 @@ s_4k.ibd
 # Restart the server and make sure that everything is OK.
 #
 # restart
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_com_in_4k	s_4k	129	5	Compact	0	General
-test/t_com_in_4k_as	s_4k	129	5	Compact	0	General
-test/t_com_in_4k_from_1k	s_4k	129	5	Compact	0	General
-test/t_com_in_4k_like	s_4k	129	5	Compact	0	General
-test/t_dyn_in_4k	s_4k	161	5	Dynamic	0	General
-test/t_dyn_in_4k_as	s_4k	161	5	Dynamic	0	General
-test/t_dyn_in_4k_from_1k	s_4k	161	5	Dynamic	0	General
-test/t_dyn_in_4k_like	s_4k	161	5	Dynamic	0	General
-test/t_red_in_4k	s_4k	128	5	Redundant	0	General
-test/t_red_in_4k_as	s_4k	128	5	Redundant	0	General
-test/t_red_in_4k_from_1k	s_4k	128	5	Redundant	0	General
-test/t_red_in_4k_like	s_4k	128	5	Redundant	0	General
-test/t_zip1k_in_1k	s_1k	163	5	Compressed	1024	General
-test/t_zip1k_in_1k_as	s_1k	163	5	Compressed	1024	General
-test/t_zip1k_in_1k_like	s_1k	163	5	Compressed	1024	General
-test/t_zip2k_in_2k	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_in_2k_as	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_in_2k_from_1k	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_in_2k_like	s_2k	165	5	Compressed	2048	General
+test/t_com_in_4k	s_4k	0	5	Compact	0	General
+test/t_com_in_4k_as	s_4k	0	5	Compact	0	General
+test/t_com_in_4k_from_1k	s_4k	0	5	Compact	0	General
+test/t_com_in_4k_like	s_4k	0	5	Compact	0	General
+test/t_dyn_in_4k	s_4k	0	5	Dynamic	0	General
+test/t_dyn_in_4k_as	s_4k	0	5	Dynamic	0	General
+test/t_dyn_in_4k_from_1k	s_4k	0	5	Dynamic	0	General
+test/t_dyn_in_4k_like	s_4k	0	5	Dynamic	0	General
+test/t_red_in_4k	s_4k	0	5	Redundant	0	General
+test/t_red_in_4k_as	s_4k	0	5	Redundant	0	General
+test/t_red_in_4k_from_1k	s_4k	0	5	Redundant	0	General
+test/t_red_in_4k_like	s_4k	0	5	Redundant	0	General
+test/t_zip1k_in_1k	s_1k	0	5	Compressed	0	General
+test/t_zip1k_in_1k_as	s_1k	0	5	Compressed	0	General
+test/t_zip1k_in_1k_like	s_1k	0	5	Compressed	0	General
+test/t_zip2k_in_2k	s_2k	0	5	Compressed	0	General
+test/t_zip2k_in_2k_as	s_2k	0	5	Compressed	0	General
+test/t_zip2k_in_2k_from_1k	s_2k	0	5	Compressed	0	General
+test/t_zip2k_in_2k_like	s_2k	0	5	Compressed	0	General
 # Directory of MYSQLD_DATADIR/
 mysql.ibd
 s_1k.ibd
@@ -382,36 +382,28 @@ CREATE TABLE t_zip4k_as_file_per_table (a int, b text) TABLESPACE=innodb_file_pe
 CREATE TABLE t_zip1k_as_remote (a int, b text) KEY_BLOCK_SIZE=1 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 CREATE TABLE t_zip2k_as_remote (a int, b text) KEY_BLOCK_SIZE=2 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 CREATE TABLE t_zip4k_as_remote (a int, b text) KEY_BLOCK_SIZE=4 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
-test/t_zip1k_as_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
-test/t_zip2k_as_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
-test/t_zip4k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-test/t_zip1k_as_remote	Single	DEFAULT	1024	Compressed	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
-test/t_zip2k_as_remote	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
-test/t_zip4k_as_remote	Single	DEFAULT	DEFAULT	Compressed	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
-test/t_zip1k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
-test/t_zip2k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
-test/t_zip4k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-test/t_zip1k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
-test/t_zip2k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
-test/t_zip4k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_zip1k_as_file_per_table	test/t_zip1k_as_file_per_table	35	5	Compressed	1024	Single
-test/t_zip1k_as_remote	test/t_zip1k_as_remote	99	5	Compressed	1024	Single
-test/t_zip2k_as_file_per_table	test/t_zip2k_as_file_per_table	37	5	Compressed	2048	Single
-test/t_zip2k_as_remote	test/t_zip2k_as_remote	101	5	Compressed	2048	Single
-test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Compressed	4096	Single
-test/t_zip4k_as_remote	test/t_zip4k_as_remote	103	5	Compressed	4096	Single
+test/t_zip1k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip1k_as_remote	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip2k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip2k_as_remote	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip4k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip4k_as_remote	innodb_file_per_table.##	0	5	Compressed	0	Single
 # MYSQLD_DATADIR/
 mysql.ibd
 s_1k.ibd
@@ -507,25 +499,23 @@ ALTER TABLE `t_zip1k_as_file_per_table` TABLESPACE=`s_1k`, RENAME TO `t_zip1k_in
 ALTER TABLE `t_zip2k_as_file_per_table` TABLESPACE=`s_2k`, RENAME TO `t_zip2k_in_s_2k`;
 ALTER TABLE `t_zip1k_as_remote` TABLESPACE=`s_1k`, RENAME TO `t_zip1k_remote_in_s_1k`;
 ALTER TABLE `t_zip2k_as_remote` TABLESPACE=`s_2k`, RENAME TO `t_zip2k_remote_in_s_2k`;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
-test/t_zip4k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
-test/t_zip4k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_zip1k_in_s_1k	s_1k	163	5	Compressed	1024	General
-test/t_zip1k_remote_in_s_1k	s_1k	163	5	Compressed	1024	General
-test/t_zip2k_in_s_2k	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_remote_in_s_2k	s_2k	165	5	Compressed	2048	General
-test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Compressed	4096	Single
+test/t_zip1k_in_s_1k	s_1k	0	5	Compressed	0	General
+test/t_zip1k_remote_in_s_1k	s_1k	0	5	Compressed	0	General
+test/t_zip2k_in_s_2k	s_2k	0	5	Compressed	0	General
+test/t_zip2k_remote_in_s_2k	s_2k	0	5	Compressed	0	General
+test/t_zip4k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
 # MYSQLD_DATADIR/
 mysql.ibd
 s_1k.ibd
@@ -579,29 +569,25 @@ Error	1478	Table storage engine 'InnoDB' does not support the create option 'TAB
 #
 ALTER TABLE `t_zip1k_in_s_1k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip1k_to_file_per_table`;
 ALTER TABLE `t_zip2k_in_s_2k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip2k_to_file_per_table`;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
-test/t_zip4k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
+innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
-test/t_zip4k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_zip1k_remote_in_s_1k	s_1k	163	5	Compressed	1024	General
-test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Compressed	1024	Single
-test/t_zip2k_remote_in_s_2k	s_2k	165	5	Compressed	2048	General
-test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Compressed	2048	Single
-test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Compressed	4096	Single
+test/t_zip1k_remote_in_s_1k	s_1k	0	5	Compressed	0	General
+test/t_zip1k_to_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip2k_remote_in_s_2k	s_2k	0	5	Compressed	0	General
+test/t_zip2k_to_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip4k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
 CHECK TABLE `t_zip1k_to_file_per_table`;
 Table	Op	Msg_type	Msg_text
 test.t_zip1k_to_file_per_table	check	status	OK
@@ -624,24 +610,20 @@ Warning	1618	<DATA DIRECTORY> option ignored
 ALTER TABLE `t_zip2k_remote_in_s_2k` TABLESPACE=`innodb_file_per_table`, DATA DIRECTORY='$MYSQL_TMP_DIR', RENAME TO `t_zip2k_to_file_per_table`;
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_4k.ibd
-test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+s_1k	GENERAL	0	0	Dynamic	s_1k.ibd
+s_2k	GENERAL	0	0	Dynamic	s_2k.ibd
+s_4k	GENERAL	0	0	Dynamic	s_4k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
-test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Compressed	1024	Single
-test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Compressed	2048	Single
+test/t_zip1k_to_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
+test/t_zip2k_to_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
 DROP TABLE `t_zip1k_to_file_per_table`;
 DROP TABLE `t_zip2k_to_file_per_table`;
 #

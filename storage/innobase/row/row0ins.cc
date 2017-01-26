@@ -1589,7 +1589,7 @@ row_ins_check_foreign_constraint(
 
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
-	if (table->id <= 70) {
+	if (table->id < 70) {
 		DBUG_RETURN(DB_SUCCESS);
 	}
 
@@ -1929,7 +1929,7 @@ row_ins_check_foreign_constraints(
 	ibool		got_s_lock	= FALSE;
 
 	/* Temporarily skip the FK check for DD tables */
-	if (table->id <= 70) {
+	if (table->id < 70) {
 		return(DB_SUCCESS);
 	}
 
