@@ -9686,8 +9686,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       it with a new one.
     */
     if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
-        dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
-                                          alter_ctx->new_alias,
+        dd::add_foreign_keys_and_triggers(thd, alter_ctx->db,
+                                          alter_ctx->table_name,
                                           alter_ctx->fk_info,
                                           alter_ctx->fk_count,
                                           &alter_ctx->trg_info,
