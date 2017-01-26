@@ -695,7 +695,7 @@ public:
      Any interior character could be replaced by a 6 character
      escape sequence. Plus we will add 2 framing quote characters.
     */
-    uint32 max_char_length= (6 * args[0]->max_length) + 2;
+    uint32 max_char_length= (6 * args[0]->max_char_length()) + 2;
     set_data_type_string(max_char_length, &my_charset_utf8mb4_bin);
     return false;
   };
@@ -723,7 +723,7 @@ public:
   bool resolve_type(THD *) override
   {
     maybe_null= true;
-    set_data_type_string(args[0]->max_length, &my_charset_utf8mb4_bin);
+    set_data_type_string(args[0]->max_char_length(), &my_charset_utf8mb4_bin);
     return false;
   };
 
