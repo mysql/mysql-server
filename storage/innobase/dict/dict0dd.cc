@@ -1248,7 +1248,6 @@ dd_fill_one_dict_index(
 			is_asc = false;
 		}
 			
-#if 1//WL#7743 FIXME: do not set HA_PART_KEY_SEG for SPATIAL indexes
 		if (key.flags & HA_SPATIAL) {
 			prefix_len = 0;
 		} else if (key.flags & HA_FULLTEXT) {

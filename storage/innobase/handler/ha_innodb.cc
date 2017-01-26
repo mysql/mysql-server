@@ -7048,7 +7048,7 @@ ha_innobase::open(
 
 				if (!(ib_table = dd_open_table(
 					client, table, norm_name,
-					nullptr, ib_table, table_def, false,
+					ib_table, table_def, false,
 					thd))) {
 					set_my_errno(ENOENT);
 					DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
