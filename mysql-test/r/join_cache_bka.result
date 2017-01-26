@@ -47,7 +47,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -62,6 +61,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -216,7 +216,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -239,7 +239,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -254,6 +253,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -408,7 +408,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -462,7 +462,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -477,6 +476,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -631,7 +631,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -650,7 +650,6 @@ SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 Name
-?iauliai
 Beirut
 Bengasi
 Daugavpils
@@ -665,6 +664,7 @@ Tripoli
 Tripoli
 Vientiane
 Vilnius
+Šiauliai
 EXPLAIN
 SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)
 FROM country LEFT JOIN countrylanguage ON
@@ -701,7 +701,7 @@ Colombia	NULL
 Congo, The Democratic Republic of the	NULL
 Cuba	NULL
 Czech Republic	NULL
-Côte d?Ivoire	NULL
+Côte d’Ivoire	NULL
 Ecuador	NULL
 Egypt	NULL
 Ethiopia	NULL
@@ -777,7 +777,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -792,6 +791,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -946,7 +946,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -965,7 +965,6 @@ SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 Name
-?iauliai
 Beirut
 Bengasi
 Daugavpils
@@ -980,6 +979,7 @@ Tripoli
 Tripoli
 Vientiane
 Vilnius
+Šiauliai
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
@@ -1097,7 +1097,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -1112,12 +1111,12 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 ALTER TABLE country MODIFY Name varchar(300) NOT NULL default '';
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -1132,6 +1131,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 ALTER TABLE country ADD COLUMN PopulationBar text;
 UPDATE country 
 SET PopulationBar=REPEAT('x', CAST(Population/100000 AS unsigned int));
@@ -1139,7 +1139,6 @@ SELECT city.Name, country.Name, country.PopulationBar FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name	PopulationBar
-?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
@@ -1154,12 +1153,12 @@ Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Šiauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 set join_buffer_size=256;
 SELECT city.Name, country.Name, country.PopulationBar FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name	PopulationBar
-?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
@@ -1174,6 +1173,7 @@ Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Šiauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 set join_buffer_size=default;
 DROP DATABASE world;
 use test;
