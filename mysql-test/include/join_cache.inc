@@ -5,7 +5,7 @@ DROP DATABASE IF EXISTS world;
 
 set names utf8;
 
-CREATE DATABASE world;
+CREATE DATABASE world character set utf8mb4;
 
 use world;
 
@@ -88,7 +88,7 @@ show variables like 'join_buffer_size';
 DROP DATABASE world; 
 
 
-CREATE DATABASE world;
+CREATE DATABASE world character set utf8mb4;
 
 use world;
 
@@ -230,7 +230,7 @@ SELECT city.Name, country.Name FROM city,country
   WHERE city.country=country.Code AND 
         country.Name LIKE 'L%' AND city.Population > 100000;
 
-ALTER TABLE country MODIFY Name varchar(300) NOT NULL default '';
+ALTER TABLE country MODIFY Name varchar(250) NOT NULL default '';
 
 --sorted_result
 SELECT city.Name, country.Name FROM city,country
