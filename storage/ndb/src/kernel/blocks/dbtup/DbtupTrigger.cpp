@@ -2338,7 +2338,7 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
       ndbassert(m_suma_trigger_buffer.m_pageId == RNIL);
       void * vptr = m_ctx.m_mm.alloc_page(RT_DBTUP_PAGE,
                                           &m_suma_trigger_buffer.m_pageId,
-                                          Ndbd_mem_manager::NDB_ZONE_ANY);
+                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
       ptr = reinterpret_cast<Uint32*>(vptr);
       free = GLOBAL_PAGE_SIZE_WORDS - tot;
     }

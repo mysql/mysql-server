@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ seize_first:
   
   RWPage* page;
   Uint32 page_no = RNIL;
-  if ((page = (RWPage*)m_ctx.alloc_page(m_record_info.m_type_id, &page_no)))
+  if ((page = (RWPage*)m_ctx.alloc_page19(m_record_info.m_type_id, &page_no)))
   {
     pos = 0;
     m_current_page_no = page_no;

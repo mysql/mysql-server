@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -345,7 +345,7 @@ struct MY_ALIGNED(NDB_CL) thr_safe_pool
       Uint32 dummy;
       ret = reinterpret_cast<T*>
         (mm->alloc_page(rg, &dummy,
-                        Ndbd_mem_manager::NDB_ZONE_ANY));
+                        Ndbd_mem_manager::NDB_ZONE_LE_32));
       // ToDo: How to deal with failed allocation?!?
       // I think in this case we need to start grabbing buffers kept for signal
       // trace.
@@ -363,7 +363,7 @@ struct MY_ALIGNED(NDB_CL) thr_safe_pool
       Uint32 dummy;
       T* ret = reinterpret_cast<T*>
         (mm->alloc_page(rg, &dummy,
-                        Ndbd_mem_manager::NDB_ZONE_ANY));
+                        Ndbd_mem_manager::NDB_ZONE_LE_32));
 
       if (ret == 0)
       {

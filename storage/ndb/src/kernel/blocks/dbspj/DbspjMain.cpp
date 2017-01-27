@@ -3583,7 +3583,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
                                             &ptr.i,
-                                            Ndbd_mem_manager::NDB_ZONE_ANY);
+                                            Ndbd_mem_manager::NDB_ZONE_LE_32);
     if (ptr.p == 0)
     {
       jam();

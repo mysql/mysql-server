@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   {
     page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, 
                                       &m_first_free,
-                                      Ndbd_mem_manager::NDB_ZONE_ANY);
+                                      Ndbd_mem_manager::NDB_ZONE_LE_32);
     if(page == 0)
       return 0;
     page->m_words_used= 0;

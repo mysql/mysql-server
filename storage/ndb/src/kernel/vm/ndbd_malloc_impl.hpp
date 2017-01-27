@@ -134,8 +134,10 @@ public:
   
   enum AllocZone
   {
-    NDB_ZONE_LO  = 0, // Only allocate with page_id < (1 << 13)
-    NDB_ZONE_ANY = 1  // Allocate with any page_id
+    NDB_ZONE_LE_19 = 0, // Only allocate with page_id < (1 << 19)
+    NDB_ZONE_LE_27 = 1,
+    NDB_ZONE_LE_30 = 2,
+    NDB_ZONE_LE_32 = 3,
   };
 
   void* alloc_page(Uint32 type, Uint32* i, enum AllocZone);
@@ -161,7 +163,12 @@ private:
   static Free_page_data* get_free_page_data(Alloc_page*, Uint32 idx);
   Vector<Uint32> m_used_bitmap_pages;
   
-  enum { ZONE_LO = 0, ZONE_HI = 1, ZONE_COUNT = 2 };
+  enum { ZONE_19 = 0, ZONE_27 = 1, ZONE_30 = 2, ZONE_32 = 3, ZONE_COUNT = 4 };
+  enum {
+    ZONE_19_BOUND = (1 << 19),
+    ZONE_27_BOUND = (1 << 27),
+    ZONE_30_BOUND = (1 << 30)
+  };
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
   Alloc_page * m_base_page;
@@ -175,6 +182,7 @@ private:
   void clear_and_set(Uint32 first, Uint32 last);
   Uint32 check(Uint32 first, Uint32 last);
 
+  static Uint32 get_page_zone(Uint32 page);
   void alloc(AllocZone, Uint32* ret, Uint32 *pages, Uint32 min_requested);
   void alloc_impl(Uint32 zone, Uint32* ret, Uint32 *pages, Uint32 min);
   void release(Uint32 start, Uint32 cnt);
@@ -521,6 +529,27 @@ Ndbd_mem_manager::get_free_page_data(Alloc_page* ptr, Uint32 idx)
   
   return (Free_page_data*)
     (ptr->m_data + ((idx & ((BITMAP_WORDS >> FPD_2LOG) - 1)) << FPD_2LOG));
+}
+
+inline
+Uint32 Ndbd_mem_manager::get_page_zone(Uint32 page)
+{
+  if (page < ZONE_19_BOUND)
+  {
+    return ZONE_19;
+  }
+  else if (page < ZONE_27_BOUND)
+  {
+    return ZONE_27;
+  }
+  else if (page < ZONE_30_BOUND)
+  {
+    return ZONE_30;
+  }
+  else
+  {
+    return ZONE_32;
+  }
 }
 
 inline

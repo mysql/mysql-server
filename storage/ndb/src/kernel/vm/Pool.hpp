@@ -87,7 +87,10 @@ struct Pool_context
    *
    * Will handle resource limit 
    */
-  void* alloc_page(Uint32 type_id, Uint32 *i);
+  void* alloc_page19(Uint32 type_id, Uint32 *i);
+  void* alloc_page27(Uint32 type_id, Uint32 *i);
+  void* alloc_page30(Uint32 type_id, Uint32 *i);
+  void* alloc_page32(Uint32 type_id, Uint32 *i);
   
   /**
    * Release pages
