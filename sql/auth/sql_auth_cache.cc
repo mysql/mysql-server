@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2687,7 +2687,8 @@ void acl_update_user(const char *user, const char *host,
                               auth.str, auth.length);
             acl_user->auth_string.length= auth.length;
             set_user_salt(acl_user);
-            acl_user->password_last_changed= password_change_time;
+            if (password_change_time.time_type != MYSQL_TIMESTAMP_ERROR)
+              acl_user->password_last_changed= password_change_time;
           }
         }
         acl_user->access=privileges;
