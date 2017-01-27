@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -648,7 +648,7 @@ DynArr256Pool::seize()
   if (ff == RNIL)
   { 
     Uint32 page_no;
-    if (likely((page = (DA256Page*)m_ctx.alloc_page(type_id, &page_no)) != 0))
+    if (likely((page = (DA256Page*)m_ctx.alloc_page27(type_id, &page_no)) != 0))
     {
       initpage(page, page_no, type_id);
       m_pg_count++;
