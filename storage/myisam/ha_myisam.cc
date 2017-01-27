@@ -31,6 +31,7 @@
 #include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisamdef.h"

@@ -28,6 +28,7 @@
 #include "log.h"               // sql_print_error
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"            // server_uuid

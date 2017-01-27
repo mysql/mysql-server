@@ -17,6 +17,7 @@
 
 #include "my_config.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "mysqld.h"
 #include "sql_class.h"
 #include "tc_log.h"

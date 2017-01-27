@@ -21,6 +21,7 @@
 
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"              // IO_CACHE
 #include "rpl_info_handler.h"    // Rpl_info_handler
 

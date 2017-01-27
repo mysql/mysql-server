@@ -66,6 +66,7 @@
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

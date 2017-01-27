@@ -25,6 +25,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_readline.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"

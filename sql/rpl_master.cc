@@ -36,6 +36,7 @@
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"

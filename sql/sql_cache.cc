@@ -347,6 +347,7 @@ TODO list:
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

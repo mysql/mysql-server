@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <server_component.h>
 
 #include "my_inttypes.h"
+#include "my_io.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 

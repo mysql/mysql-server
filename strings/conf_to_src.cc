@@ -29,6 +29,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_xml.h"
 

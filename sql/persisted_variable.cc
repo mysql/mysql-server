@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "my_dbug.h"
 #include "my_default.h"                 // check_file_permissions
 #include "my_getopt.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"

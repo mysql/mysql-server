@@ -21,6 +21,7 @@
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 
 static CHARSET_INFO *ft_stopword_cs= NULL;

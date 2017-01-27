@@ -18,6 +18,8 @@
 #include <fcntl.h>
 #include <mysql/psi/mysql_file.h>
 
+#include "my_io.h"
+
 namespace keyring
 {
   my_bool Buffered_file_io_10::flush_to_file(PSI_file_key *file_key,

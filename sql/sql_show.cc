@@ -51,6 +51,9 @@
 #include "derror.h"                         // ER_THD
 #include "enum_query_type.h"
 #include "error_handler.h"                  // Internal_error_handler
+#include "event_data_objects.h"             // Event_timed
+#include "event_parse_data.h"               // Event_parse_data
+#include "events.h"                         // Events
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "hash.h"
@@ -65,8 +68,8 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "mem_root_array.h"
-#include "mutex_lock.h"                     // Mutex_lock
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
+#include "mutex_lock.h"                     // Mutex_lock
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_command.h"
@@ -75,6 +78,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_dir.h"                         // MY_DIR
+#include "my_io.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -93,6 +97,8 @@
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "partition_element.h"
+#include "partition_info.h"                 // partition_info
+#include "partitioning/partition_handler.h" // Partition_handler
 #include "protocol.h"                       // Protocol
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -135,23 +141,16 @@
 #include "trigger_def.h"
 #include "tztime.h"                         // Time_zone
 
-#include "event_data_objects.h"             // Event_timed
-#include "event_parse_data.h"               // Event_parse_data
-#include "events.h"                         // Events
-
-#include "partition_info.h"                 // partition_info
-#include "partitioning/partition_handler.h" // Partition_handler
-
 namespace dd {
 class Abstract_table;
 }  // namespace dd
-#include "srv_session.h"
-
 #include <algorithm>
 #include <functional>
 #include <memory>
 #include <new>
 #include <string>
+
+#include "srv_session.h"
 
 using std::max;
 using std::min;

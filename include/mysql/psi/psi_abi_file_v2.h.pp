@@ -1,5 +1,15 @@
 #include "mysql/psi/psi_file.h"
 #include "my_global.h"
+#include "my_io.h"
+#include "my_config.h"
+static inline int is_directory_separator(char c)
+{
+  return c == '/';
+}
+typedef int File;
+typedef mode_t MY_MODE;
+typedef socklen_t socket_len_t;
+typedef int my_socket;
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -20,7 +30,7 @@ struct PSI_file;
 typedef struct PSI_file PSI_file;
 struct PSI_file_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_file_bootstrap PSI_file_bootstrap;
 typedef struct PSI_placeholder PSI_file_service_t;

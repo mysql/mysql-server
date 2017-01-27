@@ -20,6 +20,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "myisamdef.h"
 
 	/* Fetch a key-page in memory */

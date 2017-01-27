@@ -21,6 +21,7 @@
 #include <new>
 
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs/socket_events.h"
 #include "ngs_common/connection_vio.h"

@@ -26,6 +26,7 @@
 #include "my_compiler.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"              /* IWYU pragma: keep */
 
 #ifdef HAVE_ALLOCA_H

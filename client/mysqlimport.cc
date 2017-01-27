@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_systime.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"

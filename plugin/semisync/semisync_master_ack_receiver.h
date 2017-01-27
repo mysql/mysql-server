@@ -20,6 +20,7 @@
 
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_thread.h"
 #include "sql_class.h"
 

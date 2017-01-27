@@ -23,6 +23,7 @@
 #include <fcntl.h>
 
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "ngs/memory.h"
 
 #ifdef HAVE_SYS_UN_H

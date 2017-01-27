@@ -22,7 +22,9 @@
 #include <my_thread.h>
 #include <mysql/plugin.h>
 #include <replication.h>
+
 #include "log.h"                                /* sql_print_information */
+#include "my_io.h"
 
 typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct st_mysql_sys_var SYS_VAR;

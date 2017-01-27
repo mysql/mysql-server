@@ -37,6 +37,7 @@
 #include "check/mysqlcheck.h"
 #include "my_default.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "mysqld_error.h"
 #include "sql_string.h"
 

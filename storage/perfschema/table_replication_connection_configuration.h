@@ -22,14 +22,14 @@
   Table replication_connection_configuration (declarations).
 */
 
+#include "my_io.h"
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "table_helper.h"
-
-#include "rpl_mi.h"
-#include "mysql_com.h"
-#include "rpl_msr.h"
 #include "rpl_info.h" /* CHANNEL_NAME_LENGTH*/
+#include "rpl_mi.h"
+#include "rpl_msr.h"
+#include "table_helper.h"
 
 class Master_info;
 

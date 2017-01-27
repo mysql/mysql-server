@@ -36,6 +36,7 @@
 #include "my_default_priv.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"

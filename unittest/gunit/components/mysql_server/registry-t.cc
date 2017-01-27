@@ -28,6 +28,7 @@ typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <server_component.h>
 
 #include "my_compiler.h"
+#include "my_io.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 

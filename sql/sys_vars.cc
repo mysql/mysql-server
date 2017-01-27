@@ -32,14 +32,14 @@
 
 #include "sys_vars.h"
 
+#include "my_config.h"
+
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <limits>
-
-#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -75,6 +75,7 @@
 #include "my_decimal.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
+#include "my_io.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
 #include "my_thread_local.h"

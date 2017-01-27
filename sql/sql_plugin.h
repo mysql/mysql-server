@@ -22,6 +22,7 @@
 
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sqlcommand.h"          // enum_sql_command
 #include "mysql/mysql_lex_string.h" // LEX_CSTRING
 #include "mysql/psi/mysql_mutex.h"

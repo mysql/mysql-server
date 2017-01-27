@@ -24,6 +24,7 @@
 #include "my_decimal.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "mysql_com.h"
 #include "protocol.h"            // Protocol
 #include "sql_string.h"

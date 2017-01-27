@@ -43,6 +43,7 @@
 #include "my_double2ulonglong.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
 #include "mysql/psi/psi_table.h"

@@ -33,6 +33,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql_class.h"                        // THD

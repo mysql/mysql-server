@@ -29,6 +29,7 @@ InnoDB performance_schema tables interface to MySQL.
 #include "lock0iter.h" // lock_queue_iterator_t
 #include "lock0lock.h" // lock_mutex_enter
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "sql_table.h" // parse_filename
 #include "table.h" // system_charset_info
 #include "trx0i_s.h" // trx_i_s_create_lock_id

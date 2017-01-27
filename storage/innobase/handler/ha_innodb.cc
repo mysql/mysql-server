@@ -97,6 +97,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "os0file.h"
 #include "os0thread.h"

@@ -18,6 +18,7 @@
 #include <my_sys.h>
 
 #include "my_inttypes.h"
+#include "my_io.h"
 
 namespace mysys_my_load_path {
 

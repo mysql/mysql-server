@@ -24,6 +24,7 @@
 #include "binary_log_types.h" // enum_field_types
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"

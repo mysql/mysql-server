@@ -17,7 +17,6 @@
  * 02110-1301  USA
  */
 
-
 #include <errno.h>
 
 // "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
@@ -25,6 +24,7 @@
 // in Solaris headers)
 #include "ngs_common/protocol_protobuf.h"
 
+#include "my_io.h"
 #include "ngs/log.h"
 #include "ngs/protocol/buffer.h"
 #include "ngs/protocol/output_buffer.h"

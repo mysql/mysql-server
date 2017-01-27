@@ -34,6 +34,7 @@ class THD;
 
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_thread_os_id.h"
 #ifdef _WIN32
 #include <winsock2.h>

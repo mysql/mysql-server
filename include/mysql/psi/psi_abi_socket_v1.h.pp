@@ -1,5 +1,15 @@
 #include "mysql/psi/psi_socket.h"
 #include "my_global.h"
+#include "my_io.h"
+#include "my_config.h"
+static inline int is_directory_separator(char c)
+{
+  return c == '/';
+}
+typedef int File;
+typedef mode_t MY_MODE;
+typedef socklen_t socket_len_t;
+typedef int my_socket;
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"

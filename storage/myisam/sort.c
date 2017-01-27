@@ -22,6 +22,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else

@@ -51,6 +51,7 @@
 #include "my_default.h"
 #include "my_default_priv.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"

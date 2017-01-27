@@ -41,6 +41,7 @@
 #include "my_dir.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "myisam.h"                          // TT_USEFRM
 #include "mysql/psi/mysql_file.h"

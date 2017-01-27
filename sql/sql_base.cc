@@ -21,12 +21,17 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <algorithm>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "check_stack.h"
+#include "dd/dd_table.h"              // dd::table_exists
+#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/abstract_table.h"
+#include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -43,11 +48,13 @@
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "mf_wcomp.h"                 // wild_one, wild_many
+#include "mutex_lock.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -55,6 +62,7 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
@@ -70,6 +78,7 @@
 #include "query_options.h"
 #include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_rli.h"                  //Relay_log_information
 #include "session_tracker.h"
 #include "sp.h"                       // Sroutine_hash_entry
 #include "sp_cache.h"                 // sp_cache_version
@@ -104,16 +113,6 @@
 #include "transaction.h"              // trans_rollback_stmt
 #include "transaction_info.h"
 #include "xa.h"
-#include "rpl_rli.h"                  //Relay_log_information
-
-#include <algorithm>
-
-#include "dd/dd_table.h"              // dd::table_exists
-#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
-#include "dd/types/table.h"           // dd::Table
-#include "mutex_lock.h"
-#include "mysql/psi/mysql_file.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and

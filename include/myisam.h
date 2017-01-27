@@ -29,6 +29,7 @@
 #include "my_check_opt.h"
 #include "my_compare.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 #ifdef	__cplusplus
 extern "C" {

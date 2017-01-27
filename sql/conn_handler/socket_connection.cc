@@ -49,6 +49,7 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/service_my_snprintf.h"

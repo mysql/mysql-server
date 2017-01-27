@@ -35,11 +35,12 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
-#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 
 using std::min;
 using std::max;

@@ -45,6 +45,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "key.h"
 #include "lock0lock.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "partition_info.h"
 #include "row0import.h"
 #include "row0ins.h"

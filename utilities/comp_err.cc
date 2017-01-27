@@ -33,15 +33,16 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql_version.h>
-#include "print_version.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <new>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
+#include "print_version.h"
 
 #define MAX_ERROR_NAME_LENGTH 64
 #define MAX_ROWS  2000

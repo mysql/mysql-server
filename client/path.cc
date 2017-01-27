@@ -21,6 +21,7 @@
 #include "my_dir.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 
 #ifndef _WIN32

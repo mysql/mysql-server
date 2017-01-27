@@ -18,6 +18,7 @@
 
 #include "logger.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 namespace keyring
 {
