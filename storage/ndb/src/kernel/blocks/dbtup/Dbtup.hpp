@@ -1857,7 +1857,6 @@ private:
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
-  void execNODE_STATE_REP(Signal*);
 
   void execDROP_FRAG_REQ(Signal*);
 
@@ -3283,7 +3282,6 @@ private:
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
-  Uint32 m_minFreePages;
   Uint32 m_max_parallel_index_build;
 
   Uint32 c_errorInsert4000TableId;
