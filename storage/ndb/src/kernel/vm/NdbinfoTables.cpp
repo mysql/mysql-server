@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,8 +131,8 @@ DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(RESOURCES,6) =
-{ { "resources", 6, 0, "resources usage (a.k.a superpool)" },
+DECLARE_NDBINFO_TABLE(RESOURCES,7) =
+{ { "resources", 7, 0, "resources usage (a.k.a superpool)" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"resource_id",        Ndbinfo::Number, ""},
@@ -140,7 +140,8 @@ DECLARE_NDBINFO_TABLE(RESOURCES,6) =
     {"reserved",           Ndbinfo::Number, "reserved for this resource"},
     {"used",               Ndbinfo::Number, "currently in use"},
     {"max",                Ndbinfo::Number, "max available"},
-    {"high",               Ndbinfo::Number, "in use high water mark"}
+    {"high",               Ndbinfo::Number, "in use high water mark"},
+    {"spare",              Ndbinfo::Number, "spare pages for restart"}
   }
 };
 

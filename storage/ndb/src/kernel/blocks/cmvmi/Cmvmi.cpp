@@ -1754,10 +1754,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     Resource_limit rl;
     if (m_ctx.m_mm.get_resource_limit(id, rl))
     {
-      if (rl.m_min || rl.m_curr || rl.m_max)
+      if (rl.m_min || rl.m_curr || rl.m_max || rl.m_spare)
       {
-        infoEvent("Resource %d min: %d max: %d curr: %d",
-                  id, rl.m_min, rl.m_max, rl.m_curr);
+        infoEvent("Resource %d min: %d max: %d curr: %d spare: %d",
+                  id, rl.m_min, rl.m_max, rl.m_curr, rl.m_spare);
       }
 
       signal->theData[0] = 1000;
@@ -2081,6 +2081,7 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint32(resource_limit.m_curr);
       row.write_uint32(resource_limit.m_max);
       row.write_uint32(0); //TODO
+      row.write_uint32(resource_limit.m_spare);
       ndbinfo_send_row(signal, req, row, rl);
       resource_id++;
 

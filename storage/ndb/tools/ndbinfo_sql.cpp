@@ -445,7 +445,7 @@ struct view {
     "  WHEN 9 THEN \"SCHEMA_TRANS_MEMORY\""
     "  ELSE \"<unknown>\" "
     " END AS resource_name, "
-    "reserved, used, max "
+    "reserved, used, max, spare "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>resources`"
   },
   {"restart_info",
