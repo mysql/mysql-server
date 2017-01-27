@@ -23,7 +23,7 @@
 #include <ndbapi/NdbApi.hpp>
 
 class Item;
-class TABLE;
+struct TABLE;
 class Ndb_cond;
 class Ndb_cond_stack;
 
