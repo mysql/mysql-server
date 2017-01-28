@@ -863,6 +863,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -3461,6 +3462,10 @@ mysql_execute_command(THD *thd, bool first_level)
         query_cache.invalidate_locked_for_write(thd, first_table);
       my_ok(thd);
     }
+    break;
+
+  case SQLCOM_IMPORT:
+    res= lex->m_sql_cmd->execute(thd);
     break;
   case SQLCOM_CREATE_DB:
   {

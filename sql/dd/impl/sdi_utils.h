@@ -17,6 +17,7 @@
 #define DD__SDI_UTILS_INCLUDED
 
 #include "current_thd.h"             // inline_current_thd
+#include "error_handler.h"           // Internal_error_handler
 #include "dd/string_type.h"          // dd::String_type
 #include "mdl.h"                     // MDL_request
 #include "my_dbug.h"
@@ -53,7 +54,7 @@ inline bool checked_return(bool ret)
 
 
 /**
-  Convenience function for obtaint an MDL. Sets up the MDL_request
+  Convenience function for obtaining MDL. Sets up the MDL_request
   struct and populates it, before calling Mdl_context::acquire_lock.
 
   @param thd
@@ -77,6 +78,48 @@ inline bool mdl_lock(THD *thd, MDL_key::enum_mdl_namespace ns,
     (thd->mdl_context.acquire_lock(&mdl_request,
                                    thd->variables.lock_wait_timeout));
 }
+
+
+/**
+  Class template which derives from Internal_error_handler and
+  overrides handle_condition with the CONDITION_HANDLER_CLOS template
+  parameter.
+ */
+template <typename CONDITION_HANDLER_CLOS>
+class Closure_error_handler : public Internal_error_handler
+{
+  CONDITION_HANDLER_CLOS *m_ch;
+  bool handle_condition(THD *thd, uint sql_errno, const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg)
+  {
+    return (*m_ch)(sql_errno, sqlstate, level, msg);
+  }
+public:
+  Closure_error_handler(CONDITION_HANDLER_CLOS *ch) : m_ch(ch) {}
+};
+
+/**
+  Set up a custom error handler to use for errors from the execution
+  of a closure.
+
+  @param thd
+  @param chc closure which implements the
+             Internal_error_handler::handle_condition override
+  @param ac closure action for which error conditions should be handled.
+  @retval true if an error occurs
+  @retval false otherwise
+ */
+template <typename CH_CLOS, typename ACTION_CLOS>
+bool handle_errors(THD *thd, CH_CLOS &&chc, ACTION_CLOS &&ac)
+{
+  Closure_error_handler<CH_CLOS> eh(&chc);
+  thd->push_internal_handler(&eh);
+  bool r= ac();
+  thd->pop_internal_handler();
+  return r;
+}
+
 } // namespace sdi_utils
 } // namespace dd
 #endif // DD__SDI_UTILS_INCLUDED

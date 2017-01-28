@@ -2596,9 +2596,6 @@ template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::store(View*);
 template bool Dictionary_client::update(View*);
 
-template bool Dictionary_client::store(Table_stat*);
-template bool Dictionary_client::store(Index_stat*);
-
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Event**);
 template bool Dictionary_client::acquire(Object_id,

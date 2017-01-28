@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -184,6 +184,7 @@ enum enum_sql_command {
   SQLCOM_GRANT_ROLE,
   SQLCOM_REVOKE_ROLE,
   SQLCOM_ALTER_USER_DEFAULT_ROLE,
+  SQLCOM_IMPORT,
   /* This should be the last !!! */
   SQLCOM_END
 };

@@ -18,10 +18,12 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <utility>
 
 #include "my_global.h"                          /* ulonglong, uint */
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
+#include "m_ctype.h"
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
@@ -76,6 +78,40 @@ template <class STDSTRINGLIKE_TYPE>
 MYSQL_LEX_CSTRING lex_cstring_handle(const STDSTRINGLIKE_TYPE &s)
 {
   return { s.c_str(), s.length() };
+}
+
+
+/**
+  Lowercase a string according to charset.
+
+  @param ci pointer to charset for conversion
+  @param s string to lower-case
+  @retval modified argument if r-value
+  @retval copy of modified argument if lvalue (meaningless, don't use)
+ */
+template <class STRLIKE_TYPE>
+STRLIKE_TYPE casedn(const CHARSET_INFO *ci,
+                    STRLIKE_TYPE &&s)
+{
+  s.resize(ci->casedn_multiply * s.size());
+  s.resize(my_casedn_str(ci, &s.front()));
+  return std::forward<STRLIKE_TYPE>(s);
+}
+
+
+/**
+  Lowercase a string according to charset. Overload for const T& which
+  copies argument and forwards to T&& overload.
+
+  @param ci pointer to charset for conversion
+  @param src string to lower-case
+  @retval modified copy of argument
+ */
+
+template <class STRLIKE_TYPE>
+STRLIKE_TYPE casedn(const CHARSET_INFO *ci, const STRLIKE_TYPE &src)
+{
+  return casedn(ci, STRLIKE_TYPE {src});
 }
 
 #endif /* STRFUNC_INCLUDED */

@@ -20,6 +20,8 @@
 #include <sql_class.h>
 
 #include "my_inttypes.h"
+#include <string>
+#include "strfunc.h"      // casedn
 
 namespace strings_utf8_unittest {
 
@@ -432,6 +434,20 @@ TEST_F(StringsUTF8Test, StrIsPatternUnescapedVsEscaped)
 TEST_F(StringsUTF8Test, MultiWildMany)
 {
   EXPECT_EQ(0, wild_compare_full("t4.ibd", "t4*.ibd*", false, 0, '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, Casedn)
+{
+  std::string a= "aaa";
+  std::string A= casedn(system_charset_info, std::string("AAA"));
+  EXPECT_EQ(a, A);
+  EXPECT_EQ(a.length(), A.length());
+
+  std::string b= "bbbb";
+  std::string B= "BBBB";
+  casedn(system_charset_info, B);
+  EXPECT_EQ(b, B);
+  EXPECT_EQ(b.length(), B.length());
 }
 
 class StringsUTF8mb4Test : public ::testing::Test
