@@ -70,22 +70,30 @@ class Resource_limits
   Uint32 m_free_reserved;
   Uint32 m_in_use;
   Uint32 m_allocated;
+  Uint32 m_spare;
   Uint32 m_max_page;
   Resource_limit m_limit[MM_RG_COUNT];
 
+  Uint32 alloc_resource_spare(Uint32 id, Uint32 cnt);
+  void release_resource_spare(Uint32 id, Uint32 cnt);
   void dec_free_reserved(Uint32 cnt);
   void dec_in_use(Uint32 cnt);
   void dec_resource_in_use(Uint32 id, Uint32 cnt);
+  void dec_resource_spare(Uint32 id, Uint32 cnt);
+  void dec_spare(Uint32 cnt);
   Uint32 get_resource_in_use(Uint32 resource) const;
+  Uint32 get_spare() const;
   void inc_free_reserved(Uint32 cnt);
   void inc_in_use(Uint32 cnt);
   void inc_resource_in_use(Uint32 id, Uint32 cnt);
-
+  void inc_resource_spare(Uint32 id, Uint32 cnt);
+  void inc_spare(Uint32 cnt);
 public:
   Resource_limits();
 
-  void init_resource_limit(Uint32 id, Uint32 min, Uint32 max);
   void get_resource_limit(Uint32 id, Resource_limit& rl) const;
+  void init_resource_limit(Uint32 id, Uint32 min, Uint32 max);
+  void init_resource_spare(Uint32 id, Uint32 pct);
 
   Uint32 get_allocated() const;
   Uint32 get_free_reserved() const;
@@ -95,12 +103,14 @@ public:
   Uint32 get_resource_free(Uint32 id) const;
   Uint32 get_resource_free_reserved(Uint32 id) const;
   Uint32 get_resource_reserved(Uint32 id) const;
+  Uint32 get_resource_spare(Uint32 resource) const;
   void set_max_page(Uint32 page);
   void set_allocated(Uint32 cnt);
   void set_free_reserved(Uint32 cnt);
 
-  void post_alloc_resource_pages(Uint32 id, Uint32 cnt);
+  Uint32 post_alloc_resource_pages(Uint32 id, Uint32 cnt);
   void post_release_resource_pages(Uint32 id, Uint32 cnt);
+  void post_alloc_resource_spare(Uint32 id, Uint32 cnt);
 
   void check() const;
   void dump() const;
@@ -117,6 +127,7 @@ public:
 
   bool init(Uint32 *watchCounter, Uint32 pages, bool allow_alloc_less_than_requested = true);
   void map(Uint32 * watchCounter, bool memlock = false, Uint32 resources[] = 0);
+  void init_resource_spare(Uint32 id, Uint32 pct);
   void* get_memroot() const;
   
   void dump() const ;
@@ -128,6 +139,7 @@ public:
   };
 
   void* alloc_page(Uint32 type, Uint32* i, enum AllocZone);
+  void* alloc_spare_page(Uint32 type, Uint32* i, enum AllocZone);
   void release_page(Uint32 type, Uint32 i);
   
   void alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min = 1);
@@ -179,9 +191,9 @@ private:
  */
 
 inline
-void Resource_limits::post_alloc_resource_pages(Uint32 id, Uint32 cnt)
+Uint32 Resource_limits::post_alloc_resource_pages(Uint32 id, Uint32 cnt)
 {
-  const Uint32 inuse = get_resource_in_use(id);
+  const Uint32 inuse = get_resource_in_use(id) + get_resource_spare(id);
   const Uint32 reserved = get_resource_reserved(id);
   if (inuse < reserved)
   {
@@ -192,6 +204,69 @@ void Resource_limits::post_alloc_resource_pages(Uint32 id, Uint32 cnt)
   }
   inc_resource_in_use(id, cnt);
   inc_in_use(cnt);
+
+  return alloc_resource_spare(id, cnt);
+}
+
+inline
+Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
+{
+  const Resource_limit& rl = m_limit[id - 1];
+
+  Uint32 pct = rl.m_spare_pct;
+  if (pct == 0)
+  {
+    return 0;
+  }
+
+  Uint32 inuse = rl.m_curr + rl.m_spare;
+  Int64 spare_level = Int64(rl.m_spare) * 100 - Int64(inuse) * pct;
+
+  if (spare_level >= 0)
+  {
+    return 0;
+  }
+
+  Uint32 gain = 100 - pct;
+  Uint32 spare_need = (-spare_level + gain - 1) / gain;
+
+  Uint32 spare_res = 0;
+  if (rl.m_min > rl.m_curr + rl.m_spare)
+  {
+    spare_res = rl.m_min - rl.m_curr - rl.m_spare;
+    if (spare_res >= spare_need)
+    {
+      m_limit[id - 1].m_spare += spare_need;
+      m_spare += spare_need;
+      m_free_reserved -= spare_need;
+      return 0;
+    }
+    spare_need -= spare_res;
+  }
+
+  Uint32 free_shr = m_allocated - m_in_use - m_spare;
+  if (rl.m_max > 0)
+  {
+    Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare;
+    if (free_shr > limit)
+    {
+      free_shr = limit;
+    }
+  }
+  Uint32 spare_shr = (free_shr > spare_need) ? spare_need : free_shr;
+  spare_need -= spare_shr;
+
+  Uint32 spare_take = (spare_need > cnt) ? cnt : spare_need;
+
+  m_limit[id - 1].m_spare += spare_res + spare_shr + spare_take;
+  m_limit[id - 1].m_curr -= spare_take;
+  m_free_reserved -= spare_res;
+  m_in_use -= spare_take;
+  m_spare += spare_res + spare_shr + spare_take;
+
+  // TODO if spare_need > 0, mark out of memory in some way
+
+  return spare_take;
 }
 
 inline
@@ -216,6 +291,20 @@ void Resource_limits::dec_resource_in_use(Uint32 id, Uint32 cnt)
 }
 
 inline
+void Resource_limits::dec_resource_spare(Uint32 id, Uint32 cnt)
+{
+  assert(m_limit[id - 1].m_spare >= cnt);
+  m_limit[id - 1].m_spare -= cnt;
+}
+
+inline
+void Resource_limits::dec_spare(Uint32 cnt)
+{
+  assert(m_spare >= cnt);
+  m_spare -= cnt;
+}
+
+inline
 Uint32 Resource_limits::get_allocated() const
 {
   return m_allocated;
@@ -230,8 +319,8 @@ Uint32 Resource_limits::get_free_reserved() const
 inline
 Uint32 Resource_limits::get_free_shared() const
 {
-  assert(m_allocated >= m_free_reserved + m_in_use);
-  return m_allocated - (m_free_reserved + m_in_use);
+  assert(m_allocated >= m_free_reserved + m_in_use + m_spare);
+  return m_allocated - (m_free_reserved + m_in_use + m_spare);
 }
 
 inline
@@ -250,9 +339,10 @@ inline
 Uint32 Resource_limits::get_resource_free(Uint32 id) const
 {
   require(id <= MM_RG_COUNT);
-  if (m_limit[id - 1].m_max != 0)
+  const Resource_limit& rl = m_limit[id - 1];
+  if (rl.m_max != 0)
   {
-    return m_limit[id - 1].m_max - m_limit[id - 1].m_curr;
+    return rl.m_max - (rl.m_curr + rl.m_spare);
   }
   return UINT32_MAX;
 }
@@ -261,9 +351,10 @@ inline
 Uint32 Resource_limits::get_resource_free_reserved(Uint32 id) const
 {
   require(id <= MM_RG_COUNT);
-  if (m_limit[id - 1].m_min > m_limit[id - 1].m_curr)
+  const Resource_limit& rl = m_limit[id - 1];
+  if (rl.m_min > (rl.m_curr + rl.m_spare))
   {
-     return m_limit[id - 1].m_min - m_limit[id - 1].m_curr;
+     return rl.m_min - (rl.m_curr + rl.m_spare);
   }
   return 0;
 }
@@ -285,8 +376,23 @@ void Resource_limits::get_resource_limit(Uint32 id, Resource_limit& rl) const
 inline
 Uint32 Resource_limits::get_resource_reserved(Uint32 id) const
 {
+  require(id > 0);
   require(id <= MM_RG_COUNT);
   return m_limit[id - 1].m_min;
+}
+
+inline
+Uint32 Resource_limits::get_resource_spare(Uint32 id) const
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  return m_limit[id - 1].m_spare;
+}
+
+inline
+Uint32 Resource_limits::get_spare() const
+{
+  return m_spare;
 }
 
 inline
@@ -311,9 +417,23 @@ void Resource_limits::inc_resource_in_use(Uint32 id, Uint32 cnt)
 }
 
 inline
+void Resource_limits::inc_resource_spare(Uint32 id, Uint32 cnt)
+{
+  m_limit[id - 1].m_spare += cnt;
+  assert(m_limit[id - 1].m_spare >= cnt);
+}
+
+inline
+void Resource_limits::inc_spare(Uint32 cnt)
+{
+  m_spare += cnt;
+  assert(m_spare >= cnt);
+}
+
+inline
 void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
 {
-  const Uint32 inuse = get_resource_in_use(id);
+  const Uint32 inuse = get_resource_in_use(id) + get_resource_spare(id);
   const Uint32 reserved = get_resource_reserved(id);
   if (inuse - cnt < reserved)
   {
@@ -324,6 +444,40 @@ void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
   }
   dec_resource_in_use(id, cnt);
   dec_in_use(cnt);
+
+  release_resource_spare(id, cnt);
+}
+
+inline
+void Resource_limits::release_resource_spare(Uint32 id, Uint32 cnt)
+{
+  const Resource_limit& rl = m_limit[id - 1];
+
+  Uint32 pct = rl.m_spare_pct;
+  if (pct == 0)
+  {
+    return;
+  }
+  Uint32 gain = 100 - pct;
+  Uint32 inuse = rl.m_curr + rl.m_spare;
+  Int64 spare_level = Int64(rl.m_spare) * 100 - Int64(inuse) * pct;
+
+  if (spare_level < gain)
+  {
+    return;
+  }
+
+  Uint32 spare_excess = spare_level / gain;
+
+  if (inuse < rl.m_min + spare_excess)
+  {
+    Uint32 res_cnt = rl.m_min + spare_excess - inuse;
+    if (res_cnt > spare_excess)
+      res_cnt = spare_excess;
+    m_free_reserved += res_cnt;
+  }
+  m_limit[id - 1].m_spare -= spare_excess;
+  m_spare -= spare_excess;
 }
 
 inline
@@ -342,6 +496,16 @@ inline
 void Resource_limits::set_max_page(Uint32 page)
 {
   m_max_page = page;
+}
+
+inline
+void Resource_limits::post_alloc_resource_spare(Uint32 id, Uint32 cnt)
+{
+  assert(get_resource_spare(id) > 0);
+  dec_resource_spare(id, cnt);
+  inc_resource_in_use(id, cnt);
+  dec_spare(cnt);
+  inc_in_use(cnt);
 }
 
 /**
