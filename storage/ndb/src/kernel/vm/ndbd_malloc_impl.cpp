@@ -223,53 +223,68 @@ Resource_limits::check() const
 #ifdef VM_TRACE
   const Resource_limit* rl = m_limit;
   Uint32 curr = 0;
+  Uint32 spare = 0;
   Uint32 res_alloc = 0;
   Uint32 shared_alloc = 0;
   Uint32 sumres = 0;
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
     curr += rl[i].m_curr;
+    spare += rl[i].m_spare;
     sumres += rl[i].m_min;
     assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
-    if (rl[i].m_curr > rl[i].m_min)
+    if (rl[i].m_curr + rl[i].m_spare > rl[i].m_min)
     {
-      shared_alloc += rl[i].m_curr - rl[i].m_min;
+      shared_alloc += rl[i].m_curr + rl[i].m_spare - rl[i].m_min;
       res_alloc += rl[i].m_min;
     }
     else
     {
-      res_alloc += rl[i].m_curr;
+      res_alloc += rl[i].m_curr + rl[i].m_spare;
     }
   }
+if(!(
+  (curr == get_in_use()) &&
+  (spare == get_spare()) &&
+  (res_alloc + shared_alloc == curr + spare) &&
+  (res_alloc <= sumres) &&
+  (sumres == res_alloc + get_free_reserved()) &&
+  (get_in_use() + get_spare() <= get_allocated())
+)) dump();
+
   assert(curr == get_in_use());
-  assert(res_alloc + shared_alloc == curr);
+  assert(spare == get_spare());
+  assert(res_alloc + shared_alloc == curr + spare);
   assert(res_alloc <= sumres);
   assert(sumres == res_alloc + get_free_reserved());
-  assert(get_in_use() <= get_allocated());
+  assert(get_in_use() + get_spare() <= get_allocated());
 #endif
 }
 
 void
 Resource_limits::dump() const
 {
+  printf("ri: global "
+         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u\n",
+         m_max_page,
+         m_free_reserved,
+         m_in_use,
+         m_allocated,
+         m_spare);
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
-    printf("ri: %u id: %u min: %u curr: %u max: %u\n",
+    printf("ri: %u id: %u min: %u curr: %u max: %u spare: %u spare_pct: %u\n",
            i,
            m_limit[i].m_resource_id,
            m_limit[i].m_min,
            m_limit[i].m_curr,
-           m_limit[i].m_max);
+           m_limit[i].m_max,
+           m_limit[i].m_spare,
+           m_limit[i].m_spare_pct);
   }
 }
 
 /**
- *
- * resource 0 has following semantics:
- *
- * m_min  - remaining reserved for other resources
- * m_curr - sum(m_curr) for other resources (i.e total in use)
- * m_max  - totally allocated from OS
  *
  * resource N has following semantics:
  *
@@ -293,6 +308,15 @@ Resource_limits::init_resource_limit(Uint32 id, Uint32 min, Uint32 max)
   Uint32 reserve = min;
   Uint32 current_reserved = get_free_reserved();
   set_free_reserved(current_reserved + reserve);
+}
+
+void
+Resource_limits::init_resource_spare(Uint32 id, Uint32 pct)
+{
+  require(m_limit[id - 1].m_spare_pct == 0);
+  m_limit[id - 1].m_spare_pct = pct;
+
+  (void) alloc_resource_spare(id, 0);
 }
 
 /**
@@ -343,8 +367,9 @@ Ndbd_mem_manager::get_memroot() const
  * resource N has following semantics:
  *
  * m_min = reserved
- * m_curr = currently used
+ * m_curr = currently used including spare pages
  * m_max = max alloc, 0 = no limit
+ * m_spare = pages reserved for restart or special use
  *
  */
 void
@@ -392,10 +417,12 @@ check_resource_limits(Resource_limit* rl)
   Uint32 res_alloc = 0;
   Uint32 shared_alloc = 0;
   Uint32 sumres = 0;
+  Uint32 spare = 0;
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
     curr += rl[i].m_curr;
     sumres += rl[i].m_min;
+    spare += rl[i].m_spare;
     assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
     if (rl[i].m_curr > rl[i].m_min)
     {
@@ -408,6 +435,8 @@ check_resource_limits(Resource_limit* rl)
     }
   }
   assert(curr == rl[0].m_curr);
+  assert(spare == rl[0].m_spare);
+  assert(spare <= curr);
   assert(res_alloc + shared_alloc == curr);
   assert(res_alloc <= sumres);
   assert(sumres == res_alloc + rl[0].m_min);
@@ -657,6 +686,14 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
   {
     NdbMem_MemLockAll(1);
   }
+}
+
+void
+Ndbd_mem_manager::init_resource_spare(Uint32 id, Uint32 pct)
+{
+  mt_mem_manager_lock();
+  m_resource_limits.init_resource_spare(id, pct);
+  mt_mem_manager_unlock();
 }
 
 #include <NdbOut.hpp>
@@ -997,7 +1034,16 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
   alloc(zone, i, &cnt, min);
   if (likely(cnt))
   {
-    m_resource_limits.post_alloc_resource_pages(idx, cnt);
+    const Uint32 spare_taken = m_resource_limits.post_alloc_resource_pages(idx, cnt);
+    if (spare_taken > 0)
+    {
+      require(spare_taken == cnt);
+      release(*i, spare_taken);
+      m_resource_limits.check();
+      mt_mem_manager_unlock();
+      *i = RNIL;
+      return NULL;
+    }
     m_resource_limits.check();
     mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
@@ -1006,6 +1052,36 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
 #else
     return m_base_page + *i;
 #endif
+  }
+  mt_mem_manager_unlock();
+  return 0;
+}
+
+void*
+Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx <= MM_RG_COUNT);
+  mt_mem_manager_lock();
+
+  Uint32 cnt = 1;
+  const Uint32 min = 1;
+  if (m_resource_limits.get_resource_spare(idx) >= min)
+  {
+    alloc(zone, i, &cnt, min);
+    if (likely(cnt))
+    {
+      assert(cnt == min);
+      m_resource_limits.post_alloc_resource_spare(idx, cnt);
+      m_resource_limits.check();
+      mt_mem_manager_unlock();
+#ifdef NDBD_RANDOM_START_PAGE
+      *i += g_random_start_page_id;
+      return m_base_page + *i - g_random_start_page_id;
+#else
+      return m_base_page + *i;
+#endif
+    }
   }
   mt_mem_manager_unlock();
   return 0;
@@ -1060,8 +1136,19 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
 
   // Hi order allocations can always use any zone
   alloc(NDB_ZONE_ANY, i, &req, min);
+  const Uint32 spare_taken = m_resource_limits.post_alloc_resource_pages(idx, req);
+  if (spare_taken > 0)
+  {
+    req -= spare_taken;
+    release(*i + req, spare_taken);
+  }
+  if (0 < req && req < min)
+  {
+    release(*i, req);
+    m_resource_limits.post_release_resource_pages(idx, req);
+    req = 0;
+  }
   * cnt = req;
-  m_resource_limits.post_alloc_resource_pages(idx, req);
   m_resource_limits.check();
   mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
@@ -1161,6 +1248,7 @@ main(int argc, char** argv)
   rl.m_min = 0;
   rl.m_max = sz;
   rl.m_curr = 0;
+  rl.m_spare = 0;
   rl.m_resource_id = 0;
   mem.set_resource_limit(rl);
   rl.m_min = sz < 16384 ? sz : 16384;
