@@ -679,9 +679,6 @@ void Cmvmi::sendSTTORRY(Signal* signal)
 }//Cmvmi::sendSTTORRY
 
 
-static Uint32 f_accpages = 0;
-extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
-
 static Uint32 f_read_config_ref = 0;
 static Uint32 f_read_config_data = 0;
 
@@ -703,8 +700,6 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
-
-  f_accpages = compute_acc_32kpages(p);
 
   Uint32 eventlog = 8192;
   ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
@@ -852,6 +847,7 @@ void Cmvmi::execSTTOR(Signal* signal)
     signal->theData[1] = 0;
     signal->theData[2] = 0;
     signal->theData[3] = 0;
+    signal->theData[4] = 0;
     execCONTINUEB(signal);
     
     sendSTTORRY(signal);
@@ -2123,14 +2119,15 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     Resource_limit res_limit;
     m_ctx.m_mm.get_resource_limit(RG_DATAMEM, res_limit);
 
-    const Uint32 tup_pages_used = res_limit.m_curr - f_accpages;
-    const Uint32 tup_pages_total = res_limit.m_min - f_accpages;
+    const Uint32 dm_pages_used = res_limit.m_curr;
+    const Uint32 dm_pages_total =
+      res_limit.m_max > 0 ? res_limit.m_max : res_limit.m_min;
 
     Ndbinfo::pool_entry pools[] =
     {
       { "Data memory",
-        tup_pages_used,
-        tup_pages_total,
+        dm_pages_used,
+        dm_pages_total,
         sizeof(GlobalPage),
         0,
         { CFG_DB_DATA_MEM,0,0,0 }},
@@ -3057,7 +3054,7 @@ sum_array(const Uint32 array[], unsigned sz)
 static int
 check_threshold(Uint32 last, Uint32 now)
 {
-  // assert(last <= 100 && now <= 100);
+  assert(last <= 100 && now <= 100);
 
   static const Uint32 thresholds[] = { 100, 99, 90, 80, 0 };
 
@@ -3087,16 +3084,37 @@ Cmvmi::execCONTINUEB(Signal* signal)
   {
     jam();
     Uint32 cnt = signal->theData[1];
-    Uint32 tup_percent_last = signal->theData[2];
-    Uint32 acc_percent_last = signal->theData[3];
+    Uint32 dm_percent_last = signal->theData[2];
+    Uint32 tup_percent_last = signal->theData[3];
+    Uint32 acc_percent_last = signal->theData[4];
 
+    // Data memory threshold
+    Resource_limit rl;
+    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
     {
-      // Data memory threshold
-      Resource_limit rl;
-      m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+      const Uint32 dm_pages_used = rl.m_curr;
+      const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+      const Uint32 dm_percent_now = calc_percent(dm_pages_used,
+                                                 dm_pages_total);
 
-      const Uint32 tup_pages_used = rl.m_curr - f_accpages;
-      const Uint32 tup_pages_total = rl.m_min - f_accpages;
+      const Uint32 acc_pages_used =
+        sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
+
+      const Uint32 tup_pages_used = dm_pages_used - acc_pages_used;
+
+      /**
+       * If for example both acc and tup uses 50% each of data memory
+       * we want it to show 100% usage so that thresholds warning
+       * starting at 80% trigger.
+       *
+       * Therefore acc and tup percentage are calculated against free
+       * data memory plus its own usage.
+       */
+      const Uint32 acc_pages_total = dm_pages_total - tup_pages_used;
+      const Uint32 acc_percent_now = calc_percent(acc_pages_used,
+                                                  acc_pages_total);
+
+      const Uint32 tup_pages_total = dm_pages_total - acc_pages_used;
       const Uint32 tup_percent_now = calc_percent(tup_pages_used,
                                                   tup_pages_total);
 
@@ -3107,22 +3125,17 @@ Cmvmi::execCONTINUEB(Signal* signal)
         reportDMUsage(signal, tup_percent_now >= tup_percent_last ? 1 : -1);
         tup_percent_last = passed;
       }
-    }
-
-    {
-      // Index memory threshold
-      const Uint32 acc_pages_used =
-        sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
-      const Uint32 acc_pages_total = f_accpages * 4;
-      const Uint32 acc_percent_now = calc_percent(acc_pages_used,
-                                                  acc_pages_total);
-
-      int passed;
       if ((passed = check_threshold(acc_percent_last, acc_percent_now)) != -1)
       {
         jam();
         reportIMUsage(signal, acc_percent_now >= acc_percent_last ? 1 : -1);
         acc_percent_last = passed;
+      }
+      if ((passed = check_threshold(dm_percent_last, dm_percent_now)) != -1)
+      {
+        jam();
+        /* no separate report, see dbtup and dbacc report above */
+        dm_percent_last = passed;
       }
     }
 
@@ -3142,9 +3155,10 @@ Cmvmi::execCONTINUEB(Signal* signal)
     }
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = cnt; // seconds since last report
-    signal->theData[2] = tup_percent_last; // last reported threshold for TUP
-    signal->theData[3] = acc_percent_last; // last reported threshold for ACC
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 4);
+    signal->theData[2] = dm_percent_last;  // last reported threshold for data memory
+    signal->theData[3] = tup_percent_last; // last reported threshold for TUP
+    signal->theData[4] = acc_percent_last; // last reported threshold for ACC
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 5);
     return;
   }
   }
@@ -3156,8 +3170,15 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
   Resource_limit rl;
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
-  const Uint32 tup_pages_used = rl.m_curr - f_accpages;
-  const Uint32 tup_pages_total = rl.m_min - f_accpages;
+  const Uint32 dm_pages_used = rl.m_curr;
+  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+
+  const Uint32 acc_pages_used =
+    sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
+
+  const Uint32 tup_pages_used = dm_pages_used - acc_pages_used;
+
+  const Uint32 tup_pages_total = dm_pages_total - acc_pages_used;
 
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
@@ -3168,18 +3189,27 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
   sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
 
-
 void
 Cmvmi::reportIMUsage(Signal* signal, int incDec, BlockReference ref)
 {
+  Resource_limit rl;
+  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+
+  const Uint32 dm_pages_used = rl.m_curr;
+  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+
   const Uint32 acc_pages_used =
     sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
 
+  const Uint32 tup_pages_used = dm_pages_used - acc_pages_used;
+
+  const Uint32 acc_pages_total = dm_pages_total - tup_pages_used;
+
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
-  signal->theData[2] = 8192;
+  signal->theData[2] = sizeof(GlobalPage);
   signal->theData[3] = acc_pages_used;
-  signal->theData[4] = f_accpages * 4;
+  signal->theData[4] = acc_pages_total;
   signal->theData[5] = DBACC;
   sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
