@@ -884,6 +884,14 @@ void Cmvmi::execSTTOR(Signal* signal)
       return;
     }
 #endif
+    const ndb_mgm_configuration_iterator * p =
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+
+    Uint32 free_pct = 5;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
+    m_ctx.m_mm.init_resource_spare(RG_DATAMEM, free_pct);
+
     globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
   }
