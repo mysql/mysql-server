@@ -1289,9 +1289,20 @@ flush status;
 show variables like "log_queries_not_using_indexes";
 Variable_name	Value
 log_queries_not_using_indexes	ON
-select 1 from information_schema.tables limit 1;
-1
-1
+CREATE TABLE `tab1` (
+`c1` int(11) default NULL,
+`c2` char(20) default NULL,
+`c3` char(20) default NULL,
+KEY `k1` (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO tab1 values(1, "hello", "world");
+INSERT INTO tab1 values(2, "hello2", "world2");
+INSERT INTO tab1 values(3, "hello3", "world3");
+select * from tab1;
+c1	c2	c3
+1	hello	world
+2	hello2	world2
+3	hello3	world3
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
@@ -1299,9 +1310,11 @@ set global log_queries_not_using_indexes=OFF;
 show variables like "log_queries_not_using_indexes";
 Variable_name	Value
 log_queries_not_using_indexes	OFF
-select 1 from information_schema.tables limit 1;
-1
-1
+select * from tab1;
+c1	c2	c3
+1	hello	world
+2	hello2	world2
+3	hello3	world3
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
@@ -1309,12 +1322,15 @@ set global log_queries_not_using_indexes=ON;
 show variables like "log_queries_not_using_indexes";
 Variable_name	Value
 log_queries_not_using_indexes	ON
-select 1 from information_schema.tables limit 1;
-1
-1
+select * from tab1;
+c1	c2	c3
+1	hello	world
+2	hello2	world2
+3	hello3	world3
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	2
+drop table tab1;
 show variables like 'myisam_recover_options';
 Variable_name	Value
 myisam_recover_options	OFF
