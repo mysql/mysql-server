@@ -632,7 +632,6 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
 void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
 {
   jam();
-  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   FragmentrecPtr regFragPtr;
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
@@ -661,8 +660,6 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
       freelist.appendList(regFragPtr.p->fullpages);
       ndbassert(pages.getCount() == cfreepages.getCount() + cnoOfAllocatedPages);
       ndbassert(pages.getCount() <= cpageCount);
-
-      g_acc_pages_used[instance()] = cnoOfAllocatedPages;
     }
     jam();
     Uint32 tab = regFragPtr.p->mytabptr;
@@ -726,6 +723,7 @@ void Dbacc::releaseDirResources(Signal* signal)
     pages.dropFirstPage32(c_page_pool, page32ptr, 5);
     if (page32ptr.i != RNIL)
     {
+      g_acc_pages_used[instance()]--;
       m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
     }
     count--;
@@ -8431,7 +8429,6 @@ void Dbacc::releaseOverpage(Page8Ptr ropPageptr)
 void Dbacc::releasePage(Page8Ptr rpPageptr)
 {
   jam();
-  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   pages.releasePage8(c_page_pool, rpPageptr);
   cnoOfAllocatedPages--;
   fragrecptr.p->m_noOfAllocatedPages--;
@@ -8440,13 +8437,13 @@ void Dbacc::releasePage(Page8Ptr rpPageptr)
   pages.dropFirstPage32(c_page_pool, page32ptr, 5);
   if (page32ptr.i != RNIL)
   {
+    g_acc_pages_used[instance()]--;
     m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
   }
 
   ndbassert(pages.getCount() ==
             cfreepages.getCount() + cnoOfAllocatedPages);
   ndbassert(pages.getCount() <= cpageCount);
-  g_acc_pages_used[instance()] = cnoOfAllocatedPages;
 }//Dbacc::releasePage()
 
 bool Dbacc::validatePageCount() const
@@ -8552,6 +8549,7 @@ void Dbacc::seizePage(Page8Ptr& spPageptr, int sub_page_id)
     }
     ptr.p = static_cast<Page32*>(p);
 
+    g_acc_pages_used[instance()]++;
     cpageCount += 4; // 8KiB pages per 32KiB page
     pages.addPage32(c_page_pool, ptr);
     pages.seizePage8(c_page_pool, spPageptr, sub_page_id);
