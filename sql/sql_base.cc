@@ -5749,9 +5749,7 @@ restart:
   sroutine_to_open= &thd->lex->sroutines_list.first;
   *counter= 0;
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_opening_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /*
@@ -6477,9 +6475,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* should not be used in a prelocked_mode context, see NOTE above */
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_opening_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /* open_ltable can be used only for BASIC TABLEs */
