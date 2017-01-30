@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -385,6 +385,7 @@ THD *thd_get_current_thd()
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
+  thd_lock_thread_count(thd);
 #ifdef HAVE_PSI_INTERFACE
   if (PSI_server)
     thd_set_psi(thd,
