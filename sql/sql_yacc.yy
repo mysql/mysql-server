@@ -1230,9 +1230,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
         ws_num_codepoints func_datetime_precision
-        ws_level_flag_desc ws_level_flag_reverse ws_level_flags
-        opt_ws_levels ws_level_list ws_level_list_item ws_level_number
-        ws_level_range ws_level_list_or_range
         now
         opt_checksum_type
 
@@ -6573,61 +6570,6 @@ ws_num_codepoints:
         { $$= $2; }
         ;
 
-ws_level_flag_desc:
-        ASC { $$= 0; }
-        | DESC { $$= 1 << MY_STRXFRM_DESC_SHIFT; }
-        ;
-
-ws_level_flag_reverse:
-        REVERSE_SYM { $$= 1 << MY_STRXFRM_REVERSE_SHIFT; } ;
-
-ws_level_flags:
-        /* empty */ { $$= 0; }
-        | ws_level_flag_desc { $$= $1; }
-        | ws_level_flag_desc ws_level_flag_reverse { $$= $1 | $2; }
-        | ws_level_flag_reverse { $$= $1 ; }
-        ;
-
-ws_level_number:
-        real_ulong_num
-        {
-          $$= $1 < 1 ? 1 : ($1 > MY_STRXFRM_NLEVELS ? MY_STRXFRM_NLEVELS : $1);
-          $$--;
-        }
-        ;
-
-ws_level_list_item:
-        ws_level_number ws_level_flags
-        {
-          $$= (1 | $2) << $1;
-        }
-        ;
-
-ws_level_list:
-        ws_level_list_item { $$= $1; }
-        | ws_level_list ',' ws_level_list_item { $$|= $3; }
-        ;
-
-ws_level_range:
-        ws_level_number '-' ws_level_number
-        {
-          uint start= $1;
-          uint end= $3;
-          for ($$= 0; start <= end; start++)
-            $$|= (1 << start);
-        }
-        ;
-
-ws_level_list_or_range:
-        ws_level_list { $$= $1; }
-        | ws_level_range { $$= $1; }
-        ;
-
-opt_ws_levels:
-        /* empty*/ { $$= 0; }
-        | LEVEL_SYM ws_level_list_or_range { $$= $2; }
-        ;
-
 opt_primary:
           /* empty */
         | PRIMARY_SYM
@@ -9744,14 +9686,14 @@ function_call_conflict:
           {
             $$= NEW_PTN Item_func_week(@$, $3, $5);
           }
-        | WEIGHT_STRING_SYM '(' expr opt_ws_levels ')'
+        | WEIGHT_STRING_SYM '(' expr ')'
           {
-            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, 0, $4);
+            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, 0, 0);
           }
-        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_num_codepoints opt_ws_levels ')'
+        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_num_codepoints ')'
           {
             $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6,
-                        $7 | MY_STRXFRM_PAD_WITH_SPACE);
+                        MY_STRXFRM_PAD_WITH_SPACE);
           }
         | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_num_codepoints ')'
           {

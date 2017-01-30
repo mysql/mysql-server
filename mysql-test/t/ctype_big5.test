@@ -166,12 +166,10 @@ DROP TABLE t1;
 
 set names big5;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 set collation_connection=big5_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 --echo #

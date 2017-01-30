@@ -1173,8 +1173,8 @@ aa bb
 #              ASSERTION `SRC' FAILED
 #
 set names utf8;
-do weight_string(extractvalue('','/*/a') level 1 reverse);
-do char((weight_string(extractvalue((''),('tX')) level 7 desc)) using cp852);
+do weight_string(extractvalue('','/*/a'));
+do char((weight_string(extractvalue((''),('tX')))) using cp852);
 set names default;
 #
 # Bug#22552615 EXTRACTVALUE RETURNS NULL WHEN NO MATCHING

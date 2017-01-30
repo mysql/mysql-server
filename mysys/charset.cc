@@ -213,7 +213,6 @@ static int add_collation(CHARSET_INFO *cs)
 
       newcs->caseup_multiply= newcs->casedn_multiply= 1;
       newcs->levels_for_compare= 1;
-      newcs->levels_for_order= 1;
       
       if (!strcmp(cs->csname,"ucs2") )
       {

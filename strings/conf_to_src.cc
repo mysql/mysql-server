@@ -274,7 +274,6 @@ static void dispcset(FILE *f,CHARSET_INFO *cs)
   fprintf(f,"  ' ',                        /* pad_char      */\n");
   fprintf(f,"  0,                          /* escape_with_backslash_is_dangerous */\n");
   fprintf(f,"  1,                          /* levels_for_compare */\n");
-  fprintf(f,"  1,                          /* levels_for_order   */\n");
   
   if (my_charset_is_8bit_pure_ascii(cs))
     fprintf(f,"  &my_charset_ascii_handler,\n");

@@ -659,7 +659,7 @@ my_strnxfrm_mb(const CHARSET_INFO *cs,
   }
 
 pad:
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 

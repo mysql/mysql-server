@@ -154,12 +154,10 @@ DROP TABLE t1;
 
 set names cp932;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 set collation_connection=cp932_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 --echo #

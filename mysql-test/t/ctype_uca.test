@@ -508,12 +508,10 @@ SET collation_connection=ucs2_czech_ci;
 set collation_connection=ucs2_unicode_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_unicode_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_czech_ci;
 --source include/weight_string_chde.inc

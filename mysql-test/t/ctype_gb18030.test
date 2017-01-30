@@ -79,14 +79,12 @@ SET NAMES utf8mb4;
 SET collation_connection=gb18030_chinese_ci;
 
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_A2A9.inc
 --source include/weight_string_81309D30.inc
 
 SET collation_connection=gb18030_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_A2A9.inc
 --source include/weight_string_81309D30.inc

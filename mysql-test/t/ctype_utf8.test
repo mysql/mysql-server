@@ -1638,12 +1638,10 @@ ORDER BY l DESC;
 set names utf8;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Checking strnxfrm() with odd length

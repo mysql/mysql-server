@@ -22136,7 +22136,7 @@ my_strnxfrm_gb18030(const CHARSET_INFO *cs,
     }
   }
 
-  return my_strxfrm_pad_desc_and_reverse(cs, ds, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, ds, dst, de, nweights, flags);
 }
 
 /**
@@ -22533,7 +22533,6 @@ CHARSET_INFO my_charset_gb18030_chinese_ci=
   ' ',                            /* pad char      */
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
-  1,                              /* levels_for_order   */
   &my_charset_gb18030_handler,
   &my_collation_ci_handler
 };
@@ -22568,7 +22567,6 @@ CHARSET_INFO my_charset_gb18030_bin=
   ' ',                            /* pad char      */
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
-  1,                              /* levels_for_order   */
   &my_charset_gb18030_handler,
   &my_collation_mb_bin_handler
 };

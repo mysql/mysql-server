@@ -3551,7 +3551,7 @@ my_strnxfrm_gbk(const CHARSET_INFO *cs,
     else
       *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 
@@ -10842,7 +10842,6 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10877,7 +10876,6 @@ CHARSET_INFO my_charset_gbk_bin=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };
