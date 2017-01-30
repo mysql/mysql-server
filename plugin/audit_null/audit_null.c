@@ -107,6 +107,8 @@ static struct st_mysql_show_var simple_status[] =
 
 #define AUDIT_NULL_VAR(x) { "Audit_null_" #x, (char*)&number_of_calls_ ## x, \
                             SHOW_INT, SHOW_SCOPE_GLOBAL },
+#include "audit_null_variables.h"
+
 #undef AUDIT_NULL_VAR
 
   { 0, 0, 0, SHOW_SCOPE_GLOBAL }
