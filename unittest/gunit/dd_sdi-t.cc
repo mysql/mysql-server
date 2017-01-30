@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <boost/lexical_cast.hpp>
 #include <gtest/gtest.h>
 #include <m_string.h>
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
@@ -50,21 +49,20 @@ namespace {
 int FANOUT= 3;
 }
 
+namespace dd {
+class Sdi_wcontext;
+class Sdi_rcontext;
+}
+
 namespace sdi_unittest {
 
 typedef dd::Foreign_key Foreign_key; // To avoid the one from sql_class.h
 
+::dd::Sdi_wcontext* get_wctx();
+::dd::Sdi_rcontext* get_rctx();
 
-// Declare these here to be able to call into sdi.cc where
-// Sdi_wcontext and Sdi_rcontext are defined. A bit of a kludge, but
-// at least we avoid exporting them just to run unit tests.
-typedef void (*cb)(dd::Sdi_wcontext*, const dd::Weak_object*, dd::Sdi_writer*);
-void setup_wctx(cb, const dd::Weak_object*, dd::Sdi_writer*);
-
-typedef void (*dcb)(dd::Sdi_rcontext*, dd::Weak_object*, dd::RJ_Document&);
-void setup_rctx(dcb, dd::Weak_object *, dd::RJ_Document &);
-
-bool equal_prefix_chars_driver(const dd::String_type &a, const dd::String_type &b, size_t prefix);
+bool equal_prefix_chars_driver(const dd::String_type &a,
+                               const dd::String_type &b, size_t prefix);
 
 // Mocking functions
 
@@ -72,7 +70,8 @@ static void mock_properties(dd::Properties &p, uint64 size)
 {
   for (uint64 i= 0; i < size; ++i)
   {
-    p.set_uint64(boost::lexical_cast<dd::String_type>(i), i);
+    std::string key= std::to_string(i);
+    p.set_uint64(dd::String_type{key.begin(), key.end()}, i);
   }
 }
 
@@ -182,7 +181,7 @@ static void mock_dd_obj(dd::Partition_value *pv)
 
 static void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 {
-  p->set_level(42);
+  p->set_level(0);
   p->set_number(42);
   p->set_engine("mocked partition engine");
   p->set_comment("mocked comment");
@@ -286,37 +285,27 @@ bool diff(const dd::String_type &expected, dd::String_type actual)
   return true;
 }
 
-template<class Dd_type>
-void serialize_callback(dd::Sdi_wcontext *wctx, const dd::Weak_object *wo,
-                        dd::Sdi_writer *w)
-{
-  dynamic_cast<const Dd_type*>(wo)->serialize(wctx, w);
-}
-
-template<class Dd_type>
-void deserialize_callback(dd::Sdi_rcontext *rctx, dd::Weak_object *wo,
-                          dd::RJ_Document &doc)
-{
-  dynamic_cast<Dd_type*>(wo)->deserialize(rctx, doc);
-}
 
 template <typename T>
-dd::String_type serialize(const T *dd_obj)
+dd::String_type serialize_drv(const T *dd_obj)
 {
   dd::RJ_StringBuffer buf;
   dd::Sdi_writer w(buf);
-  setup_wctx(serialize_callback<T>, dd_obj, &w);
+  dd::String_type s= "driver schema";
+  dd::Sdi_wcontext *wctx= get_wctx();
+  dd_obj->serialize(wctx, &w);
   return dd::String_type(buf.GetString(), buf.GetSize());
 }
 
 
 template <typename T>
-T* deserialize(const dd::String_type &sdi)
+T* deserialize_drv(const dd::String_type &sdi)
 {
   T *dst_obj= dd::create_object<T>();
   dd::RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
-  setup_rctx(deserialize_callback<T>, dst_obj, doc);
+  dd::Sdi_rcontext *rctx= get_rctx();
+  dst_obj->deserialize(rctx, doc);
   return dst_obj;
 }
 
@@ -334,13 +323,12 @@ dd::String_type api_serialize(const dd::Table *table)
 
 template <typename T>
 void verify(T *dd_obj) {
-  dd::String_type sdi= serialize(dd_obj);
-//  std::cout << "Verifying json: \n" << sdi << std::endl;
+  dd::String_type sdi= serialize_drv(dd_obj);
+  //std::cout << "Verifying json: \n" << sdi << std::endl;
   ASSERT_GT(sdi.size(), 0u);
-// Commented out due to UB when accessing DOM after deserialization
-//  std::unique_ptr<T> dst_obj(deserialize<T>(sdi));
-//  dd::String_type dst_sdi= serialize(dst_obj.get());
-//  EXPECT_EQ(dst_sdi, sdi);
+  std::unique_ptr<T> dst_obj{deserialize_drv<T>(sdi)};
+  dd::String_type dst_sdi= serialize_drv(dst_obj.get());
+  EXPECT_EQ(dst_sdi, sdi);
 }
 
 
@@ -358,15 +346,14 @@ void api_test(const AP &ap)
 {
   typedef typename AP::element_type T;
   dd::sdi_t sdi= api_serialize(ap.get());
-// Commented out due to UB when accessing DOM after deserialization
-//  std::unique_ptr<T> d(create_object<T>());
-//  dd::deserialize(nullptr, sdi, d.get());
+  std::unique_ptr<T> d(dd::create_object<T>());
+  dd::deserialize(nullptr, sdi, d.get());
 
-//  sdi_t d_sdi= api_serialize(d.get());
+  dd::sdi_t d_sdi= api_serialize(d.get());
 
-//   EXPECT_EQ(d_sdi.size(), sdi.size());
-//   EXPECT_EQ(d_sdi, sdi);
-//   ASSERT_FALSE(diff(sdi, d_sdi));
+  EXPECT_EQ(d_sdi.size(), sdi.size());
+  EXPECT_EQ(d_sdi, sdi);
+  ASSERT_FALSE(diff(sdi, d_sdi));
 }
 
 

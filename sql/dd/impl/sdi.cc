@@ -769,24 +769,24 @@ bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t)
 
 namespace sdi_unittest {
 
-typedef void (*cb)(dd::Sdi_wcontext*, const dd::Weak_object*, dd::Sdi_writer*);
-void setup_wctx(cb fp, const dd::Weak_object *wo, dd::Sdi_writer *w)
-{
-  dd::String_type s("driver_schema");
-  dd::Sdi_wcontext wctx(nullptr, &s);
+dd::String_type drv_s= "driver_schema";
+dd::Sdi_wcontext drv_wctx(nullptr, &drv_s);
 
-  fp(&wctx, wo, w);
+dd::Sdi_wcontext* get_wctx()
+{
+  return &drv_wctx;
 }
 
-typedef void (*dcb)(dd::Sdi_rcontext*, dd::Weak_object*,
-                    dd::RJ_Document &doc);
-void setup_rctx(dcb fp, dd::Weak_object *wo, dd::RJ_Document &doc)
+
+dd::Sdi_rcontext drv_rctx(nullptr, 0, 0);
+dd::Sdi_rcontext* get_rctx()
 {
-  dd::Sdi_rcontext rctx(nullptr, 0, 0); // restore ids for comparison
-  fp(&rctx, wo, doc);
+  return &drv_rctx;
 }
 
-bool equal_prefix_chars_driver(const dd::String_type &a, const dd::String_type &b, size_t prefix)
+
+bool equal_prefix_chars_driver(const dd::String_type &a,
+                               const dd::String_type &b, size_t prefix)
 {
   return dd::equal_prefix_chars(a.begin(), a.end(), b.begin(), b.end(), prefix);
 }
