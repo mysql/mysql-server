@@ -7,7 +7,7 @@ ALTER USER IF EXISTS userX, userY, userZ,
 userW IDENTIFIED WITH 'mysql_native_password' BY 'abcd'
                     ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'userW'@'%' does not exist.
+Note	3162	Authorization ID 'userW'@'%' does not exist.
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userX.*userY.*userZ.*userW.*ACCOUNT LOCK.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc

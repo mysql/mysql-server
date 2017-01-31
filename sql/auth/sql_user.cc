@@ -1464,7 +1464,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error())
   {
-      my_error(ER_CANNOT_USER, MYF(0), "CREATE USER",
+      my_error(ER_CANNOT_USER, MYF(0), (is_role ? "CREATE ROLE" :
+                                        "CREATE USER"),
                is_anonymous_user ?
                  "anonymous user" :
                  wrong_users.c_ptr_safe());
