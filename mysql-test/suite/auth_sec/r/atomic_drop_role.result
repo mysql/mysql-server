@@ -39,9 +39,9 @@ include/save_binlog_position.inc
 # case 2 : Execute DROP ROLE IF NOT EXISTS for non-existing users
 DROP ROLE IF EXISTS roleX, roleY, roleZ;
 Warnings:
-Note	3162	User 'roleX'@'%' does not exist.
-Note	3162	User 'roleY'@'%' does not exist.
-Note	3162	User 'roleZ'@'%' does not exist.
+Note	3162	Authorization ID 'roleX'@'%' does not exist.
+Note	3162	Authorization ID 'roleY'@'%' does not exist.
+Note	3162	Authorization ID 'roleZ'@'%' does not exist.
 # This event sequence pattern MUST be present in binlog: !Q(DROP ROLE IF EXISTS.*roleX.*roleY.*roleZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc

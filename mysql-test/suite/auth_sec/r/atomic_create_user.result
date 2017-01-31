@@ -92,7 +92,7 @@ include/save_binlog_position.inc
 # Case 1 : Execute CREATE USER IF NOT EXISTS for existing user
 CREATE USER IF NOT EXISTS userX, userY, userZ;
 Warnings:
-Note	3163	User 'userX'@'%' already exists.
+Note	3163	Authorization ID 'userX'@'%' already exists.
 # Must show entries for userX, userY, userZ
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
 user
@@ -105,9 +105,9 @@ include/save_binlog_position.inc
 # Must show warnings about userX, userY and userZ
 CREATE USER IF NOT EXISTS userX, userY, userZ;
 Warnings:
-Note	3163	User 'userX'@'%' already exists.
-Note	3163	User 'userY'@'%' already exists.
-Note	3163	User 'userZ'@'%' already exists.
+Note	3163	Authorization ID 'userX'@'%' already exists.
+Note	3163	Authorization ID 'userY'@'%' already exists.
+Note	3163	Authorization ID 'userZ'@'%' already exists.
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
@@ -148,7 +148,7 @@ include/save_binlog_position.inc
 CREATE USER IF NOT EXISTS userW IDENTIFIED BY 'abcd',
 userV IDENTIFIED BY 'haha';
 Warnings:
-Note	3163	User 'userW'@'%' already exists.
+Note	3163	Authorization ID 'userW'@'%' already exists.
 # Must show userV, userW, userX, userY, userZ
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
 user
