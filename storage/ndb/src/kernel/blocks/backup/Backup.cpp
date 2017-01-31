@@ -10038,6 +10038,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
       ptr.p->m_prepare_scan_change_gci = 0;
       ptr.p->m_prepare_first_start_part_in_lcp = 0;
       ptr.p->preparePrevLcpId = 0;
+      ptr.p->preparePrevLocalLcpId = 0;
       maxGciCompleted = 0;
       maxGciWritten = 0;
     }
@@ -10063,14 +10064,6 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   dataFileNumber %= BackupFormat::NDB_MAX_LCP_FILES;
   lcpCtlFilePtr->LastDataFileNumber = dataFileNumber;
   ptr.p->prepareDataFileNumber = dataFileNumber;
-#ifdef DEBUG_LCP
-  Uint32 prev_lcp_id = closeLcpNumber == 0 ?
-                       lcpCtlFilePtr0->LcpId :
-                       lcpCtlFilePtr1->LcpId;
-  Uint32 prev_local_lcp_id = closeLcpNumber == 0 ?
-                             lcpCtlFilePtr0->LocalLcpId :
-                             lcpCtlFilePtr1->LocalLcpId;
-#endif
   TablePtr tabPtr;
   FragmentPtr fragPtr;
   ndbrequire(ptr.p->prepare_table.first(tabPtr));
@@ -10122,8 +10115,8 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
            ", MaxGciCompleted: %u, createGci: %u",
            instance(),
            ptr.p->prepareNextLcpCtlFileNumber,
-           prev_lcp_id,
-           prev_local_lcp_id,
+           ptr.p->preparePrevLcpId,
+           ptr.p->preparePrevLocalLcpId,
            lcpCtlFilePtr->LcpId,
            lcpCtlFilePtr->LocalLcpId,
            dataFileNumber,
@@ -10538,7 +10531,16 @@ Backup::lcp_set_lcp_id(BackupRecordPtr ptr,
     jam();
     lcpCtlFilePtr->fileHeader.BackupId = ptr.p->backupId;
     lcpCtlFilePtr->LcpId = ptr.p->backupId;
-    lcpCtlFilePtr->LocalLcpId = 0;
+    if (ptr.p->backupId == ptr.p->preparePrevLcpId)
+    {
+      jam();
+      lcpCtlFilePtr->LocalLcpId = ptr.p->preparePrevLocalLcpId + 1;
+    }
+    else
+    {
+      jam();
+      lcpCtlFilePtr->LocalLcpId = 0;
+    }
   }
   else
   {
