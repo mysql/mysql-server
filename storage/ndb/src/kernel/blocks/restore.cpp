@@ -1240,7 +1240,9 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
               file_ptr.p->m_max_gci_written,
               file_ptr.p->m_max_page_cnt));
   }
-  else
+  else if (file_ptr.p->m_restored_lcp_id < lcpId ||
+           (file_ptr.p->m_restored_lcp_id == lcpId &&
+            file_ptr.p->m_restored_local_lcp_id < localLcpId))
   {
     jam();
     DEB_RES(("(%u)Use ctl file: 1, 0 older, Lcp(%u,%u), GCI_C: %u,"
@@ -1252,8 +1254,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
               maxGciWritten,
               maxPageCnt));
     ndbrequire(file_ptr.p->m_ctl_file_no == 1);
-    ndbrequire(file_ptr.p->m_restored_lcp_id < lcpId);
-    ndbrequire(file_ptr.p->m_max_gci_completed < maxGciCompleted);
+    ndbrequire(file_ptr.p->m_max_gci_completed <= maxGciCompleted);
     file_ptr.p->m_used_ctl_file_no = file_ptr.p->m_ctl_file_no;
     file_ptr.p->m_double_lcps_found = true;
     file_ptr.p->m_max_gci_completed = maxGciCompleted;
@@ -1262,6 +1263,31 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_restored_local_lcp_id = localLcpId;
     file_ptr.p->m_max_page_cnt = maxPageCnt;
     file_ptr.p->m_remove_ctl_file_no = 0;
+    calculate_remove_old_data_files(file_ptr);
+  }
+  else
+  {
+    /**
+     * The LCP id of both LCPs were the same, this can happen when the
+     * node previously crashed in the middle of an LCP and DIH haven't
+     * finished it, so it starts the next LCP with the same ID.
+     * In this case we have added one to the Local LCP id to ensure we
+     * know which is the most recent one.
+     * So here we come when CTL file 0 is newer.
+     */
+    DEB_RES(("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
+             " GCI_W: %u, MPC: %u",
+              instance(),
+              file_ptr.p->m_restored_lcp_id,
+              file_ptr.p->m_restored_local_lcp_id,
+              file_ptr.p->m_max_gci_completed,
+              file_ptr.p->m_max_gci_written,
+              file_ptr.p->m_max_page_cnt));
+    ndbrequire(file_ptr.p->m_ctl_file_no == 1);
+    ndbrequire(file_ptr.p->m_max_gci_completed >= maxGciCompleted);
+    file_ptr.p->m_used_ctl_file_no = 0;
+    file_ptr.p->m_double_lcps_found = true;
+    file_ptr.p->m_remove_ctl_file_no = 1;
     calculate_remove_old_data_files(file_ptr);
   }
   close_file(signal, file_ptr);
