@@ -15,6 +15,10 @@
 #
 #
 
+let $test_charset_name=
+  `select DEFAULT_CHARACTER_SET_NAME from information_schema.schemata
+   where SCHEMA_NAME = 'test'`;
+
 # Check that all character sets needed are available
 # Note(mleich):
 #    It is intentional that the common solution with
@@ -705,5 +709,8 @@ let $coll= utf8_unicode_ci;
 
 }
 
+# check_charset_utf8.inc and check_charset_ucs2.inc do DROP DATABASE test;
+# and then create a test database with their own character set.
+# Re-create with original character set to make mtr happy
 DROP database test;
-CREATE database test;
+eval CREATE database test CHARACTER SET $test_charset_name;
