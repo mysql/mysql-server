@@ -413,6 +413,7 @@ static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 /* Static declaration for handerton */
 static handler *federated_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root);
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
@@ -421,6 +422,7 @@ static int federated_rollback(handlerton *hton, THD *thd, bool all);
 
 static handler *federated_create_handler(handlerton *hton, 
                                          TABLE_SHARE *table,
+                                         bool,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_federated(hton, table);
@@ -1646,7 +1648,7 @@ ha_rows ha_federated::records_in_range(uint, key_range*, key_range*)
   specific open().
 */
 
-int ha_federated::open(const char *name, int, uint)
+int ha_federated::open(const char *name, int, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_federated::open");
 
@@ -3030,7 +3032,7 @@ int ha_federated::delete_all_rows()
   Used to manually truncate the table.
 */
 
-int ha_federated::truncate()
+int ha_federated::truncate(dd::Table*)
 {
   char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
@@ -3128,7 +3130,8 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
   FUTURE: We should potentially connect to the foreign database and
 */
 
-int ha_federated::create(const char*, TABLE *table_arg, HA_CREATE_INFO*)
+int ha_federated::create(const char*, TABLE *table_arg,
+                         HA_CREATE_INFO*, dd::Table*)
 {
   int retval;
   THD *thd= current_thd;

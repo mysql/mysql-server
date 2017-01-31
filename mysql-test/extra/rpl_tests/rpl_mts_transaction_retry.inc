@@ -21,15 +21,16 @@
 # In the test cases, we setup two slave workers. So it initializes two databases.
 # in each test case, it will use two transactions. They operate on different
 # databases. For databases MTS, it works. For logic clock MTS, the caller should
-# call below DEBUG instruction before this include file. So the two transactions
-# can be paralleled on slave.
-# SET DEBUG = "d,set_commit_parent_100";
+# do --let $set_commit_parent_100=1 before this include file. So the two
+# transactions can be paralleled on slave.
 ################################################################################
 --echo #
 --echo # Initialization the test
 --echo #
 
-# Create two database to support mts of db parallel
+# Create two database to support database MTS.
+# For logical clock MTS the below DDLs and inserts should
+# be run on slave in their original order.
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 CREATE TABLE db1.t1(c1 INT PRIMARY KEY, c2 VARCHAR(4096)) ENGINE=InnoDB;
@@ -77,6 +78,11 @@ BEGIN;
 SELECT c1 FROM db1.t1 FOR UPDATE;
 
 --source include/rpl_connection_master.inc
+if ($set_commit_parent_100)
+{
+# Let the two inserts and later transactions run in parallel on slave.
+  SET DEBUG = "+d,set_commit_parent_100";
+}
 INSERT INTO db1.t1 VALUES(2, NULL);
 INSERT INTO db2.t1 VALUES(2, NULL);
 --source include/save_master_pos.inc
@@ -232,5 +238,9 @@ SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 --source include/start_slave_sql.inc
 
 --source include/rpl_connection_master.inc
+if ($set_commit_parent_100)
+{
+  SET DEBUG = "-d,set_commit_parent_100";
+}
 DROP DATABASE db1;
 DROP DATABASE db2;

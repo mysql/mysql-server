@@ -25,6 +25,7 @@
 #include "my_alloc.h"                   /* USED_MEM */
 #include "my_compiler.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"              /* IWYU pragma: keep */
 
 #ifdef HAVE_ALLOCA_H
@@ -804,50 +805,6 @@ extern my_bool my_compress(uchar *, size_t *, size_t *);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
-
-
-/**
-  This function takes the submitted serialized meta data and compresses it.
-
-  @param[in] meta_data                    The serialized meta data
-  @param[in] meta_data_length             The size of the meta data blob
-  @param[out] compressed_meta_data        The compressed serialized
-                                          meta data
-  @param[out] compressed_meta_data_length The size of the compressed
-                                          meta data blob
-
-  @retval 0 Success
-  @retval 1 Error
-*/
-
-extern my_bool compress_serialized_meta_data(uchar *meta_data,
-                                      size_t meta_data_length,
-                                      uchar **compressed_meta_data,
-                                      size_t *compressed_meta_data_length);
-
-
-/**
-  This function takes the submitted compressed serialized meta data and
-  uncompresses it.
-
-  @param[in] compressed_meta_data         The compressed serialized
-                                          meta data
-  @param[in] compressed_meta_data_length  The size of the compressed
-                                          meta data blob
-  @param[out] meta_data                   The uncompressed serialized
-                                          meta data
-  @param[out] meta_data_length            The size of the uncompressed
-                                          meta data blob
-
-  @retval 0 Success
-  @retval 1 Error
-*/
-
-extern my_bool uncompress_serialized_meta_data(uchar *compressed_meta_data,
-                                        size_t compressed_meta_data_length,
-                                        uchar **meta_data,
-                                        size_t *meta_data_length);
-
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
 

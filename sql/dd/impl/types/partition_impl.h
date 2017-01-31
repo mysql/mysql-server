@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,6 +210,16 @@ public:
   virtual const Partition_indexes &indexes() const
   { return m_indexes; }
 
+  /* purecov: begin deadcode */
+  virtual Partition_indexes *indexes()
+  { return &m_indexes; }
+  /* purecov: end */
+
+  virtual const Partition *parent() const
+  { return m_parent; }
+  virtual void set_parent(const Partition *parent)
+  { m_parent= parent; }
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -252,6 +262,8 @@ private:
 
   Table_impl *m_table;
 
+  const Partition *m_parent;
+
   Partition_values m_values;
   Partition_indexes m_indexes;
 
@@ -273,6 +285,17 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////
+
+/** Used to compare two partition elements. */
+struct Partition_order_comparator
+{
+  bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
+  {
+    if (p1->level() == p2->level())
+      return p1->number() < p2->number();
+    return p1->level() < p2->level();
+  }
+};
 
 }
 

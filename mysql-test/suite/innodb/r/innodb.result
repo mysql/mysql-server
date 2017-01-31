@@ -1822,7 +1822,7 @@ variable_value - @innodb_rows_inserted_orig
 2019
 SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
-1130
+1665
 SELECT variable_value - @innodb_row_lock_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
 0
@@ -3318,11 +3318,11 @@ TRUNCATE TABLE t1;
 affected rows: 0
 DROP TABLE t1;
 Variable_name	Value
-Handler_update	0
+Handler_update	2
 Variable_name	Value
 Handler_delete	0
 Variable_name	Value
-Handler_update	1
+Handler_update	3
 Variable_name	Value
 Handler_delete	1
 DROP TABLE bug58912;

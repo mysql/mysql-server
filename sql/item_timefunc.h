@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -169,7 +170,10 @@ class Item_func_month final : public Item_func
 {
 public:
   Item_func_month(const POS &pos, Item *a) :Item_func(pos, a)
-  { collation.set_numeric(); }
+  {
+    set_data_type(MYSQL_TYPE_LONGLONG);
+    collation.set_numeric();
+  }
   longlong val_int() override;
   double val_real() override
   { DBUG_ASSERT(fixed); return (double) Item_func_month::val_int(); }
@@ -393,7 +397,10 @@ class Item_func_weekday : public Item_func
 public:
   Item_func_weekday(const POS &pos, Item *a,bool type_arg)
     :Item_func(pos, a), odbc_type(type_arg)
-  { collation.set_numeric(); }
+  {
+    set_data_type(MYSQL_TYPE_LONGLONG);
+    collation.set_numeric();
+  }
   longlong val_int() override;
   double val_real() override
   { DBUG_ASSERT(fixed); return static_cast<double>(val_int()); }
@@ -500,6 +507,7 @@ public:
   Item_func_unix_timestamp(const POS &pos) :Item_timeval_func(pos) {}
 
   Item_func_unix_timestamp(Item *a) :Item_timeval_func(a) {}
+
   Item_func_unix_timestamp(const POS &pos, Item *a) :Item_timeval_func(pos, a)
   {}
 
@@ -520,8 +528,17 @@ public:
   }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(11, arg_count ==  0 ?  0 :
-                                                args[0]->datetime_precision());
+    collation.set_numeric();
+    const uint8 dec= arg_count ==  0 ? 0 : args[0]->datetime_precision();
+    if (dec > 0)
+    {
+      set_data_type_decimal(11 + dec, dec);
+    }
+    else
+    {
+      set_data_type_longlong();
+      max_length= 11;
+    }
     return false;
   }
   bool val_timeval(struct timeval *tm) override;
@@ -611,7 +628,6 @@ class Item_temporal_hybrid_func :public Item_str_func
 {
 protected:
   sql_mode_t sql_mode; // sql_mode value is cached here in resolve_type()
-  enum_field_types cached_field_type; // TIME, DATE, DATETIME or STRING
   String ascii_buf; // Conversion buffer
   /**
     Get "native" temporal value as MYSQL_TIME
@@ -633,7 +649,6 @@ public:
   { }
 
   Item_result result_type() const override { return STRING_RESULT; }
-  enum_field_types field_type() const override { return cached_field_type; }
   const CHARSET_INFO *charset_for_protocol() const override
   {
     /*
@@ -643,8 +658,8 @@ public:
       (which is fixed from @collation_connection in resolve_type()).
     */
     DBUG_ASSERT(fixed == 1);
-    return cached_field_type == MYSQL_TYPE_STRING ?
-                                collation.collation : &my_charset_bin;
+    return data_type() == MYSQL_TYPE_STRING ?
+             collation.collation : &my_charset_bin;
   }
   Field *tmp_table_field(TABLE *table) override
   {
@@ -686,19 +701,16 @@ protected:
   }
 public:
   Item_date_func() :Item_temporal_func()
-  { }
+  { set_data_type_date(); }
   explicit Item_date_func(const POS &pos) :Item_temporal_func(pos)
-  { }
-
+  { set_data_type_date(); }
   Item_date_func(Item *a) :Item_temporal_func(a)
-  { }
+  { set_data_type_date(); }
   Item_date_func(const POS &pos, Item *a) :Item_temporal_func(pos, a)
-  { }
-
+  { set_data_type_date(); }
   Item_date_func(const POS &pos, Item *a, Item *b)
     :Item_temporal_func(pos, a, b)
-  { }
-  enum_field_types field_type() const override { return MYSQL_TYPE_DATE; }
+  { set_data_type_date(); }
   bool get_time(MYSQL_TIME *ltime) override
   {
     return get_time_from_date(ltime);
@@ -716,7 +728,6 @@ public:
   const char *func_name() const override { return "date"; }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, 0);
     return false;
   }
   my_decimal *val_decimal(my_decimal *decimal_value) override
@@ -745,29 +756,25 @@ protected:
   }
 public:
   Item_datetime_func() :Item_temporal_func()
-  { }
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(const POS &pos) :Item_temporal_func(pos)
-  { }
-
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(Item *a) :Item_temporal_func(a)
-  { }
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(const POS &pos, Item *a) :Item_temporal_func(pos, a)
-  { }
-
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(const POS &pos, Item *a, Item *b)
     :Item_temporal_func(pos, a, b)
-  { }
-
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(Item *a,Item *b, Item *c) :Item_temporal_func(a,b,c)
-  { }
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(const POS &pos, Item *a,Item *b, Item *c)
     :Item_temporal_func(pos, a, b, c)
-  {}
+  { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(const POS &pos, Item *a,Item *b, Item *c, Item *d)
     :Item_temporal_func(pos, a, b, c, d)
-  {}
+  { set_data_type(MYSQL_TYPE_DATETIME); }
 
-  enum_field_types field_type() const override { return MYSQL_TYPE_DATETIME; }
   double val_real() override { return val_real_from_decimal(); }
   String *val_str(String *str) override
   {
@@ -807,19 +814,20 @@ protected:
     return save_time_in_field(field);
   }
 public:
-  Item_time_func() :Item_temporal_func() {}
-  explicit Item_time_func(const POS &pos) :Item_temporal_func(pos) {}
-
-  Item_time_func(Item *a) :Item_temporal_func(a) {}
-  Item_time_func(const POS &pos, Item *a) :Item_temporal_func(pos, a) {}
-
+  Item_time_func() :Item_temporal_func()
+  { set_data_type(MYSQL_TYPE_TIME); }
+  explicit Item_time_func(const POS &pos) :Item_temporal_func(pos)
+  { set_data_type(MYSQL_TYPE_TIME); }
+  Item_time_func(Item *a) :Item_temporal_func(a)
+  { set_data_type(MYSQL_TYPE_TIME); }
+  Item_time_func(const POS &pos, Item *a) :Item_temporal_func(pos, a)
+  { set_data_type(MYSQL_TYPE_TIME); }
   Item_time_func(const POS &pos, Item *a, Item *b)
     :Item_temporal_func(pos, a, b)
-  {}
+  { set_data_type(MYSQL_TYPE_TIME); }
   Item_time_func(const POS &pos, Item *a, Item *b, Item *c)
     :Item_temporal_func(pos, a, b ,c)
-  {}
-  enum_field_types field_type() const override { return MYSQL_TYPE_TIME; }
+  { set_data_type(MYSQL_TYPE_TIME); }
   double val_real() override { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value) override
   {
@@ -996,7 +1004,7 @@ public:
   Item_date_literal(MYSQL_TIME *ltime)
   {
     cached_time.set_date(ltime);
-    (void)resolve_type(current_thd);
+    set_data_type_date();
     fixed= true;
   }
   const char *func_name() const override { return "date_literal"; }
@@ -1018,7 +1026,6 @@ public:
   }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, 0);
     return false;
   }
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -1050,9 +1057,8 @@ public:
   */
   Item_time_literal(MYSQL_TIME *ltime, uint dec_arg)
   {
-    decimals= MY_MIN(dec_arg, DATETIME_MAX_DECIMALS);
+    set_data_type_time(MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
     cached_time.set_time(ltime, decimals);
-    (void)resolve_type(current_thd);
     fixed= true;
   }
   const char *func_name() const override { return "time_literal"; }
@@ -1074,7 +1080,6 @@ public:
   }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, decimals);
     return false;
   }
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -1106,9 +1111,8 @@ public:
   */
   Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg)
   {
-    decimals= MY_MIN(dec_arg, DATETIME_MAX_DECIMALS);
+    set_data_type_datetime(MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
     cached_time.set_datetime(ltime, decimals);
-    (void)resolve_type(current_thd);
     fixed= true;
   }
   const char *func_name() const override { return "datetime_literal"; }
@@ -1130,7 +1134,6 @@ public:
   }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, decimals);
     return false;
   }
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -1459,9 +1462,7 @@ public:
   {}
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH,
-                                            MY_MIN(args[0]->decimals,
-                                                   DATETIME_MAX_DECIMALS));
+    set_data_type_time(MY_MIN(args[0]->decimals, DATETIME_MAX_DECIMALS));
     maybe_null= true;
     return false;
   }
@@ -1587,10 +1588,8 @@ public:
   const char *cast_type() const { return "time"; }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH,
-                                            detect_precision_from_arg ?
-                                            args[0]->time_precision() :
-                                            decimals);
+    set_data_type_time(detect_precision_from_arg ? args[0]->time_precision() :
+                                                   decimals);
     maybe_null= true;
     return false;
   }
@@ -1622,10 +1621,8 @@ public:
   const char *cast_type() const { return "datetime"; }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH,
-                                            detect_precision_from_arg ?
-                                            args[0]->datetime_precision():
-                                            decimals);
+    set_data_type_datetime(detect_precision_from_arg ?
+                             args[0]->datetime_precision() : decimals);
     maybe_null= true;
     return false;
   }
@@ -1681,8 +1678,8 @@ public:
   const char *func_name() const override { return "timediff"; }
   bool resolve_type(THD *) override
   {
-    uint dec= MY_MAX(args[0]->time_precision(), args[1]->time_precision());
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, dec);
+    set_data_type_time(MY_MAX(args[0]->time_precision(),
+                              args[1]->time_precision()));
     maybe_null= true;
     return false;
   }
@@ -1695,13 +1692,11 @@ public:
   Item_func_maketime(const POS &pos, Item *a, Item *b, Item *c)
     :Item_time_func(pos, a, b, c)
   {
-    maybe_null= TRUE;
+    maybe_null= true;
   }
   bool resolve_type(THD *) override
   {
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH,
-                                            MY_MIN(args[2]->decimals,
-                                                   DATETIME_MAX_DECIMALS));
+    set_data_type_time(MY_MIN(args[2]->decimals, DATETIME_MAX_DECIMALS));
     return false;
   }
   const char *func_name() const override { return "maketime"; }
@@ -1763,8 +1758,7 @@ public:
   bool resolve_type(THD *) override
   {
     maybe_null= true;
-    decimals=0;
-    fix_length_and_charset(17, default_charset());
+    set_data_type_string(17, default_charset());
     return false;
   }
   void print(String *str, enum_query_type query_type) override;

@@ -81,7 +81,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -92,7 +92,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -103,7 +103,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -114,7 +114,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -269,7 +269,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -280,7 +280,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -291,7 +291,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -302,7 +302,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -420,7 +420,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -431,7 +431,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -442,7 +442,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -453,7 +453,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -616,7 +616,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -627,7 +627,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -638,7 +638,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -649,7 +649,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -797,7 +797,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -808,7 +808,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -819,7 +819,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -830,7 +830,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -983,7 +983,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -994,7 +994,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1005,7 +1005,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1016,7 +1016,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1220,7 +1220,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1231,7 +1231,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1242,7 +1242,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1253,7 +1253,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1455,7 +1455,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1466,7 +1466,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1477,7 +1477,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1488,7 +1488,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1634,7 +1634,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1645,7 +1645,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1656,7 +1656,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1667,7 +1667,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1706,7 +1706,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1717,7 +1717,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1728,7 +1728,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1739,7 +1739,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1778,7 +1778,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1789,7 +1789,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1800,7 +1800,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1811,7 +1811,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1850,7 +1850,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1861,7 +1861,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1872,7 +1872,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1883,7 +1883,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1922,7 +1922,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1933,7 +1933,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1944,7 +1944,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -1955,7 +1955,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -1994,7 +1994,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2005,7 +2005,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2016,7 +2016,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2027,7 +2027,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -2066,7 +2066,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2077,7 +2077,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2088,7 +2088,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2099,7 +2099,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -2138,7 +2138,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2149,7 +2149,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2160,7 +2160,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2171,7 +2171,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -2228,7 +2228,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2239,7 +2239,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2250,7 +2250,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2261,7 +2261,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -2600,7 +2600,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2611,7 +2611,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2622,7 +2622,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2633,7 +2633,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -2704,7 +2704,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2715,7 +2715,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2726,7 +2726,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2737,7 +2737,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -2951,7 +2951,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2962,7 +2962,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2973,7 +2973,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -2984,7 +2984,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -3220,7 +3220,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3231,7 +3231,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3242,7 +3242,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3253,7 +3253,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -3579,7 +3579,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3590,7 +3590,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3601,7 +3601,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -3612,7 +3612,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -4045,7 +4045,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4056,7 +4056,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4067,7 +4067,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4078,7 +4078,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -4664,7 +4664,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4675,7 +4675,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4686,7 +4686,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4697,7 +4697,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -4852,7 +4852,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4863,7 +4863,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4874,7 +4874,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -4885,7 +4885,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -5003,7 +5003,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5014,7 +5014,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5025,7 +5025,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5036,7 +5036,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -5199,7 +5199,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5210,7 +5210,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5221,7 +5221,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5232,7 +5232,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -5380,7 +5380,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5391,7 +5391,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5402,7 +5402,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5413,7 +5413,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -5566,7 +5566,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5577,7 +5577,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5588,7 +5588,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5599,7 +5599,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -5803,7 +5803,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5814,7 +5814,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5825,7 +5825,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -5836,7 +5836,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6038,7 +6038,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6049,7 +6049,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6060,7 +6060,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6071,7 +6071,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6217,7 +6217,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6228,7 +6228,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6239,7 +6239,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6250,7 +6250,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6289,7 +6289,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6300,7 +6300,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6311,7 +6311,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6322,7 +6322,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6361,7 +6361,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6372,7 +6372,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6383,7 +6383,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6394,7 +6394,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6433,7 +6433,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6444,7 +6444,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6455,7 +6455,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6466,7 +6466,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6505,7 +6505,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6516,7 +6516,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6527,7 +6527,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6538,7 +6538,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6577,7 +6577,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6588,7 +6588,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6599,7 +6599,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6610,7 +6610,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6649,7 +6649,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6660,7 +6660,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6671,7 +6671,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6682,7 +6682,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6721,7 +6721,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6732,7 +6732,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6743,7 +6743,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6754,7 +6754,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -6811,7 +6811,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6822,7 +6822,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6833,7 +6833,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -6844,7 +6844,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -7183,7 +7183,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7194,7 +7194,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7205,7 +7205,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7216,7 +7216,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -7287,7 +7287,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7298,7 +7298,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7309,7 +7309,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7320,7 +7320,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -7534,7 +7534,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7545,7 +7545,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7556,7 +7556,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7567,7 +7567,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -7803,7 +7803,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7814,7 +7814,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7825,7 +7825,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -7836,7 +7836,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -8162,7 +8162,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8173,7 +8173,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8184,7 +8184,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8195,7 +8195,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33
@@ -8628,7 +8628,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8639,7 +8639,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8650,7 +8650,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
@@ -8661,7 +8661,7 @@ handle_ok
 		[meta][field] charsetnr: 33
 		[meta][field] flags: 1 (NOT_NULL )
 		[meta][field] decimals: 31
-		[meta][field] type: VAR_STRING (253)
+		[meta][field] type: VARCHAR (15)
 
 
 	[meta][charset result] number: 33

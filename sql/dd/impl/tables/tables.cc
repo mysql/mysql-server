@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -250,6 +250,18 @@ Object_key *Tables::create_key_by_schema_id(
   Object_id schema_id)
 {
   return new (std::nothrow) Parent_id_range_key(1, FIELD_SCHEMA_ID, schema_id);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Tables::create_key_by_tablespace_id(
+  Object_id tablespace_id)
+{
+  // Use the index that is generated implicitly for the FK.
+  const int TABLESPACE_INDEX_ID= 5;
+  return new (std::nothrow) Parent_id_range_key(TABLESPACE_INDEX_ID,
+                                                FIELD_TABLESPACE_ID,
+                                                tablespace_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////

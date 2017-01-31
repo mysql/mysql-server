@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,17 +20,19 @@
 
 #include <map>
 #include <string>
-#include "i_option.h"
-#include "i_options_provider.h"
-#include "i_option_changed_listener.h"
-#include "simple_option.h"
-#include "disabled_option.h"
-#include "char_array_option.h"
-#include "password_option.h"
-#include "string_option.h"
-#include "number_option.h"
+
 #include "bool_option.h"
+#include "char_array_option.h"
+#include "disabled_option.h"
 #include "enum_option.h"
+#include "i_option.h"
+#include "i_option_changed_listener.h"
+#include "i_options_provider.h"
+#include "my_inttypes.h"
+#include "number_option.h"
+#include "password_option.h"
+#include "simple_option.h"
+#include "string_option.h"
 
 namespace Mysql{
 namespace Tools{

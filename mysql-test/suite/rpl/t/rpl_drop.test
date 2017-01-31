@@ -1,11 +1,17 @@
-# Testcase for BUG#4552 (DROP on two tables, one of which does not
-# exist, must be binlogged with a non-zero error code)
+# Testcase for BUG#4553. DROP on two tables, one of which does not
+# exist, was binlogged with a zero error code which broke replication.
+# Since WL#7743 the behavior is not to drop any tables in this case.
 --source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
 
 create table t1 (a int);
---error 1051
+--error ER_BAD_TABLE_ERROR
 drop table t1, t2;
+--source include/sync_slave_sql_with_master.inc
+
+# Clean-up.
+connection master;
+drop table t1;
 --source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests

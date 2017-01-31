@@ -162,3 +162,18 @@ disconnect con5;
 connection default;
 DROP SCHEMA test_i_s;
 SET @@lock_wait_timeout= @lock_wait_timeout_saved;
+#
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API".
+#
+# Killed ALTER TABLE on temporary table sometimes led to assertion
+# failure on connection close.
+connect  con1, localhost, root,,;
+create temporary table t1 (i int) engine=innodb;
+set debug= "+d,mysql_lock_tables_kill_query";
+alter table t1 add index (i);
+ERROR 70100: Query execution was interrupted
+set debug= "-d,mysql_lock_tables_kill_query";
+# The below disconnect should drop temporary table automagically.
+disconnect con1;
+connection default;

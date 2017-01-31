@@ -23,6 +23,7 @@
 #include <unistd.h>
 #endif
 
+#include "my_inttypes.h"
 #include "my_sys.h"
 
 // Ignore test on windows, as we are mocking away a unix function, see below.

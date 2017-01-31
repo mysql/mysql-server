@@ -154,6 +154,21 @@ public:
   // Reset the shared cache. Optionally keep the core DD table meta data.
   static void reset(bool keep_dd_entities);
 
+
+  /**
+    Check if an element with the given key is available.
+
+    @param key   Key to check for presence.
+
+    @retval true   The key exist.
+    @retval false  The key does not exist.
+  */
+
+  template <typename K, typename T>
+  bool available(const K &key)
+  { return m_map<T>()->available(key); }
+
+
   /**
     Get an element from the cache, given the key.
 

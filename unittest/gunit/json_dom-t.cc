@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "my_decimal.h"
-#include "sql_string.h"
-#include "sql_time.h"
+#include <gtest/gtest.h>
+#include <cstring>
+#include <memory>
+
+#include "base64.h"
 #include "json_binary.h"
 #include "json_dom.h"
-#include "base64.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "sql_string.h"
+#include "sql_time.h"
 #include "template_utils.h"     // down_cast
-
-#include <gtest/gtest.h>
 #include "test_utils.h"
-
-#include <memory>
-#include <cstring>
 
 /**
  Test Json_dom class hierarchy API, cf. json_dom.h

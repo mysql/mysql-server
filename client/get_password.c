@@ -25,6 +25,7 @@
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
 

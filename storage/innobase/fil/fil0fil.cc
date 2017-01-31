@@ -42,6 +42,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "row0mysql.h"

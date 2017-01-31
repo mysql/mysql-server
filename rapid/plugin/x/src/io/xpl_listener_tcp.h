@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,12 +20,13 @@
 #ifndef XPL_LISTENER_TCP_H_
 #define XPL_LISTENER_TCP_H_
 
+#include "my_inttypes.h"
+#include "ngs/interface/listener_interface.h"
+#include "ngs/interface/listener_interface.h"
 #include "ngs/socket_events_interface.h"
 #include "ngs_common/connection_vio.h"
-#include "ngs_common/socket_interface.h"
 #include "ngs_common/operations_factory_interface.h"
-#include "ngs/interface/listener_interface.h"
-#include "ngs/interface/listener_interface.h"
+#include "ngs_common/socket_interface.h"
 
 
 namespace xpl {

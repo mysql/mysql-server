@@ -29,6 +29,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 
 #ifdef WIN32

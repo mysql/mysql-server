@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "mem0mem.h"
+#include "my_inttypes.h"
 /** The server header file is included to access opt_initialize global variable.
 If server passes the option for create/open DB to SE, we should remove such
 direct reference to server header and global variable */

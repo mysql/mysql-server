@@ -24,6 +24,7 @@
 
 #include "io/xpl_listener_unix_socket.h"
 #include "mock/ngs_general.h"
+#include "my_inttypes.h"
 
 
 namespace xpl {

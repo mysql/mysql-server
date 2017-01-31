@@ -1034,6 +1034,12 @@ drop table if exists t2;
 set debug_sync='RESET';
 create table t1 (a int, b int, unique key t1$a (a));
 create table t2 (j int, k int);
+--echo # Warm-up data-dictionary and table definition caches
+--disable_query_log
+--disable_result_log
+select * from t1, t2;
+--enable_result_log
+--enable_query_log
 set debug_sync='after_lock_tables_takes_lock SIGNAL parked WAIT_FOR go';
 --echo # Sending: 
 --send insert into t2 select * from t1;

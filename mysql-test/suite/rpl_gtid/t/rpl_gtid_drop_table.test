@@ -152,31 +152,22 @@ CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
 --let $statement= DROP TABLE temp_non_trans_t1, non_existent
 --source extra/rpl_tests/rpl_gtid_drop_table.inc
 
---echo # Error cases ER_BAD_TABLE_ERROR
+--echo # Error cases ER_BAD_TABLE_ERROR.
+# All error cases below are no-ops.
 --let $expected_error= ER_BAD_TABLE_ERROR
 
 # reg trans + reg non trans + inexistent
 --let $next_gtid= '11111111-1111-1111-1111-111111111111:1'
 --let $statement= DROP TABLE trans_t1, non_trans_t1, non_existent
 --source extra/rpl_tests/rpl_gtid_drop_table.inc
-# recreate the trans table
-SET GTID_NEXT= AUTOMATIC;
-CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
 # reg trans + inexistent
 --let $next_gtid= '11111111-1111-1111-1111-111111111111:2'
 --let $statement= DROP TABLE trans_t1, non_existent
 --source extra/rpl_tests/rpl_gtid_drop_table.inc
-# recreate the non trans table
-SET GTID_NEXT= AUTOMATIC;
-CREATE TABLE non_trans_t1 (c1 INT) ENGINE=MyISAM;
 # reg non trans + inexistent
 --let $next_gtid= '11111111-1111-1111-1111-111111111111:3'
 --let $statement= DROP TABLE non_trans_t1, non_existent
 --source extra/rpl_tests/rpl_gtid_drop_table.inc
-
-SET GTID_NEXT= AUTOMATIC;
-CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
-CREATE TABLE non_trans_t1 (c1 INT) ENGINE=MyISAM;
 
 --echo # Non-error cases
 --let $expected_error=

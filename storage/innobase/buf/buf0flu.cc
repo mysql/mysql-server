@@ -23,37 +23,39 @@ The database buffer buf_pool flush algorithm
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-#include <mysql/service_thd_wait.h>
 #include <my_dbug.h>
+#include <mysql/service_thd_wait.h>
 
-#include "buf0flu.h"
 #include "buf0buf.h"
 #include "buf0checksum.h"
-#include "srv0start.h"
-#include "srv0srv.h"
+#include "buf0flu.h"
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
 #include "page0zip.h"
+#include "srv0srv.h"
+#include "srv0start.h"
 #ifndef UNIV_HOTBACKUP
-#include "ut0byte.h"
-#include "page0page.h"
-#include "fil0fil.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
+#include "fil0fil.h"
+#include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "os0file.h"
-#include "trx0sys.h"
-#include "srv0mon.h"
-#include "fsp0sysspace.h"
-#include "ut0stage.h"
 #include "os0thread-create.h"
+#include "page0page.h"
+#include "srv0mon.h"
+#include "trx0sys.h"
+#include "ut0byte.h"
+#include "ut0stage.h"
 
 #ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
-#include <unistd.h>
+#include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#include <unistd.h>
+
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 

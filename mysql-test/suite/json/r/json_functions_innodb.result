@@ -2127,7 +2127,7 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
@@ -2138,7 +2138,7 @@ Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
 j	tp
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 "9999-12-31 23:59:59.999999"	DATETIME
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
@@ -2879,7 +2879,7 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=8;
@@ -3250,7 +3250,7 @@ true	BOOLEAN
 "2010-12-02 01:02:03.000000"	DATETIME
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
@@ -3439,7 +3439,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
@@ -3608,7 +3608,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
@@ -3777,7 +3777,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 NULL	366
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
@@ -3947,7 +3947,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 NULL	366
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
@@ -8837,32 +8837,58 @@ drop table t_varchar;
 # Bug#21193273 CREATE TABLE SELECT JSN_QUOTE() RESULTS
 # IN TRUNCATED DATA
 #
+set names latin1;
 SELECT JSON_QUOTE('table') AS field1;
 field1
 "table"
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
-SHOW WARNINGS;
-Level	Code	Message
 SELECT * FROM t;
 field1
 "table"
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
 field1	varchar(32)	YES		NULL	
-drop table t;
-select json_unquote( '"table"' ) as field1;
+DROP TABLE t;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
 field1
 table
-create table t1 select json_unquote( '"table"' ) as field1;
-SHOW WARNINGS;
-Level	Code	Message
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
 SELECT * FROM t1;
 field1
 table
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 field1	varchar(7)	YES		NULL	
-drop table t1;
+DROP TABLE t1;
+set names default;
+#
+# Bug#25455065 JSON_QUOTE AND JSON_UNQUOTE
+#              ARE WRONG FOR MULTIBYTE CHARSETS
+#
+set names utf8mb4;
+SELECT JSON_QUOTE('table') AS field1;
+field1
+"table"
+CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+SELECT * FROM t;
+field1
+"table"
+DESCRIBE t;
+Field	Type	Null	Key	Default	Extra
+field1	varchar(32)	YES		NULL	
+DROP TABLE t;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+field1
+table
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+SELECT * FROM t1;
+field1
+table
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+field1	varchar(7)	YES		NULL	
+DROP TABLE t1;
+set names default;
 #
 # Bug#21230644 JSON_MERGE MEMORY USAGE
 #

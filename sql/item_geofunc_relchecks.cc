@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +14,16 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include <stddef.h>
-#include <set>
-#include <utility>
-#include <vector>
-
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/equals.hpp>
 #include <boost/geometry/algorithms/overlaps.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <stddef.h>
+#include <set>
+#include <utility>
+#include <vector>
 
 #include "current_thd.h"
 #include "derror.h"                            // ER_THD
@@ -36,6 +35,7 @@
 #include "item_geofunc_relchecks_bgwrap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "parse_tree_node_base.h"

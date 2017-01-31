@@ -707,6 +707,7 @@ drop table if exists t2;
 set debug_sync='RESET';
 create table t1 (a int, b int, unique key t1$a (a));
 create table t2 (j int, k int);
+# Warm-up data-dictionary and table definition caches
 set debug_sync='after_lock_tables_takes_lock SIGNAL parked WAIT_FOR go';
 # Sending: 
 insert into t2 select * from t1;;

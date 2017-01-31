@@ -3134,7 +3134,7 @@ create table t1(a date,b text charset utf8,c linestring not null);
 insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
 select distinct nullif(a,b) as c from t1 z order by z.c;
 c
-201
+2015-01-01
 Warnings:
 Warning	1292	Incorrect date value: 'a' for column 'a' at row 1
 set names default, sql_mode=default;

@@ -29,7 +29,6 @@
 #define _log_event_h
 
 #include <errno.h>
-
 #include <atomic>
 #include <list>
 #include <map>
@@ -43,6 +42,7 @@
 #include "my_bitmap.h"               // MY_BITMAP
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

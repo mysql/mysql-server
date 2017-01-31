@@ -25,7 +25,6 @@
 #include <sql_common.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "print_version.h"
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 
@@ -33,7 +32,9 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
 #include "typelib.h"
 
 #define MAX_MYSQL_VAR 512

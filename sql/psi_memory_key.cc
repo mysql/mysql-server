@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ extern "C" {
 
 PSI_memory_key key_memory_DATE_TIME_FORMAT;
 PSI_memory_key key_memory_DD_default_values;
+PSI_memory_key key_memory_DD_import;
 PSI_memory_key key_memory_DD_String_type;
 PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 PSI_memory_key key_memory_Event_queue_element_for_exec_names;
@@ -261,6 +262,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_JOIN_CACHE, "JOIN_CACHE", 0},
   { &key_memory_TABLE_sort_io_cache, "TABLE::sort_io_cache", 0},
   { &key_memory_DD_default_values, "dd::default_values", 0},
+  { &key_memory_DD_import, "dd::import", 0},
   { &key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0},
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
   { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL},

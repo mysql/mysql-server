@@ -40,6 +40,7 @@ InnoDB Native API
 #include "lob0lob.h"
 #include "lock0lock.h"
 #include "lock0types.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "rem0cmp.h"
 #include "row0ins.h"

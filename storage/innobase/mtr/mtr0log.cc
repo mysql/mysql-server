@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,13 @@ Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
 #include "mtr0log.h"
+
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "dict0dict.h"
 #include "log0recv.h"
+#include "my_inttypes.h"
 #include "page0page.h"
-#include "buf0dblwr.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "dict0boot.h"

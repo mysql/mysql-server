@@ -46,7 +46,8 @@ handlerton *pfs_hton = NULL;
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
 
 static handler *
-pfs_create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root)
+pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
+                   MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_perfschema(hton, table);
 }
@@ -1470,7 +1471,7 @@ ha_perfschema::~ha_perfschema()
 }
 
 int
-ha_perfschema::open(const char *, int, uint)
+ha_perfschema::open(const char *, int, uint, const dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::open");
 
@@ -1695,7 +1696,7 @@ ha_perfschema::delete_all_rows(void)
 }
 
 int
-ha_perfschema::truncate()
+ha_perfschema::truncate(dd::Table *)
 {
   return delete_all_rows();
 }
@@ -1715,21 +1716,23 @@ ha_perfschema::store_lock(THD *,
 }
 
 int
-ha_perfschema::delete_table(const char *)
+ha_perfschema::delete_table(const char *, const dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::delete_table");
   DBUG_RETURN(0);
 }
 
 int
-ha_perfschema::rename_table(const char *, const char *)
+ha_perfschema::rename_table(const char *, const char *,
+                            const dd::Table *, dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
 int
-ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *)
+ha_perfschema::create(const char *, TABLE *table_arg,
+                      HA_CREATE_INFO *, dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::create");
   DBUG_ASSERT(table_arg);

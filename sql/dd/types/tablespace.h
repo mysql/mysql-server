@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #include "dd/collection.h"                // dd::Collection
 #include "dd/sdi_fwd.h"                   // RJ_Document
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+
+class THD;
 
 namespace dd {
 
@@ -72,6 +74,18 @@ public:
 public:
   virtual ~Tablespace()
   { };
+
+
+  /**
+    Check if the tablespace is empty, i.e., whether it has any tables.
+
+    @param       thd      Thread context.
+    @param [out] empty    Whether the tablespace is empty.
+
+    @return true if error, false if success.
+  */
+
+  virtual bool is_empty(THD *thd, bool *empty) const= 0;
 
   /////////////////////////////////////////////////////////////////////////
   // comment.

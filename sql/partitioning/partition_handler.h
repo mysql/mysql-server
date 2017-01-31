@@ -30,6 +30,7 @@
 #include "my_base.h"              // ha_rows.
 #include "my_dbug.h"
 #include "my_global.h"            // uint etc.
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"         // ER_ILLEGAL_HA
@@ -59,21 +60,13 @@ static const uint NO_CURRENT_PART_ID= UINT_MAX32;
   supported at all.
   HA_FAST_CHANGE_PARTITION means that optimized variants of the changes
   exists but they are not necessarily done online.
-
-  HA_ONLINE_DOUBLE_WRITE means that the handler supports writing to both
-  the new partition and to the old partitions when updating through the
-  old partitioning schema while performing a change of the partitioning.
-  This means that we can support updating of the table while performing
-  the copy phase of the change. For no lock at all also a double write
-  from new to old must exist and this is not required when this flag is
-  set.
-  This is actually removed even before it was introduced the first time.
-  The new idea is that handlers will handle the lock level already in
-  store_lock for ALTER TABLE partitions.
-  TODO: Implement this via the alter-inplace api.
+  HA_INPLACE_CHANGE_PARTITION means that changes to partitioning can be done
+  through in-place ALTER TABLE API but special mark-up in partition_info
+  object is required for this.
 */
 #define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 0)
 #define HA_FAST_CHANGE_PARTITION                (1L << 1)
+#define HA_INPLACE_CHANGE_PARTITION             (1L << 2)
 
 enum enum_part_operation {
   OPTIMIZE_PARTS= 0,
@@ -270,11 +263,16 @@ public:
     Handler level wrapper for truncating partitions, will ensure that
     mark_trx_read_write() is called and also checks locking assertions.
 
+    @param[in,out]  table_def    dd::Table object for the table. Engines
+                                 which support atomic DDL are allowed to
+                                 adjust this object. Changes will be saved
+                                 to the data-dictionary.
+
     @return Operation status.
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  int truncate_partition();
+  int truncate_partition(dd::Table *table_def);
 
   /**
     Change partitions.
@@ -299,6 +297,34 @@ public:
                         ulonglong * const deleted);
 
   /**
+    Exchange partition.
+
+    @param[in]      part_table_path   Path to partition in partitioned table
+                                      to be exchanged.
+    @param[in]      swap_table_path   Path to non-partitioned table to be
+                                      exchanged with partition.
+    @param[in]      part_id           Id of partition to be exchanged.
+    @param[in,out]  part_table_def    dd::Table object for partitioned table.
+    @param[in,out]  swap_table_def    dd::Table object for non-partitioned
+                                      table.
+
+    @note   Both tables are locked in exclusive mode.
+
+    @note   Changes to dd::Table object done by this method will be saved
+            to data-dictionary only if storage engine supporting atomic
+            DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
+
+    @return Operation status.
+      @retval    0  Success.
+      @retval != 0  Error code.
+  */
+  int exchange_partition(const char *part_table_path,
+                         const char *swap_table_path,
+                         uint part_id,
+                         dd::Table *part_table_def,
+                         dd::Table *swap_table_def);
+
+  /**
     Alter flags.
 
     Given a set of alter table flags, return which is supported.
@@ -317,14 +343,12 @@ private:
     Low-level primitive for handler, implementing
     Partition_handler::truncate_partition().
 
-    @return Operation status
-      @retval    0  Success.
-      @retval != 0  Error code.
+    @sa Partition_handler::truncate_partition().
   */
-  virtual int truncate_partition_low()
+  virtual int truncate_partition_low(dd::Table *table_def)
   { return HA_ERR_WRONG_COMMAND; }
   /**
-    Truncate partition.
+    Change partitions.
 
     Low-level primitive for handler, implementing
     Partition_handler::change_partitions().
@@ -347,6 +371,21 @@ private:
     my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
     return HA_ERR_WRONG_COMMAND;
   }
+
+  /**
+    Exchange partition.
+
+    Low-level primitive which implementation to be provided by SE.
+
+    @sa Partition_handler::exchange_partition().
+  */
+  virtual int exchange_partition_low(const char *part_table_path,
+                                     const char *swap_table_path,
+                                     uint part_id,
+                                     dd::Table *part_table_def,
+                                     dd::Table *swap_table_def)
+  { return HA_ERR_WRONG_COMMAND; }
+
   /**
     Return the table handler.
 
@@ -624,6 +663,17 @@ public:
                                               uint part_id);
 
   /**
+    Prepare for reorganizing partitions by setting up
+    partition_info::read_partitions according to the partition_info
+    mark-up.
+
+    This is helper method which can also be used by SEs implementing
+    support for reorganizing partitions through ALTER TABLE INPLACE
+    SE API.
+  */
+  void prepare_change_partitions();
+
+  /**
     Implement the partition changes defined by ALTER TABLE of partitions.
 
     Add and copy if needed a number of partitions, during this operation
@@ -773,6 +823,23 @@ protected:
     @return false if success else true.
   */
   bool set_altered_partitions();
+
+  /**
+    Copy partitions as part of ALTER TABLE of partitions.
+
+    change_partitions has done all the preparations, now it is time to
+    actually copy the data from the reorganized partitions to the new
+    partitions.
+
+    @param[out] copied   Number of records copied.
+    @param[out] deleted  Number of records deleted.
+
+    @return Operation status
+      @retval  0  Success
+      @retval >0  Error code
+  */
+  virtual int copy_partitions(ulonglong * const copied,
+                              ulonglong * const deleted);
 
 private:
   enum partition_index_scan_type
@@ -1142,22 +1209,6 @@ private:
     @param[out] buf  Row returned in MySQL Row Format.
   */
   void return_top_record(uchar *buf);
-  /**
-    Copy partitions as part of ALTER TABLE of partitions.
-
-    change_partitions has done all the preparations, now it is time to
-    actually copy the data from the reorganized partitions to the new
-    partitions.
-
-    @param[out] copied   Number of records copied.
-    @param[out] deleted  Number of records deleted.
-
-    @return Operation status
-      @retval  0  Success
-      @retval >0  Error code
-  */
-  virtual int copy_partitions(ulonglong * const copied,
-                              ulonglong * const deleted);
 
   /**
     Set table->read_set taking partitioning expressions into account.

@@ -30,6 +30,7 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld.h"      // select_errors

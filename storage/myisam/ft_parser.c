@@ -20,6 +20,7 @@
 #include "ftdefs.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 typedef struct st_ft_docstat {
   FT_WORD *list;

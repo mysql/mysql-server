@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "handler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
@@ -172,6 +173,12 @@ class Query_result_create final : public Query_result_insert {
   MYSQL_LOCK *m_lock;
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
+  /**
+    If table being created has SE supporting atomic DDL, pointer to SE's
+    handlerton object to be used for calling SE post-DDL hook, nullptr -
+    otherwise.
+  */
+  handlerton *m_post_ddl_ht;
 public:
   Query_result_create(THD *thd,
                       TABLE_LIST *table_arg,
@@ -187,8 +194,10 @@ public:
   bool send_eof() override;
   void abort_result_set() override;
   bool start_execution() override;
+
 private:
   int binlog_show_create_table();
+  void drop_open_table();
 };
 
 

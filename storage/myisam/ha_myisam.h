@@ -25,6 +25,7 @@
 
 #include "handler.h"                            /* handler */
 #include "my_icp.h"
+#include "my_inttypes.h"
 #include "sql_string.h"
 #include "table.h"                              /* TABLE_SHARE */
 #include "typelib.h"
@@ -103,7 +104,8 @@ class ha_myisam: public handler
   uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -150,15 +152,18 @@ class ha_myisam: public handler
   int end_bulk_insert();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void update_create_info(HA_CREATE_INFO *create_info);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int rename_table(const char * from, const char * to);
-  int delete_table(const char *name);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
+  int delete_table(const char *name, const dd::Table *table_def);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);

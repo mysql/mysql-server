@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
@@ -96,8 +97,8 @@ class Abstract_table;
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/filtered_graph.hpp>
-#include <boost/graph/graphml.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graphml.hpp>
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/iterator/iterator_facade.hpp>

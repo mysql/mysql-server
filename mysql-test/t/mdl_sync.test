@@ -4248,6 +4248,12 @@ drop table t1;
 --echo #
 create table t1(i int);
 create table t2(j int);
+--echo # Warm-up data-dictionary and table definition caches
+--disable_query_log
+--disable_result_log
+select * from t1, t2;
+--enable_result_log
+--enable_query_log
 
 --echo #
 --echo # First, let us check how we handle a simple scenario involving
@@ -4522,6 +4528,12 @@ drop tables if exists t1, t2;
 set debug_sync= 'RESET';
 create table t1(i int);
 create table t2(j int);
+--echo # Warm-up data-dictionary and table definition caches
+--disable_query_log
+--disable_result_log
+select * from t1, t2;
+--enable_result_log
+--enable_query_log
 
 --echo # Switching to connection 'con2'.
 connection con2;

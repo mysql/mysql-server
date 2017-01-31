@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,6 +216,8 @@ public:
 
   virtual const Index_elements &elements() const
   { return m_elements; }
+
+  virtual bool is_candidate_key() const;
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()

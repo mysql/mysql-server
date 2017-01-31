@@ -18,6 +18,7 @@
 
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "test_utils.h"
 
 namespace my_decimal_unittest {

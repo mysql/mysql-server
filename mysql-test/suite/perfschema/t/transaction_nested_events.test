@@ -35,6 +35,15 @@ CREATE TABLE db.t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE db.nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
 --echo
+--echo ## Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SELECT * FROM db.t1;
+SELECT * FROM db.nt1;
+--enable_query_log
+--enable_result_log
+
+--echo
 --echo ## Setup connection 1
 connect(con1, localhost, root,,);
 USE db;

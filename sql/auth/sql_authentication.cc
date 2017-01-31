@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -2088,6 +2089,12 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                   {
                     if (!acl_user->use_default_password_lifetime &&
                         acl_user->password_lifetime)
+                      password_time_expired= true;
+                  });
+  DBUG_EXECUTE_IF("force_password_interval_expire_for_time_type",
+                  {
+                    if (acl_user->password_last_changed.time_type !=
+                        MYSQL_TIMESTAMP_ERROR)
                       password_time_expired= true;
                   });
   return password_time_expired;

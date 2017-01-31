@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,12 +22,13 @@
 #ifndef _myisam_h
 #define _myisam_h
 
-#include "my_base.h"
-#include "m_ctype.h"
 #include "keycache.h"
-#include "my_compare.h"
-#include "my_check_opt.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_base.h"
+#include "my_check_opt.h"
+#include "my_compare.h"
+#include "my_inttypes.h"
 
 #ifdef	__cplusplus
 extern "C" {

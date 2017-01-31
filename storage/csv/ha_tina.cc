@@ -89,7 +89,8 @@ extern "C" my_bool tina_check_status(void* param);
 mysql_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static handler *tina_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool partitioned,
                                     MEM_ROOT *mem_root);
 
 
@@ -516,7 +517,8 @@ static my_off_t find_eoln_buff(Transparent_file *data_buff, my_off_t begin,
 
 
 static handler *tina_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool,
                                     MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_tina(hton, table);
@@ -953,7 +955,8 @@ void ha_tina::update_status()
   this will not be called for every request. Any sort of positions
   that need to be reset should be kept in the ::extra() call.
 */
-int ha_tina::open(const char *name, int, uint open_options)
+int ha_tina::open(const char *name, int, uint open_options,
+                  const dd::Table*)
 {
   DBUG_ENTER("ha_tina::open");
 
@@ -1675,7 +1678,7 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *,
 */
 
 int ha_tina::create(const char *name, TABLE *table_arg,
-                    HA_CREATE_INFO*)
+                    HA_CREATE_INFO*, dd::Table*)
 {
   char name_buff[FN_REFLEN];
   File create_file;

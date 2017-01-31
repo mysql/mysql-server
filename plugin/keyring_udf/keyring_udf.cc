@@ -22,6 +22,7 @@
 #include <new>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8

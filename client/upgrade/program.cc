@@ -36,6 +36,7 @@
 #include "base/show_variable_query_extractor.h"
 #include "check/mysqlcheck.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "sql_string.h"
 

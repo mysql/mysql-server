@@ -36,6 +36,7 @@ on 1/27/1998 */
 #include "lock0lock.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0opt.h"
 #include "pars0pars.h"

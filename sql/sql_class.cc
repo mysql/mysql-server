@@ -199,6 +199,11 @@ void THD::Attachable_trx::init()
   m_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
   m_thd->variables.option_bits&= ~OPTION_BEGIN;
 
+  // Nothing should be binlogged from attachable transactions and disabling
+  // the binary log allows skipping some code related to figuring out what
+  // log format should be used.
+  m_thd->variables.option_bits&= ~OPTION_BIN_LOG;
+
   // Possible parent's involvement to multi-statement transaction is masked
 
   m_thd->server_status&= ~SERVER_STATUS_IN_TRANS;

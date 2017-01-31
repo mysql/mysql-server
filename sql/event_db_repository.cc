@@ -248,8 +248,6 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
   DBUG_ENTER("Event_db_repository::drop_schema_events");
   DBUG_PRINT("enter", ("schema=%s", schema.str));
 
-  // Turn off autocommit.
-  Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= nullptr;
 
@@ -267,18 +265,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 
   for (const dd::Event *event_obj : events)
   {
-     /*
-       TODO: This extra acquire is required for now as Dictionary_client::drop()
-       requires the object to be present in the DD cache. Since fetch_schema_components()
-       bypasses the cache, the object is not there.
-       Remove this code once either fetch_schema_components() uses the cache or
-       Dictionary_client::drop() works with uncached objects.
-    */
-    const dd::Event *event_obj2;
-    if (thd->dd_client()->acquire(schema.str, event_obj->name(), &event_obj2))
-      DBUG_RETURN(true);
-
-    if (dd::drop_event(thd, event_obj2))
+    if (thd->dd_client()->drop(event_obj))
     {
       my_error(ER_SP_DROP_FAILED, MYF(0),
                "Drop failed for Event: %s", event_obj->name().c_str());

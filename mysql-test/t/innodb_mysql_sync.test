@@ -806,7 +806,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(1);
 
 --enable_connect_log
-SET DEBUG_SYNC= 'commit_alter_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
 --send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=COPY
 
 connect (con1, localhost, root,,);
@@ -886,7 +886,7 @@ INSERT INTO t2 VALUES(1, 2);
 INSERT INTO t3 VALUES(2);
 
 --enable_connect_log
-SET DEBUG_SYNC= 'commit_alter_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
 --send ALTER TABLE t3 ADD f5 INT NOT NULL, ALGORITHM=COPY
 
 connect (con1, localhost, root,,);
@@ -969,7 +969,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(1);
 
 --enable_connect_log
-SET DEBUG_SYNC= 'commit_alter_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
 LOCK TABLES t2 WRITE;
 --send ALTER TABLE t2 ADD f5 INT NOT NULL, ALGORITHM=COPY
 

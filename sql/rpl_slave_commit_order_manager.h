@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 

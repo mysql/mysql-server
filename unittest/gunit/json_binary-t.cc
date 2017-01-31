@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "json_binary.h"
-#include "json_dom.h"
-#include "sql_time.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
 #include <cstring>
 #include <memory>
+
+#include "json_binary.h"
+#include "json_dom.h"
+#include "my_inttypes.h"
+#include "sql_time.h"
+#include "test_utils.h"
 
 namespace json_binary_unittest {
 

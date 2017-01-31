@@ -137,6 +137,11 @@ public:
   virtual bool empty() const= 0;
 
   /**
+    Remove all key=value pairs.
+  */
+  virtual void clear() = 0;
+
+  /**
     Check for the existence of a key=value pair given the key.
 
     @return true if the given key exists, false otherwise

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,23 +17,20 @@
  * 02110-1301  USA
  */
 
-#include "xpl_server.h"
-#include "xpl_session.h"
-#include "mysql_show_variable_wrapper.h"
-
-#include "ngs_common/string_formatter.h"
-#include "ngs/thread.h"
-
-#include "ngs/capabilities/configurator.h"
-#include "ngs/capabilities/handler_readonly_value.h"
 #include "cap_handles_expired_passwords.h"
-
-#include "mysqlx_version.h"
-#include "mysql_variables.h"
-#include "xpl_client.h"
-
 // needed for ip_to_hostname(), should probably be turned into a service
 #include "hostname.h"
+#include "my_inttypes.h"
+#include "mysql_show_variable_wrapper.h"
+#include "mysql_variables.h"
+#include "mysqlx_version.h"
+#include "ngs/capabilities/configurator.h"
+#include "ngs/capabilities/handler_readonly_value.h"
+#include "ngs/thread.h"
+#include "ngs_common/string_formatter.h"
+#include "xpl_client.h"
+#include "xpl_server.h"
+#include "xpl_session.h"
 
 
 using namespace xpl;

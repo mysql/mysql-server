@@ -52,6 +52,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -978,6 +979,7 @@ row_create_prebuilt(
 	prebuilt->blob_heap = NULL;
 
 	prebuilt->skip_serializable_dd_view = false;
+	prebuilt->no_autoinc_locking = false;
 
 	prebuilt->m_no_prefetch = false;
 	prebuilt->m_read_virtual_key = false;

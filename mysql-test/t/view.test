@@ -6053,3 +6053,37 @@ UPDATE t1_view_N3 AS A JOIN t1_view_N4 B SET A. col_int = 1 , B. col_int = 2;
 DROP VIEW t1_view_N3, t1_view_N4;
 DROP TABLE t1_base_N3;
 
+
+--echo #
+--echo # WL#7743: New data dictionary: changes to DDL-related parts of SE API
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+RENAME TABLE t1 TO t2, v1 TO v2;
+
+# This statement should give a warning about invalid view as v2
+# should be tagged as invalid by the RENAME TABLE statement.
+# Note that the view changes name from v1 to v2 by the same statement
+# so it is important that the uncommitted v2 is updated rather than v1.
+SELECT * FROM information_schema.views WHERE table_schema='test';
+
+DROP VIEW v2;
+DROP TABLE t2;
+
+# Check that a statement that drops a view twice does not cause asserts.
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(b INT);
+CREATE TABLE t3(a INT);
+CREATE TABLE t4(b INT);
+CREATE VIEW v1 AS SELECT * FROM t1, t2;
+DROP TABLE t1, t2;
+
+# This statement causes v1 to be updated twice, one for each rename.
+# Since alter view is currently implemented as drop+create, that means
+# that v1 will be registered in the local cache as dropped twice
+# (same name but different ID).
+RENAME TABLE t3 TO t1, t4 TO t2;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;

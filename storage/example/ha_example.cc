@@ -95,7 +95,8 @@
 #include "typelib.h"
 
 static handler *example_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root);
 
 handlerton *example_hton;
@@ -155,7 +156,8 @@ err:
 
 
 static handler* example_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_example(hton, table);
@@ -231,7 +233,7 @@ static bool example_is_supported_system_table(const char *db,
   handler::ha_open() in handler.cc
 */
 
-int ha_example::open(const char*, int, uint)
+int ha_example::open(const char*, int, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_example::open");
 
@@ -726,7 +728,7 @@ THR_LOCK_DATA **ha_example::store_lock(THD*,
   @see
   delete_table and ha_create_table() in handler.cc
 */
-int ha_example::delete_table(const char*)
+int ha_example::delete_table(const char*, const dd::Table*)
 {
   DBUG_ENTER("ha_example::delete_table");
   /* This is not implemented but we want someone to be able that it works. */
@@ -748,7 +750,8 @@ int ha_example::delete_table(const char*)
   @see
   mysql_rename_table() in sql_table.cc
 */
-int ha_example::rename_table(const char*, const char*)
+int ha_example::rename_table(const char*, const char*,
+                             const dd::Table*, dd::Table*)
 {
   DBUG_ENTER("ha_example::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -814,7 +817,8 @@ static MYSQL_THDVAR_UINT(
   ha_create_table() in handle.cc
 */
 
-int ha_example::create(const char *name, TABLE*, HA_CREATE_INFO*)
+int ha_example::create(const char *name, TABLE*,
+                       HA_CREATE_INFO*, dd::Table*)
 {
   DBUG_ENTER("ha_example::create");
   /*

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 #define MYSQLDUMP_TOOL_CHAIN_MAKER_OPTIONS_INCLUDED
 
 #include "abstract_data_object.h"
-#include "sql_formatter_options.h"
+#include "my_inttypes.h"
 #include "mysql_object_reader_options.h"
 #include "object_filter.h"
+#include "sql_formatter_options.h"
 
 namespace Mysql{
 namespace Tools{

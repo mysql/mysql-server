@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,13 +160,13 @@ static bool parse_json(String *res,
 
 /**
   Get the field type of an item. This function returns the same value
-  as arg->field_type() in most cases, but in some cases it may return
+  as arg->data_type() in most cases, but in some cases it may return
   another field type in order to ensure that the item gets handled the
   same way as items of a different type.
 */
 static enum_field_types get_normalized_field_type(Item *arg)
 {
-  enum_field_types ft= arg->field_type();
+  enum_field_types ft= arg->data_type();
   switch (ft)
   {
   case MYSQL_TYPE_TINY_BLOB:
@@ -959,14 +959,14 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result)
 {
   Item *arg= args[arg_idx];
 
-  if (arg->field_type() == MYSQL_TYPE_NULL)
+  if (arg->data_type() == MYSQL_TYPE_NULL)
   {
     arg->update_null_value();
     DBUG_ASSERT(arg->null_value);
     return false;
   }
 
-  if (arg->field_type() != MYSQL_TYPE_JSON)
+  if (arg->data_type() != MYSQL_TYPE_JSON)
   {
     // This is not a JSON value. Give up.
     return true;
@@ -989,7 +989,7 @@ bool get_json_wrapper(Item **args,
     return false;
   }
 
-  if (args[arg_idx]->field_type() == MYSQL_TYPE_JSON)
+  if (args[arg_idx]->data_type() == MYSQL_TYPE_JSON)
   {
     /*
       If the type of the argument is JSON and json_value() returned
@@ -1095,7 +1095,7 @@ bool Item_func_json_type::resolve_type(THD *)
 {
   maybe_null= true;
   m_value.set_charset(&my_charset_utf8mb4_bin);
-  fix_length_and_charset(typelit_max_length, &my_charset_utf8mb4_bin);
+  set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
   return false;
 };
 
@@ -1647,7 +1647,7 @@ bool get_json_atom_wrapper(Item **args,
       return false;
     }
 
-    if (arg->field_type() == MYSQL_TYPE_JSON)
+    if (arg->data_type() == MYSQL_TYPE_JSON)
     {
       /*
         If the type of the argument is JSON and json_value() returned
@@ -1730,13 +1730,13 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
 
   Json_dom *dom= NULL;       //@< if non-null we want a DOM from parse
 
-  if (args[0]->field_type() == MYSQL_TYPE_NULL)
+  if (args[0]->data_type() == MYSQL_TYPE_NULL)
   {
     null_value= true;
     return false;
   }
 
-  if (args[0]->field_type() == MYSQL_TYPE_JSON)
+  if (args[0]->data_type() == MYSQL_TYPE_JSON)
   {
     if (json_value(args, 0, wr))
       return error_json();
@@ -3410,7 +3410,7 @@ String *Item_func_json_quote::val_str(String *str)
     const char *safep;
     size_t safep_size;
 
-    switch (args[0]->field_type())
+    switch (args[0]->data_type())
     {
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:
@@ -3465,7 +3465,7 @@ String *Item_func_json_unquote::val_str(String *str)
 
   try
   {
-    if (args[0]->field_type() == MYSQL_TYPE_JSON)
+    if (args[0]->data_type() == MYSQL_TYPE_JSON)
     {
       Json_wrapper wr;
       if (get_json_wrapper(args, 0, str, func_name(), &wr))
@@ -3503,7 +3503,7 @@ String *Item_func_json_unquote::val_str(String *str)
       We only allow a string argument, so get rid of any other
       type arguments.
     */
-    switch (args[0]->field_type())
+    switch (args[0]->data_type())
     {
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:

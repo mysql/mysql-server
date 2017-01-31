@@ -34,6 +34,7 @@
 #include "key.h"
 #include "mem_root_array.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"

@@ -29,6 +29,11 @@ call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
+# InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
+# statistics while persistent statistics table is altered during upgrade.
+# This issue doesn't seem to cause any further trouble (as there is no persistent
+# stats for persistent stats table anyway), so we ignore these warnings here.
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
 
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;

@@ -21,6 +21,7 @@
   Table EVENTS_STAGES_xxx (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_events_stages.h"

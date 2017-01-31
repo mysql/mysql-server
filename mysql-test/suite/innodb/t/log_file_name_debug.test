@@ -1,6 +1,9 @@
 # Embedded server does not support restarting
 --source include/not_embedded.inc
 --source include/have_debug.inc
+# Disabled in --log-bin runs until atomic DDL is properly supported in
+# binary log.
+--source include/not_log_bin.inc
 
 --echo #
 --echo # Bug#19685095 DO NOT CARE ABOUT UNRESOLVED MLOG_FILE_NAME

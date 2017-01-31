@@ -17,6 +17,7 @@
 #include <fcntl.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

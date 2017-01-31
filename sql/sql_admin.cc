@@ -40,6 +40,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "myisam.h"                          // TT_USEFRM
 #include "mysql/psi/mysql_file.h"
@@ -65,9 +66,9 @@
 #include "sql_partition.h"                   // set_part_state
 #include "sql_plugin.h"
 #include "sql_plugin_ref.h"
+#include "sql_prepare.h"                     // mysql_test_show
 #include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "sql_prepare.h"                     // mysql_test_show
 #include "sql_table.h"                       // mysql_recreate_table
 #include "system_variables.h"
 #include "table.h"
@@ -143,12 +144,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, false, hash_value);
+    share= get_table_share(thd, table_list, key, key_length, false,
+                           hash_value);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE,
+                              NULL))
     {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);
@@ -180,6 +183,16 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   /* A MERGE table must not come here. */
   DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+
+  /*
+    Storage engines supporting atomic DDL do not come here either.
+
+    If we are to have storage engine which supports atomic DDL on one
+    hand and REPAIR ... USE_FRM on another then the below code related
+    to table re-creation in SE needs to be adjusted to at least
+    commit the transaction.
+  */
+  DBUG_ASSERT(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -715,6 +728,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (dd::info_schema::update_table_stats(thd, table) ||
           dd::info_schema::update_index_stats(thd, table))
       {
+        // Play safe, rollback possible changes to the data-dictionary.
+        trans_rollback_stmt(thd);
+        trans_rollback_implicit(thd);
         result_code= HA_ADMIN_STATS_UPD_ERR;
         goto send_result;
       }

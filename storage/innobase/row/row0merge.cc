@@ -36,6 +36,7 @@ Completed by Sunny Bains and Marko Makela
 #include "lock0lock.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "pars0pars.h"
 #include "row0ext.h"

@@ -25,6 +25,7 @@
 
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysqld_error.h"
 #include "rewriter.h"

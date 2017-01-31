@@ -22,6 +22,9 @@ DROP TABLE IF EXISTS nt1;
 CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
+# Get tables loaded in data-dictionary cache
+
+
 # Disable all events from the control thread
 
 

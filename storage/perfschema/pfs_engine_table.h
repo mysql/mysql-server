@@ -21,6 +21,7 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_thread_local.h" /* thread_local_key_t */
 
 class PFS_engine_key;

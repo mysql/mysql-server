@@ -20,10 +20,9 @@
 
 #include "fake_table.h"
 #include "item_cmpfunc.h"
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "parse_tree_helpers.h"
 #include "test_utils.h"
 

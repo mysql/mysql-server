@@ -16,16 +16,17 @@
 */
 
 #include <stdlib.h>
-#include "print_version.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "client_priv.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
+#include "print_version.h"
 #include "typelib.h"
 
 using namespace std;

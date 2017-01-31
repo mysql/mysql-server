@@ -22,6 +22,7 @@
 
 // Hack needed due to mysql_com.h not including my_global.h.
 #include "my_global.h"  // IWYU pragma: keep
+#include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql_string.h"
 

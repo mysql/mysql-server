@@ -76,6 +76,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_base.h"                        // find_temporary_table
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql_component.h"
+#include "sql_import.h"                        // Sql_cmd_import_table
 #include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
 #include "sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql_parse.h"                        /* comp_*_creator */
@@ -1852,6 +1853,7 @@ simple_statement:
         | grant
         | handler
         | help
+        | import_stmt
         | insert_stmt           { MAKE_CMD($1); }
         | install
         | kill
@@ -13280,6 +13282,7 @@ role_or_ident_keyword:
         | HANDLER_SYM           {}
         | HELP_SYM              {}
         | HOST_SYM              {}
+        | IMPORT                {}
         | INSTALL_SYM           {}
         | INVISIBLE_SYM         {}
         | LANGUAGE_SYM          {}
@@ -13441,7 +13444,6 @@ role_or_label_keyword:
         | IDENTIFIED_SYM           {}
         | IGNORE_SERVER_IDS_SYM    {}
         | INVOKER_SYM              {}
-        | IMPORT                   {}
         | INDEXES                  {}
         | INITIAL_SIZE_SYM         {}
         | IO_SYM                   {}
@@ -15494,6 +15496,18 @@ TEXT_STRING_sys_list:
             $$= $1;
             if ($$.push_back($3))
               MYSQL_YYABORT; // OOM
+          }
+        ;
+
+import_stmt:
+          IMPORT TABLE_SYM FROM TEXT_STRING_sys_list
+          {
+            LEX *lex= Lex;
+            lex->m_sql_cmd=
+              new (YYTHD->mem_root) Sql_cmd_import_table($4);
+            if (lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
+            lex->sql_command= SQLCOM_IMPORT;
           }
         ;
 

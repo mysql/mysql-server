@@ -28,6 +28,7 @@ Created 2011/12/19
 #include "buf0dblwr.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "page0zip.h"
 #include "srv0srv.h"
 #include "srv0start.h"

@@ -22,15 +22,15 @@
   Table replication_connection_status (declarations).
 */
 
+#include "my_inttypes.h"
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "table_helper.h"
-
-#include "rpl_mi.h"
-#include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
-#include "mysql_com.h"
-#include "rpl_msr.h"
 #include "rpl_info.h" /*CHANNEL_NAME_LENGTH */
+#include "rpl_mi.h"
+#include "rpl_msr.h"
+#include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
+#include "table_helper.h"
 
 class Master_info;
 

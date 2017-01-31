@@ -24,6 +24,7 @@
 #include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_cond.h"

@@ -25,14 +25,15 @@
 #include <sslopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "print_version.h"
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
 #include "typelib.h"
 
 static char * host=0, *opt_password=0, *user=0;

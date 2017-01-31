@@ -11,3 +11,4 @@
 ##############################################################################
 
 rpl_row_binlog_max_cache_size : BUG#14126780 May 29 2012 Vasil Dimov timeout if est number of rows is 3 instead of 4
+rpl_semi_sync                 : WL#9175 2016-12-29 CREATE/DROP TABLE should be able to use binlog's trx cache

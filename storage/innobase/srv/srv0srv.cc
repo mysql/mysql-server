@@ -38,6 +38,8 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
+#include <mysqld.h>
+
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
@@ -51,6 +53,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
@@ -67,7 +70,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #include "ut0mem.h"
-#include <mysqld.h>
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;

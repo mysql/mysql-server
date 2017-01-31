@@ -21,6 +21,7 @@
 
 #include "ftdefs.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "sp_defs.h"
 

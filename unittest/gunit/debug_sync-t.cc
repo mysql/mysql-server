@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,13 +23,15 @@
   waiting for a signal that it has already lost.
 */
 
-#include "my_global.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
-#include "thread_utils.h"
+#include <string>
+
 #include "debug_sync.h"
 #include "my_dbug.h"
-#include <string>
+#include "my_global.h"
+#include "my_inttypes.h"
+#include "test_utils.h"
+#include "thread_utils.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
 extern uchar* debug_sync_value_ptr(THD* thd);

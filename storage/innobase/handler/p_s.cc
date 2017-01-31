@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +28,7 @@ InnoDB performance_schema tables interface to MySQL.
 
 #include "lock0iter.h" // lock_queue_iterator_t
 #include "lock0lock.h" // lock_mutex_enter
+#include "my_inttypes.h"
 #include "sql_table.h" // parse_filename
 #include "table.h" // system_charset_info
 #include "trx0i_s.h" // trx_i_s_create_lock_id

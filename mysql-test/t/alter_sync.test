@@ -62,7 +62,7 @@ DROP SCHEMA IF EXISTS test_i_s;
 
 CREATE SCHEMA test_i_s;
 USE test_i_s;
-CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
 
 --connection default
 SET DEBUG_SYNC='alter_table_before_rename_result_table SIGNAL blocked WAIT_FOR i_s_select';

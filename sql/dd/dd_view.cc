@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
@@ -264,7 +265,7 @@ static bool fill_dd_view_columns(THD *thd,
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
   memset(&table, 0, sizeof(table));
   table.s= &share;
-  handler *file= get_new_handler(&share, thd->mem_root,
+  handler *file= get_new_handler(&share, false, thd->mem_root,
                                  ha_default_temp_handlerton(thd));
   if (file == nullptr)
   {
@@ -313,7 +314,7 @@ static bool fill_dd_view_columns(THD *thd,
       }
       else
       {
-        switch (item->field_type())
+        switch (item->data_type())
         {
         case MYSQL_TYPE_TINY_BLOB:
         case MYSQL_TYPE_MEDIUM_BLOB:
@@ -520,7 +521,8 @@ static void fill_dd_view_routines(
 bool create_view(THD *thd,
                  TABLE_LIST *view,
                  const char *schema_name,
-                 const char *view_name)
+                 const char *view_name,
+                 bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
 
@@ -643,14 +645,17 @@ bool create_view(THD *thd,
   // Store info in DD views table.
   if (client->store(view_obj.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -746,7 +751,8 @@ bool read_view(TABLE_LIST *view,
 
 
 bool update_view_status(THD *thd, const char *schema_name,
-                        const char *view_name, bool status)
+                        const char *view_name, bool status,
+                        bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -766,12 +772,16 @@ bool update_view_status(THD *thd, const char *schema_name,
   // Update DD tables.
   if (client->update(new_view))
   {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 } // namespace dd

@@ -5,6 +5,7 @@
 -- source include/master-slave.inc
 connection master;
 
+# The original test case.
 --disable_warnings
 drop database if exists mysqltest1;
 --enable_warnings
@@ -18,8 +19,24 @@ create table mysqltest1.t3 (n int);
 --replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
 --error ER_DB_DROP_RMDIR
 drop database mysqltest1;
+# No tables should be dropped after WL#7743.
 use mysqltest1;
 show tables;
+use test;
+
+# Now adjusted test case which mimics situation before WL#7743.
+# First, remove the "extra" file created above
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/mysqltest1/f1.txt;
+
+create table mysqltest1.t4 (pk int primary key) engine=InnoDB;
+create table test.t2 (fk int, foreign key (fk) references mysqltest1.t4(pk)) engine= InnoDB;
+--error ER_ROW_IS_REFERENCED
+drop database mysqltest1;
+# Some tables can be dropped.
+use mysqltest1;
+show tables;
+use test;
 
 # test the branch of the code that deals with the query buffer overflow
 
@@ -34,7 +51,7 @@ while ($1)
 
 --replace_result \\ /
 --replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
---error ER_DB_DROP_RMDIR
+--error ER_ROW_IS_REFERENCED
 drop database mysqltest1;
 use mysqltest1;
 show tables;
@@ -52,12 +69,9 @@ select * from t1;
 #cleanup
 connection master;
 
-# Remove the "extra" file created above
-let $MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/mysqltest1/f1.txt;
-
 use test;
 drop table t1;
+drop table t2;
 drop database mysqltest1;
 
 sync_slave_with_master;

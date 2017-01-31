@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -445,6 +445,15 @@ public:
   */
   bool is_table_renamed() const
   { return (is_database_changed() || new_name != table_name); };
+
+  /**
+     @return path to the original table.
+  */
+  const char *get_path() const
+  {
+    DBUG_ASSERT(!tmp_table);
+    return path;
+  }
 
   /**
      @return path to the temporary table created during ALTER TABLE.

@@ -25,6 +25,7 @@
 #include "handler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "prealloced_array.h"
 #include "thr_lock.h"
 
@@ -201,7 +202,8 @@ public:
     Most of these methods are not obligatory, skip them and
     MySQL will treat them as not implemented
   */
-  int open(const char *name, int mode, uint test_if_locked);    // required
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);                         // required
   int close(void);                                              // required
 
   void start_bulk_insert(ha_rows rows);
@@ -246,9 +248,10 @@ public:
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
 
   int delete_all_rows(void);
-  int truncate();
+  int truncate(dd::Table *table_def);
   int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info);                      //required
+             HA_CREATE_INFO *create_info,
+             dd::Table *table_def);                             //required
   ha_rows records_in_range(uint inx, key_range *start_key,
                                    key_range *end_key);
   uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }

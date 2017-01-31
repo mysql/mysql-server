@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,20 +21,21 @@
 #include <functional>
 
 #include "abstract_crawler.h"
-#include "abstract_mysql_chain_element_extension.h"
-#include "i_connection_provider.h"
-#include "dump_start_dump_task.h"
 #include "abstract_dump_task.h"
-#include "database.h"
-#include "table.h"
-#include "dump_end_dump_task.h"
-#include "mysql_chain_element_options.h"
-#include "database_start_dump_task.h"
-#include "database_end_dump_task.h"
-#include "tables_definition_ready_dump_task.h"
-#include "simple_id_generator.h"
-#include "base/message_data.h"
+#include "abstract_mysql_chain_element_extension.h"
 #include "base/abstract_program.h"
+#include "base/message_data.h"
+#include "database.h"
+#include "database_end_dump_task.h"
+#include "database_start_dump_task.h"
+#include "dump_end_dump_task.h"
+#include "dump_start_dump_task.h"
+#include "i_connection_provider.h"
+#include "my_inttypes.h"
+#include "mysql_chain_element_options.h"
+#include "simple_id_generator.h"
+#include "table.h"
+#include "tables_definition_ready_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

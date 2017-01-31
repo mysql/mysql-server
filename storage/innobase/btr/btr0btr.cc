@@ -29,6 +29,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "gis0rtree.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0page.h"
 #include "page0zip.h"
 

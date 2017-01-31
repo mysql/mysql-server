@@ -46,7 +46,7 @@ XA COMMIT '1';
 --echo # Verify that specified gtid for XA transaction can be reported
 --echo # from global.gtid_executed correctly.
 --echo #
---let $gno_1 = 16
+--let $gno_1 = 17
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_1'
 XA START '1';
@@ -188,8 +188,9 @@ DROP TABLE t3;
 --let $xa_error_simul = 1
 --source extra/rpl_tests/rpl_xa_gtid_next.inc
 
-# two more queries follow to affect $gno_root
---let $gno_0 = `SELECT $gno_0 + 2`
+# Three more GTIDs are generated in what follows, two of them from DROP
+# TABLE.
+--let $gno_0 = `SELECT $gno_0 + 3`
 DROP TABLE t1, t2;
 --source include/sync_slave_sql_with_master.inc
 

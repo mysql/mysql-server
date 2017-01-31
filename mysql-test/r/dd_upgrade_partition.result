@@ -19,6 +19,7 @@ call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.

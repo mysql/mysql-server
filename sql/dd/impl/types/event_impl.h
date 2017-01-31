@@ -28,6 +28,7 @@
 #include "dd/types/event.h"                    // dd::Event
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "my_global.h"
+#include "my_inttypes.h"
 
 namespace dd {
 

@@ -963,12 +963,19 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
+      Item *item;
       if (table_list->is_view())
-        field_list.push_back(new Item_ident_for_show(field,
-                                                     table_list->view_db.str,
-                                                     table_list->view_name.str));
+      {
+        item= new Item_ident_for_show(field,
+                                      table_list->view_db.str,
+                                      table_list->view_name.str);
+        (void)item->fix_fields(thd, NULL);
+      }
       else
-        field_list.push_back(new Item_field(field));
+      {
+        item= new Item_field(field);
+      }
+      field_list.push_back(item);
     }
   }
   restore_record(table, s->default_values);              // Get empty record
@@ -1307,33 +1314,24 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
 }
 
 
-/*
+/**
   Build a CREATE TABLE statement for a table.
 
-  SYNOPSIS
-    store_create_info()
-    thd               The thread
-    table_list        A list containing one table to write statement
-                      for.
-    packet            Pointer to a string where statement will be
-                      written.
-    create_info_arg   Pointer to create information that can be used
-                      to tailor the format of the statement.  Can be
-                      NULL, in which case only SQL_MODE is considered
-                      when building the statement.
-    show_database     If true, then print the database before the table
-                      name. The database name is only printed in the event
-                      that it is different from the current database.
-                      If false, then do not print the database before
-                      the table name.
-  
-  NOTE
-    Currently always return 0, but might return error code in the
-    future.
-    
-  RETURN
-    0       OK
- */
+  @param thd              The thread
+  @param table_list       A list containing one table to write statement for.
+  @param packet           Pointer to a string where statement will be written.
+  @param create_info_arg  Pointer to create information that can be used to
+                          tailor the format of the statement.  Can be NULL,
+                          in which case only SQL_MODE is considered when
+                          building the statement.
+  @param show_database    If true, then print the database before the table
+                          name. The database name is only printed in the event
+                          that it is different from the current database.
+                          If false, then do not print the database before
+                          the table name.
+
+  @returns Currently always return 0, but might return error code in the future.
+*/
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO *create_info_arg, bool show_database)
@@ -4138,7 +4136,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     if (!open_table_from_share(thd, share, table_name->str, 0,
                                (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-                               thd->open_options, &tbl, false))
+                               thd->open_options, &tbl, false, NULL))
     {
       tbl.s= share;
       table_list.table= &tbl;

@@ -35,6 +35,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD

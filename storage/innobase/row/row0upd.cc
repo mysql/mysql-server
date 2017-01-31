@@ -27,6 +27,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rem0rec.h"
 #include "row0upd.h"
 #include "trx0undo.h"

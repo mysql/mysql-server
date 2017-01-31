@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,16 +22,16 @@
 
 #include "item_create.h"
 
-#include <cctype>
 #include <errno.h>
-#include <functional>
-#include <iterator>
 #include <limits.h>
 #include <math.h>
-#include <new>
 #include <stdlib.h>
-#include <string>
 #include <sys/types.h>
+#include <cctype>
+#include <functional>
+#include <iterator>
+#include <new>
+#include <string>
 #include <unordered_map>
 
 #include "item.h"
@@ -47,6 +47,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"

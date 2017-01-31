@@ -2823,7 +2823,7 @@ int Field_decimal::cmp(const uchar *a_ptr,const uchar *b_ptr)
 }
 
 
-void Field_decimal::make_sort_key(uchar *to, size_t length)
+size_t Field_decimal::make_sort_key(uchar *to, size_t length)
 {
   uchar *str,*end;
   for (str=ptr,end=ptr+length;
@@ -2833,7 +2833,7 @@ void Field_decimal::make_sort_key(uchar *to, size_t length)
        str++)
     *to++=' ';
   if (str == end)
-    return;					/* purecov: inspected */
+    return length;				/* purecov: inspected */
 
   if (*str == '-')
   {
@@ -2846,6 +2846,7 @@ void Field_decimal::make_sort_key(uchar *to, size_t length)
 	*to++= *str++;
   }
   else memcpy(to,str,(uint) (end-str));
+  return length;
 }
 
 
@@ -3223,9 +3224,10 @@ int Field_new_decimal::cmp(const uchar *a,const uchar*b)
 }
 
 
-void Field_new_decimal::make_sort_key(uchar *buff, size_t length)
+size_t Field_new_decimal::make_sort_key(uchar *buff, size_t length)
 {
   memcpy(buff, ptr, min(length, static_cast<size_t>(bin_size)));
+  return length;
 }
 
 
@@ -3273,7 +3275,7 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
 {
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
   uint const source_decimal= field_metadata & 0x00ff; 
-  uint const source_size= my_decimal_get_binary_size(source_precision, 
+  uint const source_size= my_decimal_get_binary_size(source_precision,
                                                      source_decimal);
   return (source_size);
 }
@@ -3546,13 +3548,14 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_tiny::make_sort_key(uchar *to, size_t length)
+size_t Field_tiny::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 1);
+  DBUG_ASSERT(length == 1);
   if (unsigned_flag)
     *to= *ptr;
   else
     to[0] = (char) (ptr[0] ^ (uchar) 128);	/* Revers signbit */
+  return 1;
 }
 
 void Field_tiny::sql_type(String &res) const
@@ -3783,9 +3786,9 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_short::make_sort_key(uchar *to, size_t length)
+size_t Field_short::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 2);
+  DBUG_ASSERT(length == 2);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -3804,6 +3807,7 @@ void Field_short::make_sort_key(uchar *to, size_t length)
       to[0] = (char) (ptr[1] ^ 128);		/* Revers signbit */
     to[1]   = ptr[0];
   }
+  return 2;
 }
 
 void Field_short::sql_type(String &res) const
@@ -3990,15 +3994,16 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_medium::make_sort_key(uchar *to, size_t length)
+size_t Field_medium::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 3);
+  DBUG_ASSERT(length == 3);
   if (unsigned_flag)
     to[0] = ptr[2];
   else
     to[0] = (uchar) (ptr[2] ^ 128);		/* Revers signbit */
   to[1] = ptr[1];
   to[2] = ptr[0];
+  return 3;
 }
 
 
@@ -4238,9 +4243,9 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_long::make_sort_key(uchar *to, size_t length)
+size_t Field_long::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 4);  
+  DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -4258,11 +4263,12 @@ void Field_long::make_sort_key(uchar *to, size_t length)
     if (unsigned_flag)
       to[0] = ptr[3];
     else
-      to[0] = (char) (ptr[3] ^ 128);		/* Revers signbit */
+      to[0] = (char) (ptr[3] ^ 128);		/* Reverse sign bit */
     to[1]   = ptr[2];
     to[2]   = ptr[1];
     to[3]   = ptr[0];
   }
+  return 4;
 }
 
 
@@ -4489,16 +4495,16 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_longlong::make_sort_key(uchar *to, size_t length)
+size_t Field_longlong::make_sort_key(uchar *to, size_t length)
 {
-  const size_t from_length= PACK_LENGTH;
-  const size_t to_length= min(from_length, length);
+  DBUG_ASSERT(length == PACK_LENGTH);
 #ifdef WORDS_BIGENDIAN
   if (table == NULL || !table->s->db_low_byte_first)
-    copy_integer<true>(to, to_length, ptr, from_length, unsigned_flag);
+    copy_integer<true>(to, length, ptr, PACK_LENGTH, unsigned_flag);
   else
 #endif
-    copy_integer<false>(to, to_length, ptr, from_length, unsigned_flag);
+    copy_integer<false>(to, length, ptr, PACK_LENGTH, unsigned_flag);
+  return PACK_LENGTH;
 }
 
 
@@ -4706,9 +4712,9 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_float::make_sort_key(uchar *to, size_t length)
+size_t Field_float::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 4);
+  DBUG_ASSERT(length == sizeof(float));
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4736,6 +4742,8 @@ void Field_float::make_sort_key(uchar *to, size_t length)
   memcpy(&nr_int, &nr, sizeof(nr));
   nr_int= (nr_int ^ (nr_int >> 31)) | ((~nr_int) & 0x80000000);
   store32be(to, nr_int);
+
+  return sizeof(float);
 }
 
 
@@ -5036,8 +5044,9 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 /* The following should work for IEEE */
 
-void Field_double::make_sort_key(uchar *to, size_t length)
+size_t Field_double::make_sort_key(uchar *to, size_t length)
 {
+  DBUG_ASSERT(length == sizeof(double));
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -5055,6 +5064,7 @@ void Field_double::make_sort_key(uchar *to, size_t length)
   }
   else
     change_double_for_sort(nr, to);
+  return sizeof(double);
 }
 
 
@@ -5818,8 +5828,9 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_timestamp::make_sort_key(uchar *to, size_t length MY_ATTRIBUTE((unused)))
+size_t Field_timestamp::make_sort_key(uchar *to, size_t length)
 {
+  DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
   {
@@ -5836,6 +5847,7 @@ void Field_timestamp::make_sort_key(uchar *to, size_t length MY_ATTRIBUTE((unuse
     to[2] = ptr[1];
     to[3] = ptr[0];
   }
+  return 4;
 }
 
 
@@ -6208,12 +6220,13 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_time::make_sort_key(uchar *to, size_t length)
+size_t Field_time::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 3);
+  DBUG_ASSERT(length == 3);
   to[0] = (uchar) (ptr[2] ^ 128);
   to[1] = ptr[1];
   to[2] = ptr[0];
+  return 3;
 }
 
 
@@ -6617,12 +6630,13 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_newdate::make_sort_key(uchar *to, size_t length)
+size_t Field_newdate::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 3);
+  DBUG_ASSERT(length == 3);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
+  return 3;
 }
 
 
@@ -6812,16 +6826,16 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr)
     ((ulonglong) a > (ulonglong) b) ? 1 : 0;
 }
 
-void Field_datetime::make_sort_key(uchar *to, size_t length)
+size_t Field_datetime::make_sort_key(uchar *to, size_t length)
 {
-  const size_t pack_length= PACK_LENGTH;
-  const size_t to_length= min(pack_length, length);
+  DBUG_ASSERT(length == PACK_LENGTH);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
-    copy_integer<true>(to, to_length, ptr, pack_length, true);
+    copy_integer<true>(to, length, ptr, PACK_LENGTH, true);
   else
 #endif
-  copy_integer<false>(to, to_length, ptr, pack_length, true);
+  copy_integer<false>(to, length, ptr, PACK_LENGTH, true);
+  return PACK_LENGTH;
 }
 
 
@@ -7287,7 +7301,7 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_string::make_sort_key(uchar *to, size_t length)
+size_t Field_string::make_sort_key(uchar *to, size_t length)
 {
   /*
     We don't store explicitly how many bytes long this string is.
@@ -7306,6 +7320,7 @@ void Field_string::make_sort_key(uchar *to, size_t length)
                                   MY_STRXFRM_PAD_WITH_SPACE |
                                   MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
+  return length;
 }
 
 
@@ -7732,8 +7747,9 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 }
 
 
-void Field_varstring::make_sort_key(uchar *to, size_t length)
+size_t Field_varstring::make_sort_key(uchar *to, size_t length)
 {
+  size_t orig_length= length;
   size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
   if (field_charset == &my_charset_bin)
@@ -7753,6 +7769,7 @@ void Field_varstring::make_sort_key(uchar *to, size_t length)
                                             MY_STRXFRM_PAD_WITH_SPACE |
                                             MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);
+  return orig_length;
 }
 
 
@@ -8433,10 +8450,11 @@ uint32 Field_blob::sort_length() const
 }
 
 
-void Field_blob::make_sort_key(uchar *to, size_t length)
+size_t Field_blob::make_sort_key(uchar *to, size_t length)
 {
   uchar *blob;
-  size_t blob_length=get_length();
+  size_t blob_length= get_length();
+  size_t orig_length= length;
 
   if (!blob_length)
     memset(to, 0, length);
@@ -8476,6 +8494,7 @@ void Field_blob::make_sort_key(uchar *to, size_t length)
                                                MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
+  return orig_length;
 }
 
 
@@ -9046,17 +9065,14 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
 }
 
 
-void Field_json::make_sort_key(uchar *to, size_t length)
+size_t Field_json::make_sort_key(uchar *to, size_t length)
 {
   Json_wrapper wr;
   if (val_json(&wr))
   {
-    /* purecov: begin inspected */
-    memset(to, 0, length);
-    return;
-    /* purecov: end */
+    return 0;
   }
-  wr.make_sort_key(to, length);
+  return wr.make_sort_key(to, length);
 }
 
 
@@ -9302,7 +9318,7 @@ int Field_enum::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_enum::make_sort_key(uchar *to, size_t length)
+size_t Field_enum::make_sort_key(uchar *to, size_t length)
 {
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
@@ -9310,6 +9326,7 @@ void Field_enum::make_sort_key(uchar *to, size_t length)
   else
 #endif
   copy_integer<false>(to, length, ptr, packlength, true);
+  return length;
 }
 
 
@@ -10318,6 +10335,50 @@ void Create_field::create_length_to_internal_length(void)
     break;
   }
 }
+
+
+/**
+  Calculate key length for field from its type, length and other attributes.
+
+  @note for string fields "length" parameter is assumed to take into account
+        character set.
+
+  TODO: Get rid of this function as its code is redundant with
+        Field::key_length() and Create_field::create_length_to_internal_length()
+        code. However creation of Field object using make_field() just to call
+        Field::key_length() is probably overkill.
+*/
+
+/* purecov: begin deadcode */
+uint32 calc_key_length(enum_field_types sql_type, uint32 length,
+                       uint32 decimals, bool is_unsigned, uint32 elements)
+{
+  switch (sql_type) {
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    return length;
+  case MYSQL_TYPE_ENUM:
+    return get_enum_pack_length(elements);
+  case MYSQL_TYPE_SET:
+    return get_set_pack_length(elements);
+  case MYSQL_TYPE_BIT:
+    return length / 8 + MY_TEST(length & 7);
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    return my_decimal_get_binary_size(my_decimal_length_to_precision(length,
+                                        decimals, is_unsigned),
+                                      decimals);
+  default:
+    return calc_pack_length(sql_type, length);
+  }
+}
+/* purecov: end */
 
 
 /**

@@ -37,6 +37,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"

@@ -2896,6 +2896,7 @@ SHOW_VAR com_status_vars[]= {
   {"ha_open",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_OPEN]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_read",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_READ]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"help",                 (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HELP]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"import",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_IMPORT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"insert",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSERT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"insert_select",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSERT_SELECT]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"install_component",    (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSTALL_COMPONENT]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -9351,14 +9352,12 @@ PSI_stage_info stage_insert= { 0, "insert", 0};
 PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating query cache entries (table)", 0};
 PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
-PSI_stage_info stage_locking_system_tables= { 0, "Locking system tables", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE", 0};
 PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
 PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for more updates", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
-PSI_stage_info stage_opening_system_tables= { 0, "Opening system tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
 PSI_stage_info stage_preparing= { 0, "preparing", 0};
 PSI_stage_info stage_purging_old_relay_logs= { 0, "Purging old relay logs", 0};
@@ -9467,14 +9466,12 @@ PSI_stage_info *all_server_stages[]=
   & stage_invalidating_query_cache_entries_table,
   & stage_invalidating_query_cache_entries_table_list,
   & stage_killing_slave,
-  & stage_locking_system_tables,
   & stage_logging_slow_query,
   & stage_making_temp_file_append_before_load_data,
   & stage_making_temp_file_create_before_load_data,
   & stage_manage_keys,
   & stage_master_has_sent_all_binlog_to_slave,
   & stage_opening_tables,
-  & stage_opening_system_tables,
   & stage_optimizing,
   & stage_preparing,
   & stage_purging_old_relay_logs,

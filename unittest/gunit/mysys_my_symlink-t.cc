@@ -19,6 +19,8 @@
 #include <my_global.h>
 #include <my_sys.h>
 
+#include "my_inttypes.h"
+
 namespace mysys_my_symlink {
 
 // For simplicity, we skip this test on Windows.

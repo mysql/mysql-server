@@ -2976,19 +2976,42 @@ drop table t_varchar;
 --echo # IN TRUNCATED DATA
 --echo #
 
+set names latin1;
+
 SELECT JSON_QUOTE('table') AS field1;
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
-SHOW WARNINGS;
 SELECT * FROM t;
 DESCRIBE t;
-drop table t;
+DROP TABLE t;
 
-select json_unquote( '"table"' ) as field1;
-create table t1 select json_unquote( '"table"' ) as field1;
-SHOW WARNINGS;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
 SELECT * FROM t1;
 DESCRIBE t1;
-drop table t1;
+DROP TABLE t1;
+
+set names default;
+
+--echo #
+--echo # Bug#25455065 JSON_QUOTE AND JSON_UNQUOTE
+--echo #              ARE WRONG FOR MULTIBYTE CHARSETS
+--echo #
+
+set names utf8mb4;
+
+SELECT JSON_QUOTE('table') AS field1;
+CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+SELECT * FROM t;
+DESCRIBE t;
+DROP TABLE t;
+
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+SELECT * FROM t1;
+DESCRIBE t1;
+DROP TABLE t1;
+
+set names default;
 
 --echo #
 --echo # Bug#21230644 JSON_MERGE MEMORY USAGE

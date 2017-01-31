@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,6 +103,7 @@ bool deserialize(THD *thd, const sdi_t &sdi, Schema *schema);
   @param thd thread context
   @param sdi  serialized representation of schema (as a json string)
   @param table empty top-level object
+  @param deser_schema_name name of schema containing the table
 
   @return error status
     @retval false if successful
@@ -110,7 +111,8 @@ bool deserialize(THD *thd, const sdi_t &sdi, Schema *schema);
 
 */
 
-bool deserialize(THD *thd, const sdi_t &sdi, Table *table);
+bool deserialize(THD *thd, const sdi_t &sdi, Table *table,
+                 String_type *deser_schema_name= nullptr);
 
 
 /**
@@ -136,7 +138,7 @@ bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *tablespace);
 /**
   Wl#7524
  */
-bool import_sdi(THD *thd, Table *table);
+bool import_sdi(THD *thd, Table *table, const String_type &schema_name);
 
 
 namespace sdi {

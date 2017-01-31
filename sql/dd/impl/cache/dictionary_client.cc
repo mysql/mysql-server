@@ -71,6 +71,7 @@
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld.h"
@@ -478,14 +479,14 @@ public:
   static bool is_read_locked(THD *thd, const dd::Event *event)
   {
     return (thd->is_dd_system_thread() ||
-            is_locked(thd, event, MDL_INTENTION_EXCLUSIVE));
+            is_locked(thd, event, MDL_SHARED));
   }
 
   // Writing a Event object should be governed by MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Event *event)
   {
     return (thd->is_dd_system_thread() ||
-            is_locked(thd, event, MDL_SHARED));
+            is_locked(thd, event, MDL_EXCLUSIVE));
   }
 
   // Reading a Routine object should be governed at least MDL_SHARED.
@@ -583,9 +584,11 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
     // uncommitted objects (typically committed them to the shared cache).
     DBUG_ASSERT(m_client->m_thd->is_error() ||
                 m_client->m_thd->killed ||
-                m_client->m_registry_uncommitted.size_all() == 0);
+                (m_client->m_registry_uncommitted.size_all() == 0 &&
+                 m_client->m_registry_dropped.size_all() == 0));
 
     m_client->m_registry_uncommitted.erase_all();
+    m_client->m_registry_dropped.erase_all();
 
     // Delete any objects retrieved by acquire_uncached() or
     // acquire_for_modification().
@@ -626,8 +629,9 @@ bool Dictionary_client::acquire(const K &key, const T **object,
 
   // Lookup in registry of uncommitted objects
   T *uncommitted_object= nullptr;
-  acquire_uncommitted(key, &uncommitted_object);
-  if (uncommitted_object)
+  bool dropped= false;
+  acquire_uncommitted(key, &uncommitted_object, &dropped);
+  if (uncommitted_object || dropped)
   {
     *local_committed= false;
     *local_uncommitted= true;
@@ -642,10 +646,12 @@ bool Dictionary_client::acquire(const K &key, const T **object,
   if (element)
   {
     // Check if an uncommitted object with the same id exists.
-    // If so, the object has been renamed and we should return nothing.
+    // If so, the object has been renamed or dropped, and we should
+    // return nothing.
     const typename T::id_key_type id_key(element->object()->id());
-    acquire_uncommitted(id_key, &uncommitted_object);
-    if (uncommitted_object)
+    acquire_uncommitted(id_key, &uncommitted_object, &dropped);
+    DBUG_ASSERT(!dropped);
+    if (uncommitted_object || dropped)
       return false;
 
     // Object has not been renamed
@@ -669,12 +675,19 @@ bool Dictionary_client::acquire(const K &key, const T **object,
   // Add the element to the local registry and assign the output object.
   if (element)
   {
-    // Recheck that we haven't renamed this object.
+    // Recheck that we haven't renamed or dropped this object.
     const typename T::id_key_type id_key(element->object()->id());
-    acquire_uncommitted(id_key, &uncommitted_object);
-    if (uncommitted_object)
+    acquire_uncommitted(id_key, &uncommitted_object, &dropped);
+    if (uncommitted_object || dropped)
     {
-      Shared_dictionary_cache::instance()->release(element);
+      // Here, we drop the object from the shared cache. If the
+      // object has been dropped, we would otherwise contaminate
+      // the shared cache. For simplicity, we drop it also in the
+      // case of a modified (i.e., renamed) object. This would also
+      // be handled in remove_uncommitted_objects() when the
+      // shared cache is updated with the modified objects.
+      DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, element->object()));
+      Shared_dictionary_cache::instance()->drop(element);
       return false;
     }
 
@@ -691,10 +704,17 @@ bool Dictionary_client::acquire(const K &key, const T **object,
 
 
 template <typename K, typename T>
-void Dictionary_client::acquire_uncommitted(const K &key, T **object)
+void Dictionary_client::acquire_uncommitted(const K &key,
+                                            T **object,
+                                            bool *dropped)
 {
   DBUG_ASSERT(object);
+  DBUG_ASSERT(dropped);
   *object= nullptr;
+  *dropped= false;
+
+  Object_id uncommitted_id= INVALID_OBJECT_ID;
+  Object_id dropped_id= INVALID_OBJECT_ID;
 
   Cache_element<T> *element= NULL;
   m_registry_uncommitted.get(key, &element);
@@ -703,7 +723,28 @@ void Dictionary_client::acquire_uncommitted(const K &key, T **object)
     *object= const_cast<T*>(element->object()); // TODO: Const cast
     // Check proper MDL lock.
     DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
+    uncommitted_id= (*object)->id();
   }
+
+  m_registry_dropped.get(key, &element);
+  if (element)
+  {
+    const T *dropped_object= element->object();
+    // Check proper MDL lock.
+    DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, dropped_object));
+    dropped_id= dropped_object->id();
+  }
+
+  // The object should never be present in both registries with the same id.
+  DBUG_ASSERT(uncommitted_id != dropped_id ||
+              dropped_id == INVALID_OBJECT_ID);
+
+  *dropped= (dropped_id != INVALID_OBJECT_ID &&
+             uncommitted_id == INVALID_OBJECT_ID);
+
+  // If dropped, we return nullptr.
+  if (*dropped)
+    *object= nullptr;
 }
 
 
@@ -927,9 +968,7 @@ bool Dictionary_client::acquire_uncached(Object_id id, T** object)
 }
 
 
-// Retrieve an object by its object id without caching it. Use isolation
-// level ISO_READ_UNCOMMITTED for reading the object. Needed by WL#7743.
-/* purecov: begin deadcode */
+// Retrieve an object by its object id without caching it.
 template <typename T>
 bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
                                                      T** object)
@@ -940,7 +979,16 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
   // First get the object from acquire_uncommitted. This should be safe
   // even without MDL, since the object is only available to this thread.
   typename T::cache_partition_type *uncommitted_object= nullptr;
-  acquire_uncommitted(key, &uncommitted_object);
+  bool dropped= false;
+  acquire_uncommitted(key, &uncommitted_object, &dropped);
+
+  // In this case, if the object has been dropped, we return nullptr since
+  // this is in line with the isolation level for the disk access.
+  if (dropped)
+  {
+    *object= nullptr;
+    return false;
+  }
 
   if (uncommitted_object != nullptr)
   {
@@ -975,7 +1023,6 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
 
   return error;
 }
-/* purecov: end */
 
 
 // Retrieve an object by its name.
@@ -1333,7 +1380,11 @@ static bool get_index_statistics_entries(THD *thd,
                                   std::vector<String_type> &index_names,
                                   std::vector<String_type> &column_names)
 {
-  dd::Transaction_ro trx(thd, ISO_READ_COMMITTED);
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic ALTER TABLE statement.
+  */
+  dd::Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
 
   // Open the DD tables holding dynamic table statistics.
   trx.otx.register_tables<dd::Table_stat>();
@@ -1422,7 +1473,11 @@ bool Dictionary_client::remove_table_dynamic_statistics(
                                                *it_idxs,
                                                *it_cols));
 
-      if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &idx_stat))
+      /*
+        Use READ UNCOMMITTED isolation, so this method works correctly when
+        called from the middle of atomic ALTER TABLE statement.
+      */
+      if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &idx_stat))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
         return true;
@@ -1453,8 +1508,12 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   std::unique_ptr<Table_stat::name_key_type> key(
     tables::Table_stats::create_object_key(schema_name, table_name));
 
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic ALTER TABLE statement.
+  */
   const Table_stat *tab_stat= nullptr;
-  if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &tab_stat))
+  if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &tab_stat))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
@@ -1831,7 +1890,12 @@ bool Dictionary_client::fetch_referencing_views_object_id(
   const char *tbl_or_sf_name,
   std::vector<Object_id> *view_ids) const
 {
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+  /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic DROP TABLE/DATABASE or
+    RENAME TABLE statements.
+  */
+  dd::Transaction_ro trx(m_thd, ISO_READ_UNCOMMITTED);
 
   // Register View_table_usage/View_routine_usage.
   trx.otx.register_tables<T>();
@@ -1900,29 +1964,22 @@ bool Dictionary_client::drop(const T *object)
     return true;
   }
 
-  const typename T::id_key_type id_key(object->id());
+  // Prepare an instance to be added to the dropped registry. This must be done
+  // prior to cleaning up the committed registry since the instance we drop might
+  // be present there (since we are allowed to drop const object coming from
+  // acquire()).
+  T *dropped_object= object->clone();
 
-  // Could be in the uncommitted registry, remove and delete.
-  typename T::cache_partition_type *modified= nullptr;
-  acquire_uncommitted(id_key, &modified);
-  if (modified != nullptr)
-  {
-    Cache_element<typename T::cache_partition_type> *uc_element= nullptr;
-    m_registry_uncommitted.get(
-      static_cast<const typename T::cache_partition_type*>(modified),
-      &uc_element);
-    DBUG_ASSERT(uc_element != nullptr);
-    m_registry_uncommitted.remove(uc_element);
-    delete uc_element->object();
-    delete uc_element;
-  }
-
-  // Lookup in the local registry using the partition type.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
+  // The shared cache is updated right away. This is safe since we have
+  // MDL on the name. Further acquisition from this thread will see
+  // that the object is dropped (by inspecting the dropped registry),
+  // so the shared cache will not be "polluted" by this thread either.
 
   // Uncommitted object which was acquired for modification might have
   // corrupted name.... So lookup by id. (see mysql_rename_table()
   // problem)
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  const typename T::id_key_type id_key(object->id());
   m_registry_committed.get(id_key, &element);
 
   if (element)
@@ -1938,6 +1995,13 @@ bool Dictionary_client::drop(const T *object)
     Shared_dictionary_cache::instance()->
       drop_if_present<typename T::id_key_type,
                       typename T::cache_partition_type>(id_key);
+
+  // Finally, add a clone to the dropped registry. Note that we are allowed to
+  // drop a const object, e.g. coming from acquire(). This means that the
+  // object instance, or the same id in a different instance, may be present in
+  // the uncommitted registry. This is handled inside register_dropped_object(),
+  // where we ensure that the uncommitted and dropped registries are consistent.
+  register_dropped_object(dropped_object);
 
   return false;
 }
@@ -2084,11 +2148,16 @@ void Dictionary_client::register_uncommitted_object(T* object)
   // renove_uncommitted_objects() is called implicitly as part of commit/
   // rollback, this should not be necessary.
   DBUG_ASSERT(m_current_releaser != &m_default_releaser);
-#endif
 
   // store() should have been called before if this is a
   // new object so that it has a proper ID already.
   DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
+
+  // Make sure the same id is not present in the dropped registry.
+  const typename T::id_key_type id_key(object->id());
+  m_registry_dropped.get(id_key, &element);
+  DBUG_ASSERT(element == nullptr);
+#endif
 
   element= new Cache_element<typename T::cache_partition_type>();
   element->set_object(object);
@@ -2098,8 +2167,126 @@ void Dictionary_client::register_uncommitted_object(T* object)
 
 
 template <typename T>
+void Dictionary_client::register_dropped_object(T* object)
+{
+  Cache_element<typename T::cache_partition_type> *element= nullptr;
+#ifndef DBUG_OFF
+  // Make sure we do not sign up a shared object for auto delete.
+  m_registry_committed.get(
+    static_cast<const typename T::cache_partition_type*>(object),
+    &element);
+  DBUG_ASSERT(element == nullptr);
+
+  // We need a top level auto releaser to make sure the dropped objects
+  // are removed. This is done in the auto releaser destructor. When
+  // renove_uncommitted_objects() is called implicitly as part of commit/
+  // rollback, this should not be necessary.
+  DBUG_ASSERT(m_current_releaser != &m_default_releaser);
+
+  // store() should have been called before if this is a
+  // new object so that it has a proper ID already.
+  DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
+#endif
+
+  // Could be in the uncommitted registry, remove and delete.
+  const typename T::id_key_type id_key(object->id());
+  typename T::cache_partition_type *modified= nullptr;
+  bool dropped= false;
+  acquire_uncommitted(id_key, &modified, &dropped);
+  DBUG_ASSERT(!dropped);
+  if (modified != nullptr)
+  {
+    m_registry_uncommitted.get(
+      static_cast<const typename T::cache_partition_type*>(modified),
+      &element);
+    DBUG_ASSERT(element != nullptr);
+    m_registry_uncommitted.remove(element);
+    DBUG_ASSERT(element->object() != object);
+    delete element->object();
+    // The element is reused below, so we don't delete it.
+  }
+
+  if (element == nullptr)
+    element= new Cache_element<typename T::cache_partition_type>();
+
+  element->set_object(object);
+  element->recreate_keys();
+
+  // Check if the object is already registered. This could happen if
+  // the object is dropped twice in the same statement. Currently
+  // this is possible when updating view metadata since alter view
+  // is implemented as drop+create. We have to look up on name since
+  // the ID has changed.
+  Cache_element<typename T::cache_partition_type> *dropped_ele= nullptr;
+  m_registry_dropped.get(*element->name_key(), &dropped_ele);
+  if (dropped_ele != nullptr)
+  {
+    // We have dropped an object with the same name earlier.
+    // Remove the old object so that we can insert the new
+    // object without getting key conflicts.
+    // Note: This means that the previously dropped object can
+    // now be retrieved again with the old ID!
+    m_registry_dropped.remove(dropped_ele);
+    delete dropped_ele->object();
+    delete dropped_ele;
+  }
+
+  m_registry_dropped.put(element);
+}
+
+
+template <typename T>
 void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 {
+#ifndef DBUG_OFF
+  // Note: The ifdef'ed block below is only for consistency checks in
+  // debug builds.
+  typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
+  for (it= m_registry_dropped.begin<typename T::cache_partition_type>();
+       it != m_registry_dropped.end<typename T::cache_partition_type>();
+       it++)
+  {
+    const typename T::cache_partition_type* dropped_object= it->second->object();
+    DBUG_ASSERT(dropped_object != nullptr);
+
+    // Checking proper MDL lock is skipped here because when dropping a
+    // schema, the implementation of the MDL checking does not work properly.
+
+    // Make sure that dropped object ids are not present persistently with
+    // isolation level READ UNCOMMITTED.
+    const typename T::id_key_type id_key(dropped_object->id());
+
+    // Fetch the dictionary object by PK from the DD tables, and verify that
+    // it's not available, but only if:
+    // - This is not a DD system thread (due to SE being faked).
+    // - The transaction is being committed, not rolled back.
+    // - We're not allowing direct access to DD tables.
+    if (!m_thd->is_dd_system_thread() && commit_to_shared_cache &&
+        DBUG_EVALUATE_IF("skip_dd_table_access_check", false, true))
+    {
+      const typename T::cache_partition_type *stored_object= nullptr;
+      if (!Shared_dictionary_cache::instance()->
+            get_uncached(m_thd, id_key, ISO_READ_UNCOMMITTED, &stored_object))
+        DBUG_ASSERT(stored_object == nullptr);
+    }
+
+    // Make sure that dropped object ids are not present in the shared cache.
+    DBUG_ASSERT(!(Shared_dictionary_cache::instance()->
+                   available<typename T::id_key_type,
+                             typename T::cache_partition_type>(id_key)));
+
+    // Make sure that dropped object ids are not present in the uncommitted
+    // registry.
+    Cache_element<typename T::cache_partition_type> *element= nullptr;
+    m_registry_uncommitted.get(id_key, &element);
+    DBUG_ASSERT(element == nullptr);
+
+    // Make sure that dropped object ids are not present in the committed
+    // registry.
+    m_registry_committed.get(id_key, &element);
+    DBUG_ASSERT(element == nullptr);
+  }
+#endif
   if (commit_to_shared_cache)
   {
     typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
@@ -2138,6 +2325,11 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
           drop_if_present<typename T::id_key_type,
                           typename T::cache_partition_type>(uncommitted_object->id());
       }
+#ifndef DBUG_OFF
+      // Make sure the uncommitted id is not present in the dropped registry.
+      m_registry_committed.get(key, &element);
+      DBUG_ASSERT(element == nullptr);
+#endif
     }
 
     // We must do this in two iterations to handle situations where two uncommitted
@@ -2163,6 +2355,7 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
     }
   } // commit_to_shared_cache
   m_registry_uncommitted.erase<typename T::cache_partition_type>();
+  m_registry_dropped.erase<typename T::cache_partition_type>();
 }
 
 
@@ -2203,6 +2396,8 @@ void Dictionary_client::dump() const
   m_registry_committed.dump<T>();
   fprintf(stderr, "Dictionary client (uncommitted)\n");
   m_registry_uncommitted.dump<T>();
+  fprintf(stderr, "Dictionary client (dropped)\n");
+  m_registry_dropped.dump<T>();
   fprintf(stderr, "Dictionary client (uncached)\n");
   for (std::vector<Dictionary_object*>::const_iterator it=
          m_uncached_objects.begin();
@@ -2324,6 +2519,8 @@ template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Schema**);
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Schema**);
+template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
+                                                              Schema**);
 template bool Dictionary_client::acquire_for_modification(const String_type&,
                                                           Schema**);
 template void Dictionary_client::remove_uncommitted_objects<Schema>(bool);
@@ -2382,6 +2579,8 @@ template void Dictionary_client::dump<Tablespace>() const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   View**);
+template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
+                                                              View**);
 template bool Dictionary_client::acquire(Object_id,
                                          const View**);
 template bool Dictionary_client::acquire_for_modification(Object_id,
@@ -2396,9 +2595,6 @@ template void Dictionary_client::remove_uncommitted_objects<View>(bool);
 template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::store(View*);
 template bool Dictionary_client::update(View*);
-
-template bool Dictionary_client::store(Table_stat*);
-template bool Dictionary_client::store(Index_stat*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Event**);

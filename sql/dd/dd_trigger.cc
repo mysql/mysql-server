@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "dd_table_share.h"              // dd_get_mysql_charset
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                      // my_error, resolve_collation
 #include "mysql/psi/mysql_sp.h"          // MYSQL_DROP_SP

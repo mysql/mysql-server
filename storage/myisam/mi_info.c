@@ -18,6 +18,7 @@
 #include <fcntl.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #ifdef	_WIN32
 #include <sys/stat.h>

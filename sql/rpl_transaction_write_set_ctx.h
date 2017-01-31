@@ -16,8 +16,10 @@
 #ifndef RPL_TRANSACTION_WRITE_SET_CTX_H
 #define RPL_TRANSACTION_WRITE_SET_CTX_H
 
-#include "my_global.h"
 #include <vector>
+
+#include "my_global.h"
+#include "my_inttypes.h"
 
 /**
   Server side support to provide a service to plugins to report if

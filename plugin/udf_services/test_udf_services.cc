@@ -19,6 +19,7 @@
 #include <mysql_version.h>
 
 #include "my_compiler.h"
+#include "my_inttypes.h"
 
 /**
   @file test_udf_services.cc

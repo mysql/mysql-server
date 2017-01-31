@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
@@ -236,7 +237,6 @@ public:
   bool get_time(MYSQL_TIME *ltime) override;
   bool val_bool() override;
   enum Item_result result_type() const override;
-  enum_field_types field_type() const override;
   bool resolve_type(THD *) override;
 
   /*

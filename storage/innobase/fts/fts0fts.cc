@@ -37,6 +37,7 @@ Full Text Search interface
 #include "lob0lob.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "row0mysql.h"
 #include "row0sel.h"
 #include "row0upd.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,8 @@ public:
 public:
   virtual const Object_table &object_table() const
   { return Tablespace_file::OBJECT_TABLE(); }
+
+  virtual bool store(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 

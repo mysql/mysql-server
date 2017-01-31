@@ -25,7 +25,6 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "print_version.h"
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <algorithm>
 #include <cstdio>
@@ -38,8 +37,10 @@
 #include "logger.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
 #include "path.h"
+#include "print_version.h"
 
 #if HAVE_CHOWN
 #include <pwd.h>

@@ -16,6 +16,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql.h"
 #include "mysql_com.h"
 

@@ -39,6 +39,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql_com.h"
 #include "protocol_classic.h"
 #include "sql_class.h"                          // THD

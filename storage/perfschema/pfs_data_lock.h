@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "table_helper.h"
 
 struct pk_pos_data_lock

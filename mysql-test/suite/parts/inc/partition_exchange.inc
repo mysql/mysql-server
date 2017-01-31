@@ -157,7 +157,7 @@ connect(con1, localhost, root,,);
 SET DEBUG_SYNC= 'swap_partition_after_compare_tables SIGNAL swap_in_progress WAIT_FOR goto_verification';
 SET DEBUG_SYNC= 'swap_partition_first_row_read SIGNAL swap_in_progress WAIT_FOR goto_wait';
 SET DEBUG_SYNC= 'swap_partition_after_wait SIGNAL swap_in_progress WAIT_FOR goto_rename';
-SET DEBUG_SYNC= 'swap_partition_before_rename SIGNAL swap_in_progress WAIT_FOR test_done';
+SET DEBUG_SYNC= 'swap_partition_before_exchange SIGNAL swap_in_progress WAIT_FOR test_done';
 send ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 
 connection default;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include "my_sys.h"
-#include "my_global.h"
 #include "my_dir.h"
+#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 
 #ifndef _WIN32
 #include <pwd.h>

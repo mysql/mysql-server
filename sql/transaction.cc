@@ -28,12 +28,13 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_transaction.h"
 #include "mysql_com.h"
 #include "mysqld.h"           // opt_readonly
 #include "mysqld_error.h"
-#include "mysql/psi/mysql_transaction.h"
 #include "query_options.h"
 #include "rpl_context.h"
 #include "rpl_gtid.h"
@@ -361,6 +362,8 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
 
   trans_track_end_trx(thd);
 
+  thd->dd_client()->commit_modified_objects();
+
   DBUG_RETURN(res);
 }
 
@@ -369,15 +372,12 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
   Rollback the current transaction, canceling its changes.
 
   @param thd     Current thread
-  @param rollback_modified_dd_objects
-                 Should any uncommitted DD objects be removed
-                 from Dictionary_client?
 
   @retval FALSE  Success
   @retval TRUE   Failure
 */
 
-bool trans_rollback(THD *thd, bool rollback_modified_dd_objects)
+bool trans_rollback(THD *thd)
 {
   int res;
   DBUG_ENTER("trans_rollback");
@@ -401,13 +401,7 @@ bool trans_rollback(THD *thd, bool rollback_modified_dd_objects)
 
   trans_track_end_trx(thd);
 
-  /*
-    TODO: When InnoDB supports Atomic DDL, we should always
-    remove uncommitted DD objects on rollback. The
-    'rollback_modified_dd_objects' argument can the be removed.
-  */
-  if (rollback_modified_dd_objects)
-    thd->dd_client()->rollback_modified_objects();
+  thd->dd_client()->rollback_modified_objects();
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -456,6 +450,8 @@ bool trans_rollback_implicit(THD *thd)
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
   trans_track_end_trx(thd);
+
+  thd->dd_client()->rollback_modified_objects();
 
   DBUG_RETURN(MY_TEST(res));
 }

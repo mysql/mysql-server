@@ -22,6 +22,7 @@
 
 #include "ftdefs.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

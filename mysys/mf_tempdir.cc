@@ -18,6 +18,7 @@
 
 #include "mutex_lock.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysys_priv.h"
 #include "prealloced_array.h"
 

@@ -37,6 +37,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0page.h"
 #include "pars0pars.h"
 #include "que0que.h"

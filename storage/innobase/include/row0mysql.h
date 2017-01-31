@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -862,6 +862,9 @@ struct row_prebuilt_t {
 	bool		skip_serializable_dd_view;
 					/* true, if we want skip serializable
 					isolation level on views on DD tables */
+	bool		no_autoinc_locking;
+					/* true, if we were asked to skip
+					AUTOINC locking for the table. */
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
 

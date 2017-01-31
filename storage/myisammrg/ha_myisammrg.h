@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <myisammrg.h>
 
 #include "my_double2ulonglong.h"
+#include "my_inttypes.h"
 #include "table.h"
 
 /** 
@@ -111,7 +112,8 @@ public:
   double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
-  int open(const char *name, int mode, uint test_if_locked_arg);
+  int open(const char *name, int mode, uint test_if_locked_arg,
+           const dd::Table *table_def);
   int add_children_list(void);
   int attach_children(void);
   int detach_children(void);
@@ -136,14 +138,15 @@ public:
   int rnd_pos(uchar * buf, uchar *pos);
   void position(const uchar *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int truncate();
+  int truncate(dd::Table *table_def);
   int info(uint);
   int reset(void);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
   uint lock_count(void) const;
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);

@@ -81,6 +81,7 @@ SET(DD_SOURCES
   dd/impl/transaction_impl.cc
   dd/impl/utils.cc
   dd/impl/sdi.cc
+  dd/impl/sdi_api.cc
   dd/impl/sdi_file.cc
   dd/impl/sdi_tablespace.cc
   dd/impl/string_type.cc
@@ -318,6 +319,7 @@ SET(SQL_SHARED_SOURCES
   sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
+  sql_import.cc
   sql_insert.cc
   sql_join_buffer.cc
   sql_lex.cc 

@@ -38,6 +38,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "buf0buf.h"
 #include "ha0ha.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "page0cur.h"
 #include "page0page.h"
 #include "srv0mon.h"

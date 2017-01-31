@@ -27,6 +27,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
@@ -51,12 +52,12 @@ struct TABLE_SHARE;
 #include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
+#include "mem_root_array.h"
 #include "opt_costmodel.h" // Cost_model_table
 #include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
-#include "mem_root_array.h"
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -1216,9 +1217,10 @@ public:
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;
-  ORDER		*group;
-  const char	*alias;            	  /* alias or table name */
-  uchar		*null_flags;
+  ORDER	        *group;
+  const char    *alias;           ///< alias or table name
+  uchar         *null_flags;      ///< Pointer to the null flags of record[0]
+  uchar         *null_flags_saved;///< Saved null_flags while null_row is true
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
   /*
     Bitmap of fields that one or more query condition refers to. Only
@@ -1657,6 +1659,20 @@ public:
 
   /// @return true if current row has been deleted (multi-table delete)
   bool has_deleted_row() const { return m_status & STATUS_DELETED; }
+
+  /// Save the NULL flags of the current row into the designated buffer
+  void save_null_flags()
+  {
+    if (s->null_bytes > 0)
+      memcpy(null_flags_saved, null_flags, s->null_bytes);
+  }
+
+  /// Restore the NULL flags of the current row from the designated buffer
+  void restore_null_flags()
+  {
+    if (s->null_bytes > 0)
+      memcpy(null_flags, null_flags_saved, s->null_bytes);
+  }
 
   /**
     Initialize the optimizer cost model.
@@ -3345,7 +3361,8 @@ bool unpack_partition_info(THD *thd,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table);
+                          TABLE *outparam, bool is_create_table,
+                          const dd::Table *table_def_param);
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,

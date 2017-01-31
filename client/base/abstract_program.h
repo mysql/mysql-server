@@ -26,6 +26,7 @@
 #include "i_options_provider.h"
 #include "message_data.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{

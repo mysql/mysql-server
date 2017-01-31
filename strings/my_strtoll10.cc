@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include <my_global.h>
 #include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
 #include <sys/types.h>
+
+#include "my_inttypes.h"
 
 #define MAX_NEGATIVE_NUMBER	((ulonglong) 0x8000000000000000LL)
 #define INIT_CNT  9

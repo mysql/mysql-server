@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "dd/types/table.h"                    // dd:Table
 #include "dd/types/trigger.h"                  // dd::Trigger
 #include "my_global.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -279,10 +280,19 @@ public:
   virtual const Partition_collection &partitions() const
   { return m_partitions; }
 
+  virtual Partition_collection *partitions()
+  { return &m_partitions; }
+
   const Partition *get_partition(Object_id partition_id) const
   { return const_cast<Table_impl *> (this)->get_partition(partition_id); }
 
   Partition *get_partition(Object_id partition_id);
+
+  Partition *get_partition(const String_type &name);
+
+  /** Find and set parent partitions for subpartitions. */
+  virtual void fix_partitions();
+
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -353,7 +363,7 @@ public:
 
   virtual void clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const;
   virtual void move_triggers(Prealloced_array<Trigger*, 1> *triggers);
-  virtual void copy_triggers(Table *tab_obj);
+  virtual void copy_triggers(const Table *tab_obj);
 
   virtual Trigger *add_trigger(Trigger::enum_action_timing at,
                                Trigger::enum_event_type et);

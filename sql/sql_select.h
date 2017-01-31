@@ -35,17 +35,18 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "opt_costmodel.h"
+#include "opt_explain_format.h"       // Explain_sort_clause
 #include "set_var.h"
 #include "sql_alloc.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                // THD
-#include "sql_opt_exec_shared.h"      // join_type
-#include "opt_explain_format.h"       // Explain_sort_clause
 #include "sql_cmd_dml.h"              // Sql_cmd_dml
 #include "sql_const.h"
 #include "sql_lex.h"
+#include "sql_opt_exec_shared.h"      // join_type
 #include "sql_opt_exec_shared.h"      // join_type
 #include "system_variables.h"
 #include "table.h"

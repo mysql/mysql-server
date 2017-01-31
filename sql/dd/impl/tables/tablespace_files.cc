@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ Tablespace_files::Tablespace_files()
                          "ordinal_position INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_FILE_NAME,
                          "FIELD_FILE_NAME",
-                         "file_name VARCHAR(255) NOT NULL");
+                         "file_name VARCHAR(512) NOT NULL");
   m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
                          "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");

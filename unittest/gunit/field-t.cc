@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,16 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
-#include "fake_table.h"
-
-#include "field.h"
-#include "sql_time.h"
 #include <my_decimal.h>
+
+#include "fake_table.h"
+#include "field.h"
+#include "my_inttypes.h"
+#include "sql_time.h"
+#include "test_utils.h"
 
 namespace field_unittests {
 
@@ -618,7 +616,7 @@ TEST_F(FieldTest, MakeSortKey)
     Field_double fd(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
     double from= 0.0;
     uchar expected []= { 128, 0, 0, 0, 0, 0, 0, 0 };
-    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 1);
+    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 8);
   }
   {
     SCOPED_TRACE("Field_null");

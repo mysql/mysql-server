@@ -13,23 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include "test_utils.h"
-
+#include "fake_table.h"
 #include "item.h"
 #include "item_cmpfunc.h"
 #include "item_create.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
-#include "sql_class.h"
-#include "tztime.h"
-
-#include "fake_table.h"
 #include "mock_field_timestamp.h"
+#include "my_inttypes.h"
+#include "sql_class.h"
+#include "test_utils.h"
+#include "tztime.h"
 
 namespace item_unittest {
 
@@ -177,7 +174,7 @@ TEST_F(ItemTest, ItemInt)
 
   EXPECT_EQ(Item::INT_ITEM,      item_int->type());
   EXPECT_EQ(INT_RESULT,          item_int->result_type());
-  EXPECT_EQ(MYSQL_TYPE_LONGLONG, item_int->field_type());
+  EXPECT_EQ(MYSQL_TYPE_LONGLONG, item_int->data_type());
   EXPECT_EQ(val,                 item_int->val_int());
   EXPECT_DOUBLE_EQ((double) val, item_int->val_real());
   EXPECT_TRUE(item_int->basic_const_item());

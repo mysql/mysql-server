@@ -31,6 +31,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "lock0lock.h"
 #include "mach0data.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "que0que.h"
 #include "read0read.h"
 #include "rem0cmp.h"

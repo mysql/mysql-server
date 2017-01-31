@@ -1489,6 +1489,12 @@ pk INT,
 PRIMARY KEY (pk)
 ) ENGINE=MyISAM;
 INSERT INTO t4 VALUES ('RUXDY',8);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 explain SELECT alias1.pk AS field5
 FROM t3 AS alias1
 LEFT JOIN t4 AS alias2

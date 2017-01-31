@@ -18,6 +18,7 @@
 #include "fulltext.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 
 #define IS_CHAR ((uint) 32768)		/* Bit if char (not offset) in tree */

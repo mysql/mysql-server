@@ -17,6 +17,7 @@
 #define HA_PERFSCHEMA_H
 
 #include "handler.h" /* class handler */
+#include "my_inttypes.h"
 
 /**
   @file storage/perfschema/ha_perfschema.h
@@ -150,9 +151,11 @@ public:
     @param name the table to open
     @param mode unused
     @param test_if_locked unused
+    @param table_def unused
     @return 0 on success
   */
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
 
   /**
     Close a table handle.
@@ -217,13 +220,17 @@ public:
 
   int delete_all_rows(void);
 
-  int truncate();
+  int truncate(dd::Table *table_def);
 
-  int delete_table(const char *from);
+  int delete_table(const char *from, const dd::Table *table_def);
 
-  int rename_table(const char *from, const char *to);
+  int rename_table(const char *from, const char *to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
 
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form,
+             HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
 
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,

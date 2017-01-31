@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
-#include "my_default.h"
-#include "mysqlcheck.h"
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
-
 #include <string>
 #include <vector>
+
+#include "client_priv.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "mysqlcheck.h"
 
 using namespace Mysql::Tools::Check;
 

@@ -30,6 +30,7 @@ Created 10/13/2010 Jimmy Yang
 #include "ha_prototypes.h"
 #include "lob0lob.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"

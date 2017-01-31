@@ -147,7 +147,8 @@ class ha_ndbcluster: public handler, public Partition_handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
 
@@ -252,9 +253,12 @@ public:
   virtual char* get_foreign_key_create_info();
   virtual void free_foreign_key_create_info(char* str);
 
-  int rename_table(const char *from, const char *to);
-  int delete_table(const char *name);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
+  int rename_table(const char *from, const char *to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
+  int delete_table(const char *name, const dd::Table *table_def);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
+             dd::Table *table_def);
   virtual bool is_ignorable_error(int error)
   {
     if (handler::is_ignorable_error(error) ||
@@ -371,18 +375,23 @@ bool parse_comment_changes(NdbDictionary::Table *new_tab,
                            THD *thd,
                            bool & max_rows_changed) const;
 
-bool prepare_inplace_alter_table(TABLE *altered_table,
-                                 Alter_inplace_info *ha_alter_info,
-                                 dd::Table *new_dd_tab);
-
-bool inplace_alter_table(TABLE *altered_table,
-                            Alter_inplace_info *ha_alter_info);
-  
-bool commit_inplace_alter_table(TABLE *altered_table,
+  bool prepare_inplace_alter_table(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info,
-                                   bool commit);
+                                   const dd::Table *old_table_def,
+                                   dd::Table *new_table_def);
 
-void notify_table_changed();
+  bool inplace_alter_table(TABLE *altered_table,
+                           Alter_inplace_info *ha_alter_info,
+                           const dd::Table *old_table_def,
+                           dd::Table *new_table_def);
+
+  bool commit_inplace_alter_table(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info,
+                                  bool commit,
+                                  const dd::Table *old_table_def,
+                                  dd::Table *new_table_def);
+
+void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
 private:
   void prepare_for_alter();

@@ -503,12 +503,12 @@ uint cached_table_definitions(void)
         for resources like row- or metadata locks, table flushes, etc.
         Otherwise, we may end up in deadlocks that will not be detected.
 
-  @param thd         thread handle
-  @param table_list  table that should be opened
-  @param key         table cache key
-  @param key_length  length of key
-  @param open_view   allow open of view
-  @param hash_value  hash value to use for lookup in THD
+  @param thd                thread handle
+  @param table_list         table that should be opened
+  @param key                table cache key
+  @param key_length         length of key
+  @param open_view          allow open of view
+  @param hash_value         hash value to use for lookup in THD
 
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
@@ -638,7 +638,10 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     share->error= true; // Allow waiters to detect the error
     share->ref_count--;
     (void) my_hash_delete(&table_def_cache, (uchar*) share);
-    DEBUG_SYNC(thd, "get_share_after_destroy");
+#if defined(ENABLED_DEBUG_SYNC)
+    if (!thd->is_attachable_ro_transaction_active())
+      DEBUG_SYNC(thd, "get_share_after_destroy");
+#endif
     DBUG_RETURN(NULL);
   }
 
@@ -661,7 +664,10 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(share);
 
 found:
-  DEBUG_SYNC(thd, "get_share_found_share");
+#if defined(ENABLED_DEBUG_SYNC)
+  if (!thd->is_attachable_ro_transaction_active())
+    DEBUG_SYNC(thd, "get_share_found_share");
+#endif
   /*
      We found an existing table definition. Return it if we didn't get
      an error when reading the table definition from file.
@@ -1517,7 +1523,8 @@ void close_thread_tables(THD *thd)
         table->query_id == thd->query_id)
     {
       DBUG_ASSERT(table->file);
-      table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+      if (table->db_stat)
+        table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
     }
   }
@@ -2304,56 +2311,25 @@ static TABLE *find_temporary_table(THD *thd,
 /**
   Drop a temporary table.
 
-  Try to locate the table in the list of thd->temporary_tables.
-  If the table is found:
-   - if the table is being used by some outer statement, fail.
-   - if the table is locked with LOCK TABLES or by prelocking,
-   unlock it and remove it from the list of locked tables
-   (THD::lock). Currently only transactional temporary tables
-   are locked.
-   - Close the temporary table, remove its .FRM
-   - remove the table from the list of temporary tables
-
-  This function is used to drop user temporary tables, as well as
-  internal tables created in CREATE TEMPORARY TABLE ... SELECT
-  or ALTER TABLE. Even though part of the work done by this function
-  is redundant when the table is internal, as long as we
-  link both internal and user temporary tables into the same
-  thd->temporary_tables list, it's impossible to tell here whether
-  we're dealing with an internal or a user temporary table.
-
-  In is_trans out-parameter, we return the type of the table:
-  either transactional (e.g. innodb) as TRUE or non-transactional
-  (e.g. myisam) as FALSE.
-
-  This function assumes that table to be dropped was pre-opened
-  using table list provided.
-
-  @retval  0  the table was found and dropped successfully.
-  @retval  1  the table was not found in the list of temporary tables
-              of this thread
-  @retval -1  the table is in use by a outer query
+  - If the table is locked with LOCK TABLES or by prelocking,
+    unlock it and remove it from the list of locked tables
+    (THD::lock). Currently only transactional temporary tables
+    are locked.
+  - Close the temporary table.
+  - Remove the table from the list of temporary tables.
 */
 
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
+void drop_temporary_table(THD *thd, TABLE_LIST *table_list)
 {
   DBUG_ENTER("drop_temporary_table");
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table_list->db, table_list->table_name));
 
-  if (!is_temporary_table(table_list))
-    DBUG_RETURN(1);
+  DBUG_ASSERT(is_temporary_table(table_list));
 
   TABLE *table= table_list->table;
 
-  /* Table might be in use by some outer statement. */
-  if (table->query_id && table->query_id != thd->query_id)
-  {
-    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-    DBUG_RETURN(-1);
-  }
-
-  *is_trans= table->file->has_transactions();
+  DBUG_ASSERT(!table->query_id || table->query_id == thd->query_id);
 
   /*
     If LOCK TABLES list is not empty and contains this table,
@@ -2363,8 +2339,9 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
   close_temporary_table(thd, table, 1, 1);
   table_list->table= NULL;
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
+
 
 /*
   unlink from thd->temporary tables and close temporary table
@@ -2430,7 +2407,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
   if (delete_table)
   {
     DBUG_ASSERT(thd);
-    rm_temporary_table(thd, table_type, table->s->path.str);
+    rm_temporary_table(thd, table_type, table->s->path.str, table->s->tmp_table_def);
   }
 
   if (free_share)
@@ -2505,49 +2482,6 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   /* extra() call must come only after all instances above are closed */
   (void) table->file->extra(function);
   DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Close a and drop a just created table in CREATE TABLE ... SELECT.
-
-  @param  thd         Thread handle
-  @param  table       TABLE object for the table to be dropped
-  @param  db_name     Name of database for this table
-  @param  table_name  Name of this table
-
-  This routine assumes that the table to be closed is open only
-  by the calling thread, so we needn't wait until other threads
-  close the table. It also assumes that the table is first
-  in thd->open_ables and a data lock on it, if any, has been
-  released. To sum up, it's tuned to work with
-  CREATE TABLE ... SELECT and CREATE TABLE .. SELECT only.
-  Note, that currently CREATE TABLE ... SELECT is not supported
-  under LOCK TABLES. This function, still, can be called in
-  prelocked mode, e.g. if we do CREATE TABLE .. SELECT f1();
-*/
-
-void drop_open_table(THD *thd, TABLE *table, const char *db_name,
-                     const char *table_name)
-{
-  DBUG_ENTER("drop_open_table");
-  if (table->s->tmp_table)
-    close_temporary_table(thd, table, 1, 1);
-  else
-  {
-    DBUG_ASSERT(table == thd->open_tables);
-
-    handlerton *table_type= table->s->db_type();
-
-    table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-    close_thread_table(thd, &thd->open_tables);
-    /* Remove the table share from the table cache. */
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name,
-                     FALSE);
-    /* Remove the table from the storage engine and rm the .frm. */
-    quick_rm_table(thd, table_type, db_name, table_name, 0);
-  }
-  DBUG_VOID_RETURN;
 }
 
 
@@ -3318,7 +3252,8 @@ retry_share:
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_discover(thd, table_list, key,
-                                             key_length, &error,
+                                             key_length,
+                                             &error,
                                              hash_value)))
   {
     mysql_mutex_unlock(&LOCK_open);
@@ -3460,12 +3395,15 @@ share_found:
     goto err_lock;
 
   error= open_table_from_share(thd, share, alias,
-                               (uint) (HA_OPEN_KEYFILE |
-                                       HA_OPEN_RNDFILE |
-                                       HA_GET_INDEX |
-                                       HA_TRY_READ_ONLY),
+                               ((flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) ?
+                                0 :
+                                ((uint) (HA_OPEN_KEYFILE |
+                                         HA_OPEN_RNDFILE |
+                                         HA_GET_INDEX |
+                                         HA_TRY_READ_ONLY))),
                                        EXTRA_RECORD,
-                               thd->open_options, table, FALSE);
+                               thd->open_options, table, false,
+                               nullptr);
 
   if (error)
   {
@@ -3962,6 +3900,15 @@ Locked_tables_list::reopen_tables(THD *thd)
   MYSQL_LOCK *lock;
   MYSQL_LOCK *merged_lock;
 
+  /*
+    DDL statements routinely call this method after reporting error.
+    OTOH some code (e.g. fix_partitioning_func()) which is invoked
+    while opening tables might fail in the presence of error status.
+    To avoid problems we hide error status by installing temporary DA.
+  */
+  Diagnostics_area tmp_da(false);
+  thd->push_diagnostics_area(&tmp_da, false);
+
   for (TABLE_LIST *table_list= m_locked_tables;
        table_list; table_list= table_list->next_global)
   {
@@ -3972,6 +3919,15 @@ Locked_tables_list::reopen_tables(THD *thd)
     if (open_table(thd, table_list, &ot_ctx))
     {
       unlink_all_closed_tables(thd, 0, reopen_count);
+      thd->pop_diagnostics_area();
+      if (!thd->get_stmt_da()->is_error() && tmp_da.is_error())
+      {
+        // Copy the exception condition information.
+        thd->get_stmt_da()->set_error_status(tmp_da.mysql_errno(),
+                                             tmp_da.message_text(),
+                                             tmp_da.returned_sqlstate());
+      }
+      thd->get_stmt_da()->copy_sql_conditions_from_da(thd, &tmp_da);
       return TRUE;
     }
     table_list->table->pos_in_locked_tables= table_list;
@@ -3981,6 +3937,9 @@ Locked_tables_list::reopen_tables(THD *thd)
     DBUG_ASSERT(reopen_count < m_locked_tables_count);
     m_reopen_array[reopen_count++]= table_list->table;
   }
+
+  thd->pop_diagnostics_area();
+
   if (reopen_count)
   {
     thd->in_lock_tables= 1;
@@ -4384,7 +4343,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                                     HA_TRY_READ_ONLY),
                             EXTRA_RECORD,
                             ha_open_options | HA_OPEN_FOR_REPAIR,
-                            entry, FALSE) || ! entry->file ||
+                            entry, FALSE, NULL) || ! entry->file ||
       (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
   {
     /* Give right error message */
@@ -4509,7 +4468,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
                                    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                            HA_GET_INDEX | HA_TRY_READ_ONLY),
                                    EXTRA_RECORD, ha_open_options, &tmp_table,
-                                   false);
+                                   false, NULL);
 
   thd->pop_internal_handler();
 
@@ -5338,7 +5297,8 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
   /* MERGE tables need to access parent and child TABLE_LISTs. */
   DBUG_ASSERT(tables->table->pos_in_table_list == tables);
   /* Non-MERGE tables ignore this call. */
-  if (tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
+  if (tables->table->db_stat &&
+      tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
   {
     error= TRUE;
     goto end;
@@ -5789,9 +5749,7 @@ restart:
   sroutine_to_open= &thd->lex->sroutines_list.first;
   *counter= 0;
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_opening_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /*
@@ -6031,7 +5989,7 @@ restart:
     {
       /* MERGE tables need to access parent and child TABLE_LISTs. */
       DBUG_ASSERT(tbl->pos_in_table_list == tables);
-      if (tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN))
+      if (tbl->db_stat && tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN))
       {
         error= TRUE;
         goto err;
@@ -6099,7 +6057,8 @@ restart:
          always a DD table. If this is not true, then we might
          need to invoke dd::Dictionary::is_dd_tablename() to make sure.
        */
-      if (tbl->file->extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW))
+      if (tbl->db_stat &&
+          tbl->file->extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW))
       {
         // Handler->extra() for innodb does not fail ever as of now.
         // In case it is made to fail sometime later, we need to think
@@ -6516,9 +6475,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* should not be used in a prelocked_mode context, see NOTE above */
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_opening_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /* open_ltable can be used only for BASIC TABLEs */
@@ -6733,7 +6690,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list)
       table->table->query_id= 0;
     }
   for (table= table_list; table; table= table->next_global)
-    if (!table->is_placeholder())
+    if (!table->is_placeholder() && table->table->db_stat)
     {
       /*
         Detach children of MyISAMMRG tables used in
@@ -7101,7 +7058,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                               Set "is_create_table" if the table does not
                               exist in SE
                             */
-                            open_in_engine ? false : true))
+                            (open_in_engine ? false : true) , table_def))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -7140,23 +7097,28 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 /**
   Delete a temporary table.
 
-  @param thd   Thread handle
-  @param base  Handlerton for table to be deleted.
-  @param path  Path to the table to be deleted (i.e. path
-               to its .frm without an extension).
+  @param thd        Thread handle
+  @param base       Handlerton for table to be deleted.
+  @param path       Path to the table to be deleted (without
+                    an extension).
+  @param table_def  dd::Table object describing temporary table
+                    to be deleted.
 
   @retval false - success.
   @retval true  - failure.
 */
 
-bool rm_temporary_table(THD *thd, handlerton *base, const char *path)
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
+                        const dd::Table *table_def)
 {
   bool error=0;
   handler *file;
   DBUG_ENTER("rm_temporary_table");
 
-  file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
-  if (file && file->ha_delete_table(path))
+  file= get_new_handler((TABLE_SHARE*) 0,
+                        table_def->partition_type() != dd::Table::PT_NONE,
+                        thd->mem_root, base);
+  if (file && file->ha_delete_table(path, table_def))
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",

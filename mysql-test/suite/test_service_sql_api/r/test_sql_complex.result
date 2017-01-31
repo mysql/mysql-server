@@ -2882,7 +2882,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -2914,7 +2914,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -2988,7 +2988,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -3020,7 +3020,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6091,7 +6091,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6123,7 +6123,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6197,7 +6197,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6229,7 +6229,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 60
+			[meta][field] length: 20
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0

@@ -36,6 +36,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #ifndef UNIV_HOTBACKUP
 #include <mysqld.h>
 

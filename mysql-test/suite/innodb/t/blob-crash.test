@@ -3,6 +3,9 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
+# Disabled in --log-bin runs until atomic DDL is properly supported in
+# binary log.
+--source include/not_log_bin.inc
 
 --echo #
 --echo # Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES

@@ -57,6 +57,7 @@
 #include "ftdefs.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 /* search with boolean queries */
 

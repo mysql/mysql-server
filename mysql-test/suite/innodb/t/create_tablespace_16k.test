@@ -198,21 +198,16 @@ INSERT INTO t_dyn_in_16k VALUES (1,'a'),(2,'b'),(3,'c');
 --echo #
 --echo # Try to drop these tablespaces which are not empty
 --echo #
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_1k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_2k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_4k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_8k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_16k; 
-SHOW WARNINGS;
 
 --echo #
 --echo # Add more data to the existing Tables
@@ -295,9 +290,8 @@ CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
 --echo # Clean-up tables we no longer need
 --echo #
 
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_missing;
-SHOW WARNINGS;
 DROP TABLE t_missing;
 DROP TABLESPACE s_missing;
 

@@ -200,11 +200,13 @@ select (select variable_value from performance_schema.session_status where varia
 
 DROP TABLE IF EXISTS tab1;
 
+# Two extra tables appear since DROP TABLE needs to delete entries for the
+# table being dropped from mysql.index_stats and mysql.table_stats.
 --disable_warnings
-select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 3;
+select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1 + 2;
 --echo 1 Expected
 
-select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 6;
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2;
 --enable_warnings
 --echo 1 Expected
 
@@ -216,7 +218,7 @@ select (select variable_value from
         performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2;
 --echo 1 Expected
 
-select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 6;
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2;
 --enable_warnings
 --echo 1 Expected
 

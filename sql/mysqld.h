@@ -16,11 +16,10 @@
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
 
-#include <atomic>
-
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -32,6 +31,7 @@
 #include "my_dbug.h"
 #include "my_getopt.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"                 // SQLCOM_END
 #include "my_sys.h"                        // MY_TMPDIR
@@ -504,14 +504,12 @@ extern PSI_stage_info stage_insert;
 extern PSI_stage_info stage_invalidating_query_cache_entries_table;
 extern PSI_stage_info stage_invalidating_query_cache_entries_table_list;
 extern PSI_stage_info stage_killing_slave;
-extern PSI_stage_info stage_locking_system_tables;
 extern PSI_stage_info stage_logging_slow_query;
 extern PSI_stage_info stage_making_temp_file_append_before_load_data;
 extern PSI_stage_info stage_making_temp_file_create_before_load_data;
 extern PSI_stage_info stage_manage_keys;
 extern PSI_stage_info stage_master_has_sent_all_binlog_to_slave;
 extern PSI_stage_info stage_opening_tables;
-extern PSI_stage_info stage_opening_system_tables;
 extern PSI_stage_info stage_optimizing;
 extern PSI_stage_info stage_preparing;
 extern PSI_stage_info stage_purging_old_relay_logs;

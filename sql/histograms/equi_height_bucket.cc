@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "json_dom.h"            // Json_*
 #include "my_base.h"             // ha_rows
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql_time.h"
 
 namespace histograms {

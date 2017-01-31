@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,6 +137,15 @@ public:
   virtual Partition_index *add_index(Index *idx) = 0;
 
   virtual const Partition_indexes &indexes() const = 0;
+
+  virtual Partition_indexes *indexes() = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Parent partition for subpartitions (NULL otherwise).
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Partition *parent() const = 0;
+  virtual void set_parent(const Partition *parent) = 0;
 
   /**
     Converts *this into json.

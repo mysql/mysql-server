@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,25 +18,26 @@
  */
 
 #include "admin_cmd_handler.h"
-#include "xpl_error.h"
-#include "sql_data_context.h"
-#include "query_string_builder.h"
-#include "mysql/service_my_snprintf.h"
-#include "ngs/protocol/row_builder.h"
-#include "sql_data_result.h"
-#include "ngs/mysqlx/getter_any.h"
-#include "sha1.h"
-#include "password.h"
 
-#include "mysqlx_resultset.pb.h"
-#include "mysqlx_datatypes.pb.h"
-#include "mysqlx_sql.pb.h"
-
-#include "xpl_regex.h"
-#include "xpl_session.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
 #include <algorithm>
+
+#include "my_inttypes.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqlx_datatypes.pb.h"
+#include "mysqlx_resultset.pb.h"
+#include "mysqlx_sql.pb.h"
+#include "ngs/mysqlx/getter_any.h"
+#include "ngs/protocol/row_builder.h"
+#include "password.h"
+#include "query_string_builder.h"
+#include "sha1.h"
+#include "sql_data_context.h"
+#include "sql_data_result.h"
+#include "xpl_error.h"
+#include "xpl_log.h"
+#include "xpl_regex.h"
+#include "xpl_server.h"
+#include "xpl_session.h"
 
 
 namespace

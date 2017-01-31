@@ -25,9 +25,8 @@
 #include <gtest/gtest.h>
 
 #include "mdl.h"
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysqld.h"
 #include "mysqld_error.h"
 #include "test_mdl_context_owner.h"

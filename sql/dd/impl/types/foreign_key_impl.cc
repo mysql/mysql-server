@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,9 @@
 #include "error_handler.h"                           // Internal_error_handler
 #include "m_string.h"
 #include "my_global.h"
-#include "mysqld_error.h"                            // ER_*
+#include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysqld_error.h"                            // ER_*
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
 #include "sql_class.h"

@@ -74,25 +74,14 @@ write_file $BOOTSTRAP_SQL;
   SET SESSION debug= '-d,skip_dd_table_access_check';
 EOF
 
---echo # 2.2 First start the server with --initialize, and drop the version table: Should fail.
---error 1
+--echo # 2.2 First start the server with --initialize, and drop the version table. Succeeds.
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
---echo # 2.3 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. ....  Unknown table 'mysql.version'/gi,<FILE>);
-  print "#     Drop table error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 2.4 Restart the server against DDIR - should fail.
+--echo # 2.3 Restart the server against DDIR - should fail.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 2.5 Look for error.
+--echo # 2.4 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -102,7 +91,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 2.6 Delete bootstrap file, log file and datadir.
+--echo # 2.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
@@ -124,21 +113,11 @@ EOF
 --error 1
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
---echo # 3.3 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. ....  Unknown table 'mysql.tables'/gi,<FILE>);
-  print "#     Drop table error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 3.4 Restart the server against DDIR - should fail.
+--echo # 3.3 Restart the server against DDIR - should fail.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 3.5 Look for error.
+--echo # 3.4 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -148,7 +127,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 3.6 Delete bootstrap file, log file and datadir.
+--echo # 3.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR

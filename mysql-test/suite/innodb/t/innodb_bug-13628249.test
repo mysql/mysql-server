@@ -7,7 +7,9 @@
 # Restarting is not supported in embedded.
 --source include/not_embedded.inc
 
-# This test case needs InnoDB.
+# Disabled in --log-bin runs until atomic DDL is properly supported in
+# binary log.
+--source include/not_log_bin.inc
 
 --disable_query_log
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table `mysql`\..* in the cache');

@@ -88,7 +88,7 @@ table_id	pos	mtype	prtype	len	name
 19	5	12	5439759	192	engine
 20	0	6	1800	8	tablespace_id
 20	1	6	1795	4	ordinal_position
-20	2	12	5443855	765	file_name
+20	2	12	5443855	1536	file_name
 20	3	5	5439740	11	se_private_data
 21	0	6	1800	8	id
 21	1	12	4981007	192	name

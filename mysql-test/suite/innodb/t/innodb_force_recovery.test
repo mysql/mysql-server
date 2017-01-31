@@ -40,13 +40,13 @@ create table t3(f1 int not null)engine=innodb;
 --error ER_BAD_TABLE_ERROR
 drop table t3;
 
---error ER_OPEN_AS_READONLY
+--error ER_ERROR_ON_RENAME
 rename table t1 to t3;
 
 --error ER_OPEN_AS_READONLY
 truncate table t1;
 
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_OPEN_AS_READONLY
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
 
 let $restart_parameters =;

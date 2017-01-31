@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,16 @@ public:
 public:
   virtual ~Index()
   { };
+
+  /**
+    Dummy method to be able to use Partition_index and Index interchangeably
+    in templates.
+  */
+  const Index &index() const
+  { return *this; }
+
+  Index &index()
+  { return *this; }
 
   /////////////////////////////////////////////////////////////////////////
   // Table.
@@ -192,6 +202,12 @@ public:
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
+
+
+  /**
+    Check if index represents candidate key.
+  */
+  virtual bool is_candidate_key() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

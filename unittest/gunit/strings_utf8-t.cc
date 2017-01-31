@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,13 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-
 #include <m_ctype.h>
 #include <mf_wcomp.h>     // wild_compare_full, wild_one, wild_any
 #include <sql_class.h>
+
+#include "my_inttypes.h"
+#include <string>
+#include "strfunc.h"      // casedn
 
 namespace strings_utf8_unittest {
 
@@ -433,6 +434,20 @@ TEST_F(StringsUTF8Test, StrIsPatternUnescapedVsEscaped)
 TEST_F(StringsUTF8Test, MultiWildMany)
 {
   EXPECT_EQ(0, wild_compare_full("t4.ibd", "t4*.ibd*", false, 0, '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, Casedn)
+{
+  std::string a= "aaa";
+  std::string A= casedn(system_charset_info, std::string("AAA"));
+  EXPECT_EQ(a, A);
+  EXPECT_EQ(a.length(), A.length());
+
+  std::string b= "bbbb";
+  std::string B= "BBBB";
+  casedn(system_charset_info, B);
+  EXPECT_EQ(b, B);
+  EXPECT_EQ(b.length(), B.length());
 }
 
 class StringsUTF8mb4Test : public ::testing::Test

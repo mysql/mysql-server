@@ -1,6 +1,6 @@
 #ifndef SQL_RECORDS_H
 #define SQL_RECORDS_H 
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "my_base.h"
 #include "my_global.h"                /* for uint typedefs */
+#include "my_inttypes.h"
 
 class QEP_TAB;
 class THD;

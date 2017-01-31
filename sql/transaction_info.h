@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "mdl.h"                       // MDL_savepoint
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"                    // strmake_root
 #include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
 #include "rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx

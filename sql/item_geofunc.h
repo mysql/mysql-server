@@ -33,6 +33,7 @@
 #include "item_strfunc.h"      // Item_str_func
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
@@ -221,7 +222,6 @@ public:
   Item_geometry_func(const POS &pos, PT_item_list *list);
 
   bool resolve_type(THD *) override;
-  enum_field_types field_type() const override { return MYSQL_TYPE_GEOMETRY; }
   Field *tmp_table_field(TABLE *t_arg) override;
 };
 
@@ -360,7 +360,14 @@ public:
                    : Item_geometry_func(pos, a, b) {}
   const char *func_name() const override { return "st_aswkb"; }
   String *val_str(String *) override;
-  enum_field_types field_type() const override { return MYSQL_TYPE_BLOB; }
+  bool resolve_type(THD *thd) override
+  {
+    if (Item_geometry_func::resolve_type(thd))
+      return true;
+    set_data_type(MYSQL_TYPE_BLOB);
+    // @todo - what about max_length???
+    return false;
+  }
 };
 
 class Item_func_geometry_type: public Item_str_ascii_func
@@ -373,7 +380,7 @@ public:
   bool resolve_type(THD *) override
   {
     // "GeometryCollection" is the longest
-    fix_length_and_charset(20, default_charset());
+    set_data_type_string(20, default_charset());
     maybe_null= true;
     return false;
   };
@@ -896,7 +903,7 @@ public:
       return true;
     for (unsigned int i= 0; i < arg_count; ++i)
     {
-      if (args[i]->fixed && args[i]->field_type() != MYSQL_TYPE_GEOMETRY)
+      if (args[i]->fixed && args[i]->data_type() != MYSQL_TYPE_GEOMETRY)
       {
         String str;
         args[i]->print(&str, QT_NO_DATA_EXPANSION);

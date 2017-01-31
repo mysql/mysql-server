@@ -29,6 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
