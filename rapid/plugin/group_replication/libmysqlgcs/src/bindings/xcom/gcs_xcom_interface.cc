@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -877,9 +877,12 @@ void Gcs_xcom_interface::initialize_peer_nodes(const std::string *peer_nodes)
 {
 
   MYSQL_GCS_LOG_DEBUG("Initializing peers")
-  std::vector<std::string> processed_peers;
+  std::vector<std::string> processed_peers, invalid_processed_peers;
   Gcs_xcom_utils::process_peer_nodes(peer_nodes,
                                      processed_peers);
+  Gcs_xcom_utils::validate_peer_nodes(processed_peers,
+                                      invalid_processed_peers);
+
   std::vector<std::string>::iterator processed_peers_it;
   for(processed_peers_it= processed_peers.begin();
       processed_peers_it != processed_peers.end();
