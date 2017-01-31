@@ -36,6 +36,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"

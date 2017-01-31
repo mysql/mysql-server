@@ -43,6 +43,7 @@
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"

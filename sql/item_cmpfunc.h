@@ -34,6 +34,7 @@
 #include "my_decimal.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_regex.h"        // my_regex_t
 #include "my_sys.h"
 #include "my_time.h"

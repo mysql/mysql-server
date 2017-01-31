@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_mutex.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -15,7 +16,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_mutex_bootstrap
@@ -77,4 +77,3 @@ typedef struct PSI_mutex_service_v1 PSI_mutex_service_t;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI_mutex_service_t *psi_mutex_service;
-C_MODE_END

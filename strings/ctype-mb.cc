@@ -22,6 +22,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)

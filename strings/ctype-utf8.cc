@@ -31,6 +31,7 @@
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_uctype.h"  // IWYU pragma: keep
 
 #ifndef EILSEQ

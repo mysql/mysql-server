@@ -23,6 +23,7 @@
 #include "lf.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysqld.h"  // lower_case_table_names

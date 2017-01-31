@@ -29,6 +29,7 @@
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "myisam_sys.h"
 #include "print_version.h"
 #include "typelib.h"

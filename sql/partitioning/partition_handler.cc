@@ -36,6 +36,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                          // MI_MAX_MSG_BUF

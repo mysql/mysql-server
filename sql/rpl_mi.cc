@@ -22,6 +22,7 @@
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"

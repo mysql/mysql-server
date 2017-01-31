@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_cond.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -15,5 +16,3 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
-C_MODE_END

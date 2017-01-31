@@ -30,6 +30,7 @@
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 
 #ifdef	__cplusplus
 extern "C" {

@@ -10,6 +10,7 @@ typedef int File;
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
 typedef int my_socket;
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -25,7 +26,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
 struct PSI_socket_bootstrap
@@ -120,4 +120,3 @@ typedef struct PSI_socket_service_v1 PSI_socket_service_t;
 typedef struct PSI_socket_info_v1 PSI_socket_info;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI_socket_service_t *psi_socket_service;
-C_MODE_END

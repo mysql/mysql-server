@@ -40,12 +40,13 @@
 #endif
 #include <m_string.h>
 #include <my_getopt.h>
-#include "print_version.h"
 #include <welcome_copyright_notice.h>	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "prealloced_array.h"
+#include "print_version.h"
 #include "typelib.h"
 
 /* Only parts of these files are included from the InnoDB codebase.

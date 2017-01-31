@@ -24,6 +24,7 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "mysqld.h"         // global_system_variables
 #include "parse_tree_column_attrs.h" // PT_field_def_base
 #include "parse_tree_hints.h"

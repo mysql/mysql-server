@@ -35,6 +35,7 @@
 #include "my_decimal.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "mysql_time.h"

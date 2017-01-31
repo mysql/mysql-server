@@ -16,6 +16,7 @@
 #include "strnxfrm.h"
 
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 namespace strnxfrm_unittest {
 

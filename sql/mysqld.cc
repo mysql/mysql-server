@@ -397,6 +397,7 @@
 #include "my_default.h"                 // print_defaults
 #include "my_dir.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_regex.h"
 #include "my_stacktrace.h"              // my_set_exception_pointers
 #include "my_time.h"
@@ -434,8 +435,8 @@
 #include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "persisted_variable.h"         // Persisted_variables_cache
-#include "protocol.h"
 #include "print_version.h"
+#include "protocol.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
@@ -549,12 +550,11 @@
 #include <string>
 #include <vector>
 
-#include "srv_session.h"
-
 #include "../components/mysql_server/server_component.h"
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 #include "dd/dictionary.h"              // dd::get_dictionary
+#include "srv_session.h"
 
 using std::min;
 using std::max;

@@ -23,6 +23,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 struct pos_arg_info;
 struct print_info;

@@ -31,6 +31,7 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/service_my_snprintf.h"

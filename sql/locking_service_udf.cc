@@ -19,6 +19,7 @@
 #include "locking_service.h"       // acquire_locking_service_locks
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/service_locking.h"
 #include "mysql_com.h"             // UDF_INIT
 

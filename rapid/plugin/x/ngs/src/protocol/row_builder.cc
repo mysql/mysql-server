@@ -28,6 +28,7 @@
 #include "decimal.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "ngs/protocol/output_buffer.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/xdatetime.h"

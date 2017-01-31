@@ -383,6 +383,7 @@
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "myisam.h"                             // TT_USEFRM
 #include "mysql/psi/mysql_memory.h"

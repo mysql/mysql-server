@@ -24,6 +24,7 @@
 */
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld.h"
 #include "pfs.h"

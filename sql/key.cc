@@ -30,6 +30,7 @@
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_string.h"

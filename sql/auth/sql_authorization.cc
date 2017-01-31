@@ -50,6 +50,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"

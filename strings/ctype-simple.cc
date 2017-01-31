@@ -26,6 +26,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"  /* Needed for MY_ERRNO_ERANGE */
 #include "mysql/service_my_snprintf.h"
 #include "stdarg.h"

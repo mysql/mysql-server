@@ -21,6 +21,7 @@
 #include "current_thd.h"
 #include "mem_root_array.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysqld.h"                             // THR_MALLOC
 #include "sql_optimizer.h"                      // Key_use_array
 

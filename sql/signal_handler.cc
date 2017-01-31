@@ -27,6 +27,7 @@
 #include "keycache.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
 #include "mysqld.h"

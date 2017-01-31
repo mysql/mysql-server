@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_statement.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -15,7 +16,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_statement_bootstrap
 {
   void *(*get_interface)(int version);
@@ -204,4 +204,3 @@ typedef struct PSI_statement_info_v1 PSI_statement_info;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
-C_MODE_END

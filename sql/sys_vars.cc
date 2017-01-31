@@ -76,6 +76,7 @@
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
 #include "my_thread_local.h"

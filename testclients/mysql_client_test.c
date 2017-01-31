@@ -33,6 +33,7 @@
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"
 

@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_table.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -15,7 +16,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct TABLE_SHARE;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
@@ -106,4 +106,3 @@ struct PSI_table_service_v1
 };
 typedef struct PSI_table_service_v1 PSI_table_service_t;
 extern MYSQL_PLUGIN_IMPORT PSI_table_service_t *psi_table_service;
-C_MODE_END

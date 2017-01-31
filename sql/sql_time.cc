@@ -32,6 +32,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_macros.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES

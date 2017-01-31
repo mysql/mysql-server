@@ -54,6 +54,7 @@ This file contains the implementation of error and warnings related
 #include "log.h"          // sql_print_warning
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"

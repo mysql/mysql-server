@@ -24,6 +24,7 @@
 #include "log.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "mysqld.h" /* lower_case_table_names */
 #include "pfs_buffer_container.h"

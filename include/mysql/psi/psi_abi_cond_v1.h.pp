@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_cond.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -15,7 +16,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_cond;
 typedef struct PSI_cond PSI_cond;
 struct PSI_cond_bootstrap
@@ -80,4 +80,3 @@ typedef struct PSI_cond_service_v1 PSI_cond_service_t;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
-C_MODE_END

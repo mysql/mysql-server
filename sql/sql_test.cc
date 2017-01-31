@@ -39,6 +39,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_list.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"

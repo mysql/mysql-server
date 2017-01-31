@@ -64,6 +64,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"                  // For my_stat
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_md5_size.h"
 #include "my_rnd.h"                  // my_rand_buffer

@@ -23,6 +23,7 @@
 #include "current_thd.h"
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "sql_base.h"                    // enum_tdc_remove_table_type

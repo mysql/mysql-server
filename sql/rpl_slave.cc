@@ -74,6 +74,7 @@
 #include "my_dir.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread_local.h"                   // thread_local_key_t

@@ -18,6 +18,7 @@
 #include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 
 static int keys_compare(const void *a, const void *b, const void *c);

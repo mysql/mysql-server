@@ -42,6 +42,7 @@
 #include "my_decimal.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"

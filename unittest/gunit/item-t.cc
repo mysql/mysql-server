@@ -24,6 +24,7 @@
 #include "item_timefunc.h"
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "sql_class.h"
 #include "test_utils.h"
 #include "tztime.h"

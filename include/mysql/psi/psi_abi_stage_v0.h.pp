@@ -1,4 +1,5 @@
 #include "mysql/psi/psi_stage.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -14,7 +15,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_stage_info_none
 {
   unsigned int m_key;
@@ -23,4 +23,3 @@ struct PSI_stage_info_none
 };
 typedef struct PSI_stage_info_none PSI_stage_info;
 typedef struct PSI_placeholder PSI_stage_progress;
-C_MODE_END

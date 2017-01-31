@@ -79,6 +79,7 @@
 #include "my_decimal.h"
 #include "my_dir.h"                         // MY_DIR
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

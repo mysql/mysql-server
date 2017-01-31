@@ -23,6 +23,7 @@
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {

@@ -44,6 +44,7 @@
 #include "my_default.h"
 #include "my_dir.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_time.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"

@@ -34,6 +34,8 @@
 
 #include "auth_acls.h"
 #include "current_thd.h"
+#include "debug_sync.h"                         // DEBUG_SYNC
+#include "error_handler.h"                      // Strict_error_handler
 #include "field.h"
 #include "filesort.h"                           // filesort_free_buffers
 #include "handler.h"
@@ -41,13 +43,12 @@
 #include "item_subselect.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "opt_explain.h"                        // explain_no_table
 #include "opt_explain_format.h"
-#include "error_handler.h"                      // Strict_error_handler
-#include "debug_sync.h"                         // DEBUG_SYNC
 #include "parse_tree_node_base.h"
 #include "query_options.h"
 #include "sql_base.h"                           // fill_record

@@ -47,6 +47,7 @@
 #include "my_byteorder.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

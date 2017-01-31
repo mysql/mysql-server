@@ -16,6 +16,7 @@
 #include "psi_memory_key.h"
 
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_base.h"                 // PSI_FLAG_GLOBAL

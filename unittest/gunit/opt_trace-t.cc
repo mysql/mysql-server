@@ -23,6 +23,7 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef OPTIMIZER_TRACE
 

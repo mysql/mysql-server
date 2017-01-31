@@ -31,6 +31,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_xml.h"
 
 #define ROW_LEN		16

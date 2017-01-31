@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "my_config.h"
+#include "my_macros.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

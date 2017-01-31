@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_idle.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -15,13 +16,11 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_idle_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
 typedef struct PSI_placeholder PSI_idle_service_t;
 typedef struct PSI_placeholder PSI_idle_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI_idle_service_t *psi_idle_service;
-C_MODE_END

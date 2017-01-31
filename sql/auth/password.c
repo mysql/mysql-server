@@ -65,6 +65,7 @@
 #include "m_string.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql_com.h"
 #include "password.h"
 #include "sha1.h"

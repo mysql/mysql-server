@@ -24,6 +24,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 

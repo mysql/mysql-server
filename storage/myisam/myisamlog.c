@@ -24,6 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "myisamdef.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"

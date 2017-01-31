@@ -49,6 +49,7 @@
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"

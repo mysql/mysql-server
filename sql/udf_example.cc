@@ -128,6 +128,7 @@
 #include "my_config.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql_com.h"
 #include "thr_mutex.h"
 

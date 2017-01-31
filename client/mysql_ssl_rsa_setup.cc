@@ -39,6 +39,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "path.h"
 #include "print_version.h"

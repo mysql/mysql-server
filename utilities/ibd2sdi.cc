@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "page0page.h"
 #include "page0size.h"
 #include "page0types.h"

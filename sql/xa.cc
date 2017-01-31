@@ -26,6 +26,7 @@
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"       // MYSQL_XIDDATASIZE

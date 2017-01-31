@@ -47,6 +47,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql.h"
 #include "mysql/client_authentication.h"

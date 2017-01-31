@@ -23,6 +23,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else

@@ -10,6 +10,7 @@ typedef int File;
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
 typedef int my_socket;
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
@@ -25,5 +26,3 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
-C_MODE_END

@@ -1,5 +1,6 @@
 #include "mysql/psi/psi_thread.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
 #include "psi_base.h"
@@ -16,10 +17,8 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct opaque_THD
 {
   int dummy;
 };
 typedef struct opaque_THD THD;
-C_MODE_END

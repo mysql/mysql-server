@@ -41,6 +41,7 @@
 #include "my_decimal.h"        // my_decimal
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
 #include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
 #include "mysql/service_my_snprintf.h" // my_snprintf

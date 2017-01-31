@@ -17,6 +17,7 @@
 
 #include "current_thd.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_stage.h"

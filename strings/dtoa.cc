@@ -38,6 +38,7 @@
 
 #include "my_config.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 
 #ifdef HAVE_ENDIAN_H

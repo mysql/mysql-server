@@ -41,7 +41,6 @@
 #include <crtdbg.h>
 #endif
 
-#include "my_macros.h"
 #include "my_sharedlib.h"
 #include "my_shm_defaults.h"
 #include "my_table_map.h"

@@ -64,6 +64,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "sql_bitmap.h"
