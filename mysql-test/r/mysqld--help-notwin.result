@@ -1492,7 +1492,7 @@ profiling-history-size 15
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
-query-cache-size 1048576
+query-cache-size 0
 query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192

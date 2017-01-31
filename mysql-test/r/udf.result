@@ -324,6 +324,7 @@ drop function myfunc_double;
 drop function myfunc_int;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 create table t1 (a char);
+SET @save_query_cache_size = @@query_cache_size;
 set GLOBAL query_cache_size=1355776;
 reset query cache;
 select metaphon('MySQL') from t1;
@@ -344,7 +345,7 @@ Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1;
 drop function metaphon;
-set GLOBAL query_cache_size=default;
+set GLOBAL query_cache_size=@save_query_cache_size;
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;

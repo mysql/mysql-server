@@ -8,8 +8,8 @@ SELECT COUNT(@@GLOBAL.query_cache_size)
 1 Expected
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
-1048576
-1048576 Expected
+0
+0 Expected
 '#---------------------WL6372_VAR_2_02----------------------#'
 # Restart server with query_cache_size 51200;
 SELECT @@GLOBAL.query_cache_size;
@@ -19,8 +19,8 @@ SELECT @@GLOBAL.query_cache_size;
 SET @@GLOBAL.query_cache_size=DEFAULT;
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
-1048576
-1048576 Expected
+0
+0 Expected
 '#---------------------WL6372_VAR_2_03----------------------#'
 SET @@local.query_cache_size=1;
 ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
@@ -32,8 +32,8 @@ SET @@GLOBAL.query_cache_size=1;
 SET @@GLOBAL.query_cache_size=DEFAULT;
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
-1048576
-1048576 Expected
+0
+0 Expected
 '#---------------------WL6372_VAR_2_04----------------------#'
 SELECT @@GLOBAL.query_cache_size = VARIABLE_VALUE
 FROM performance_schema.global_variables
@@ -93,7 +93,7 @@ VALUES (@col_1);
 INSERT INTO tab1
 VALUES (@col_1);
 commit;
-set @@GLOBAL.query_cache_size=DEFAULT;
+set @@GLOBAL.query_cache_size=1048576;
 select 1 from tab1 limit 1;
 1
 1
@@ -112,8 +112,8 @@ variable_value
 0 Expected
 select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
-17
-17 Expected
+10
+10 Expected
 select 1 from tab1 limit 1;
 1
 1
@@ -132,8 +132,8 @@ variable_value
 0 Expected
 select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
-22
-22 Expected
+15
+15 Expected
 select 1 from tab1 limit 2;
 1
 1
@@ -153,9 +153,10 @@ variable_value
 0 Expected
 select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
-27
-27 Expected
+20
+20 Expected
 # Restart server with query_cache_type ON
+SET @@GLOBAL.query_cache_size=1048576;
 select 1 from tab1 limit 1;
 1
 1

@@ -101,8 +101,6 @@ SHOW STATUS LIKE "Qcache_hits";
 
 DROP TABLE t1, t2;
 
-SET GLOBAL query_cache_size = DEFAULT;
-
 --source suite/query_rewrite_plugins/include/reload.inc
 
 SET sql_mode = DEFAULT;
