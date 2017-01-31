@@ -3569,7 +3569,7 @@ Dbtup::update_lcp(KeyReqStruct* req_struct, const Uint32 * src, Uint32 len)
   ptr->m_header_bits |= (varlen32) ? Tuple_header::VAR_PART : 0;
 
 #ifdef VM_TRACE
-  if (tabPtrP->m_bits & Tablerec::TR_DiskPart && true)
+  if (tabPtrP->m_bits & Tablerec::TR_DiskPart && false)
   {
     Local_key lkey;
     memcpy(&lkey, ptr->get_disk_ref_ptr(tabPtrP), 8);
