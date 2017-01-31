@@ -1264,7 +1264,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               preq.m_page.m_page_no = page_no;
               preq.m_table_id = frag.fragTableId;
               preq.m_fragment_id = frag.fragmentId;
-              int flags = 0;
+              int flags = Page_cache_client::DISK_SCAN;
               // ignore result
               Page_cache_client pgman(this, c_pgman);
               pgman.get_page(signal, preq, flags);
@@ -1317,7 +1317,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         preq.m_callback.m_callbackData = scanPtr.i;
         preq.m_callback.m_callbackFunction =
           safe_cast(&Dbtup::disk_page_tup_scan_callback);
-        int flags = 0;
+        int flags = Page_cache_client::DISK_SCAN;
         Page_cache_client pgman(this, c_pgman);
         Ptr<GlobalPage> pagePtr;
         int res = pgman.get_page(signal, preq, flags);

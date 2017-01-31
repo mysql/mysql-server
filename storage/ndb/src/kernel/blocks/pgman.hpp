@@ -281,6 +281,7 @@ private:
       ,DELAY_REQ    = 0x1000 // Force request to be delayed
 #endif
       ,UNDO_REQ     = 0x2000 // Request from UNDO processing
+      ,DISK_SCAN    = 0x4000 // Request from Disk scan
     };
     
     Uint16 m_block; // includes instance
@@ -729,6 +730,7 @@ public:
     ,DELAY_REQ = Pgman::Page_request::DELAY_REQ
 #endif
     ,UNDO_REQ = Pgman::Page_request::UNDO_REQ
+    ,DISK_SCAN = Pgman::Page_request::DISK_SCAN
   };
   
   /**
