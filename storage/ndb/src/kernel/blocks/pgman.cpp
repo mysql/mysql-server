@@ -593,10 +593,16 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
          * cache for a specific fragment. If it had this information we
          * could avoid this problem by ensuring that drop_page is called for
          * all pages in the page cache.
+         *
+         * We can also encounter when we perform disk scan, in this case we
+         * read pages in disk order without knowing if it is actually been
+         * written to yet.
          */
         DEB_PGMAN(("(%u)func: %s, flags: %x", instance(), __func__, flags));
-        if (!((flags & Page_request::ALLOC_REQ) &&
-              (flags & Page_request::EMPTY_PAGE)))
+        if (!(
+              ((flags & Page_request::ALLOC_REQ) &&
+               (flags & Page_request::EMPTY_PAGE)) ||
+              (flags & Page_request::DISK_SCAN)))
         {
           g_eventLogger->info("tab(%u,%u) page(%u,%u,%u)",
                               tableId,
@@ -606,8 +612,9 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
                               page_no);
 
         }
-        ndbrequire(flags & Page_request::ALLOC_REQ &&
-                   flags & Page_request::EMPTY_PAGE);
+        ndbrequire((flags & Page_request::ALLOC_REQ &&
+                    flags & Page_request::EMPTY_PAGE) ||
+                    flags & Page_request::DISK_SCAN);
         ndbrequire(ptr.p->m_dirty_state == Pgman::IN_NO_DIRTY_LIST);
         ptr.p->m_table_id = tableId;
         ptr.p->m_fragment_id = fragmentId;
@@ -3029,6 +3036,10 @@ Page_cache_client::init_page_entry(Request& req)
  *    means that the table id and fragment id on the page entry isn't yet
  *    correct. It will become correct as part of the execution of the UNDO
  *    log entry.
+ * 9) DISK_SCAN
+ *    This is a flag used when we are scanning a table in disk data order.
+ *    In this case the page might not be initialised when we arrive here.
+ *    Thus we ensure that this is an ok condition.
  *
  * The description of the page replacement algorithm is provided in pgman.hpp.
  * The amount of hot pages is 90% of the page cache. Thus the number of cold
@@ -4220,6 +4231,8 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
       out << ",dirty_req";
     if (pr.m_flags & Pgman::Page_request::CORR_REQ)
       out << ",corr_req";
+    if (pr.m_flags & Pgman::Page_request::DISK_SCAN)
+      out << ",disk_scan";
   }
   return out;
 }
