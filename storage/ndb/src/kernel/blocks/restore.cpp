@@ -908,7 +908,17 @@ Restore::calculate_remove_new_data_files(FilePtr file_ptr)
    */
   Uint32 first_remove_file = new_last_file;
   Uint32 num_remove_files = 0;
-  ndbrequire(new_last_file != old_last_file);
+  if (new_last_file == old_last_file)
+  {
+    /**
+     * We could end up here after a number of unsuccessful restarts.
+     * The LCP to remove was possibly changing the GCP written, but it
+     * didn't contain any real changes to the data, so the same data
+     * file was used again. We simply return and continue the restart.
+     */
+    jam();
+    return;
+  }
   while (1)
   {
     Uint32 next_remove_file = first_remove_file;
@@ -1108,7 +1118,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     jam();
     g_eventLogger->info("Found empty LCP control file, "
                         "must have been created by earlier restart,"
-                        " tabl(%u,%u), CTL file: %u",
+                        " tab(%u,%u), CTL file: %u",
                         file_ptr.p->m_table_id,
                         file_ptr.p->m_fragment_id,
                         file_ptr.p->m_ctl_file_no);
@@ -1433,7 +1443,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_upgrade_case = true;
   file_ptr.p->m_remove_ctl_file_no = Uint32(~0);
   file_ptr.p->m_remove_data_file_no = Uint32(~0);
-  file_ptr.p->m_num_remove_data_files = Uint32(~0);
+  file_ptr.p->m_num_remove_data_files = 0;
   file_ptr.p->m_old_max_files = Uint32(~0);
 
   file_ptr.p->m_dih_lcp_no = req->lcpNo;

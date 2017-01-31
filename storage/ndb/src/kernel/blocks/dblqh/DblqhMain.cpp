@@ -14251,7 +14251,7 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
   fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
   if (ERROR_INSERTED(5714))
   {
-    ndbout_c("Starting copy of tab: %u frag: %u",
+    ndbout_c("Starting copy of tab(%u,%u)",
              fragptr.p->tabRef, fragptr.p->fragId);
   }
 
@@ -14766,7 +14766,7 @@ void Dblqh::closeCopyLab(Signal* signal)
   fragptr.p->m_copy_started_state = Fragrecord::AC_NORMAL;
   if (ERROR_INSERTED(5714))
   {
-    ndbout_c("Copy of tab: %u frag: %u complete",
+    ndbout_c("Copy of tab(%u,%u) complete",
              fragptr.p->tabRef, fragptr.p->fragId);
   }
 
@@ -15917,7 +15917,7 @@ Dblqh::lcp_complete_scan(Uint32 & newestGci)
 #if defined VM_TRACE || defined ERROR_INSERT
   if (fragptr.p->newestGci != fragptr.p->maxGciInLcp)
   {
-    ndbout_c("tab: %u frag: %u increasing maxGciInLcp from %u to %u",
+    ndbout_c("tab(%u,%u) increasing maxGciInLcp from %u to %u",
              fragptr.p->tabRef,
              fragptr.p->fragId,
              fragptr.p->maxGciInLcp, fragptr.p->newestGci);
@@ -15925,7 +15925,7 @@ Dblqh::lcp_complete_scan(Uint32 & newestGci)
 #endif
   newestGci = fragptr.p->newestGci;
   fragptr.p->maxGciInLcp = fragptr.p->newestGci;
-  DEB_LCP(("(%u)complete_scan: newestGci = %u, tab: %u, frag: %u",
+  DEB_LCP(("(%u)complete_scan: newestGci = %u, tab(%u,%u)",
            instance(),
            newestGci,
            fragptr.p->tabRef,
