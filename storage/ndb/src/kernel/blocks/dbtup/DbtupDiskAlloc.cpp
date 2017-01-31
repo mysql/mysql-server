@@ -813,10 +813,10 @@ Dbtup::disk_page_prealloc(Signal* signal,
   if (pageBits == 0)
   {
     jam();
+    flags |= Page_cache_client::EMPTY_PAGE;
     if (ext.p->m_first_page_no + ext.p->m_empty_page_no == key->m_page_no)
     {
       jam();
-      flags |= Page_cache_client::EMPTY_PAGE;
       ext.p->m_empty_page_no++;
       DEB_EXTENT_BITS(("extent(%u,%u) in tab(%u,%u), first_page: %u, empty_page: %u",
                 instance(),
