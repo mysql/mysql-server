@@ -258,7 +258,7 @@ public:
                    dd::Table *to_table_def);
   int delete_table(const char *name, const dd::Table *table_def);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-             dd::Table *table_def);
+             dd::Table* table_def);
   virtual bool is_ignorable_error(int error)
   {
     if (handler::is_ignorable_error(error) ||

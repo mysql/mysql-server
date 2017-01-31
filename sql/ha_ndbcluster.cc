@@ -81,6 +81,7 @@
                             // tablename_to_filename
 #include "log.h"            // sql_print_error
 #include "sql_class.h"
+#include "ndb_dd.h"
 
 
 using std::min;
@@ -10733,7 +10734,7 @@ void ha_ndbcluster::append_create_info(String *packet)
 int ha_ndbcluster::create(const char *name, 
                           TABLE *form, 
                           HA_CREATE_INFO *create_info,
-                          dd::Table *)
+                          dd::Table* table_def)
 {
   THD *thd= current_thd;
   NDBTAB tab;
@@ -11152,24 +11153,26 @@ int ha_ndbcluster::create(const char *name,
     update_comment_info(create_info, &tab);
   }
 
-  /*
-    Save the frm file for this table in the dictionary of NDB
-  */
-  size_t length;
-  uchar *data;
-  if (readfrm(name, &data, &length))
   {
-    result= 1;
-    goto abort_return;
+    /*
+      Save the serialized table definition for this table as
+      extra metadata of the table in the dictionary of NDB
+    */
+
+    dd::sdi_t sdi;
+    if (!ndb_sdi_serialize(thd, *table_def, m_dbname, sdi))
+    {
+      result= 1;
+      goto abort_return;
+    }
+
+    result = tab.setExtraMetadata(2, // version 2 for sdi
+                                  sdi.c_str(), (Uint32)sdi.length());
+    if (result != 0)
+    {
+      goto abort_return;
+    }
   }
-  result = tab.setExtraMetadata(1, // version 1 for frm
-                                data, (Uint32)length);
-  if (result != 0)
-  {
-    my_free(data);
-    goto abort_return;
-  }
-  my_free(data);
 
   /*
     Handle table row type
