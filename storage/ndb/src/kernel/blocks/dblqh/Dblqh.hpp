@@ -3302,6 +3302,12 @@ private:
 /*AFTER THIS SYSTEM RESTART. USED TO FIND THE LOG HEAD.                      */
 /* ------------------------------------------------------------------------- */
   UintR crestartNewestGci;
+/**
+ * We will not report the first GCP_SAVEREQ to Backup as completed the
+ * last one since we can only trust that the previous one is completed
+ * when we are starting the second.
+ */
+  bool c_is_first_gcp_save_started;
 /* ------------------------------------------------------------------------- */
 /*THE NUMBER OF LOG FILES. SET AS A PARAMETER WHEN NDB IS STARTED.           */
 /* ------------------------------------------------------------------------- */
