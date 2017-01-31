@@ -16629,14 +16629,6 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   const Uint32 dihPtr = saveReq->dihPtr;
   const Uint32 gci = saveReq->gci;
 
-  /**
-   * Report completed GCI (one less than the one we are now saving), to
-   * give the Backup block a chance to remove old LCP files.
-   */
-  signal->theData[0] = gci - 1;
-  sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
-             GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
-
   if (unlikely(refToNode(signal->getSendersBlockRef()) != getOwnNodeId()))
   {
     /**
@@ -16763,6 +16755,19 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 #ifdef GCP_TIMER_HACK
   globalData.gcp_timer_save[0] = NdbTick_getCurrentTicks();
 #endif
+
+  if (c_is_first_gcp_save_started)
+  {
+    jam();
+    /**
+     * Report completed GCI (one less than the one we are now saving), to
+     * give the Backup block a chance to remove old LCP files.
+     */
+    signal->theData[0] = gci - 1;
+    sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
+               GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
+  }
+  c_is_first_gcp_save_started = true;
 
   ccurrentGcprec = 0;
   gcpPtr.i = ccurrentGcprec;

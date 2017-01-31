@@ -131,6 +131,7 @@ void Dblqh::initData()
   c_totalCopyRowsDel = 0;
   c_totalBytesCopied = 0;
 
+  c_is_first_gcp_save_started = false;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
