@@ -34,7 +34,7 @@
 SET(BOOST_PACKAGE_NAME "boost_1_63_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "http://sourceforge.net/projects/boost/files/boost/1.63.0/${BOOST_TARBALL}"
+  "https://sourceforge.net/projects/boost/files/boost/1.63.0/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
@@ -92,8 +92,8 @@ MACRO(COULD_NOT_FIND_BOOST)
     "This CMake script will look for boost in <directory>. "
     "If it is not there, it will download and unpack it "
     "(in that directory) for you.\n"
-    "If you are inside a firewall, you may need to use an http proxy:\n"
-    "export http_proxy=http://example.com:80\n"
+    "If you are inside a firewall, you may need to use an https proxy:\n"
+    "export https_proxy=http://example.com:80\n"
     )
 ENDMACRO()
 
