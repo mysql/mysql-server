@@ -30,7 +30,7 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_PGMAN 1
+//#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -44,7 +44,7 @@
 #define DEB_EXTENT_BITS(arglist) do { } while (0)
 #endif
 
-#define DEBUG_UNDO 1
+//#define DEBUG_UNDO 1
 #ifdef DEBUG_UNDO
 #define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -730,7 +730,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
       ext.p->m_empty_page_no = 0;
 
-      DEB_PGMAN(("new:extent(%u,%u) in tab(%u,%u), pages(%u->%u),"
+      DEB_EXTENT_BITS(("new:extent(%u,%u) in tab(%u,%u), pages(%u->%u),"
                  " empty_page: %u",
                 instance(),
                 ext.i,
@@ -818,7 +818,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       jam();
       flags |= Page_cache_client::EMPTY_PAGE;
       ext.p->m_empty_page_no++;
-      DEB_PGMAN(("extent(%u,%u) in tab(%u,%u), first_page: %u, empty_page: %u",
+      DEB_EXTENT_BITS(("extent(%u,%u) in tab(%u,%u), first_page: %u, empty_page: %u",
                 instance(),
                 ext.i,
                 fragPtr.p->fragTableId,
@@ -1448,7 +1448,7 @@ Dbtup::disk_page_free(Signal *signal,
     if (((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) ==
                Tup_fixsize_page::FREE_RECORD)
     {
-      DEB_PGMAN((
+      g_eventLogger->info(
         "disk_page_free crash:tab(%u,%u,%u)page(%u,%u,%u).%u,gci:%u",
                  fragPtrP->fragTableId,
                  fragPtrP->fragmentId,
@@ -1457,7 +1457,7 @@ Dbtup::disk_page_free(Signal *signal,
                  pagePtr.p->m_file_no,
                  pagePtr.p->m_page_no,
                  page_idx,
-                 gci));
+                 gci);
     }
 #endif
     ndbassert(((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) !=
@@ -2545,7 +2545,7 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;
       ext.p->m_empty_page_no = (1 << 16); // We don't know, so assume none
-      DEB_PGMAN(("restart:extent(%u,%u) in tab(%u,%u), first_page: %u,"
+      DEB_EXTENT_BITS(("restart:extent(%u,%u) in tab(%u,%u), first_page: %u,"
                  " empty_page: %u",
                 instance(),
                 ext.i,

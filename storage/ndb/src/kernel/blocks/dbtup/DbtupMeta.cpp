@@ -838,6 +838,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_restore_lcp_id = RNIL;
   regFragPtr.p->m_restore_local_lcp_id = 0;
   regFragPtr.p->m_fixedElemCount = 0;
+  regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
@@ -3195,8 +3196,18 @@ Dbtup::complete_restore_lcp(Signal* signal,
    * that was changed as part of this process. However any rows
    * changed by REDO log or other activity will be counted until
    * we start next LCP.
+   *
+   * See detailed comment on setting m_lcp_start_gci in
+   * get_lcp_frag_stats function.
+   *
+   * maxGciCompleted == 0 indicates that no LCP was found to use
+   * in restore so setting to ~0 to ensure that we will run next
+   * LCP for this fragment and not use the idle LCP optimisation.
    */
   fragPtr.p->m_lcp_changed_rows = 0;
+  set_lcp_start_gci(fragPtr.i,
+                    maxGciCompleted != 0 ? maxGciCompleted : Uint32(~0));
+
   fragOpPtr.p->fragPointer = fragPtr.i;
 
   signal->theData[0] = ZREBUILD_FREE_PAGE_LIST;
@@ -3225,12 +3236,22 @@ Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
   return true;
 }
 
+void
+Dbtup::set_lcp_start_gci(Uint32 fragPtrI,
+                         Uint32 startGci)
+{
+  FragrecordPtr fragptr;
+  fragptr.i = fragPtrI;
+  ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
+  fragptr.p->m_lcp_start_gci = startGci;
+}
+
 const Dbtup::FragStats
 Dbtup::get_frag_stats(Uint32 fragId) const
 {
+  Ptr<Fragrecord> fragptr;
   jam();
   ndbrequire(fragId < cnoOfFragrec);
-  Ptr<Fragrecord> fragptr;
   fragptr.i = fragId;
   ptrAss(fragptr, fragrecord);
   TablerecPtr tabPtr;
@@ -3272,6 +3293,50 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
                           bool reset_flag)
 {
   /**
+   * We want to count the number of rows, the number of changed rows
+   * and the memory used in bytes as input to the Partial LCP
+   * algorithm.
+   *
+   * Counting the rows is fairly straightforward, each insert of a row
+   * will increment the row count and each free of a row of will decrement
+   * the row count. The count will not be absolutely correct, there will
+   * some differences due to commits and aborts, but it is detailed enough
+   * to assist the Partial LCP algorithm.
+   *
+   * The row change count should count unique changed rows. So every
+   * update should not be counted, only those updates that are new
+   * since the last LCP. We don't have enough information to make this
+   * count perfect and it is also not necessary to be absolutely
+   * correct. It is however absolutely vital that we don't report 0
+   * rows changed when actually some change have occurred.
+   *
+   * As an optimisation we don't count rows injected as part of the
+   * restore of a fragment. This is inserting rows from an LCP that
+   * exists and thus when the next LCP is to be executed something
+   * more must have changed in order for row change count to be
+   * larger than 0.
+   *
+   * During REDO log apply it is important to count the changes made
+   * that wasn't part of the LCP. We know the Max Completed GCI of
+   * each LCP, so if the row that is to be commited has a GCI which
+   * is higher than this Max Completed GCI then we know that the
+   * row have already been changed since we started the REDO log
+   * execution and we can thus ignore the change when counting the
+   * row change count.
+   *
+   * After REDO log execution we move onto the Copy Fragment part.
+   * In this part the same principle still applies that if a row
+   * that have its old GCI set higher than the Max Completed GCI 
+   * of the LCP restored then the row change can be ignored since
+   * it must have been counted already when setting the GCI above
+   * the Max Completed GCI before.
+   *
+   * One problem still is how to handle the cases when we have no
+   * LCP to restore. In this case it doesn't really matter what we
+   * do since the next LCP will be full LCP anyways. So here we
+   * simply set the m_lcp_start_gci to ~0 which is the highest GCI
+   * that could occur and thus all row changes will be counted.
+   *
    * At start of LCP we gather the row count and the number of changed
    * rows to assist in deciding how to execute the LCP. We also set the
    * startGci, this is the highest GCI which have been set so far. So
@@ -3284,8 +3349,8 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
    * |               | == startGci      |                         |
    * --------------------------------------------------------------
    * So as we can see in this picture if old_gci belongs to completed
-   * GCI, then we are certain that it is not updated since we came
-   * here. If it is in future GCIs, then we are certain that it has
+   * GCI, we are certain that it hasn't been updated before we came
+   * here. If it is in future GCIs, we are certain that it has
    * already been updated since we came here. If it is equal to
    * startGci, then we don't know since we can have multiple updates
    * on the same row in one GCI. But we count all of those. So the
@@ -3303,6 +3368,20 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
   if (reset_flag)
   {
     jam();
+    if (fragptr.p->m_lcp_start_gci == Uint32(~0) &&
+        row_change_count == 0)
+    {
+      jam();
+      /**
+       * When no LCP existed before in restart we don't want to run the
+       * next LCP as an IDLE LCP. It is most likely handled properly in
+       * Backup, but for extra security we ensure that this optimisation
+       * never happens when we restored a fragment from scratch. We do
+       * this by signalling that one row changed and thus a proper LCP
+       * is necessary.
+       */
+      row_change_count = 1;
+    }
     fragptr.p->m_lcp_changed_rows = 0;
     fragptr.p->m_lcp_start_gci = startGci;
   }

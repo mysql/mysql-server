@@ -1830,6 +1830,7 @@ public:
   void release_lcp_scan(Uint32 tableId, Uint32 fragmentId);
   void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
 
+  void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);
   void get_lcp_frag_stats(Uint32 fragPtrI,
                           Uint32 startGci,
                           Uint32 & maxPageCount,
