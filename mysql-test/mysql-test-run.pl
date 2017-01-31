@@ -1417,7 +1417,7 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
-  ($auth_plugin)= find_plugin("auth_test_plugin", "plugin/auth");
+  ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
 
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;

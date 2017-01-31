@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -101,22 +101,25 @@ MACRO(MYSQL_ADD_COMPONENT)
     ADD_DEPENDENCIES(${target} GenError)
 
     IF (ARG_MODULE)
+      # Store all components in the same directory, for easier testing.
+      SET_TARGET_PROPERTIES(${target} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/component_output_directory
+        )
+      IF(NOT ARG_NO_INSTALL)
+        # Install dynamic library.
+        IF(NOT ARG_TEST_ONLY)
+          SET(INSTALL_COMPONENT Server)
+        ELSE()
+          SET(INSTALL_COMPONENT Test)
+        ENDIF()
 
-    IF(NOT ARG_NO_INSTALL)
-      # Install dynamic library.
-      IF(NOT ARG_TEST_ONLY)
-      SET(INSTALL_COMPONENT Server)
-      ELSE()
-      SET(INSTALL_COMPONENT Test)
+        MYSQL_INSTALL_TARGETS(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}
+          COMPONENT ${INSTALL_COMPONENT})
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT ${INSTALL_COMPONENT})
       ENDIF()
-
-      MYSQL_INSTALL_TARGETS(${target}
-      DESTINATION ${INSTALL_PLUGINDIR}
-      COMPONENT ${INSTALL_COMPONENT})
-      INSTALL_DEBUG_TARGET(${target}
-      DESTINATION ${INSTALL_PLUGINDIR}/debug
-      COMPONENT ${INSTALL_COMPONENT})
-    ENDIF()
     ENDIF()
   ENDIF()
 ENDMACRO()

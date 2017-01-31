@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(NOT GMOCK_FOUND OR DISABLE_SHARED)
+IF(DISABLE_SHARED)
   RETURN()
 ENDIF()
 
@@ -68,10 +68,11 @@ FOREACH(EXAMPLE_COMPONENT ${EXAMPLE_COMPONENTS})
   # Copy all libraries to dynamic_loader-t's binary directory. This directory is
   # on VS different from target directory even for components defined in this
   # CMakeLists file.
+  GET_TARGET_PROPERTY(example_location ${EXAMPLE_COMPONENT} LOCATION)
   ADD_CUSTOM_COMMAND(
     TARGET dynamic_loader-t
     COMMAND ${CMAKE_COMMAND} -E copy
-      $<TARGET_FILE:${EXAMPLE_COMPONENT}>
+      ${example_location}
       ${CMAKE_CURRENT_BINARY_DIR}
   )
 ENDFOREACH()

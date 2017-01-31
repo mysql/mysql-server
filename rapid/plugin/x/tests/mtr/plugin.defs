@@ -28,4 +28,4 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 
-mysqlx             plugin/x                   MYSQLXPLUGIN
+mysqlx             plugin_output_directory                   MYSQLXPLUGIN

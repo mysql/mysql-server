@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -193,6 +193,12 @@ MACRO(MYSQL_ADD_PLUGIN)
      ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
+
+    # Store all plugins in the same directory, for easier testing.
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
+      )
+
     # Install dynamic library
     IF(NOT ARG_SKIP_INSTALL)
       SET(INSTALL_COMPONENT Server)
