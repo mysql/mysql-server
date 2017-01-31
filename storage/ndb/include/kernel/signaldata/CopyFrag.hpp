@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,7 +146,8 @@ struct PrepareCopyFragRef
 
 struct PrepareCopyFragConf
 {
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( OldSignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -155,6 +156,7 @@ struct PrepareCopyFragConf
   Uint32 copyNodeId;
   Uint32 startingNodeId;
   Uint32 maxPageNo;
+  Uint32 completedGci;
 };
 
 

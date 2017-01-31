@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -825,5 +825,19 @@ const GsnName SignalNames [] = {
   ,{ GSN_CANCEL_SUBSCRIPTION_REQ, "CANCEL_SUBSCRIPTION_REQ" }
   ,{ GSN_ISOLATE_ORD, "ISOLATE_ORD" }
   ,{ GSN_PROCESSINFO_REP, "PROCESSINFO_REP" }
+  ,{ GSN_SYNC_PAGE_CACHE_REQ, "SYNC_PAGE_CACHE_REQ" }
+  ,{ GSN_SYNC_PAGE_CACHE_REF, "SYNC_PAGE_CACHE_REF" }
+  ,{ GSN_SYNC_PAGE_CACHE_CONF, "SYNC_PAGE_CACHE_CONF" }
+  ,{ GSN_SYNC_EXTENT_PAGES_REQ, "SYNC_EXTENT_PAGES_REQ" }
+  ,{ GSN_SYNC_EXTENT_PAGES_REF, "SYNC_EXTENT_PAGES_REF" }
+  ,{ GSN_SYNC_EXTENT_PAGES_CONF, "SYNC_EXTENT_PAGES_CONF" }
+  ,{ GSN_RESTORABLE_GCI_REP, "RESTORABLE_GCI_REP" }
+  ,{ GSN_LCP_START_REP, "LCP_START_REP" }
+  ,{ GSN_WAIT_ALL_COMPLETE_LCP_REQ, "WAIT_ALL_COMPLETE_LCP_REQ" }
+  ,{ GSN_WAIT_ALL_COMPLETE_LCP_REF, "WAIT_ALL_COMPLETE_LCP_REF" }
+  ,{ GSN_WAIT_ALL_COMPLETE_LCP_CONF, "WAIT_ALL_COMPLETE_LCP_CONF" }
+  ,{ GSN_WAIT_COMPLETE_LCP_REQ, "WAIT_COMPLETE_LCP_REQ" }
+  ,{ GSN_WAIT_COMPLETE_LCP_REF, "WAIT_COMPLETE_LCP_REF" }
+  ,{ GSN_WAIT_COMPLETE_LCP_CONF, "WAIT_COMPLETE_LCP_CONF" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

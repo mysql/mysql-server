@@ -213,7 +213,7 @@ create table t1(id int primary key, val int) engine=ndb;
 create table t2(id int primary key, val int) engine=ndb;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter table t2 add constraint foreign key (id) references t1(id);
-ERROR HY000: Unknown error 4008
+Got one of the listed errors
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 783;
+const GlobalSignalNumber MAX_GSN = 797;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1111,4 +1111,23 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_PROCESSINFO_REP             783
 
+#define GSN_SYNC_PAGE_CACHE_REQ         784
+#define GSN_SYNC_PAGE_CACHE_CONF        785
+#define GSN_SYNC_PAGE_CACHE_REF         786 /* Unused at the moment */
+
+#define GSN_SYNC_EXTENT_PAGES_REQ       787
+#define GSN_SYNC_EXTENT_PAGES_CONF      788
+#define GSN_SYNC_EXTENT_PAGES_REF       789 /* Unused at the moment */
+
+#define GSN_RESTORABLE_GCI_REP          790
+
+#define GSN_LCP_START_REP               791
+
+#define GSN_WAIT_ALL_COMPLETE_LCP_REQ   792
+#define GSN_WAIT_ALL_COMPLETE_LCP_CONF  793
+#define GSN_WAIT_ALL_COMPLETE_LCP_REF   794 /* Unused at the moment */
+
+#define GSN_WAIT_COMPLETE_LCP_REQ       795
+#define GSN_WAIT_COMPLETE_LCP_CONF      796
+#define GSN_WAIT_COMPLETE_LCP_REF       797 /* Unused */
 #endif

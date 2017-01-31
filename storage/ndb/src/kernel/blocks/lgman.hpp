@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,6 @@ protected:
   void execFSREADREF(Signal*);
   void execFSREADCONF(Signal*);
 
-  void execEND_LCPREQ(Signal*);
   void execSUB_GCP_COMPLETE_REP(Signal*);
   
   void execSTART_RECREQ(Signal*);
@@ -81,7 +80,7 @@ protected:
 			  GetTabInfoReq * req,
 			  GetTabInfoRef::ErrorCode errorCode);
 
-  void exec_lcp_frag_ord(Signal*, SimulatedBlock* client_block);
+  Uint64 exec_lcp_frag_ord(Signal*, Uint32, SimulatedBlock* client_block);
 
 public:
   struct Log_waiter
@@ -261,8 +260,7 @@ public:
   typedef KeyTable<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
   enum CallbackIndex {
     // lgman
-    ENDLCP_CALLBACK = 1,
-    COUNT_CALLBACKS = 2
+    COUNT_CALLBACKS = 1
   };
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
@@ -292,13 +290,14 @@ private:
 
   Uint64 m_next_lsn;
   Uint32 m_latest_lcp;
+  Uint32 m_latest_local_lcp;
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
   Uint32 m_end_lcp_senderdata;
 
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
-  SafeMutex m_client_mutex;
+  NdbMutex *m_client_mutex;
   void client_lock(BlockNumber block, int line, SimulatedBlock*);
   void client_unlock(BlockNumber block, int line, SimulatedBlock*);
 
@@ -317,7 +316,6 @@ private:
   void process_log_sync_waiters(Signal* signal, Ptr<Logfile_group>);
   
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
-  void endlcp_callback(Signal*, Uint32, Uint32);
   void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);
 
   void flush_log(Signal*, Ptr<Logfile_group>, Uint32 force);
@@ -468,10 +466,11 @@ public:
     return m_lgman->free_log_space(m_logfile_group_id, words, jamBuf);
   }
 
-  void exec_lcp_frag_ord(Signal* signal)
+  Uint64 exec_lcp_frag_ord(Signal* signal, Uint32 local_lcp_id)
   {
-    m_lgman->exec_lcp_frag_ord(signal,
-                               m_client_block);
+    return m_lgman->exec_lcp_frag_ord(signal,
+                                      local_lcp_id,
+                                      m_client_block);
   }
   
 private:

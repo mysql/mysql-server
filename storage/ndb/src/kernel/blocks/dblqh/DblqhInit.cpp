@@ -25,7 +25,7 @@
 #define JAM_FILE_ID 452
 
 
-#define DEBUG(x) { ndbout << "LQH::" << x << endl; }
+#define LQH_DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
 void Dblqh::initData() 
 {
@@ -71,6 +71,11 @@ void Dblqh::initData()
   cLqhTimeOutCheckCount = 0;
   cpackedListIndex = 0;
   m_backup_ptr = RNIL;
+  m_node_restart_lcp_first_phase_started = false;
+  m_node_restart_lcp_second_phase_started = false;
+  m_first_activate_fragment_ptr_i = RNIL;
+  m_curr_lcp_id = 0;
+  m_curr_local_lcp_id = 0;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
   cmaxValidLogFilesInPageZero = cmaxLogFilesInPageZero - 1;
@@ -388,9 +393,13 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
   addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
   addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);
+  addRecSignal(GSN_LCP_START_REP, &Dblqh::execLCP_START_REP);
   addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
   addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
   addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
+  addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
+  addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
+               &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
 
   addRecSignal(GSN_EMPTY_LCP_REQ, &Dblqh::execEMPTY_LCP_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);

@@ -217,6 +217,7 @@ private:
   Tablespace_pool m_tablespace_pool;
   
   bool m_lcp_ongoing;
+  BlockReference m_end_lcp_ref;
   Datafile_hash m_file_hash;
   Tablespace_list m_tablespace_list;
   Tablespace_hash m_tablespace_hash;
@@ -268,6 +269,7 @@ private:
                                         Uint32 extent_size,
                                         Uint64 data_pages,
                                         bool v2);
+  void sendEND_LCPCONF(Signal*);
 };
 
 inline

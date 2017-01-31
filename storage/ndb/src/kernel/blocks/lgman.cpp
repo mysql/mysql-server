@@ -40,6 +40,12 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 441
 
+//#define DEBUG_LGMAN 1
+#ifdef DEBUG_LGMAN
+#define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LGMAN(arglist) do { } while (0)
+#endif
 
 /**
  *
@@ -110,6 +116,10 @@ extern EventLogger * g_eventLogger;
  * TUP_DROP (UNDO deallocate a page)
  * TUP_ALLOC_EXTENT (UNDO allocate an extent of pages)
  * TUP_FREE_EXTENT (UNDO deallocate of an extent of pages)
+ * UNDO_LCP (Start of LCP processing for an LCP)
+ * UNDO_LCP_FIRST (Start of LCP processing for an LCP, first fragment)
+ * UNDO_LOCAL_LCP (Start of Local LCP for a fragment)
+ * UNDO_LOCAL_LCP_FIRST (Start of Local LCP for a fragment, first fragment)
  *
  * UNDO Page layout
  * ----------------
@@ -189,17 +199,30 @@ extern EventLogger * g_eventLogger;
  * can be fully restored (which requires that all UNDO log entries generated
  * as part of LCP is flushed to the disk.
  *
- * Signal END_LCP_REQ
+ * Signal END_LCPREQ
  * ------------------
  * As mentioned in the above section we need to call sync_lsn at end of an LCP.
- * We are informed of LCP end through the signal END_LCP_REQ and will respond
+ * We are informed of LCP end through the signal END_LCPREQ and will respond
  * with END_LCP_CONF when all logfile groups have completed their sync_lsn
  * calls.
+ * The END_LCPREQ doesn't write anything, it simply waits for the last LSN to
+ * be synched to disk, this can be called once for all tables and fragments or
+ * once per fragment. In 7.5 we do it once per fragment to ensure that we don't
+ * have to keep the old LCP around any longer than necessary.
  *
  * exec_lcp_frag_ord
  * -----------------
- * exec_lcp_frag_ord is called from DBLQH each time a new LCP is discovered
- * in DBLQH. So effectively this is called at the start of an LCP.
+ * exec_lcp_frag_ord is called from DBLQH each time a new LCP of a fragment is
+ * to be performed in DBLQH. This will insert UNDO_LCP entry in the UNDO LOG.
+ * If it is the first UNDO LCP entry for this LCP then it will be called a
+ * UNDO_LCP_FIRST. When we recover a fragment we will call disk_restart_lcp_id
+ * to set the LCP id for each fragment we restore. When we execute the UNDO
+ * log we will stop UNDO log processing for a fragment when we reach the
+ * UNDO_LCP for the LCP id we are restoring. As part of executing an LCP we also
+ * record the last completed Global checkpoint (GCI). This means that
+ * by executing first executing UNDO log back to the UNDO_LCP record and then
+ * executing REDO log from the GCI_last_completed + 1 until the GCI we want to
+ * restore, then we have restored the data consistently.
  *
  * In order to be able to write the UNDO log continously we need to cut the
  * log tail every now and then. We enable cutting of the log tail for both
@@ -209,6 +232,18 @@ extern EventLogger * g_eventLogger;
  * at end of the LCP, but we have no knowledge in LGMAN about when a
  * distributed LCP is completed, so we cut it away instead at the next start
  * of an LCP.
+ *
+ * With the introduction of Partial LCPs and the ability to use a LCP as soon
+ * as the fragment has completed its LCP means that we no longer are required
+ * to wait for the distributed LCP to complete. We could thus move the log
+ * tail forward when we complete the last fragment LCP AND when all LCPs for
+ * that round of LCPs are restorable as they become when we are done with
+ * the last GCP that was part of this round of LCP. (TODO).
+ *
+ * We need to retain UNDO log entries for the running LCP and for the last
+ * completed LCP. We could theoretically move the UNDO log tail forward
+ * as soon as a fragment LCP is restorable since we only now need 1 LCP
+ * per fragment and we continously move forward. (TODO).
  *
  * So in short LGMAN receives log entries from DBTUP, before PGMAN can write
  * any page it ensures that all log entries of the page have been flushed to
@@ -444,7 +479,7 @@ extern EventLogger * g_eventLogger;
  * This signal contains the LCP id that we will restore. Disk data gets its
  * data from only one set of pages since the base information is on disk. The
  * information in LGMAN is used to play the tape backwards figuratively
- * speakin (UNDO) until we reach an UNDO log record that represents this LCP.
+ * speaking (UNDO) until we reach an UNDO log record that represents this LCP.
  * When we reach this log record we have ensured that all data in the disk
  * data parts are as they were at the time of the LCP. Before completing the
  * UNDO execution we also ensure that all pages in PGMAN are flushed to disk
@@ -581,7 +616,7 @@ Lgman::Lgman(Block_context & ctx) :
   m_tup(0),
   m_logfile_group_list(m_logfile_group_pool),
   m_logfile_group_hash(m_logfile_group_pool),
-  m_client_mutex("lgman-client", 2, true)
+  m_client_mutex(NULL)
 {
   BLOCK_CONSTRUCTOR(Lgman);
   
@@ -613,7 +648,6 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_FSREADREF, &Lgman::execFSREADREF, true);
   addRecSignal(GSN_FSREADCONF, &Lgman::execFSREADCONF);
 
-  addRecSignal(GSN_END_LCPREQ, &Lgman::execEND_LCPREQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Lgman::execSUB_GCP_COMPLETE_REP);
   addRecSignal(GSN_START_RECREQ, &Lgman::execSTART_RECREQ);
   
@@ -629,18 +663,13 @@ Lgman::Lgman(Block_context & ctx) :
 
   if (isNdbMtLqh()) {
     jam();
-    int ret = m_client_mutex.create();
-    ndbrequire(ret == 0);
+    m_client_mutex = NdbMutex_Create();
+    ndbrequire(m_client_mutex != 0);
   }
 
   {
     CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
     ce.m_function = TheNULLCallback.m_callbackFunction;
-    ce.m_flags = 0;
-  }
-  {
-    CallbackEntry& ce = m_callbackEntry[ENDLCP_CALLBACK];
-    ce.m_function = safe_cast(&Lgman::endlcp_callback);
     ce.m_flags = 0;
   }
   {
@@ -654,7 +683,8 @@ Lgman::Lgman(Block_context & ctx) :
 Lgman::~Lgman()
 {
   if (isNdbMtLqh()) {
-    (void)m_client_mutex.destroy();
+    NdbMutex_Destroy(m_client_mutex);
+    m_client_mutex = NULL;
   }
 }
 
@@ -668,7 +698,7 @@ Lgman::client_lock(BlockNumber block_no, int line, SimulatedBlock *block)
     Uint32 ino = blockToInstance(block_no);
 #endif
     D("try lock " << bno << "/" << ino << V(line));
-    int ret = m_client_mutex.lock();
+    int ret = NdbMutex_Lock(m_client_mutex);
     ndbrequire(ret == 0);
     D("got lock " << bno << "/" << ino << V(line));
   }
@@ -684,7 +714,7 @@ Lgman::client_unlock(BlockNumber block_no, int line, SimulatedBlock *block)
     Uint32 ino = blockToInstance(block_no);
 #endif
     D("unlock " << bno << "/" << ino << V(line));
-    int ret = m_client_mutex.unlock();
+    int ret = NdbMutex_Unlock(m_client_mutex);
     ndbrequire(ret == 0);
   }
 }
@@ -1858,6 +1888,7 @@ Lgman::create_file_commit(Signal* signal,
   
   Uint64 add= ptr.p->m_file_size - 1;
   lg_ptr.p->m_free_file_words += add * get_undo_page_words(lg_ptr);
+  DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, lg_ptr.p->m_free_file_words));
 
   if(first)
   {
@@ -2288,6 +2319,7 @@ Logfile_client::sync_lsn(Signal* signal,
     return 0;
   }
   jamBlock(m_client_block);
+  m_lgman->block_require();
   return -1;
 }
 
@@ -2346,6 +2378,7 @@ Lgman::force_log_sync(Signal* signal,
       ndbrequire(ptr.p->m_free_buffer_words > free);
       ptr.p->m_free_file_words -= free;
       ptr.p->m_free_buffer_words -= free;
+      DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
       
       validate_logfile_group(ptr, "force_log_sync", jamBuffer());
 
@@ -2473,6 +2506,7 @@ next:
    */
   ndbrequire(ptr.p->m_free_file_words >= free);
   ptr.p->m_free_file_words -= free;
+  DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
 
   validate_logfile_group(ptr, "get_log_buffer", jamBuf);
   
@@ -2676,6 +2710,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	ndbrequire(ptr.p->m_free_buffer_words > free);
 	ptr.p->m_free_file_words -= free;
 	ptr.p->m_free_buffer_words -= free;
+        DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
          
 	validate_logfile_group(ptr, "force_log_flush", jamBuffer());
 	
@@ -3144,6 +3179,12 @@ Lgman::execFSWRITECONF(Signal* signal)
     lg_ptr.p->m_next_reply_ptr_i = ptr.i;
     lg_ptr.p->m_last_synced_lsn = lsn;
 
+    /*
+    DEB_LGMAN(("LSN(%u,%u) Synched",
+              Uint32(Uint64(lsn >> 32)),
+              Uint32(Uint64(lsn & 0xFFFFFFFF))
+              ));
+    */
     if(! (lg_ptr.p->m_state & Logfile_group::LG_SYNC_WAITERS_THREAD))
     {
       jam();
@@ -3165,8 +3206,10 @@ Lgman::execFSWRITECONF(Signal* signal)
   return;
 }
 
-void
-Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
+Uint64
+Lgman::exec_lcp_frag_ord(Signal* signal,
+                         Uint32 local_lcp_id,
+                         SimulatedBlock* client_block)
 {
   jamBlock(client_block);
 
@@ -3178,8 +3221,10 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
   Ptr<Logfile_group> ptr;
   m_logfile_group_list.first(ptr);
   
-  Uint32 entry= lcp_id == m_latest_lcp ? 
-    File_formats::Undofile::UNDO_LCP : File_formats::Undofile::UNDO_LCP_FIRST;
+  Uint64 ret_lsn = 0;
+  Uint32 entry= (lcp_id == m_latest_lcp && local_lcp_id == m_latest_local_lcp) ? 
+                  File_formats::Undofile::UNDO_LOCAL_LCP :
+                  File_formats::Undofile::UNDO_LOCAL_LCP_FIRST;
   if(!ptr.isNull() && ! (ptr.p->m_state & Logfile_group::LG_CUT_LOG_THREAD))
   {
     jamBlock(client_block);
@@ -3188,14 +3233,15 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     signal->theData[1] = ptr.i;
     client_block->sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
-  
   if(!ptr.isNull() && ptr.p->m_next_lsn)
   {
     jamBlock(client_block);
-    Uint32 undo[3];
+    Uint32 undo[4];
+    Uint32 size_entry = sizeof(undo) >> 2;
     undo[0] = lcp_id;
-    undo[1] = (table_id << 16) | frag_id;
-    undo[2] = (entry << 16 ) | (sizeof(undo) >> 2);
+    undo[1] = local_lcp_id;
+    undo[2] = (table_id << 16) | frag_id;
+    undo[3] = (entry << 16 ) | size_entry;
 
     Uint64 next_lsn= m_next_lsn;
     
@@ -3206,29 +3252,39 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
        )
     {
       jamBlock(client_block);
-      undo[2] |= (File_formats::Undofile::UNDO_NEXT_LSN << 16);
+      undo[3] |= (File_formats::Undofile::UNDO_NEXT_LSN << 16);
       Uint32 *dst= get_log_buffer(ptr,
-                                  sizeof(undo) >> 2,
+                                  size_entry,
                                   client_block->jamBuffer());
       memcpy(dst, undo, sizeof(undo));
-      ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
-      ptr.p->m_free_file_words -= (sizeof(undo) >> 2);
+      DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
+      ndbrequire(ptr.p->m_free_file_words >= size_entry);
+      ptr.p->m_free_file_words -= (size_entry);
     }
     else
     {
       jamBlock(client_block);
       Uint32 *dst= get_log_buffer(ptr,
-                                  (sizeof(undo) >> 2) + 2,
+                                  size_entry + 2,
                                   client_block->jamBuffer());      
       * dst++ = (Uint32)(next_lsn >> 32);
       * dst++ = (Uint32)(next_lsn & 0xFFFFFFFF);
-      memcpy(dst, undo, sizeof(undo));
-      ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
-      ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
+      memcpy(dst, undo, size_entry * sizeof(Uint32));
+      DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
+      ndbrequire(ptr.p->m_free_file_words >= size_entry);
+      ptr.p->m_free_file_words -= (size_entry + 2);
     }
     ptr.p->m_last_lcp_lsn = next_lsn;
+    ret_lsn = next_lsn;
     m_next_lsn = ptr.p->m_next_lsn = next_lsn + 1;
 
+    DEB_LGMAN(("UNDO_LOCAL_LCP: lsn: %llu, tab(%u,%u), lcp(%u,%u), entry: %u",
+               ret_lsn,
+               table_id,
+               frag_id,
+               lcp_id,
+               local_lcp_id,
+               entry));
     validate_logfile_group(ptr, "execLCP_FRAG_ORD", client_block->jamBuffer());
   }
   
@@ -3241,7 +3297,8 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
       /**
        * First LCP_FRAGORD for each LCP, sets tail pos
        */
-      if(m_latest_lcp != lcp_id)
+      if (m_latest_lcp != lcp_id ||
+          m_latest_local_lcp != local_lcp_id)
       {
         jamBlock(client_block);
 	ptr.p->m_tail_pos[0] = ptr.p->m_tail_pos[1];
@@ -3260,66 +3317,8 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     m_logfile_group_list.next(ptr);
   }
   m_latest_lcp = lcp_id;
-}
-
-void
-Lgman::execEND_LCPREQ(Signal* signal)
-{
-  jamEntry();
-  EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
-  ndbrequire(m_latest_lcp == req->backupId);
-  m_end_lcp_senderdata = req->senderData;
-
-  Ptr<Logfile_group> ptr;
-  m_logfile_group_list.first(ptr);
-  bool wait= false;
-  while(!ptr.isNull())
-  {
-    jam();
-    Uint64 lcp_lsn = ptr.p->m_last_lcp_lsn;
-    if(ptr.p->m_last_synced_lsn < lcp_lsn)
-    {
-      jam();
-      wait= true;
-      if(signal->getSendersBlockRef() != reference())
-      {
-        jam();
-        D("Logfile_client - execEND_LCPREQ");
-	Logfile_client tmp(this, this, ptr.p->m_logfile_group_id);
-	Logfile_client::Request req;
-	req.m_callback.m_callbackData = ptr.i;
-	req.m_callback.m_callbackIndex = ENDLCP_CALLBACK;
-	ndbrequire(tmp.sync_lsn(signal, lcp_lsn, &req, 0) == 0);
-      }
-    }
-    else
-    {
-      jam();
-      ptr.p->m_last_lcp_lsn = 0;
-    }
-    m_logfile_group_list.next(ptr);
-  }
-  
-  if(wait)
-  {
-    jam();
-    return;
-  }
-
-  EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
-  conf->senderData = m_end_lcp_senderdata;
-  conf->senderRef = reference();
-  sendSignal(DBLQH_REF, GSN_END_LCPCONF,
-             signal, EndLcpConf::SignalLength, JBB);
-}
-
-void
-Lgman::endlcp_callback(Signal* signal, Uint32 ptr, Uint32 res)
-{
-  EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
-  req->backupId = m_latest_lcp;
-  req->senderData = m_end_lcp_senderdata;
-  execEND_LCPREQ(signal);
+  m_latest_local_lcp = local_lcp_id;
+  return ret_lsn;
 }
 
 void
@@ -3343,6 +3342,9 @@ Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
         jam();
 	free= tmp.m_idx - tail.m_idx; 
 	ptr.p->m_free_file_words += free * get_undo_page_words(ptr);
+        DEB_LGMAN(("Line(%u): free_file_words: %llu",
+                   __LINE__,
+                   ptr.p->m_free_file_words));
 	ptr.p->m_file_pos[TAIL] = tmp;
       }
       else
@@ -3350,6 +3352,9 @@ Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
         jam();
 	free= filePtr.p->m_file_size - tail.m_idx - 1;
 	ptr.p->m_free_file_words += free * get_undo_page_words(ptr);
+        DEB_LGMAN(("Line(%u): free_file_words: %llu",
+                   __LINE__,
+                   ptr.p->m_free_file_words));
 	
 	Ptr<Undofile> next = filePtr;
 	Local_undofile_list files(m_file_pool, ptr.p->m_files);
@@ -3459,6 +3464,7 @@ Lgman::free_log_space(Uint32 ref,
   {
     thrjam(jamBuf);
     ptr.p->m_free_file_words += (words + 2);
+    DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
     validate_logfile_group(ptr, "free_log_space", jamBuf);
     return 0;
   }
@@ -3522,7 +3528,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	}
       }
       /**
-       * for callback_buffer, always allocats 2 extra...
+       * for callback_buffer, always allocates 2 extra...
        *   not knowing if LSN must be added or not
        */
       tot += 2;
@@ -3577,14 +3583,17 @@ Lgman::execSTART_RECREQ(Signal* signal)
 {
   jamEntry();
   m_latest_lcp = signal->theData[0];
+  m_latest_local_lcp = signal->theData[1];
   
   Ptr<Logfile_group> ptr;
   m_logfile_group_list.first(ptr);
 
   if(ptr.i != RNIL)
   {
-    infoEvent("LGMAN: Applying undo to LCP: %d", m_latest_lcp);
-    g_eventLogger->info("LGMAN: Applying undo to LCP: %d", m_latest_lcp);
+    infoEvent("LGMAN: Applying undo to LCP: [%d,%d]",
+              m_latest_lcp, m_latest_local_lcp);
+    g_eventLogger->info("LGMAN: Applying undo to LCP: [%d,%d]",
+                        m_latest_lcp, m_latest_local_lcp);
     find_log_head(signal, ptr);
     return;
   }
@@ -4502,29 +4511,29 @@ Lgman::execute_undo_record(Signal* signal)
                           " pages to sync with last LCP", m_pages_applied);
       stop_run_undo_log(signal);
       return;
+    case File_formats::Undofile::UNDO_LOCAL_LCP:
+    case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
     case File_formats::Undofile::UNDO_LCP:
     case File_formats::Undofile::UNDO_LCP_FIRST:
     {
       jam();
       Uint32 lcp = * (ptr - len + 1);
-      if(m_latest_lcp && lcp > m_latest_lcp)
+      Uint32 local_lcp;
+      if (mask == File_formats::Undofile::UNDO_LOCAL_LCP_FIRST ||
+          mask == File_formats::Undofile::UNDO_LOCAL_LCP)
       {
         jam();
-        if (0)
-        {
-	  const Uint32 * base = ptr - len + 1;
-          Uint32 lcp = base[0];
-          Uint32 tableId = base[1] >> 16;
-          Uint32 fragId = base[1] & 0xFFFF;
-
-	  ndbout_c("NOT! ignoring lcp: %u tab: %u frag: %u", 
-		   lcp, tableId, fragId);
-	}
+        local_lcp = * (ptr - len + 2);
+      }
+      else
+      {
+        local_lcp = 0;
       }
 
-      if(m_latest_lcp == 0 || 
-	 lcp < m_latest_lcp || 
-	 (lcp == m_latest_lcp && 
+      if((m_latest_lcp == 0) ||
+	 (lcp < m_latest_lcp) ||
+         (lcp == m_latest_lcp && local_lcp < m_latest_local_lcp) ||
+	 (lcp == m_latest_lcp &&  local_lcp == m_latest_local_lcp &&
 	  mask == File_formats::Undofile::UNDO_LCP_FIRST))
       {
         jam();
@@ -4998,10 +5007,11 @@ Lgman::stop_run_undo_log(Signal* signal)
 	}
       }
       
-      client_lock(number(), __LINE__, this);
       ptr.p->m_free_file_words = (Uint64)get_undo_page_words(ptr) *
 	(Uint64)compute_free_file_pages(ptr, jamBuffer());
-      client_unlock(number(), __LINE__, this);
+      DEB_LGMAN(("Line(%u): free_file_words: %llu",
+                 __LINE__,
+                 ptr.p->m_free_file_words));
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
       
       ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
@@ -5053,21 +5063,16 @@ Lgman::stop_run_undo_log(Signal* signal)
   g_eventLogger->info("LGMAN: Flushing page cache after undo completion");
 
   /**
-   * START_FLUSH_PGMAN_CACHE
+   * START FLUSH PGMAN CACHE
    * 
    * Start flushing pages (a form of a local LCP)
    *
    * As part of a restart we want to ensure that we don't need to replay
    * the UNDO log again. This is done by ensuring that all pages
-   * currently in PGMAN cache is flushed to disk. We do this by faking
-   * a LCP to PGMAN by a first LCP_FRAG_ORD followed by END_LCP_REQ.
+   * currently in PGMAN cache is flushed to disk. We do this by sending
+   * END_LCPREQ to PGMAN.
    */
 
-  LcpFragOrd * ord = (LcpFragOrd *)signal->getDataPtr();
-  ord->lcpId = m_latest_lcp;
-  sendSignal(PGMAN_REF, GSN_LCP_FRAG_ORD, signal, 
-	     LcpFragOrd::SignalLength, JBB);
-  
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->senderData = 0;
   req->senderRef = reference();
@@ -5093,10 +5098,11 @@ Lgman::execEND_LCPCONF(Signal* signal)
    * Insert "fake" LCP record preventing undo to be "rerun"
    */
 
-  Uint32 undo[3];
+  Uint32 undo[4];
   undo[0] = m_latest_lcp;
-  undo[1] = (0 << 16) | 0;
-  undo[2] = (File_formats::Undofile::UNDO_LCP_FIRST << 16 ) 
+  undo[1] = m_latest_local_lcp;
+  undo[2] = (0 << 16) | 0;
+  undo[3] = (File_formats::Undofile::UNDO_LOCAL_LCP_FIRST << 16 ) 
     | (sizeof(undo) >> 2);
   
   Ptr<Logfile_group> ptr;
@@ -5110,11 +5116,12 @@ Lgman::execEND_LCPCONF(Signal* signal)
      )
   {
     jam();
-    undo[2] |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
+    undo[3] |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
     Uint32 *dst= get_log_buffer(ptr,
                                 sizeof(undo) >> 2,
                                 jamBuffer());
     memcpy(dst, undo, sizeof(undo));
+    DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
     ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
     ptr.p->m_free_file_words -= (sizeof(undo) >> 2);
   }
@@ -5127,9 +5134,15 @@ Lgman::execEND_LCPCONF(Signal* signal)
     * dst++ = (Uint32)(next_lsn >> 32);
     * dst++ = (Uint32)(next_lsn & 0xFFFFFFFF);
     memcpy(dst, undo, sizeof(undo));
+    DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
     ndbrequire(ptr.p->m_free_file_words >= ((sizeof(undo) >> 2) + 2));
     ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
   }
+  DEB_LGMAN(("Fake LCP at lsn: %llu: lcp(%u,%u)",
+            next_lsn,
+            m_latest_lcp,
+            m_latest_local_lcp));
+
   m_next_lsn = ptr.p->m_next_lsn = next_lsn + 1;
 
   ptr.p->m_last_synced_lsn = next_lsn;

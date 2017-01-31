@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -388,9 +388,40 @@ print_undo_page(int count, void* ptr, Uint32 sz)
 	  printf(" %.4d - %.4d : ", pos - len + 1, pos);
 	switch(type){
 	case File_formats::Undofile::UNDO_LCP_FIRST:
+	  printf("[ %lld LCP First %d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+                 src[1] >> 16,
+                 src[1] & 0xFFFF);
+	  if(g_verbosity <= 3)
+	    printf("\n");
+          break;
 	case File_formats::Undofile::UNDO_LCP:
-	  printf("[ %lld LCP %d tab: %d frag: %d ]", lsn, 
-		 src[0], src[1] >> 16, src[1] & 0xFFFF);
+	  printf("[ %lld LCP %d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+                 src[1] >> 16,
+                 src[1] & 0xFFFF);
+	  if(g_verbosity <= 3)
+	    printf("\n");
+	  break;
+	case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
+	  printf("[ %lld Local LCP First %d,%d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+		 src[1],
+                 src[2] >> 16,
+                 src[2] & 0xFFFF);
+	  if(g_verbosity <= 3)
+	    printf("\n");
+	  break;
+	case File_formats::Undofile::UNDO_LOCAL_LCP:
+	  printf("[ %lld Local LCP %d,%d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+		 src[1],
+                 src[2] >> 16,
+                 src[2] & 0xFFFF);
 	  if(g_verbosity <= 3)
 	    printf("\n");
 	  break;

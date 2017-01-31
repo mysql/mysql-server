@@ -40,6 +40,13 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
+#define DEBUG_TSMAN 1
+#ifdef DEBUG_TSMAN
+#define DEB_TSMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN(arglist) do { } while (0)
+#endif
+
 #define DBG_UNDO 0
 
 Tsman::Tsman(Block_context& ctx) :
@@ -729,6 +736,8 @@ Tsman::release_extent_pages(Signal* signal, Ptr<Datafile> ptr)
     Page_cache_client::Request preq;
     preq.m_page.m_file_no = ptr.p->m_file_no;
     preq.m_page.m_page_no = page;
+    preq.m_table_id = RNIL;
+    preq.m_fragment_id = 0;
     
     preq.m_callback.m_callbackData = ptr.i;
     preq.m_callback.m_callbackFunction = 
@@ -1440,6 +1449,8 @@ Tsman::load_extent_pages(Signal* signal, Ptr<Datafile> ptr)
   Page_cache_client::Request preq;
   preq.m_page.m_file_no = ptr.p->m_file_no;
   preq.m_page.m_page_no = ptr.p->m_create.m_loading_extent_page;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
 
   preq.m_callback.m_callbackData = ptr.i;
   preq.m_callback.m_callbackFunction = 
@@ -1593,6 +1604,10 @@ Tsman::scan_datafile(Signal* signal, Uint32 ptrI, Uint32 filePtrI)
   }
 }
 
+/**
+ * This function is used during restarts to ensure that DBTUP and TSMAN
+ * gets its in-memory representations of free pages in extents up to date.
+ */
 void
 Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 {
@@ -1611,6 +1626,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
     Page_cache_client::Request preq;
     preq.m_page.m_page_no = page_no;
     preq.m_page.m_file_no = ptr.p->m_file_no;
+    preq.m_table_id = RNIL;
+    preq.m_fragment_id = 0;
     
     int flags = Page_cache_client::DIRTY_REQ;
     Page_cache_client pgman(this, m_pgman);
@@ -1628,8 +1645,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
       jam();
       /**
        * Last extent header page...
-       *   set correct no of extent headers
-       *   not all extent entries on this page is used.
+       * This extent page might not be used fully, so
+       * set correct no of extent headers on this page.
        */
       Uint32 total_extents = datapages / size;
       extents= total_extents - (pages - 1)*per_page;
@@ -1703,6 +1720,10 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
           {
             jam();
             Uint32 bits= ext_data->get_free_bits(i) & COMMITTED_MASK;
+            /**
+             * No need to make page dirty since only UNCOMMITTED bits
+             * are changed
+             */
             ext_data->update_free_bits(i, bits | (bits << UNCOMMITTED_SHIFT));
             tup.disk_restart_page_bits((*ext_table_id),
                                        (*ext_fragment_id),
@@ -1896,7 +1917,9 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:" << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE  << endl;
+  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:"
+         << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE
+         << endl;
 #endif
 }
 
@@ -1966,6 +1989,8 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
     Page_cache_client::Request preq;
     preq.m_page.m_page_no = page_no;
     preq.m_page.m_file_no = file_ptr.p->m_file_no;
+    preq.m_table_id = RNIL;
+    preq.m_fragment_id = 0;
 
     /**
      * Handling of unmapped extent header pages is not implemented
@@ -2088,6 +2113,8 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = req.request.key.m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
 
   ndbout << "Free extent: " << req.request.key << endl;
   
@@ -2168,7 +2195,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 int
 Tsman::update_page_free_bits(Signal* signal, 
 			     Local_key *key, 
-			     unsigned committed_bits)
+			     unsigned new_committed_bits)
 {
   EmulatedJamBuffer* const jamBuf = getThrJamBuf();
   
@@ -2190,11 +2217,13 @@ Tsman::update_page_free_bits(Signal* signal,
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
    */
-  int flags = Page_cache_client::COMMIT_REQ;
+  int flags = 0;
   int real_page_id;
   Page_cache_client pgman(this, m_pgman);
   if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
@@ -2229,10 +2258,56 @@ Tsman::update_page_free_bits(Signal* signal,
     /**
      * Toggle word
      */
-    ndbassert((committed_bits & ~(COMMITTED_MASK)) == 0);
-    Uint32 src = ext_data->get_free_bits(page_no_in_extent) & UNCOMMITTED_MASK;
-    ext_data->update_free_bits(page_no_in_extent, src | committed_bits);
-    pgman.update_lsn(preq.m_page, 0);
+    ndbassert((new_committed_bits & ~(COMMITTED_MASK)) == 0);
+    Uint32 old_free_bits = ext_data->get_free_bits(page_no_in_extent);
+    Uint32 old_uncommitted_bits = old_free_bits & UNCOMMITTED_MASK;
+    Uint32 new_free_bits = old_uncommitted_bits | new_committed_bits;
+    DEB_TSMAN(("(%u), page:(%u,%u), extent_page: %u, page_no_in_extent: %u,"
+               " old_free_bits: %u, old_uncommitted_bits: %u,"
+               " new_free_bits: %u",
+               instance(),
+               key->m_file_no,
+               key->m_page_no,
+               preq.m_page.m_page_no,
+               page_no_in_extent,
+               old_free_bits,
+               old_uncommitted_bits,
+               new_free_bits));
+
+    /**
+     * We have now read the free bits in the page. If these are the same as we
+     * are going to set then there is no reason to update the page on disk.
+     * If they are different we will update the disk page as well.
+     * We do this by calling get_page with COMMIT_REQ set followed by calling
+     * update_lsn. This will ensure that the page is dirty and will be written
+     * in the next fragment LCP.
+     *
+     * There are calls to update_free_bits where we update the free bits but
+     * we don't checkpoint those changes to disk. The reason is that we only
+     * care about changes to the COMMITTED state bits. The uncommitted state
+     * bits are only valid as long as the node is up. During recovery we will
+     * simply copy the COMMITTED bits to the UNCOMMITTED bits. Thus we need
+     * only mark a page as dirty after updating its COMMITTED bits and only
+     * if we actually change those. new_free_bits and old_free_bits will only
+     * differ if we change the COMMITTED bits here.
+     */
+    if (new_free_bits != old_free_bits)
+    {
+      Uint32 old_committed_bits = old_free_bits & COMMITTED_MASK;
+      if (old_committed_bits == new_committed_bits)
+      {
+        thrjam(jamBuf);
+        ext_data->update_free_bits(page_no_in_extent, new_free_bits);
+      }
+      else
+      {
+        thrjam(jamBuf);
+        flags = Page_cache_client::COMMIT_REQ;
+        ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
+        ext_data->update_free_bits(page_no_in_extent, new_free_bits);
+        pgman.update_lsn(signal, preq.m_page, 0);
+      }
+    }
     return 0;
   }
   
@@ -2258,6 +2333,8 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
@@ -2316,6 +2393,8 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
@@ -2356,6 +2435,7 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     /**
      * Toggle word
+     * No need to make page dirty since only UNCOMMITTED bits are changed.
      */
     Uint32 src =
       ext_data->get_free_bits(page_no_in_extent) & COMMITTED_MASK;
@@ -2395,6 +2475,8 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
@@ -2489,13 +2571,20 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = req.key.m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
 
   /**
    * Handling of unmapped extent header pages is not implemented
+   *
+   * There is no need to make the extent page dirty here. The reason is that
+   * it will only update the uncommitted bits and those don't matter at
+   * restarts and thus it doesn't really matter for recovery that we make the
+   * page the dirty here.
    */
-  int flags = Page_cache_client::DIRTY_REQ;
+  int flags = 0;
   int real_page_id;
   Uint32 page_no;
   Uint32 src_bits;
@@ -2518,9 +2607,9 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
 
     /**
      * 0 = 00 - free - 100% free
-     * 1 = 01 - atleast 70% free, 70= pct_free + 2 * (100 - pct_free) / 3
-     * 2 = 10 - atleast 40% free, 40= pct_free + (100 - pct_free) / 3
-     * 3 = 11 - full - less than pct_free% free, pct_free=10%
+     * 1 = 01 - atleast some row free
+     * 2 = 10 - full
+     * 3 = 11 - full, special state set when in uncommitted state
      */
 
     Uint32 reqbits = req.bits << UNCOMMITTED_SHIFT;
@@ -2584,9 +2673,11 @@ Tsman::execLCP_FRAG_ORD(Signal* signal)
 void
 Tsman::execEND_LCPREQ(Signal* signal)
 {
+  EndLcpReq *req = (EndLcpReq*)signal->getDataPtr();
   jamEntry();
   ndbrequire(m_lcp_ongoing);
   m_lcp_ongoing = false;
+  m_end_lcp_ref = req->senderRef;
 
   /**
    * Move extents from "lcp" free list to real free list
@@ -2601,7 +2692,9 @@ Tsman::execEND_LCPREQ(Signal* signal)
     signal->theData[2] = 0;    // free
     signal->theData[3] = RNIL; // first
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+    return;
   }
+  sendEND_LCPCONF(signal);
 }
 
 void
@@ -2654,9 +2747,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 	if(m_tablespace_list.next(ptr))
         {
           jam();
-	  goto next;
         }
-	return;
+	goto next;
       }
     }
     else
@@ -2718,6 +2810,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       Page_cache_client::Request preq;
       preq.m_page.m_page_no = page_no;
       preq.m_page.m_file_no = file.p->m_file_no;
+      preq.m_table_id = RNIL;
+      preq.m_fragment_id = 0;
       
       int flags = Page_cache_client::DIRTY_REQ;
       int real_page_id;
@@ -2777,7 +2871,20 @@ next:
     signal->theData[2] = list;    
     signal->theData[3] = file.i;  
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+    return;
   }
+  sendEND_LCPCONF(signal);
+}
+
+void
+Tsman::sendEND_LCPCONF(Signal *signal)
+{
+  BlockReference ref = m_end_lcp_ref;
+  EndLcpConf *conf = (EndLcpConf*)signal->getDataPtr();
+  conf->senderData = 0; /* Ignored */
+  conf->senderRef = reference();
+  sendSignal(ref, GSN_END_LCPCONF, signal,
+             EndLcpConf::SignalLength, JBB);
 }
 
 int

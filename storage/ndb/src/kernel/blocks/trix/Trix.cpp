@@ -2682,6 +2682,7 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
   default:
     boundCount = 0; /* Silence compiler warning */
     ndbrequire(false);
+    return; /* Silence compiler warning */
     break;
   }
   clean.m_boundSize = 3 * boundCount;
