@@ -23,6 +23,9 @@ prog="mysqld"
 STARTTIMEOUT=120
 STOPTIMEOUT=600
 
+# Set in /etc/sysconfig/mysqld, will be passed to mysqld_safe
+MYSQLD_OPTS=
+
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
 lockfile=/var/lock/subsys/$prog
@@ -132,7 +135,7 @@ start(){
 	# and some users might prefer to configure logging to syslog.)
 	# Note: set --basedir to prevent probes that might trigger SELinux
 	# alarms, per bug #547485
-	$exec   --datadir="$datadir" --socket="$socketfile" \
+	$exec $MYSQLD_OPTS --datadir="$datadir" --socket="$socketfile" \
 		--pid-file="$mypidfile" \
 		--basedir=/usr --user=mysql $extra_opts >/dev/null &
 	safe_pid=$!
