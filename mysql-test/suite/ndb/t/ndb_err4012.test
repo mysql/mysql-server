@@ -3,8 +3,8 @@
 --echo # We are using some debug-only features in this test
 -- source include/have_debug.inc
 -- source have_ndb_error_insert.inc
-call mtr.add_suppression("NDB FK: Failed to drop fk");
-call mtr.add_suppression("NDB FK: Failed to list dependent objects for table");
+call mtr.add_suppression("NDB: Failed to drop fk");
+call mtr.add_suppression("NDB: Failed to list dependent objects for table");
 
 --echo # bulk delete with timeout error 4012
 create table t4(id int primary key, val int) engine=ndb;

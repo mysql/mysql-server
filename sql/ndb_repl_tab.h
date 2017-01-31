@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include "my_global.h"
 
-#ifdef HAVE_NDB_BINLOG
 #include "mysql_com.h"  /* NAME_CHAR_LEN */
 #include "ndbapi/NdbApi.hpp"
 
@@ -247,8 +246,4 @@ public:
   const char* get_warning_message() const;
 };
 
-/* #ifdef HAVE_NDB_BINLOG */
-#endif
-
-/* #ifdef NDB_REPL_TAB_H */
 #endif

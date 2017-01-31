@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include "my_global.h"
 
-#ifdef HAVE_NDB_BINLOG
 #include "ndbapi/NdbApi.hpp"
 #include "util/HashMap2.hpp"
 #include "util/LinkedStack.hpp"
@@ -330,8 +329,4 @@ private:
   const char* error_text;
 };
 
-/* ifdef HAVE_NDB_BINLOG */
-#endif
-
-// #ifndef NDB_CONFLICT_TRANS_H
 #endif

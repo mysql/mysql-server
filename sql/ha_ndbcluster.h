@@ -20,6 +20,8 @@
   NDB Cluster
 */
 
+#include "sql_base.h"
+
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
 #define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
@@ -405,7 +407,6 @@ private:
   
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
-#ifdef HAVE_NDB_BINLOG
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
                                  const NdbRecord* key_rec,
                                  const NdbRecord* data_rec,
@@ -417,7 +418,6 @@ private:
                                  NdbOperation::OperationOptions* options,
                                  bool& conflict_handled,
                                  bool& avoid_ndbapi_write);
-#endif
   void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,
                                     const uchar *record,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,9 +42,8 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   // ndb_index_stat_free() should have cleaned up:
   assert(share->index_stat_list == NULL);
 
-#ifdef HAVE_NDB_BINLOG
   teardown_conflict_fn(g_ndb, share->m_cfn_share);
-#endif
+
   share->new_op= 0;
   Ndb_event_data* event_data = share->event_data;
   if (event_data)

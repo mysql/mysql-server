@@ -147,16 +147,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   ENDFOREACH()
 ENDIF()
 
-# Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
-# the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
-# is compiled without this define)
-IF(NOT WITHOUT_SERVER)
-  # Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
-  # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
-  # is compiled without this define)
-  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
-ENDIF()
-
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")
 ELSE()

@@ -35,7 +35,6 @@
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_cond.h"
 #include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_tables.h"
 #include "m_ctype.h"
@@ -69,6 +68,20 @@
 #include "ndbapi/NdbInterpretedCode.hpp"
 #include "partition_info.h"
 #include "template_utils.h"
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
+#include "current_thd.h"
+#include "derror.h"         // ER_THD
+#include "ndb_sleep.h"
+
+#ifndef DBUG_OFF
+#include "sql_test.h"       // print_where
+#endif
+#include "auth_common.h"    // wild_case_compare
+#include "sql_table.h"      // build_table_filename,
+                            // tablename_to_filename
+#include "log.h"            // sql_print_error
+#include "sql_class.h"
+
 
 using std::min;
 using std::max;
@@ -516,7 +529,6 @@ static int check_slave_state(THD* thd)
 {
   DBUG_ENTER("check_slave_state");
 
-#ifdef HAVE_NDB_BINLOG
   if (!thd->slave_thread)
     DBUG_RETURN(0);
 
@@ -639,7 +651,6 @@ static int check_slave_state(THD* thd)
                             (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
     } // Load highest replicated epoch
   } // New Slave SQL thread run id
-#endif
 
   DBUG_RETURN(0);
 }
@@ -899,8 +910,6 @@ int ndb_to_mysql_error(const NdbError *ndberr)
 
 ulong opt_ndb_slave_conflict_role;
 
-#ifdef HAVE_NDB_BINLOG
-
 static int
 handle_conflict_op_error(NdbTransaction* trans,
                          const NdbError& err,
@@ -921,7 +930,6 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     NdbTransaction* conflict_trans,
                     const MY_BITMAP *write_set,
                     Uint64 transaction_id);
-#endif
 
 static const Uint32 error_op_after_refresh_op = 920;
 
@@ -945,9 +953,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     Check that all errors are "accepted" errors
     or exceptions to report
   */
-#ifdef HAVE_NDB_BINLOG
   const NdbOperation* lastUserOp = trans->getLastDefinedOperation();
-#endif
   while (true)
   {
     const NdbError &err= first->getNdbError();
@@ -966,7 +972,6 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
         DBUG_RETURN(err.code);
       }
     }
-#ifdef HAVE_NDB_BINLOG
     else
     {
       /*
@@ -982,7 +987,6 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
           DBUG_RETURN(res);
       }
     } // if (!op_has_conflict_detection)
-#endif
     if (err.classification != NdbError::NoError)
       ignores++;
 
@@ -993,7 +997,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   }
   if (ignore_count)
     *ignore_count= ignores;
-#ifdef HAVE_NDB_BINLOG
+
   /*
      Conflict detection related error handling above may have defined
      new operations on the transaction.  If so, execute them now
@@ -1057,7 +1061,6 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
       }
     }
   }
-#endif
   DBUG_RETURN(0);
 }
 
@@ -1087,11 +1090,9 @@ check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
         err.classification != NdbError::ConstraintViolation &&
         err.classification != NdbError::NoDataFound)
     {
-#ifdef HAVE_NDB_BINLOG
       /* All conflict detection etc should be done before commit */
       DBUG_ASSERT((err.code != (int) error_conflict_fn_violation) &&
                   (err.code != (int) error_op_after_refresh_op));
-#endif
       DBUG_RETURN(err.code);
     }
     if (err.classification != NdbError::NoError)
@@ -4734,7 +4735,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 #endif
 }
 
-#ifdef HAVE_NDB_BINLOG
 
 /**
    prepare_conflict_detection
@@ -5390,12 +5390,12 @@ static bool is_serverid_local(Uint32 serverid)
   return ((serverid == ::server_id) ||
           ndb_mi_get_ignore_server_id(serverid));
 }
-#endif
+
 
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
-#ifdef HAVE_NDB_BINLOG
+
   if (m_share == ndb_apply_status_share && table->in_use->slave_thread)
   {
     uint32 row_server_id, master_server_id= ndb_mi_get_master_server_id();
@@ -5414,7 +5414,7 @@ int ha_ndbcluster::write_row(uchar *record)
       DBUG_RETURN(rc);
     }
   }
-#endif /* HAVE_NDB_BINLOG */
+
   DBUG_RETURN(ndb_write_row(record, FALSE, FALSE));
 }
 
@@ -5508,7 +5508,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 	if (--retries && !thd->killed &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
-	  do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
 	  continue;
 	}
 	ERR_RETURN(ndb->getNdbError());
@@ -5618,7 +5618,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   MY_BITMAP tmpBitmap;
   MY_BITMAP *user_cols_written_bitmap;
   bool avoidNdbApiWriteOp = false; /* ndb_write_row defaults to write */
-#ifdef HAVE_NDB_BINLOG
+
   /* Conflict resolution in slave thread */
   if (thd->slave_thread)
   {
@@ -5644,7 +5644,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       DBUG_RETURN(0);
     }
   };
-#endif
 
   if (m_use_write &&
       !avoidNdbApiWriteOp)
@@ -5819,7 +5818,6 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
   return 0;
 }
 
-#ifdef HAVE_NDB_BINLOG
 
 static Ndb_exceptions_data StaticRefreshExceptionsData=
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL, REFRESH_ROW, false, 0 };
@@ -6077,7 +6075,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   DBUG_RETURN(0);
 }
-#endif /* HAVE_NDB_BINLOG */
+
 
 /**
   Update one record in NDB using primary key.
@@ -6455,7 +6453,6 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 				 m_read_before_write_removal_used);
 
     bool avoidNdbApiWriteOp = true; /* Default update op for ndb_update_row */
-#ifdef HAVE_NDB_BINLOG
     Uint32 buffer[ MAX_CONFLICT_INTERPRETED_PROG_SIZE ];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
@@ -6486,7 +6483,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
         DBUG_RETURN(0);
       }
     }
-#endif /* HAVE_NDB_BINLOG */
+
     if (options.optionsPresent !=0)
       poptions= &options;
 
@@ -6792,7 +6789,6 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     setup_key_ref_for_ndb_record(&key_rec, &key_row, record,
 				 m_read_before_write_removal_used);
 
-#ifdef HAVE_NDB_BINLOG
     Uint32 buffer[ MAX_CONFLICT_INTERPRETED_PROG_SIZE ];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
@@ -6822,7 +6818,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
         DBUG_RETURN(0);
       }
     }
-#endif /* HAVE_NDB_BINLOG */
+
     if (options.optionsPresent != 0)
       poptions= &options;
 
@@ -8213,7 +8209,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
   - refresh list of the indexes for the table if needed (if altered)
  */
 
-#ifdef HAVE_NDB_BINLOG
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -8269,7 +8264,6 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
   DBUG_ASSERT(r == 0);
   return 0;
 }
-#endif /* HAVE_NDB_BINLOG */
 
 
 void
@@ -8310,7 +8304,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   if (table_count == 0)
   {
     trans_register_ha(thd, FALSE, ht, NULL);
-    if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       if (!trans)
         trans_register_ha(thd, TRUE, ht, NULL);
@@ -8360,7 +8354,7 @@ int ha_ndbcluster::start_statement(THD *thd,
 
     thd_ndb->init_open_tables();
     thd_ndb->m_slow_path= FALSE;
-    if (!(thd_options(thd) & OPTION_BIN_LOG) ||
+    if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     {
       thd_ndb->trans_options|= TNTO_NO_LOGGING;
@@ -8448,13 +8442,12 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
   m_blobs_pending= FALSE;
   release_blobs_buffer();
   m_slow_path= m_thd_ndb->m_slow_path;
-#ifdef HAVE_NDB_BINLOG
+
   if (unlikely(m_slow_path))
   {
     if (m_share == ndb_apply_status_share && thd->slave_thread)
         m_thd_ndb->trans_options|= TNTO_INJECTED_APPLY_STATUS;
   }
-#endif
 
   int ret = 0;
   if (thd_ndb->m_handler == 0)
@@ -8522,7 +8515,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("info", ("Rows has changed"));
 
       if (thd_ndb->trans &&
-          thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+          thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       {
         DBUG_PRINT("info", ("Add share to list of changed tables, %p",
                             m_share));
@@ -8545,7 +8538,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       DBUG_PRINT("trans", ("Last external_lock"));
 
-      if ((!(thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) &&
+      if ((!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
           thd_ndb->trans)
       {
         if (thd_ndb->trans)
@@ -8808,7 +8801,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (!all && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -8826,18 +8819,15 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   }
   thd_ndb->save_point_count= 0;
 
-#ifdef HAVE_NDB_BINLOG
   if (unlikely(thd_ndb->m_slow_path))
   {
     if (thd->slave_thread)
       ndbcluster_update_apply_status
         (thd, thd_ndb->trans_options & TNTO_INJECTED_APPLY_STATUS);
   }
-#endif /* HAVE_NDB_BINLOG */
 
   if (thd->slave_thread)
   {
-#ifdef HAVE_NDB_BINLOG
     /* If this slave transaction has included conflict detecting ops
      * and some defined operations are not yet sent, then perform
      * an execute(NoCommit) before committing, as conflict op handling
@@ -8852,7 +8842,6 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
     if (likely(res == 0))
       res = g_ndb_slave_state.atConflictPreCommit(retry_slave_trans);
-#endif /* HAVE_NDB_BINLOG */
 
     if (likely(res == 0))
       res= execute_commit(thd_ndb, trans, 1, TRUE);
@@ -8908,7 +8897,6 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (res != 0)
   {
-#ifdef HAVE_NDB_BINLOG
     if (retry_slave_trans)
     {
       if (st_ndb_slave_state::MAX_RETRY_TRANS_COUNT >
@@ -8943,7 +8931,6 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
       res= ER_GET_TEMPORARY_ERRMSG;
     }
     else
-#endif
     {
       const NdbError err= trans->getNdbError();
       const NdbOperation *error_op= trans->getNdbErrorOperation();
@@ -9018,7 +9005,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+  if (!all &&
+      thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) &&
       (thd_ndb->save_point_count > 0))
   {
     /*
@@ -10010,7 +9998,7 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
             if (--retries && !thd->killed &&
                 ndb->getNdbError().status == NdbError::TemporaryError)
             {
-              do_retry_sleep(retry_sleep);
+              ndb_retry_sleep(retry_sleep);
               continue;
             }
             const NdbError err= ndb->getNdbError();
@@ -11006,7 +10994,6 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-#ifdef HAVE_NDB_BINLOG
   /* Read ndb_replication entry for this table, if any */
   Uint32 binlog_flags;
   const st_conflict_fn_def* conflict_fn= NULL;
@@ -11064,7 +11051,6 @@ int ha_ndbcluster::create(const char *name,
       break;
     }
   }
-#endif
 
   if ((dict->beginSchemaTrans() == -1))
   {
@@ -11648,7 +11634,6 @@ cleanup_failed:
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
-#ifdef HAVE_NDB_BINLOG
       if (share)
       {
         /* Set the Binlogging information we retrieved above */
@@ -11660,7 +11645,7 @@ cleanup_failed:
                                                  num_args,
                                                  binlog_flags);
       }
-#endif
+
       String event_name(INJECTOR_EVENT_LEN);
       ndb_rep_event_name(&event_name, m_dbname, m_tabname,
                          get_binlog_full(share));
@@ -12073,10 +12058,10 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   {
     Ndb_table_guard ndbtab_g2(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
-#ifdef HAVE_NDB_BINLOG
+
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
                                        ::server_id);
-#endif
+
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);
     ndb_rep_event_name(&event_name, new_dbname, new_tabname,
@@ -12760,7 +12745,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
       if (--retries && !thd->killed &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        do_retry_sleep(retry_sleep);
+        ndb_retry_sleep(retry_sleep);
         continue;
       }
       const NdbError err= ndb->getNdbError();
@@ -13076,7 +13061,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   {
     if (thd->killed)
       DBUG_RETURN(-1);
-    my_sleep(1000*delay);
+    ndb_milli_sleep(delay);
   }
   if (result == -1 || th.close() == -1)
   {
@@ -13107,7 +13092,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(1000*delay);        
+          ndb_milli_sleep(delay);
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -13129,7 +13114,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(1000*delay);
+          ndb_milli_sleep(delay);
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -13436,7 +13421,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
       len = unpacked_len;
     }
   }
-#ifdef HAVE_NDB_BINLOG
+
   if (ndbcluster_check_if_local_table(db, name) &&
       !Ndb_dist_priv_util::is_distributed_priv_table(db, name))
   {
@@ -13447,7 +13432,6 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
     error= 1;
     goto err;
   }
-#endif
   *frmlen= len;
   *frmblob= data;
   
@@ -14205,7 +14189,6 @@ int ndbcluster_init(void* p)
     DBUG_RETURN(0); // Return before init will disable ndbcluster-SE.
   }
 
-#ifdef HAVE_NDB_BINLOG
   /* Check const alignment */
   assert(DependencyTracker::InvalidTransactionId ==
          Ndb_binlog_extra_row_info::InvalidTransactionId);
@@ -14219,7 +14202,7 @@ int ndbcluster_init(void* p)
     sql_print_information("NDB: Changed global value of binlog_format from STATEMENT to MIXED");
 
   }
-#endif
+
   if (ndb_util_thread.init() ||
       DBUG_EVALUATE_IF("ndbcluster_init_fail1", true, false))
   {
@@ -14975,7 +14958,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s",
                        dbname, tabname));
 
-  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
@@ -15059,7 +15042,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   DBUG_PRINT("enter",("dbname: %s, tabname: %s",
 		      m_dbname, m_tabname));
 
-  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
@@ -15367,9 +15350,7 @@ NDB_SHARE::create(const char* key, TABLE* table)
   share->commit_count= 0;
   share->commit_count_lock= 0;
 
-#ifdef HAVE_NDB_BINLOG
   share->m_cfn_share= NULL;
-#endif
 
   share->op= 0;
   share->new_op= 0;
@@ -15903,7 +15884,7 @@ retry:
     if (error.status == NdbError::TemporaryError &&
         retries-- && !thd->killed)
     {
-      do_retry_sleep(retry_sleep);
+      ndb_retry_sleep(retry_sleep);
       continue;
     }
     break;
@@ -17389,7 +17370,7 @@ Ndb_util_thread::do_run()
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
-  thd_set_command(thd, COM_DAEMON);
+  thd->set_command(COM_DAEMON);
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   thd->get_protocol_classic()->init_net((st_vio *) 0);
