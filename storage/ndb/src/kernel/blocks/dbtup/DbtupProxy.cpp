@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -225,6 +225,15 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
 
   switch (undo.m_type) {
+  case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
+  case File_formats::Undofile::UNDO_LOCAL_LCP:
+    {
+      undo.m_table_id = ptr[2] >> 16;
+      undo.m_fragment_id = ptr[2] & 0xFFFF;
+      undo.m_actions |= Proxy_undo::SendToAll;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+    }
+    break;
   case File_formats::Undofile::UNDO_LCP_FIRST:
   case File_formats::Undofile::UNDO_LCP:
     {
@@ -353,10 +362,25 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
      * Page request goes to the extra PGMAN worker (our thread).
      * TUP worker reads same page again via another PGMAN worker.
      * MT-LGMAN is planned, do not optimize (pass page) now
+     *
+     * We need to read page in order to get table id and fragment id.
+     * This is not part of the UNDO log information and this information
+     * is required such that we can map this to the correct LDM
+     * instance. We will not make page dirty, so it will be replaced
+     * as soon as we need a dirty page or we're out of pages in this
+     * PGMAN instance.
      */
     Page_cache_client pgman(this, c_pgman);
     Page_cache_client::Request req;
 
+    /**
+     * Ensure that we crash if we try to make a LCP of this page
+     * later, should never happen since we never do any LCP of
+     * pages connected to fragments in extra pgman worker.
+     * page.
+     */
+    req.m_table_id = RNIL;
+    req.m_fragment_id = 0;
     req.m_page = undo.m_key;
     req.m_callback.m_callbackData = 0;
     req.m_callback.m_callbackFunction = 

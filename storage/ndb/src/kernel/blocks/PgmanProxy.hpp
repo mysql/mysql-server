@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,30 +33,6 @@ public:
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
-  // GSN_LCP_FRAG_ORD
-  struct Ss_LCP_FRAG_ORD : SsParallel {
-    /*
-     * Sent once from LQH proxy (at LCP) and LGMAN (at SR).
-     * The pgman instances only set a flag and do not reply.
-     */
-    static const char* name() { return "LCP_FRAG_ORD"; }
-    LcpFragOrd m_req;
-    Ss_LCP_FRAG_ORD() {
-      m_sendREQ = (SsFUNCREQ)&PgmanProxy::sendLCP_FRAG_ORD;
-      m_sendCONF = (SsFUNCREP)0;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_LCP_FRAG_ORD>& pool(LocalProxy* proxy) {
-      return ((PgmanProxy*)proxy)->c_ss_LCP_FRAG_ORD;
-    }
-  };
-  SsPool<Ss_LCP_FRAG_ORD> c_ss_LCP_FRAG_ORD;
-  static Uint32 getSsId(const LcpFragOrd* req) {
-    return SsIdBase | (req->lcpId & 0xFFFF);
-  }
-  void execLCP_FRAG_ORD(Signal*);
-  void sendLCP_FRAG_ORD(Signal*, Uint32 ssId, SectionHandle*);
-
   // GSN_END_LCPREQ
   struct Ss_END_LCPREQ : SsParallel {
     /*
@@ -87,6 +63,7 @@ protected:
   static Uint32 getSsId(const ReleasePagesConf* conf) {
     return conf->senderData;
   }
+  void execSYNC_EXTENT_PAGES_REQ(Signal*);
   void execEND_LCPREQ(Signal*);
   void sendEND_LCPREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execEND_LCPCONF(Signal*);
@@ -99,7 +76,8 @@ protected:
   int get_page(Page_cache_client& caller,
                Signal*, Page_cache_client::Request& req, Uint32 flags);
 
-  void update_lsn(Page_cache_client& caller,
+  void update_lsn(Signal *signal,
+                  Page_cache_client& caller,
                   Local_key key, Uint64 lsn);
 
   int drop_page(Page_cache_client& caller,

@@ -1071,4 +1071,34 @@ ndbd_support_fully_replicated(Uint32 x)
   }
   return 1;
 }
+
+/**
+ * Uses new Partial LCP format for LCPs
+ */
+#define NDBD_USE_PARTIAL_LCP NDB_MAKE_VERSION(7,5,3)
+
+static
+inline
+int
+ndbd_use_partial_lcp(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_USE_PARTIAL_LCP;
+    }
+  }
+  return 1;
+}
 #endif

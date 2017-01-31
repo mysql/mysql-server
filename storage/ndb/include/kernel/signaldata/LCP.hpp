@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,8 +193,9 @@ struct LcpPrepareReq
   Uint32 lcpId;
   Uint32 backupPtr;
   Uint32 backupId;
+  Uint32 createGci;
 
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 9 );
 };
 
 struct LcpPrepareRef
@@ -218,6 +219,50 @@ struct LcpPrepareConf
   STATIC_CONST( SignalLength = 4 );
 };
 
+struct SyncPageCacheReq
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+  Uint32 fragmentId;
+
+  STATIC_CONST( SignalLength = 4 );
+};
+
+struct SyncPageCacheConf
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 diskDataExistFlag;
+
+  STATIC_CONST( SignalLength = 5 );
+};
+
+struct SyncExtentPagesReq
+{
+  enum LcpOrder
+  {
+    FIRST_LCP = 0,
+    INTERMEDIATE_LCP = 1,
+    END_LCP = 2
+  };
+  Uint32 senderData;
+  Uint32 senderRef;
+  LcpOrder lcpOrder;
+
+  STATIC_CONST( SignalLength = 3 );
+};
+
+struct SyncExtentPagesConf
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+
+  STATIC_CONST( SignalLength = 2 );
+};
+
 struct EndLcpReq 
 {
   Uint32 senderData;
@@ -228,15 +273,6 @@ struct EndLcpReq
   Uint32 proxyBlockNo;
 
   STATIC_CONST( SignalLength = 4 );
-};
-
-struct EndLcpRef 
-{
-  Uint32 senderData;
-  Uint32 senderRef;
-  Uint32 errorCode;
-  
-  STATIC_CONST( SignalLength = 3 );
 };
 
 struct EndLcpConf
@@ -298,7 +334,13 @@ public:
     LCP_IDLE       = 0,
     LCP_PREPARED   = 1,
     LCP_SCANNING   = 2,
-    LCP_SCANNED    = 3
+    LCP_SCANNED    = 3,
+    LCP_PREPARE_READ_CTL_FILES = 4,
+    LCP_PREPARE_OPEN_DATA_FILE = 5,
+    LCP_PREPARE_READ_TABLE_DESC = 6,
+    LCP_PREPARE_ABORTING = 7,
+    LCP_WAIT_GCI_TO_DELETE_FILES = 8,
+    LCP_PREPARE_WAIT_DROP_CASE = 9
   };
 private:
   Uint32 senderRef;

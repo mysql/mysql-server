@@ -84,7 +84,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
 
   addRecSignal(GSN_DEBUG_SIG, &Dbtup::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Dbtup::execCONTINUEB);
-  addRecSignal(GSN_LCP_FRAG_ORD, &Dbtup::execLCP_FRAG_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dbtup::execNODE_FAILREP);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtup::execDUMP_STATE_ORD);
@@ -132,6 +131,12 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   // Drop table
   addRecSignal(GSN_FSREMOVEREF, &Dbtup::execFSREMOVEREF, true);
   addRecSignal(GSN_FSREMOVECONF, &Dbtup::execFSREMOVECONF, true);
+  addRecSignal(GSN_FSOPENREF, &Dbtup::execFSOPENREF, true);
+  addRecSignal(GSN_FSOPENCONF, &Dbtup::execFSOPENCONF, true);
+  addRecSignal(GSN_FSREADREF, &Dbtup::execFSREADREF, true);
+  addRecSignal(GSN_FSREADCONF, &Dbtup::execFSREADCONF, true);
+  addRecSignal(GSN_FSCLOSEREF, &Dbtup::execFSCLOSEREF, true);
+  addRecSignal(GSN_FSCLOSECONF, &Dbtup::execFSCLOSECONF, true);
 
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbtup::execSUB_GCP_COMPLETE_REP);
@@ -338,7 +343,11 @@ void Dbtup::execCONTINUEB(Signal* signal)
     handle.getSection(ssptr, 0);
     ::copy(c_proxy_undo_data, ssptr);
     releaseSections(handle);
-    disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);
+    disk_restart_undo(signal,
+                      lsn,
+                      type,
+                      c_proxy_undo_data,
+                      len);
     return;
   }
 
@@ -511,6 +520,12 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
                               &val);
     c_crashOnCorruptedTuple = val ? true : false;
   }
+  /**
+   * Set up read buffer used by Drop Table
+   */
+  NewVARIABLE *bat = allocateBat(1);
+  bat[0].WA = &m_read_ctl_file_data[0];
+  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
 }
 
 void Dbtup::initRecords() 

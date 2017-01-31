@@ -2224,6 +2224,21 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_DB_ENABLE_PARTIAL_LCP,
+    "EnablePartialLcp",
+    DB_TOKEN,
+    "Enable partial LCP, this means a checkpoint only writes the difference"
+    " to the last LCP plus some parts that are fully checkpointed. If this"
+    " isn't enabled then all LCPs are writing a full checkpoint.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
+
+  {
     CFG_DB_AT_RESTART_SKIP_INDEXES,
     "__at_restart_skip_indexes",
     DB_TOKEN,

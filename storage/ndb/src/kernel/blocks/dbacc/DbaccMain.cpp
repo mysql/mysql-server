@@ -40,9 +40,9 @@
 #include <md5_hash.hpp>
 
 #ifdef VM_TRACE
-#define DEBUG(x) ndbout << "DBACC: "<< x << endl;
+#define ACC_DEBUG(x) ndbout << "DBACC: "<< x << endl;
 #else
-#define DEBUG(x)
+#define ACC_DEBUG(x)
 #endif
 
 #ifdef ACC_SAFE_QUEUE
@@ -8518,7 +8518,7 @@ void Dbacc::seizeOpRec()
  * Print some debug info if debug compiled
  */
 void Dbacc::zpagesize_error(const char* where){
-  DEBUG(where << endl
+  ACC_DEBUG(where << endl
 	<< "  ZPAGESIZE_ERROR" << endl
         << "  cfreepages.getCount()=" << cfreepages.getCount() << endl
 	<< "  cnoOfAllocatedPages="<<cnoOfAllocatedPages);

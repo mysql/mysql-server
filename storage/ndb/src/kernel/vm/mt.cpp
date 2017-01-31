@@ -35,6 +35,7 @@
 #include <NdbSleep.h>
 #include <NdbGetRUsage.h>
 #include <portlib/ndb_prefetch.h>
+#include <blocks/pgman.hpp>
 
 #include "mt-asm.h"
 #include "mt-lock.hpp"
@@ -2106,6 +2107,7 @@ found_neighbour:
   struct thr_send_nodes &node_state = m_node_state[node];
 
   assert(node_state.m_data_available > 0);
+  assert(node_state.m_thr_no_sender == NO_OWNER_THREAD);
   node_state.m_next = 0;
   node_state.m_data_available = 1;
   node_state.m_send_thread_instance = instance_no;
@@ -2197,6 +2199,7 @@ thr_send_threads::alert_send_thread(NodeId node,
     return 0;
   }
   assert(!node_state.m_send_overload);      // Caught above as ACTIVE
+  assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
   insert_node(node);                        // IDLE -> PENDING
 
   /**
@@ -2463,11 +2466,11 @@ thr_send_threads::handle_send_node(NodeId & node,
                    class thread_local_pool<thr_send_page>  & send_buffer_pool)
 
 {
+  assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
   if (m_node_state[node].m_micros_delayed > 0)     // Node send is delayed
   {
     if (m_node_state[node].m_send_overload)        // Pause overloaded node
     {
-      m_node_state[node].m_thr_no_sender = NO_OWNER_THREAD;
       return false;
     }
 
@@ -2484,7 +2487,6 @@ thr_send_threads::handle_send_node(NodeId & node,
       set_max_delay(node, now, 0);         // Large packet -> Send now
     else                                   // Sleep, let last awake send
     {
-      m_node_state[node].m_thr_no_sender = NO_OWNER_THREAD;
       if (thr_no >= glob_num_threads)
       {
         /**
@@ -2508,6 +2510,9 @@ thr_send_threads::handle_send_node(NodeId & node,
    * Also avoids worker threads blocking on us in 
    * ::alert_send_thread
    */
+#ifdef VM_TRACE
+  my_thread_yield();
+#endif
   assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
   m_node_state[node].m_thr_no_sender = thr_no;
   NdbMutex_Unlock(send_thread_mutex);
@@ -2530,6 +2535,9 @@ thr_send_threads::handle_send_node(NodeId & node,
    */
   bool more = true;
   Uint32 bytes_sent = 1;
+#ifdef VM_TRACE
+  my_thread_yield();
+#endif
   if (likely(trylock_send_node(node) == 0))
   {
     more = perform_send(node, thr_no, bytes_sent);
@@ -2554,6 +2562,9 @@ thr_send_threads::handle_send_node(NodeId & node,
   now = NdbTick_getCurrentTicks();
 
   NdbMutex_Lock(send_thread_mutex);
+#ifdef VM_TRACE
+  my_thread_yield();
+#endif
   assert(m_node_state[node].m_thr_no_sender == thr_no);
   m_node_state[node].m_thr_no_sender = NO_OWNER_THREAD;
   if (more ||                  // ACTIVE   -> PENDING
@@ -2777,6 +2788,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
      */
     if (node != 0)
     {
+      assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
       insert_node(node);
       node = 0;
     }
@@ -5771,6 +5783,7 @@ mt_finalize_thr_map()
            * extra pgman instance
            */
           require(bno == PGMAN);
+          require(false);
         }
       }
     }

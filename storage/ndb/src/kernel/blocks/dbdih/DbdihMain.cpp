@@ -816,6 +816,8 @@ done:
     c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
     c_lcpState.m_masterLcpDihRef = cmasterdihref;
     setNodeActiveStatus();
+    signal->theData[0] = SYSFILE->latestLCP_ID;
+    sendSignal(DBLQH_REF, GSN_LCP_START_REP, signal, 1, JBB);
     break;
   }
   case CopyGCIReq::RESTART: {
@@ -7402,6 +7404,11 @@ Dbdih::nr_start_fragment(Signal* signal,
    * before the last completed GCI in the LCP and that
    * goes on until at least until the maximum GCI
    * started in the LCP.
+   *
+   * We also verify that the local checkpoint was
+   * performed within the interval that of this node's
+   * last completed GCI. This ensures that we avoid
+   * problems in cases of partial system restarts.
    */
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
@@ -7443,7 +7450,11 @@ Dbdih::nr_start_fragment(Signal* signal,
 		 replicaPtr.p->replicaLastGci[j]);
 #endif
 	if (replicaPtr.p->createGci[j] <= startGci &&
-            replicaPtr.p->replicaLastGci[j] >= stopGci)
+            replicaPtr.p->replicaLastGci[j] >= stopGci &&
+            replicaPtr.p->maxGciCompleted[idx] <=
+              SYSFILE->lastCompletedGCI[replicaPtr.p->procNode] &&
+            replicaPtr.p->maxGciStarted[idx] <=
+              SYSFILE->lastCompletedGCI[replicaPtr.p->procNode])
 	{
 	  maxLcpId = replicaPtr.p->lcpId[idx];
 	  maxLcpIndex = idx;
@@ -7479,7 +7490,11 @@ Dbdih::nr_start_fragment(Signal* signal,
                replicaPtr.p->replicaLastGci[j]);
 #endif
       if (replicaPtr.p->createGci[j] <= startGci &&
-          replicaPtr.p->replicaLastGci[j] >= stopGci)
+          replicaPtr.p->replicaLastGci[j] >= stopGci &&
+          replicaPtr.p->maxGciCompleted[idx] <=
+            SYSFILE->lastCompletedGCI[replicaPtr.p->procNode] &&
+          replicaPtr.p->maxGciStarted[idx] <=
+            SYSFILE->lastCompletedGCI[replicaPtr.p->procNode])
       {
         maxLcpId = replicaPtr.p->lcpId[idx];
         maxLcpIndex = idx;
@@ -7493,6 +7508,7 @@ done:
   
   StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
   req->requestInfo = StartFragReq::SFR_RESTORE_LCP;
+  req->nodeRestorableGci = takeOverPtr.p->restorableGci;
   if (maxLcpIndex == ~ (Uint32) 0)
   {
     /**
@@ -8258,6 +8274,25 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
 
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, conf.senderData);
+
+  TabRecordPtr tabPtr;
+  FragmentstorePtr fragPtr;
+  ReplicaRecordPtr replicaPtr;
+  tabPtr.i = takeOverPtr.p->toCurrentTabref;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
+  findReplica(replicaPtr, fragPtr.p, getOwnNodeId(), true);
+  if (signal->length() == PrepareCopyFragConf::SignalLength &&
+      replicaPtr.p->m_restorable_gci == 0)
+  {
+    /**
+     * DIH had no knowledge about any LCPs, but LQH found a
+     * recoverable LCP so let's use that one instead of no one
+     * at all.
+     */
+    jam();
+    replicaPtr.p->m_restorable_gci = conf.completedGci;
+  }
 
   Uint32 version = getNodeInfo(refToNode(conf.senderRef)).m_version;
   ndbrequire(ndb_check_prep_copy_frag_version(version) >= 2);
@@ -10339,6 +10374,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
      */
     gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
     ndbrequire(false);
+    gcpState = MasterGCPConf::GCP_READY; //Dead code to silence compiler
   }
 
   MasterGCPConf::SaveState saveState;
@@ -13574,6 +13610,7 @@ Dbdih::sendAddFragreq(Signal* signal,
     req->totalFragments = fragCount;
     req->startGci = SYSFILE->newestRestorableGCI;
     req->logPartId = fragPtr.p->m_log_part_id;
+    req->createGci = replicaPtr.p->initialGci;
 
     if (connectPtr.p->connectState != ConnectRecord::ALTER_TABLE)
     {
@@ -24942,15 +24979,48 @@ Dbdih::setup_create_replica(FragmentstorePtr fragPtr,
   createReplicaPtrP->dataNodeId = replicaPtr.p->procNode;
   createReplicaPtrP->replicaRec = replicaPtr.i;
 
-  /* ----------------------------------------------------------------- */
-  /*   WE NEED TO SEARCH FOR A PROPER LOCAL CHECKPOINT TO USE FOR THE  */
-  /*   SYSTEM RESTART.                                                 */
-  /* ----------------------------------------------------------------- */
+  /**
+   * We search for a proper local checkpoint to use for the system restart.
+   * This local checkpoint isn't allowed to use any GCIs beyond what is
+   * restorable from this node. It is possible that the following has
+   * happened if we use a too fresh local checkpoint.
+   * 
+   * Assume we have a simple 2-node cluster with node 1 and 2.
+   * 1) Cluster crashes
+   * 2) Node 2 performs system restart on its own.
+   * 3) Node 2 runs for a few GCIs and then crashes.
+   * 4) Node 1 and Node 2 performs system restart.
+   *
+   * If we come here as part of 4) and we grab a local checkpoint that is
+   * newer than our last completed GCI, then we could restore data which
+   * was overwritten by the restart performed by the Node 2 on its own
+   * and its running afterwards.
+   *
+   * We cannot distinguish the above case from the following.
+   *
+   * 1) Node 1 crashes
+   * 2) Node 2 crashes and thus cluster has crashed
+   * 3) Node 1 and Node 2 are restarted in a system restart
+   *
+   * In the above case Node 1 sees exactly the same view here as with the
+   * case above. In this case it is ok to use a more recent local checkpoint
+   * than our last completed GCI since all data we will restore was also
+   * committed and saved by Node 2 before crashing. Thus it would be safe
+   * to use a more recent local checkpoint in this case.
+   *
+   * The fact is however that when we come here we have no way of
+   * finding out which of those two scenarios that have happened.
+   * So the only safe manner of proceeding here is to not use local
+   * checkpoints that are too new.
+   *
+   * Doing so will require a bit more REDO log to be executed, but the
+   * recovery will still work perfectly fine.
+   */
   Uint32 startGci;
   Uint32 startLcpNo;
-  Uint32 stopGci = SYSFILE->newestRestorableGCI;
+  Uint32 nodeStopGci = SYSFILE->lastCompletedGCI[replicaPtr.p->procNode];
   bool result = findStartGci(replicaPtr,
-			     stopGci,
+			     nodeStopGci,
 			     startGci,
 			     startLcpNo);
   if (!result) 
@@ -24987,6 +25057,7 @@ Dbdih::setup_create_replica(FragmentstorePtr fragPtr,
   /*   CASES WE NEED TO FIND A SET OF LOGS THAT CAN EXECUTE SUCH THAT  */
   /*   WE RECOVER TO THE SYSTEM RESTART GLOBAL CHECKPOINT.             */
   /* -_--------------------------------------------------------------- */
+  Uint32 stopGci = SYSFILE->newestRestorableGCI;
   return findLogNodes(createReplicaPtrP, fragPtr, startGci, stopGci);
 }			    
 
@@ -25106,6 +25177,8 @@ void Dbdih::sendStartFragreq(Signal* signal,
       startFragReq->lastGci[i] = replicaPtr.p->logStopGci[i];
     }//for    
 
+    startFragReq->nodeRestorableGci =
+      SYSFILE->lastCompletedGCI[replicaPtr.p->dataNodeId];
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }//for

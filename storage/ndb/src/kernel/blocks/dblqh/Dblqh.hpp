@@ -40,6 +40,7 @@
 #include "../dbtup/Dbtup.hpp"
 #include "../dbacc/Dbacc.hpp"
 #include "../dbtux/Dbtux.hpp"
+#include "../backup/Backup.hpp"
 
 class Dbacc;
 class Dbtup;
@@ -799,10 +800,11 @@ public:
      *       The newest GCI that has been committed on fragment             
      */
     UintR newestGci;
+    Uint32 m_completed_gci;
     SrStatus srStatus;
     UintR srUserptr;
     /**
-     *       The starting global checkpoint of this fragment.
+     *       The global checkpoint when table was created for this fragment.
      */
     UintR startGci;
     /**
@@ -891,8 +893,8 @@ public:
    /**
      *       How many local checkpoints does the fragment contain
      */
-    Uint8 srChkpnr;
-    Uint8 srNoLognodes;
+    Uint16 srChkpnr;
+    Uint8  srNoLognodes;
     /**
      *       Table type.
      */
@@ -902,6 +904,10 @@ public:
      *       fragment in primary table.
      */
     UintR tableFragptr;
+    /**
+     *       The GCI when the table was created
+     */
+    Uint32 createGci;
 
     /**
      * Log part
@@ -1111,17 +1117,14 @@ public:
     
     enum LcpState {
       LCP_IDLE = 0,
-      LCP_COMPLETED = 2,
-      LCP_WAIT_FRAGID = 3,
-      LCP_WAIT_TUP_PREPLCP = 4,
-      LCP_WAIT_HOLDOPS = 5,
-      LCP_START_CHKP = 7,
-      LCP_SR_WAIT_FRAGID = 8,
-      LCP_SR_STARTED = 9,
-      LCP_SR_COMPLETED = 10
+      LCP_COMPLETED = 1,
+      LCP_PREPARING = 2,
+      LCP_PREPARED = 3,
+      LCP_CHECKPOINTING = 4
     };
  
-    LcpState lcpState;
+    LcpState lcpPrepareState;
+    LcpState lcpRunState;
     bool firstFragmentFlag;
     bool lastFragmentFlag;
 
@@ -1129,17 +1132,19 @@ public:
       Uint32 fragPtrI;
       LcpFragOrd lcpFragOrd;
     };
-    FragOrd currentFragment;
+    FragOrd currentPrepareFragment;
+    FragOrd currentRunFragment;
     
     bool   reportEmpty;
     NdbNodeBitmask m_EMPTY_LCP_REQ;
 
-    Uint32 m_error;
     Uint32 m_outstanding;
 
     Uint64 m_no_of_records;
     Uint64 m_no_of_bytes;
-  }; // Size 76 bytes
+
+    Uint64 m_current_lcp_lsn;
+  };
   typedef Ptr<LcpRecord> LcpRecordPtr;
 
   struct IOTracker
@@ -1255,7 +1260,7 @@ public:
    */
   struct LCPFragWatchdog
   {
-    STATIC_CONST( PollingPeriodMillis = 10000 ); /* 10s */
+    STATIC_CONST( PollingPeriodMillis = 1000 ); /* 10s */
     Uint32 WarnElapsedWithNoProgressMillis; /* LCP Warn, milliseconds */
     Uint32 MaxElapsedWithNoProgressMillis;  /* LCP Fail, milliseconds */
 
@@ -2629,7 +2634,6 @@ private:
   void checkLcpTupprep(Signal* signal);
   void getNextFragForLcp(Signal* signal);
   void sendAccContOp(Signal* signal);
-  void sendStartLcp(Signal* signal);
   void setLogTail(Signal* signal, Uint32 keepGci);
   Uint32 remainingLogSize(const LogFileRecordPtr &sltCurrLogFilePtr,
 			  const LogPartRecordPtr &sltLogPartPtr);
@@ -2699,12 +2703,6 @@ private:
                    Uint32 copyType);
   void initFragrecSr(Signal* signal);
   void initGciInLogFileRec(Signal* signal, Uint32 noFdDesc);
-  void initLcpSr(Signal* signal,
-                 Uint32 lcpNo,
-                 Uint32 lcpId,
-                 Uint32 tableId,
-                 Uint32 fragId,
-                 Uint32 fragPtr);
   void initLogpart(Signal* signal);
   void initLogPointers(Signal* signal);
   void initReqinfoExecSr(Signal* signal);
@@ -2870,9 +2868,14 @@ private:
   void copyStateFinishedLab(Signal* signal);
   void lcpCompletedLab(Signal* signal);
   void lcpStartedLab(Signal* signal);
-  void contChkpNextFragLab(Signal* signal);
+  void completed_fragment_checkpoint(Signal *signal,
+                                     const LcpRecord::FragOrd & fragOrd);
+  void prepare_next_fragment_checkpoint(Signal* signal);
+  void perform_fragment_checkpoint(Signal *signal);
+  void handleFirstFragment(Signal *signal);
   void startLcpRoundLab(Signal* signal);
   void startFragRefLab(Signal* signal);
+  void move_start_gci_forward(Signal*, Uint32);
   void srCompletedLab(Signal* signal);
   void openFileInitLab(Signal* signal);
   void openSrFrontpageLab(Signal* signal);
@@ -2940,7 +2943,19 @@ private:
   void initRecords();
 protected:
   virtual bool getParam(const char* name, Uint32* count);
-  
+
+public:
+  void lcp_max_completed_gci(Uint32 & maxCompletedGci);
+  void lcp_complete_scan(Uint32 & newestGci);
+  Uint64 get_current_lcp_lsn(void);
+  void get_lcp_frag_stats(Uint64 & commit_count,
+                          Uint64 & row_count,
+                          Uint64 & memory_used_in_bytes,
+                          Uint32 & max_page_cnt,
+                          bool reset_flag);
+  void get_redo_size(Uint64 &size_in_bytes);
+  void get_redo_usage(Uint64 &used_in_bytes);
+
 private:
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, Ptr<TcConnectionrec>);
@@ -2951,11 +2966,29 @@ private:
   void execDEFINE_BACKUP_CONF(Signal*);
   void execBACKUP_FRAGMENT_REF(Signal* signal);
   void execBACKUP_FRAGMENT_CONF(Signal* signal);
+  void execLCP_START_REP(Signal *signal);
   void execLCP_PREPARE_REF(Signal* signal);
   void execLCP_PREPARE_CONF(Signal* signal);
   void execEND_LCPREF(Signal* signal);
   void execEND_LCPCONF(Signal* signal);
+
   Uint32 m_backup_ptr;
+  bool m_node_restart_lcp_first_phase_started;
+  bool m_node_restart_lcp_second_phase_started;
+  Uint32 m_first_activate_fragment_ptr_i;
+  Uint32 m_curr_lcp_id;
+  Uint32 m_curr_local_lcp_id;
+  Uint32 c_saveLcpId;
+  Uint32 c_restart_localLcpId;
+  Uint32 c_restart_lcpId;
+
+  void execWAIT_COMPLETE_LCP_REQ(Signal*);
+  void execWAIT_ALL_COMPLETE_LCP_CONF(Signal*);
+
+  void handle_lcp_fragment_first_phase(Signal*);
+  void activate_redo_log(Signal*, Uint32, Uint32);
+  void start_lcp_second_phase(Signal*);
+  void complete_local_lcp(Signal*);
 
   void send_restore_lcp(Signal * signal);
   void execRESTORE_LCP_REF(Signal* signal);
@@ -2986,10 +3019,12 @@ private:
   void stopLcpFragWatchdog();
   void invokeLcpFragWatchdogThread(Signal* signal);
   void checkLcpFragWatchdog(Signal* signal);
+  const char* lcpStateString(LcpStatusConf::LcpState);
   
   Dbtup* c_tup;
   Dbtux* c_tux;
   Dbacc* c_acc;
+  Backup* c_backup;
   Lgman* c_lgman;
 
   /**

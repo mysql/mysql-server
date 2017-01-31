@@ -11,6 +11,7 @@ TimeBetweenWatchDogCheck=      30000
 MaxNoOfOrderedIndexes=         128
 MaxNoOfAttributes=             2048
 TimeBetweenGlobalCheckpoints=  3000
+TimeBetweenLocalCheckpoints=   6
 TimeBetweenEpochs=             100
 NoOfFragmentLogFiles=          4
 FragmentLogFileSize=           12M

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -214,11 +214,10 @@ private:
  * 01234567890123456789012345678901
  *                 ssssssssvvvvvvvv
  *
- * -- v3 --
+ * -- v5 --
  * File number[0] = Table
  * File number[1] = LcpNo
- * File number[2] = 
- * File number[3] =
+ * File number[2] = Fragment Id
  *   v = version   24 - 31
  *   s = v1_suffix 16 - 23
  *
