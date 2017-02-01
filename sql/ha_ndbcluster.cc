@@ -19100,49 +19100,39 @@ err:
 }
 
 
+static
 int
-ha_ndbcluster::inplace_alter_frm(const char *file,
-                                 NDB_ALTER_DATA *alter_data)
+inplace_set_sdi_and_alter_in_ndb(THD *thd,
+                                 const NDB_ALTER_DATA* alter_data,
+                                 const dd::Table* new_table_def,
+                                 const char* schema_name)
 {
-  DBUG_ENTER("inplace_alter_frm");
-  DBUG_PRINT("enter", ("file: %s", file));
+  DBUG_ENTER("inplace_set_sdi_and_alter_in_ndb");
 
-  DBUG_ASSERT(m_table != 0);
-  DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
-
-  uchar *data;
-  size_t length;
-  if (readfrm(file, &data, &length))
+  dd::sdi_t sdi;
+  if (!ndb_sdi_serialize(thd, *new_table_def, schema_name, sdi))
   {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
-    my_error(ER_FILE_NOT_FOUND, MYF(0), file,
-             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     DBUG_RETURN(1);
   }
 
-  DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb",
-                      m_tabname));
-  NdbDictionary::Dictionary* dict= alter_data->dictionary;
   NdbDictionary::Table* new_tab= alter_data->new_table;
-
   const int set_result =
-      new_tab->setExtraMetadata(1, // version 1 for frm
-                                data, (Uint32)length);
+      new_tab->setExtraMetadata(2, // version 2 for frm
+                                sdi.c_str(), (Uint32)sdi.length());
   if (set_result != 0)
   {
-    my_free(data);
     my_printf_error(ER_GET_ERRMSG,
                     "Failed to set extra metadata during"
                     "inplace alter table, error: %d",
                     MYF(0), set_result);
     DBUG_RETURN(2);
   }
-  my_free(data); // Release 'data', it has been copied into new_tab
 
+  NdbDictionary::Dictionary* dict= alter_data->dictionary;
   if (dict->alterTableGlobal(*alter_data->old_table, *new_tab))
   {
-    DBUG_PRINT("info", ("Online alter of table %s failed", m_tabname));
+    DBUG_PRINT("info", ("Inplace alter of table %s failed",
+                        new_tab->getName()));
     const NdbError ndberr= dict->getNdbError();
     const int error= ndb_to_mysql_error(&ndberr);
     my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDBCLUSTER");
@@ -19156,7 +19146,8 @@ ha_ndbcluster::inplace_alter_frm(const char *file,
 bool
 ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info,
-                                   const dd::Table *, dd::Table *)
+                                   const dd::Table *,
+                                   dd::Table * new_table_def)
 {
   DBUG_ENTER("ha_ndbcluster::inplace_alter_table");
   int error= 0;
@@ -19204,8 +19195,11 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
     }
   }
 
-  DBUG_PRINT("info", ("getting frm file %s", altered_table->s->path.str));
-  error= inplace_alter_frm(altered_table->s->path.str, alter_data);
+  DBUG_ASSERT(m_table != 0);
+  DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
+
+  error= inplace_set_sdi_and_alter_in_ndb(thd, alter_data,
+                                          new_table_def, m_dbname);
   if (!error)
   {
     /*
