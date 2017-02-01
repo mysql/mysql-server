@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,7 +108,12 @@ CPCD::Process::monitor() {
     }
     break;
   case STOPPED:
-    assert(!isRunning());
+    if(!isRunning())
+    {
+      logger.critical("STOPPED process still isRunning(%d) invalid pid: %d",
+                      m_id,
+                      m_pid);
+    }
     break;
   case STOPPING:
     break;
@@ -151,16 +156,19 @@ CPCD::Process::isRunning() {
     switch(errno) {
     case EPERM:
       logger.critical("Not enough privileges to control pid %d\n", m_pid);
+      /* Should never happen! What to do? Process still alive, zombie,
+         or new process started with same pid? */
       break;
     case ESRCH:
       /* The pid in the file does not exist, which probably means that it
 	 has died, or the file contains garbage for some other reason */
+      return false;
       break;
     default:
       logger.critical("Cannot not control pid %d: %s\n", m_pid, strerror(errno));
+      /* Should never happen! Program bug? */
       break;
     }
-    return false;
   }
 #endif
   return true;
@@ -700,9 +708,23 @@ CPCD::Process::stop() {
     switch(ret) {
     case 0:
       logger.debug("Sent SIGKILL to pid %d", (int)-m_pid);
+      /* Keep state STOPPING until process group is verified gone */
+      return;
       break;
     default:
-      logger.debug("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
+      switch (errno)
+      {
+      case ESRCH:
+        logger.debug("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
+        /* Process group stopped, continue mark process STOPPED */
+        break;
+      case EPERM:
+      case EINVAL:
+      default:
+        logger.error("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
+        /* Process not safely stopped, keep STOPPING */
+        return;
+      }
       break;
     }
   } 
