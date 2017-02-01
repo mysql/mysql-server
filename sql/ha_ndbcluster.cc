@@ -2149,26 +2149,20 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
   return (defaults_aligned? 0: -1);
 }
 
-int ha_ndbcluster::get_metadata(THD *thd, const char *path)
+
+int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
 {
   Ndb *ndb= get_thd_ndb(thd)->ndb;
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *tab;
-  int error;
   DBUG_ENTER("get_metadata");
-  DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, path));
+  DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
   DBUG_ASSERT(m_table == NULL);
   DBUG_ASSERT(m_table_info == NULL);
 
-  uchar *data;
-  size_t length;
-
-  /*
-    Compare FrmData in NDB with frm file from disk.
-  */
-  error= 0;
-  if (readfrm(path, &data, &length))
+  dd::sdi_t sdi;
+  if (!ndb_sdi_serialize(thd, *table_def, m_dbname, sdi))
   {
     DBUG_RETURN(1);
   }
@@ -2178,16 +2172,29 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   if (!(tab= ndbtab_g.get_table()))
   {
     ERR_RETURN(dict->getNdbError());
-    my_free(data);
   }
 
+  // Check that the serialized table definition from DD
+  // matches the serialized table definition in NDB
   if (get_ndb_share_state(m_share) != NSS_ALTERED &&
-      cmp_unpacked_frm(tab, data, length))
+      cmp_unpacked_frm(tab, sdi.c_str(), sdi.length()))
   {
     DBUG_PRINT("error", ("extra metadata differs"));
-    error= HA_ERR_TABLE_DEF_CHANGED;
+
+    // This failure should hardly ever happen, it indicates that
+    // schema distribution has failed somehow and the data dictionary is
+    // not consistent with what is in NDB, catch in debug
+    DBUG_ASSERT(!HA_ERR_TABLE_DEF_CHANGED);
+
+    ndbtab_g.invalidate();
+
+    // When returning HA_ERR_TABLE_DEF_CHANGED from handler::open()
+    // the caller is intended to call ha_discover() in order to let
+    // the engine install the correct table defnition in the
+    // data dictionary, then the open() will be retired and presumably
+    // the table definition will be correct
+    DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
   }
-  my_free(data);
 
   // Create field to column map when table is opened
   m_table_map = new Ndb_table_map(table, tab);
@@ -2197,14 +2204,12 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   */
   DBUG_ASSERT(check_default_values(tab) == 0);
 
-  if (error)
-    goto err;
-
   DBUG_PRINT("info", ("fetched table %s", tab->getName()));
   m_table= tab;
 
   ndb_bitmap_init(m_bitmap, m_bitmap_buf, table_share->fields);
 
+  int error = 0;
   if (table_share->primary_key == MAX_KEY)
   {
     /* Hidden primary key. */
@@ -12893,7 +12898,7 @@ ha_ndbcluster::~ha_ndbcluster()
 */
 
 int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
-                        const dd::Table *)
+                        const dd::Table* table_def)
 {
   THD *thd= current_thd;
   int res;
@@ -13008,7 +13013,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
                            m_share->key_string(), m_share->use_count));
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
 
-  if ((res= get_metadata(thd, name)))
+  if ((res= get_metadata(thd, table_def)))
   {
     local_close(thd, FALSE);
     DBUG_RETURN(res);

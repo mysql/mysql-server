@@ -71,8 +71,6 @@ cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
     DBUG_RETURN(1);
   }
 
-  DBUG_ASSERT(version == 1); // Only extra metadata with frm now
-
   if (data_length != unpacked_length)
   {
     free(unpacked_data);
