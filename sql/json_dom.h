@@ -1223,6 +1223,24 @@ public:
   bool to_binary(const THD *thd, String *str) const;
 
   /**
+    Check if the wrapped JSON document is a binary value (a
+    json_binary::Value), and if that binary is pointing to data stored in the
+    given string.
+
+    This function can be used to check if overwriting the data in the string
+    might overwrite and corrupt the document contained in this wrapper.
+
+    @param str    a string which contains JSON binary data
+    @retval true  if the string contains data that the wrapped document
+                  points to from its json_binary::Value representation
+    @retval false otherwise
+  */
+  bool is_binary_backed_by(const String *str) const
+  {
+    return !m_is_dom && m_value.is_backed_by(str);
+  }
+
+  /**
     Format the JSON value to an external JSON string in buffer in
     the format of ISO/IEC 10646.
 

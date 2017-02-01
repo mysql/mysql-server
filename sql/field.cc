@@ -8913,10 +8913,28 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  if (json->to_binary(table->in_use, &value))
+  /*
+    We want to serialize the JSON value directly into Field_blob::value if
+    possible, so that we don't have to copy it there afterwards.
+
+    If the Json_wrapper is pointing to a document that already lives in
+    Field_blob::value, it isn't safe to do so, since the source buffer and
+    destination buffer is the same. This can happen if an UPDATE statement
+    updates the same JSON column twice and the second update of the column
+    reads data that the first update wrote to the output buffer. For example:
+
+      UPDATE t SET json_col = <something>, json_col = json_col->'$.path'
+
+    In that case, we serialize into a temporary string, which is later copied
+    into Field_blob::value by store_binary().
+  */
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> tmpstr;
+  String *buffer= json->is_binary_backed_by(&value) ? &tmpstr : &value;
+
+  if (json->to_binary(table->in_use, buffer))
     return TYPE_ERR_BAD_VALUE;
 
-  return store_binary(value.ptr(), value.length());
+  return store_binary(buffer->ptr(), buffer->length());
 }
 
 

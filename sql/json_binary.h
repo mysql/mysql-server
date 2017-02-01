@@ -195,6 +195,7 @@ public:
   Value key(size_t pos) const;
   enum_field_types field_type() const;
   Value lookup(const char *key, size_t len) const;
+  bool is_backed_by(const String *str) const;
   bool raw_binary(const THD *thd, String *buf) const;
 
   /** Constructor for values that represent literals or errors. */

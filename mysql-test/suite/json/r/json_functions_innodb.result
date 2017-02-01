@@ -9647,6 +9647,32 @@ Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE t1;
 #
+# Bug#25461627: VALGRIND WARNING WHEN UPDATING A JSON COLUMN
+#
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES (NULL);
+UPDATE t SET j = JSON_ARRAY(REPEAT('a', 32)),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+UPDATE t SET j = JSON_ARRAY(CAST(REPEAT('b', 32) AS BINARY)),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+"base64:type15:YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+UPDATE t SET j = JSON_ARRAY(JSON_ARRAY(REPEAT('c', 32))),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+["cccccccccccccccccccccccccccccccc"]
+UPDATE t SET j = JSON_ARRAY(JSON_OBJECT(REPEAT('d', 16), REPEAT('e', 16))),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+{"dddddddddddddddd": "eeeeeeeeeeeeeeee"}
+DROP TABLE t;
+#
 # WL#9191: JSON_PRETTY function
 #
 CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,

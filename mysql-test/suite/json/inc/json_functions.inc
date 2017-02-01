@@ -3490,6 +3490,25 @@ SELECT * FROM t1 ORDER BY f1, pk, fj;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#25461627: VALGRIND WARNING WHEN UPDATING A JSON COLUMN
+--echo #
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES (NULL);
+UPDATE t SET j = JSON_ARRAY(REPEAT('a', 32)),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(CAST(REPEAT('b', 32) AS BINARY)),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(JSON_ARRAY(REPEAT('c', 32))),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(JSON_OBJECT(REPEAT('d', 16), REPEAT('e', 16))),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
 --echo # WL#9191: JSON_PRETTY function
 --echo #
 CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
