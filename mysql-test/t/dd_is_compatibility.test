@@ -30,9 +30,8 @@ SET @old_information_schema_stats= @@session.information_schema_stats;
 SET @@session.information_schema_stats= cached;
 
 --echo # Getting cached statistics needs ANALYZE.
-CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t1 (i INTEGER, KEY cached_key(i));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-ALTER TABLE t1 ADD KEY cached_key(i);
 --echo # Before ANALYZE, cardinality is NULL.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
 ANALYZE TABLE t1;
@@ -43,15 +42,22 @@ DROP TABLE t1;
 SET @@session.information_schema_stats= latest;
 
 --echo # Getting latest statistics does not need ANALYZE.
-CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t1 (i INTEGER, KEY latest_key(i));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-ALTER TABLE t1 ADD KEY latest_key(i);
+
+--echo # Wait until InnoDB background thread updates the statistics.
+let $wait_condition = SELECT stat_value = 10
+      FROM mysql.innodb_index_stats
+      WHERE table_name = 't1'
+        AND index_name = 'latest_key'
+        AND stat_name = 'n_diff_pfx01';
+--source include/wait_condition.inc
+
 --echo # Cardinality is correct even without ANALYZE.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
 DROP TABLE t1;
 
 SET @@session.information_schema_stats= @old_information_schema_stats;
-
 
 --echo #########################################################
 --echo # Issue WL#6599/HLS/6b): DD tables listed in I_S query output.
