@@ -76,6 +76,18 @@ public:
                           std::vector<std::string> &processed_peers);
 
   /**
+    Validates peer nodes according with IP/Address rules enforced by
+    is_valid_hostname function
+
+    @param [in,out] peers input list of peer nodes. It will be cleansed of
+                    invalid peers
+    @param [in,out] invalid_peers This list will contain all invalid peers.
+   */
+  static
+  void validate_peer_nodes(std::vector<std::string> &peers,
+                           std::vector<std::string> &invalid_peers);
+
+  /**
    Simple multiplicative hash.
 
    @param buf the data to create an hash from
