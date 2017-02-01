@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,19 +35,12 @@ IF(UNIX)
     IF(WITH_VALGRIND)
       SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
     ENDIF()
-    # Disable expensive-optimization if shift-or-optimization bug effective
-    IF(HAVE_C_SHIFT_OR_OPTIMIZATION_BUG)
-      SET(C_NO_EXPENSIVE_OPTIMIZATIONS TRUE)
-    ENDIF()
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_C_FLOATING_POINT_FUSED_MADD)
       SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -ffp-contract=off")
     ENDIF()
     IF(NOT DISABLE_SHARED)
       SET(COMMON_C_FLAGS             "-fPIC ${COMMON_C_FLAGS}")
-    ENDIF()
-    IF(C_NO_EXPENSIVE_OPTIMIZATIONS)
-      SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -fno-expensive-optimizations")
     ENDIF()
     SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
@@ -58,19 +51,12 @@ IF(UNIX)
     IF(WITH_VALGRIND)
       SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
     ENDIF()
-    # Disable expensive-optimization if shift-or-optimization bug effective
-    IF(HAVE_CXX_SHIFT_OR_OPTIMIZATION_BUG)
-      SET(CXX_NO_EXPENSIVE_OPTIMIZATIONS TRUE)
-    ENDIF()
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_CXX_FLOATING_POINT_FUSED_MADD)
       SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -ffp-contract=off")
     ENDIF()
     IF(NOT DISABLE_SHARED)
       SET(COMMON_CXX_FLAGS             "-fPIC ${COMMON_CXX_FLAGS}")
-    ENDIF()
-    IF(CXX_NO_EXPENSIVE_OPTIMIZATIONS)
-      SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -fno-expensive-optimizations")
     ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
@@ -145,3 +131,16 @@ IF(UNIX)
     ENDIF()
   ENDIF()
 ENDIF()
+
+SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} ${COMMON_C_WORKAROUND_FLAGS}")
+SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} ${COMMON_CXX_WORKAROUND_FLAGS}")
+SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${COMMON_C_WORKAROUND_FLAGS}")
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${COMMON_CXX_WORKAROUND_FLAGS}")
+SET(CMAKE_C_FLAGS_RELEASE
+      "${CMAKE_C_FLAGS_RELEASE} ${COMMON_C_WORKAROUND_FLAGS}")
+SET(CMAKE_CXX_FLAGS_RELEASE
+      "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_CXX_WORKAROUND_FLAGS}")
