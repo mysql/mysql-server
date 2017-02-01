@@ -1086,7 +1086,7 @@ TEST_F(CacheStorageTest, TestRename)
       temp_table->set_name("updated_table_name");
 
       // Change name of columns and indexes
-      for (const dd::Column *c : temp_table->columns())
+      for (const dd::Column *c : *temp_table->columns())
         const_cast<dd::Column*>(c)->set_name(c->name() + "_changed");
       for (dd::Index *i : *temp_table->indexes())
         i->set_name(i->name() + "_changed");

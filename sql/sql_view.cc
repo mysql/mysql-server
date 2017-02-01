@@ -811,6 +811,7 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
                         enum_view_create_mode mode,
                         bool commit_dd_changes)
 {
+  bool update_view= false;
   LEX *lex= thd->lex;
 
   /*
@@ -981,6 +982,8 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
         goto err;
       }
 
+      update_view= true;
+
       /*
         TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
@@ -1073,16 +1076,16 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;
   }
 
-  if (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
-      dd::drop_table<dd::View>(thd, view->db, view->table_name,
-                               commit_dd_changes))
+  // It is either ALTER or CREATE OR REPLACE of an existing view.
+  if (update_view)
   {
-    error= 1;
-    goto err;
-  }
-
-  if (dd::create_view(thd, view, view->db, view->table_name,
-                      commit_dd_changes))
+    if (dd::update_view(thd, view, commit_dd_changes))
+    {
+      error= 1;
+      goto err;
+    }
+  } //It is either CREATE or CREATE OR REPLACE of non-existent view.
+  else if (dd::create_view(thd, view, commit_dd_changes))
   {
     error= 1;
     goto err;

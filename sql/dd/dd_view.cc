@@ -47,6 +47,7 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "mysql_time.h"                       // MYSQL_TIME
 #include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
 #include "session_tracker.h"
 #include "sp.h"                               // Sroutine_hash_entry
@@ -60,6 +61,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "transaction.h"                      // trans_commit
+#include "tztime.h"                           // Time_zone
 
 namespace dd {
 
@@ -518,42 +520,22 @@ static void fill_dd_view_routines(
 }
 
 
-bool create_view(THD *thd,
-                 TABLE_LIST *view,
-                 const char *schema_name,
-                 const char *view_name,
-                 bool commit_dd_changes)
+/**
+  Method to fill view information in the View object.
+
+  @param  thd          Thread handle.
+  @param  view_obj     DD view object.
+  @param  view         View description.
+
+  @retval false        On success.
+  @retval true         On failure.
+*/
+
+static bool fill_dd_view_definition(THD *thd, View *view_obj,
+                                    TABLE_LIST *view)
 {
-  dd::cache::Dictionary_client *client= thd->dd_client();
-
-  // Check if the schema exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Schema *sch_obj= nullptr;
-  if (client->acquire(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!sch_obj)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
-    return true;
-  }
-
-  // Create dd::View object.
-  std::unique_ptr<dd::View> view_obj;
-  if (dd::get_dictionary()->is_system_view_name(schema_name, view_name))
-  {
-    view_obj.reset(sch_obj->create_system_view(thd));
-  }
-  else
-  {
-    view_obj.reset(sch_obj->create_view(thd));
-  }
-
-  // View name.
-  view_obj->set_name(view_name);
+   // View name.
+  view_obj->set_name(view->table_name);
 
   // Set definer.
   view_obj->set_definer(view->definer.user.str, view->definer.host.str);
@@ -631,14 +613,96 @@ bool create_view(THD *thd,
   view_options->set_bool("view_valid", true);
 
   // Fill view columns information in View object.
-  if (fill_dd_view_columns(thd, view_obj.get(), view))
+  if (fill_dd_view_columns(thd, view_obj, view))
     return true;
 
   // Fill view tables information in View object.
-  fill_dd_view_tables(view_obj.get(), view, thd->lex->query_tables);
+  fill_dd_view_tables(view_obj, view, thd->lex->query_tables);
 
   // Fill view routines information in View object.
-  fill_dd_view_routines(view_obj.get(), &thd->lex->sroutines_list);
+  fill_dd_view_routines(view_obj, &thd->lex->sroutines_list);
+
+  return false;
+}
+
+
+bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
+{
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+  dd::View *new_view= nullptr;
+  if (client->acquire_for_modification(view->db, view->table_name,
+                                       &new_view))
+    return true;
+
+  DBUG_ASSERT(new_view != nullptr);
+
+  // Clear the columns, tables and routines since it will be added later.
+  new_view->remove_children();
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
+                                            thd->query_start_in_secs());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+  // Set last altered time.
+  new_view->set_last_altered(ull_curtime);
+
+  if (fill_dd_view_definition(thd, new_view, view))
+    return true;
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  // Update DD tables.
+  if (client->update(new_view))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+    return true;
+  }
+
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
+
+}
+
+
+bool create_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
+{
+  dd::cache::Dictionary_client *client= thd->dd_client();
+
+  // Check if the schema exists.
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+  const dd::Schema *sch_obj= nullptr;
+  if (client->acquire(view->db, &sch_obj))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (!sch_obj)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
+    return true;
+  }
+
+  // Create dd::View object.
+  std::unique_ptr<dd::View> view_obj;
+  if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name))
+  {
+    view_obj.reset(sch_obj->create_system_view(thd));
+  }
+  else
+  {
+    view_obj.reset(sch_obj->create_view(thd));
+  }
+
+  if (fill_dd_view_definition(thd, view_obj.get(), view))
+    return true;
 
   Disable_gtid_state_update_guard disabler(thd);
 

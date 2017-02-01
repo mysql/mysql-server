@@ -70,6 +70,8 @@ public:
 
   virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
 
+  virtual void remove_children();
+
   virtual bool restore_attributes(const Raw_record &r);
 
   virtual bool store_attributes(Raw_record *r);
@@ -249,6 +251,8 @@ public:
   virtual Column *add_column()
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
+  { return Abstract_table_impl::columns(); }
+  virtual Column_collection *columns()
   { return Abstract_table_impl::columns(); }
   const Column *get_column(const String_type name) const
   { return Abstract_table_impl::get_column(name); }

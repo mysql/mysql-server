@@ -1,0 +1,23 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # BUG#24594140: VIEW GETS DROPPED IF ALTER VIEW FAILS WITH
+--echo #               ERRNO 1213 (ER_LOCK_DEADLOCK)
+--echo #
+
+CREATE TABLE test.t1(fld1 INT);
+CREATE VIEW test.v1 AS SELECT * FROM test.t1;
+
+SET SESSION debug= "+d, inject_error_ha_write_row";
+--error ER_GET_ERRNO
+ALTER VIEW test.v1 AS SELECT * FROM test.t1;
+SET SESSION debug= "-d, inject_error_ha_write_row";
+
+--echo # Without patch, results in 'v1' not found error
+--echo # since the view is dropped but the re-create failed
+--echo # during the above ALTER VIEW.
+ALTER VIEW test.v1 AS SELECT * FROM test.t1;
+
+--echo # Cleanup.
+DROP VIEW test.v1;
+DROP TABLE test.t1;

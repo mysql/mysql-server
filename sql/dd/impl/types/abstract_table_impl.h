@@ -146,6 +146,9 @@ public:
   virtual const Column_collection &columns() const
   { return m_columns; }
 
+  virtual Column_collection *columns()
+  { return &m_columns; }
+
   const Column *get_column(Object_id column_id) const;
 
   Column *get_column(Object_id column_id);

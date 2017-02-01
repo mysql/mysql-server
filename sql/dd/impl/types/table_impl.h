@@ -331,6 +331,8 @@ public:
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
+  virtual Column_collection *columns()
+  { return Abstract_table_impl::columns(); }
   const Column *get_column(Object_id column_id) const
   { return Abstract_table_impl::get_column(column_id); }
   Column *get_column(Object_id column_id)

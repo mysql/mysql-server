@@ -1099,16 +1099,12 @@ static File_option view_parameters[]=
 
   @param[in] thd       Thread handle.
   @param[in] view_ref  TABLE_LIST to store view data.
-  @param[in] db_name   database name.
-  @param[in] view_name view name.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
 static bool create_unlinked_view(THD *thd,
-                                 TABLE_LIST *view_ref,
-                                 const String_type &db_name,
-                                 const String_type &view_name)
+                                 TABLE_LIST *view_ref)
 {
   SELECT_LEX *backup_select= thd->lex->select_lex;
   TABLE_LIST *saved_query_tables= thd->lex->query_tables;
@@ -1124,8 +1120,7 @@ static bool create_unlinked_view(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  bool result= dd::create_view(thd, view_ref, db_name.c_str(),
-                               view_name.c_str(), true);
+  bool result= dd::create_view(thd, view_ref, true);
 
   // Restore
   thd->lex->select_lex= backup_select;
@@ -1404,7 +1399,7 @@ static bool migrate_view_to_dd(THD *thd,
       Create view without making entry in mysql.columns,
       mysql.view_table_usage and mysql.view_routine_usage.
     */
-    if (create_unlinked_view(thd, &table_list, db_name, view_name))
+    if (create_unlinked_view(thd, &table_list))
     {
       sql_print_error("Error in parsing view %s.%s",
       db_name.c_str(), view_name.c_str());

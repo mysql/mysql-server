@@ -30,9 +30,7 @@ class View;
   Store view metadata in the data-dictionary.
 
   @param   thd                Thread handle.
-  @param   view               TABLE_LIST elemenent describing the view.
-  @param   schema_name        Schema name.
-  @param   view_name          View name.
+  @param   view               TABLE_LIST element describing the view.
   @param   commit_dd_changes  Indicates whether changes to DD need to be
                               committed.
 
@@ -47,9 +45,28 @@ class View;
   @retval  false        On Success.
   @retval  true         On Failure.
 */
-bool create_view(THD *thd, TABLE_LIST *view,
-                 const char *schema_name, const char *view_name,
-                 bool commit_dd_changes);
+bool create_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes);
+
+/**
+  Update view metadata in dd.views.
+
+  @param thd                Thread handle.
+  @param view               TABLE_LIST element describing the view.
+  @param commit_dd_changes  Indicates whether changes to DD need to be
+                            committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval false       On success.
+  @retval true        On failure.
+*/
+bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes);
 
 /** Read view metadata from dd.views into TABLE_LIST */
 bool read_view(TABLE_LIST *view, const dd::View &view_ref,
