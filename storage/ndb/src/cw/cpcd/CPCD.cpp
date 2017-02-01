@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,6 +132,11 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   case STOPPING:
   case STARTING:
     proc->stop();
+    if (proc->isRunning())
+    {
+      rs->err(Error, "Still running");
+      return false;
+    }
     m_processes.erase(i, false /* Already locked */);
   }
   
