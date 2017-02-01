@@ -12445,7 +12445,8 @@ ha_innobase::delete_table(
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}
-	} else if (srv_read_only_mode) {
+	} else if (srv_read_only_mode
+		   ||  srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
