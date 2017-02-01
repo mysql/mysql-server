@@ -1423,6 +1423,10 @@ innobase_start_or_create_for_mysql(void)
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
+	if (srv_force_recovery == SRV_FORCE_NO_LOG_REDO) {
+		srv_read_only_mode = true;
+	}
+
 	high_level_read_only = srv_read_only_mode
 		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
 
