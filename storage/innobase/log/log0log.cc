@@ -2470,7 +2470,15 @@ loop:
 
 	log_mutex_exit();
 
-	if (lsn != log_sys->last_checkpoint_lsn) {
+	/** If innodb_force_recovery is set to 6 then log_sys doesn't
+	have recent checkpoint information. So last checkpoint lsn
+	will never be equal to current lsn. */
+	const bool	is_last = ((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+				    && lsn == log_sys->last_checkpoint_lsn
+						+ LOG_BLOCK_HDR_SIZE)
+				   || lsn == log_sys->last_checkpoint_lsn);
+
+	if (!is_last) {
 		goto loop;
 	}
 
