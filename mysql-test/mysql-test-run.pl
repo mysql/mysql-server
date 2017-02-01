@@ -274,6 +274,7 @@ our $xplugin= 0;
 
 my $opt_record;
 my $opt_report_features;
+my $opt_charset_for_testdb= "latin1";
 
 our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 
@@ -1298,6 +1299,7 @@ sub command_line_setup {
              'client-libdir=s'          => \$path_client_libdir,
 
              # Misc
+             'charset-for-testdb=s'     => \$opt_charset_for_testdb,
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
@@ -4024,7 +4026,7 @@ sub mysql_install_db {
 
   # Create test database
   mtr_tofile($bootstrap_sql_file,
-	     "CREATE DATABASE test;\n");
+	     "CREATE DATABASE test CHARACTER SET $opt_charset_for_testdb;\n");
 
   # Create mtr database
   mtr_tofile($bootstrap_sql_file,
@@ -7621,6 +7623,8 @@ Misc options
   gprof                 Collect profiling information using gprof.
   experimental=<file>   Refer to list of tests considered experimental;
                         failures will be marked exp-fail instead of fail.
+  charset-for-testdb    CREATE DATABASE test CHARACTER SET <option value>.
+                        Default value is latin1.
   report-features       First run a "test" that reports mysql features
   timestamp             Print timestamp before each test report line
   timediff              With --timestamp, also print time passed since
