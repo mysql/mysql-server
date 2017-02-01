@@ -966,15 +966,15 @@ INSERT INTO tab1 values(1, "hello", "world");
 INSERT INTO tab1 values(2, "hello2", "world2");
 INSERT INTO tab1 values(3, "hello3", "world3");
 
-select * from tab1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=OFF;
 show variables like "log_queries_not_using_indexes";
-select * from tab1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=ON;
 show variables like "log_queries_not_using_indexes";
-select * from tab1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 
 drop table tab1;
