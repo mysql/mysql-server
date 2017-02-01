@@ -82,7 +82,7 @@
 #include "log.h"            // sql_print_error
 #include "sql_class.h"
 #include "ndb_dd.h"
-
+#include "dd/types/table.h"
 
 using std::min;
 using std::max;
@@ -2166,6 +2166,9 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
   {
     DBUG_RETURN(1);
   }
+
+  std::cout << "magnus, open table, expect sdi with length " << sdi.length() << " for " << m_tabname << ": " << std::endl
+          << "'" << sdi.c_str() << "'" << std::endl;
 
   ndb->setDatabaseName(m_dbname);
   Ndb_table_guard ndbtab_g(dict, m_tabname);
@@ -12041,6 +12044,9 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
       DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
     }
 
+    std::cout << "magnus, new sdi with length " << sdi.length() << " for " << new_tabname << ": " << std::endl
+            << "'" << sdi.c_str() << "'" << std::endl;
+
     const int set_result =
         new_tab.setExtraMetadata(2, // version 2 for sdi
                                  sdi.c_str(), (Uint32)sdi.length());
@@ -12289,6 +12295,30 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   // and decide which actions need to be performed
   const bool old_is_temp = IS_TMP_PREFIX(m_tabname);
   const bool new_is_temp = IS_TMP_PREFIX(new_tabname);
+
+#ifndef BUG25487493
+  // Verify hidden status of the table
+  if (to_table_def->hidden())
+  {
+    // The table is marked as hidden. That makes sense when renaming
+    // to temporary table name but not when renaming to the real name
+    // Since the 'hidden' status is part of the serialized table definition
+    // there will be a mismatch when opening the table from NDB
+    // in case when the table is not also stored as hidden in the DD
+    // (which apparently it's not)
+
+    if (!new_is_temp)
+    {
+      // Hack the hidden status in order to workaround this problem
+      // while waiting for proper fix in alter/rename code, suspect
+      // one of the calls to dd::rename_table(..., <mark_as_hidden>)
+
+      DBUG_PRINT("hack", ("Marking table: %s as not hidden", new_tabname));
+      to_table_def->set_hidden(false);
+    }
+  }
+#endif
+
   switch (thd_sql_command(thd))
   {
   case SQLCOM_DROP_INDEX:
