@@ -84,19 +84,10 @@ bool get_file_options_ulllist(const char *&ptr, const char *end,
                               File_option *parameter,
                               MEM_ROOT *mem_root);
 
-const char *
-parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
-                     LEX_STRING *str);
-
 class File_parser;
 
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);
-
-my_bool
-sql_create_definition_file(const LEX_STRING *dir, const  LEX_STRING *file_name,
-			   const LEX_STRING *type,
-			   uchar* base, File_option *parameters);
 
 class File_parser: public Sql_alloc
 {
