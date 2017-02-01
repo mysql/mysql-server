@@ -757,6 +757,7 @@ private:
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
   int rename_table_impl(THD* thd, Ndb* ndb,
                         const NdbDictionary::Table* orig_tab,
+                        const dd::Table* to_table_def,
                         const char* from, const char* to,
                         const char* old_dbname, const char* old_tabname,
                         const char* new_dbname, const char* new_tabname,

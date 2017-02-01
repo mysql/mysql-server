@@ -73,6 +73,10 @@ cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
 
   if (data_length != unpacked_length)
   {
+    DBUG_PRINT("info", ("Different length, data_length: %u, "
+                        "unpacked_length: %u, unpacked_data: '%s'",
+                        (Uint32)data_length, unpacked_length,
+                        (const char*)unpacked_data));
     free(unpacked_data);
     // Different length, can't be equal
     DBUG_RETURN(1);

@@ -11950,6 +11950,7 @@ extern void ndb_fk_util_resolve_mock_tables(THD* thd,
 int
 ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                                  const NdbDictionary::Table* orig_tab,
+                                 const dd::Table* to_table_def,
                                  const char* from, const char* to,
                                  const char* old_dbname,
                                  const char* old_tabname,
@@ -12029,6 +12030,30 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
 
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(new_tabname);
+
+  // Create a new serialized table definition for the table to be
+  // renamed since it contains the table name
+  {
+    dd::sdi_t sdi;
+    if (!ndb_sdi_serialize(thd, *to_table_def, new_dbname, sdi))
+    {
+      my_error(ER_INTERNAL_ERROR, MYF(0), "Table def. serialization failed");
+      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+    }
+
+    const int set_result =
+        new_tab.setExtraMetadata(2, // version 2 for sdi
+                                 sdi.c_str(), (Uint32)sdi.length());
+    if (set_result != 0)
+    {
+      my_printf_error(ER_INTERNAL_ERROR,
+                      "Failed to set extra metadata during"
+                      "rename table, error: %d",
+                      MYF(0), set_result);
+      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+    }
+  }
+
   if (dict->alterTableGlobal(*orig_tab, new_tab) != 0)
   {
     const NdbError ndb_error= dict->getNdbError();
@@ -12154,12 +12179,37 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
 }
 
 
+#ifndef DBUG_OFF
+static
+bool
+check_table_def_match(THD* thd,
+                      const char* schema_name,
+                      const dd::Table* table_def,
+                      const NdbDictionary::Table* ndbtab)
+{
+  dd::sdi_t sdi;
+  if (!ndb_sdi_serialize(thd, *table_def, schema_name, sdi))
+  {
+    return false;
+  }
+
+  if (cmp_unpacked_frm(ndbtab, sdi.c_str(), sdi.length()) != 0)
+  {
+    return false;
+  }
+
+  return true;
+}
+#endif
+
+
 /**
   Rename a table in NDB and on the participating mysqld(s)
 */
 
 int ha_ndbcluster::rename_table(const char *from, const char *to,
-                                const dd::Table *, dd::Table *)
+                                const dd::Table* from_table_def,
+                                dd::Table* to_table_def)
 {
   THD *thd= current_thd;
   char old_dbname[FN_HEADLEN];
@@ -12230,6 +12280,11 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     ERR_RETURN(dict->getNdbError());
   DBUG_PRINT("info", ("NDB table name: '%s'", orig_tab->getName()));
 
+  // Check that serialized table definition of the table to be renamed
+  // matches the serialized table definition stored in NDB's dictionary
+  DBUG_ASSERT(check_table_def_match(thd, old_dbname, from_table_def,
+                                    orig_tab));
+
   // Magically detect if this is a rename or some form of alter
   // and decide which actions need to be performed
   const bool old_is_temp = IS_TMP_PREFIX(m_tabname);
@@ -12252,7 +12307,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
         2) as part of inplace ALTER .. RENAME
        */
       DBUG_PRINT("info", ("simple rename detected"));
-      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, from, to,
+      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, to_table_def,
+                                    from, to,
                                     old_dbname, m_tabname,
                                     new_dbname, new_tabname,
                                     true, // real_rename
@@ -12294,7 +12350,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
         two rename_table() calls. Drop events from the table.
       */
       DBUG_PRINT("info", ("real -> temp"));
-      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, from, to,
+      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, to_table_def,
+                                    from, to,
                                     old_dbname, m_tabname,
                                     new_dbname, new_tabname,
                                     false, // real_rename
@@ -12347,7 +12404,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
           the binlog
         */
         const bool real_rename_log_on_participant = false;
-        DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab,from,to,
+        DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, to_table_def,
+                                      from, to,
                                       old_dbname, m_tabname,
                                       new_dbname, new_tabname,
                                       true, // real_rename
@@ -12359,7 +12417,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                       true)); // commit_alter
       }
 
-      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab,from,to,
+      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, to_table_def,
+                                    from, to,
                                     old_dbname, m_tabname,
                                     new_dbname, new_tabname,
                                     false, // real_rename
@@ -12375,7 +12434,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   case SQLCOM_RENAME_TABLE:
     DBUG_PRINT("info", ("SQLCOM_RENAME_TABLE"));
 
-    DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, from, to,
+    DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, to_table_def,
+                                  from, to,
                                   old_dbname, m_tabname,
                                   new_dbname, new_tabname,
                                   true, // real_rename
