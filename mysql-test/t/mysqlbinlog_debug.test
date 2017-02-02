@@ -2,10 +2,10 @@
 #  which can be executed only against debug compiled mysqlbinlog
 #  tool.
 
---source include/mysqlbinlog_have_debug.inc
--- source include/force_binlog_format_statement.inc
 # ASAN does not work correctly with simulated crashes
 --source include/not_asan.inc
+--source include/mysqlbinlog_have_debug.inc
+-- source include/force_binlog_format_statement.inc
 
 --echo #
 --echo # Bug#18742916 : MYSQLBINLOG --RAW DOES NOT CHECK FOR ERRORS
