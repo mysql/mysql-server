@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10072,20 +10072,6 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
         }
         break;
       }
-    }
-  }
-
-  /*
-    FK data is handled in get_metadata and release_metadata but
-    for some reason it is not enough
-  */
-  if (1)
-  {
-    int error= get_fk_data(thd, ndb);
-    if (error != 0)
-    {
-      sql_print_error("update_create_info: get FK data: error %d", error);
-      DBUG_VOID_RETURN;
     }
   }
 
