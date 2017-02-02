@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "ha_ndbcluster.h"
 #include "ndb_table_guard.h"
 #include "mysql/service_thd_alloc.h"
+#include "ndb_tdc.h"
 
 #define ERR_RETURN(err)                  \
 {                                        \
@@ -1149,6 +1150,36 @@ bool ndb_fk_util_truncate_allowed(THD* thd, NdbDictionary::Dictionary* dict,
 }
 
 
+/**
+  @brief Flush the parent table after a successful addition/deletion
+         to the Foreign Key. This is done to force reload the Parent
+         table's metadata.
+
+  @param thd            thread handle
+  @param parent_db      Parent table's database name
+  @param parent_name    Parent table's name
+  @return Void
+*/
+static void
+flush_parent_table_for_fk(THD* thd,
+                          const char* parent_db, const char* parent_name)
+{
+  DBUG_ENTER("ha_ndbcluster::flush_parent_table_for_fk");
+
+  if(Fk_util::is_mock_name(parent_name))
+  {
+    /* Parent table is mock - no need to flush */
+    DBUG_PRINT("debug", ("Parent table is a mock - skipped flushing"));
+    DBUG_VOID_RETURN;
+  }
+
+  DBUG_PRINT("debug", ("Flushing table : `%s`.`%s` ",
+                       parent_db, parent_name));
+  ndb_tdc_close_cached_table(thd, parent_db, parent_name);
+  DBUG_VOID_RETURN;
+}
+
+
 int
 ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 {
@@ -1247,7 +1278,9 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     }
     else
     {
-      parent_db[0]= 0;
+      /* parent db missing - so the db is same as child's */
+      my_snprintf(parent_db, sizeof(parent_db), "%*s",
+                  (int)sizeof(m_dbname), m_dbname);
     }
     if (fk->ref_table.str != 0 && fk->ref_table.length != 0)
     {
@@ -1475,6 +1508,14 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     if (err)
     {
       ERR_RETURN(dict->getNdbError());
+    }
+
+    /* Flush the parent table out if parent is different from child */
+    if (parent_tab.get_table()->getObjectId() !=
+          child_tab.get_table()->getObjectId())
+    {
+      /* flush parent table */
+      flush_parent_table_for_fk(thd, parent_db, parent_name);
     }
   }
 
@@ -2538,6 +2579,15 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
         {
           ERR_RETURN(dict->getNdbError());
         }
+
+        /* Flush the parent table out if parent is different from child */
+        if(ndb_fk_casecmp(fk.getParentTable(), fk.getChildTable()) != 0)
+        {
+          char parent_db[FN_LEN + 1];
+          const char* parent_name = fk_split_name(parent_db,
+                                                  fk.getParentTable());
+          flush_parent_table_for_fk(thd, parent_db, parent_name);
+        }
         break;
       }
     }
@@ -2718,6 +2768,16 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
     if (err)
     {
       ERR_RETURN(dict->getNdbError());
+    }
+
+    /* Flush the parent table out if parent is different from child */
+    char parent_db[FN_LEN + 1];
+    const char* parent_name = fk_split_name(parent_db,
+                                            fk->getParentTable());
+    if(ndb_fk_casecmp(parent_name, tab_name) != 0 ||
+       ndb_fk_casecmp(parent_db, ndb->getDatabaseName()) != 0)
+    {
+      flush_parent_table_for_fk(thd, parent_db, parent_name);
     }
   }
   DBUG_RETURN(0);
