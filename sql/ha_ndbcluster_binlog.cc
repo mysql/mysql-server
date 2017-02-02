@@ -1414,27 +1414,10 @@ int find_all_files(THD *thd, Ndb* ndb)
       }
       else if (cmp_unpacked_frm(ndbtab, data, length))
       {
-        /* ndb_share reference temporary */
-        NDB_SHARE *share= get_share(key, 0, FALSE);
-        if (share)
-        {
-          DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                                   share->key_string(), share->use_count));
-        }
-        if (!share || get_ndb_share_state(share) != NSS_ALTERED)
-        {
-          discover= 1;
-          sql_print_information("NDB: mismatch in frm for %s.%s,"
+        discover= 1;
+        sql_print_information("NDB: mismatch in frm for %s.%s,"
                                 " discovering...",
                                 elmt.database, elmt.name);
-        }
-        if (share)
-        {
-          /* ndb_share reference temporary free */
-          DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                   share->key_string(), share->use_count));
-          free_share(&share);  // temporary ref.
-        }
       }
       my_free(data);
 

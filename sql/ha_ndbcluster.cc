@@ -2179,8 +2179,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
 
   // Check that the serialized table definition from DD
   // matches the serialized table definition in NDB
-  if (get_ndb_share_state(m_share) != NSS_ALTERED &&
-      cmp_unpacked_frm(tab, sdi.c_str(), sdi.length()))
+  if (cmp_unpacked_frm(tab, sdi.c_str(), sdi.length()))
   {
     DBUG_PRINT("error", ("extra metadata differs"));
 
@@ -11857,27 +11856,16 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   DBUG_RETURN(0);  
 }
 
-/*
- Prepare for an online alter table
-*/ 
-void ha_ndbcluster::prepare_for_alter()
-{
-  /* ndb_share reference schema */
-  ndbcluster_get_share(m_share); // Increase ref_count
-  DBUG_PRINT("NDB_SHARE", ("%s binlog schema  use_count: %u",
-                           m_share->key_string(), m_share->use_count));
-  set_ndb_share_state(m_share, NSS_ALTERED);
-}
 
-
-int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg, 
-                                  KEY *key_info, uint num_of_keys)
+int ha_ndbcluster::prepare_inplace__add_index(THD *thd,
+                                              TABLE *table_arg,
+                                              KEY *key_info,
+                                              uint num_of_keys) const
 {
   int error= 0;
   uint idx;
-  DBUG_ENTER("ha_ndbcluster::add_index");
+  DBUG_ENTER("ha_ndbcluster::prepare_inplace__add_index");
   DBUG_PRINT("enter", ("table %s", table_arg->s->table_name.str));
-  DBUG_ASSERT(m_share->state == NSS_ALTERED);
 
   for (idx= 0; idx < num_of_keys; idx++)
   {
@@ -11904,10 +11892,10 @@ int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg,
   * key_num - position of index in m_index
 */
 
-void ha_ndbcluster::prepare_drop_index(uint key_num)
+void ha_ndbcluster::prepare_inplace__drop_index(uint key_num)
 {
-  DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
-  DBUG_ASSERT(m_share->state == NSS_ALTERED);
+  DBUG_ENTER("ha_ndbcluster::prepare_inplace__drop_index");
+
   // Mark indexes for deletion
   DBUG_PRINT("info", ("marking index as dropped: %u", key_num));
   m_index[key_num].status= NDB_INDEX_DATA::TO_BE_DROPPED;
@@ -13424,7 +13412,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
-  // Check if the database directory for the table to discover exists
+  // Check if the database directory for the table to discover existsq
   // as otherwise there is no place to put the discovered .frm file.
   {
     char key[FN_REFLEN + 1];
@@ -14379,8 +14367,6 @@ get_share_state_string(NDB_SHARE_STATE s)
   switch(s) {
   case NSS_INITIAL:
     return "NSS_INITIAL";
-  case NSS_ALTERED:
-    return "NSS_ALTERED";
   case NSS_DROPPED:
     return "NSS_DROPPED";
   }
@@ -18950,7 +18936,9 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     }
   }
 
-  prepare_for_alter();
+  ndbcluster_get_share(m_share); // Increase ref_count
+  DBUG_PRINT("NDB_SHARE", ("%s binlog schema  use_count: %u",
+                           m_share->key_string(), m_share->use_count));
 
   if (dict->beginSchemaTrans() == -1)
   {
@@ -18984,8 +18972,10 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       for (key_part= key->key_part; key_part < part_end; key_part++)
 	key_part->field= table->field[key_part->fieldnr];
     }
-    if ((error= add_index_impl(thd, altered_table, key_info,
-                               ha_alter_info->index_add_count)))
+    if ((error=
+         prepare_inplace__add_index(thd, altered_table,
+                                    key_info,
+                                    ha_alter_info->index_add_count)))
     {
       /*
 	Exchange the key_info for the error message. If we exchange
@@ -19012,7 +19002,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
         */
         if (key_ptr == table->key_info + key_num)
         {
-          prepare_drop_index(key_num);
+          prepare_inplace__drop_index(key_num);
           break;
         }
       }
@@ -19248,7 +19238,6 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   }
 
   DBUG_ASSERT(m_table != 0);
-  DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
 
   error= inplace_set_sdi_and_alter_in_ndb(thd, alter_data,
                                           new_table_def, m_dbname);

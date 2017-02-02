@@ -394,8 +394,7 @@ bool parse_comment_changes(NdbDictionary::Table *new_tab,
 void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
 private:
-  void prepare_for_alter();
-  void prepare_drop_index(uint key_num);
+  void prepare_inplace__drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
 
   enum_alter_inplace_result
@@ -430,8 +429,8 @@ private:
                              const char *db,
                              const char *table_name);
 
-  int add_index_impl(THD *thd, TABLE *table_arg,
-                     KEY *key_info, uint num_of_keys);
+  int prepare_inplace__add_index(THD *thd, TABLE *table_arg,
+                                 KEY *key_info, uint num_of_keys) const;
   int create_ndb_index(THD *thd, const char *name, KEY *key_info,
                        bool unique) const;
   int create_ordered_index(THD *thd, const char *name, KEY *key_info) const;
