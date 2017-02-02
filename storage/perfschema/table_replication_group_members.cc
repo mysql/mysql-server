@@ -31,6 +31,7 @@
 #include "rpl_group_replication.h"
 #include "table.h"
 #include "table_replication_group_members.h"
+#include "table_helper.h"
 #include "thr_lock.h"
 
 /*
