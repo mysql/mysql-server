@@ -13409,7 +13409,11 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
 
 
 /**
-  Try to discover one table from NDB.
+  Try to discover one table from NDB. Return the "serialized
+  table definition".
+
+  NOTE The caller does not check the erorr code itself,
+       just checking if it zero or not.
 */
 static
 int ndbcluster_discover(handlerton*, THD* thd,
@@ -13417,10 +13421,6 @@ int ndbcluster_discover(handlerton*, THD* thd,
                         uchar **frmblob, 
                         size_t *frmlen)
 {
-  int error= 0;
-  NdbError ndb_error;
-  size_t len;
-  uchar* data;
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
@@ -13432,8 +13432,8 @@ int ndbcluster_discover(handlerton*, THD* thd,
     const int database_exists= !my_access(key, F_OK);
     if (!database_exists)
     {
-      sql_print_information("NDB: Could not find database directory '%s' "
-                            "while trying to discover table '%s'", db, name);
+      ndb_log_info("Could not find database directory '%s' "
+                   "while trying to discover table '%s'", db, name);
       // Can't discover table when database directory does not exist
       DBUG_RETURN(1);
     }
@@ -13442,7 +13442,6 @@ int ndbcluster_discover(handlerton*, THD* thd,
   Ndb* ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
   if (ndb->setDatabaseName(db))
   {
     ERR_RETURN(ndb->getNdbError());
@@ -13453,22 +13452,26 @@ int ndbcluster_discover(handlerton*, THD* thd,
   const NDBTAB *tab= ndbtab_g.get_table();
   if (!tab)
   {
+    // Could not open the table from NDB
     const NdbError err= dict->getNdbError();
     if (err.code == 709 || err.code == 723)
     {
-      error= -1;
-      DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+      // Got the normal 'No such table existed'
+      DBUG_PRINT("info", ("No such table, error: %u", err.code));
+      DBUG_RETURN(1);
     }
-    else
-    {
-      error= -1;
-      ndb_error= err;
-      DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
-    }
-    goto err;
-  }
-  DBUG_PRINT("info", ("Found table %s", tab->getName()));
 
+    // Got an unexpected error
+    DBUG_PRINT("error", ("Got unexpected error when trying to open table "
+                         "from NDB, error %u", err.code));
+    DBUG_ASSERT(false); // Catch in debug
+    DBUG_RETURN(1);
+  }
+
+  DBUG_PRINT("info", ("Found table '%s'", tab->getName()));
+
+  size_t len;
+  uchar* data;
   {
     Uint32 version;
     void* unpacked_data;
@@ -13480,8 +13483,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
     {
       DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
                            get_result));
-      error= 1;
-      goto err;
+      DBUG_RETURN(1);
     }
 
     // Reallocate the memory using my_malloc.
@@ -13496,8 +13498,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
     {
       DBUG_PRINT("error", ("Failed to my_memdup unpacked data, error: %d",
                            my_errno()));
-      error= 1;
-      goto err;
+      DBUG_RETURN(1);
     }
     len = unpacked_len;
   }
@@ -13505,27 +13506,20 @@ int ndbcluster_discover(handlerton*, THD* thd,
   if (ndbcluster_check_if_local_table(db, name) &&
       !Ndb_dist_priv_util::is_distributed_priv_table(db, name))
   {
-    DBUG_PRINT("info", ("ndbcluster_discover: Skipping locally defined table '%s.%s'",
+    DBUG_PRINT("info", ("Skipped discover of NDB table '%s.%s'",
                         db, name));
-    sql_print_error("ndbcluster_discover: Skipping locally defined table '%s.%s'",
-                    db, name);
-    error= 1;
-    goto err;
+    ndb_log_error("Could not discover NDB table '%s.%s' since it already "
+                  "exists in other engine", db, name);
+    my_free(data);
+    DBUG_RETURN(1);
   }
+
   *frmlen= len;
   *frmblob= data;
   
   DBUG_RETURN(0);
-
-err:
-  my_free(data);
-
-  if (ndb_error.code)
-  {
-    ERR_RETURN(ndb_error);
-  }
-  DBUG_RETURN(error);
 }
+
 
 /**
   Check if a table exists in NDB.
