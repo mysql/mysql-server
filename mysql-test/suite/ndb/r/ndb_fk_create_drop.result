@@ -107,3 +107,57 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table child, parent;
+#
+# Bug#24666177 : PARENT TABLE'S HANDLER NOT UPDATED AFTER ADDING A FK DEPENDENCY
+#
+#Setup tables
+create table parent(
+id int unique key
+) engine ndb;
+create table child(
+ref int
+) engine ndb;
+insert into parent values(1), (2), (3);
+insert into child  values(1), (2), (3);
+#Show create table on parent.
+#This will now load the m_fk_data of parent on handler
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#Now create a foreign key dependency
+alter table child add foreign key fk1(ref) references parent(id);
+#Now run a alter engine query.
+#m_fk_data of parent should be reloaded now and the query should fail
+alter table parent engine = innodb;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#Repeat same with truncate
+truncate table child;
+alter table parent engine = innodb;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#Repeat same test for dropping FK
+alter table child drop foreign key fk1;
+# Now this should succeed
+alter table parent engine = innodb;
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+#Cleanup
+drop table parent, child;
