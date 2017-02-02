@@ -13412,112 +13412,94 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
   Try to discover one table from NDB.
 */
 static
-int ndbcluster_discover(handlerton *hton, THD* thd, const char *db, 
-                        const char *name,
+int ndbcluster_discover(handlerton*, THD* thd,
+                        const char *db, const char *name,
                         uchar **frmblob, 
                         size_t *frmlen)
 {
   int error= 0;
   NdbError ndb_error;
   size_t len;
-  uchar* data= NULL;
-  Ndb* ndb;
-  char key[FN_REFLEN + 1];
+  uchar* data;
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
   // Check if the database directory for the table to discover exists
   // as otherwise there is no place to put the discovered .frm file.
-  build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
-  const int database_exists= !my_access(key, F_OK);
-  if (!database_exists)
   {
-    sql_print_information("NDB: Could not find database directory '%s' "
-                          "while trying to discover table '%s'", db, name);
-    // Can't discover table when database directory does not exist
-    DBUG_RETURN(1);
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
+    const int database_exists= !my_access(key, F_OK);
+    if (!database_exists)
+    {
+      sql_print_information("NDB: Could not find database directory '%s' "
+                            "while trying to discover table '%s'", db, name);
+      // Can't discover table when database directory does not exist
+      DBUG_RETURN(1);
+    }
   }
 
+  Ndb* ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
   if (ndb->setDatabaseName(db))
   {
     ERR_RETURN(ndb->getNdbError());
   }
 
-  build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
-  /* ndb_share reference temporary */
-  NDB_SHARE* share= get_share(key, 0, FALSE);
-  if (share)
+  NDBDICT* dict= ndb->getDictionary();
+  Ndb_table_guard ndbtab_g(dict, name);
+  const NDBTAB *tab= ndbtab_g.get_table();
+  if (!tab)
   {
-    DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             share->key_string(), share->use_count));
-  }
-  if (share && get_ndb_share_state(share) == NSS_ALTERED)
-  {
-    // Frm has been altered on disk, but not yet written to ndb
-    if (readfrm(key, &data, &len))
+    const NdbError err= dict->getNdbError();
+    if (err.code == 709 || err.code == 723)
     {
-      DBUG_PRINT("error", ("Could not read frm"));
+      error= -1;
+      DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+    }
+    else
+    {
+      error= -1;
+      ndb_error= err;
+      DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
+    }
+    goto err;
+  }
+  DBUG_PRINT("info", ("Found table %s", tab->getName()));
+
+  {
+    Uint32 version;
+    void* unpacked_data;
+    Uint32 unpacked_len;
+    const int get_result =
+        tab->getExtraMetadata(version,
+                              &unpacked_data, &unpacked_len);
+    if (get_result != 0)
+    {
+      DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
+                           get_result));
       error= 1;
       goto err;
     }
-  }
-  else
-  {
-    NDBDICT* dict= ndb->getDictionary();
-    Ndb_table_guard ndbtab_g(dict, name);
-    const NDBTAB *tab= ndbtab_g.get_table();
-    if (!tab)
+
+    // Reallocate the memory using my_malloc.
+    // NOTE! This is since the calling code is convoluted and
+    // expect my_malloc'ed memory, but the NdbApi should never
+    // return my_malloc allocated memory
+    data = (uchar*)my_memdup(PSI_INSTRUMENT_ME,
+                             unpacked_data, unpacked_len,
+                             MYF(MY_WME));
+    free(unpacked_data);
+    if (!data)
     {
-      const NdbError err= dict->getNdbError();
-      if (err.code == 709 || err.code == 723)
-      {
-        error= -1;
-        DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
-      }
-      else
-      {
-        error= -1;
-        ndb_error= err;
-        DBUG_PRINT("info", ("ndb_error.code: %u", ndb_error.code));
-      }
+      DBUG_PRINT("error", ("Failed to my_memdup unpacked data, error: %d",
+                           my_errno()));
+      error= 1;
       goto err;
     }
-    DBUG_PRINT("info", ("Found table %s", tab->getName()));
-
-    {
-      Uint32 version;
-      void* unpacked_data;
-      Uint32 unpacked_len;
-      const int get_result =
-          tab->getExtraMetadata(version,
-                                &unpacked_data, &unpacked_len);
-      if (get_result != 0)
-      {
-        DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
-                             get_result));
-        error= 1;
-        goto err;
-      }
-
-      // Reallocate the memory using my_malloc.
-      // NOTE! This is since the calling code is convoluted and
-      // expect my_malloc'ed memory, but the NdbApi should never
-      // return my_malloc allocated memory
-      data = (uchar*)my_memdup(PSI_INSTRUMENT_ME,
-                               unpacked_data, unpacked_len,
-                               MYF(MY_WME));
-      free(unpacked_data);
-      if (!data)
-      {
-        DBUG_PRINT("error", ("Failed to my_memdup unpacked data, error: %d",
-                             my_errno()));
-        error= 1;
-        goto err;
-      }
-      len = unpacked_len;
-    }
+    len = unpacked_len;
   }
 
   if (ndbcluster_check_if_local_table(db, name) &&
@@ -13533,24 +13515,10 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   *frmlen= len;
   *frmblob= data;
   
-  if (share)
-  {
-    /* ndb_share reference temporary free */
-    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key_string(), share->use_count));
-    free_share(&share);
-  }
-
   DBUG_RETURN(0);
+
 err:
   my_free(data);
-  if (share)
-  {
-    /* ndb_share reference temporary free */
-    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key_string(), share->use_count));
-    free_share(&share);
-  }
 
   if (ndb_error.code)
   {
