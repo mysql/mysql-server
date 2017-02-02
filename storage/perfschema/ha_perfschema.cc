@@ -46,7 +46,9 @@ handlerton *pfs_hton = NULL;
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
 
 static handler *
-pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
+pfs_create_handler(handlerton *hton,
+                   TABLE_SHARE *table,
+                   bool,
                    MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_perfschema(hton, table);
@@ -1723,16 +1725,20 @@ ha_perfschema::delete_table(const char *, const dd::Table *)
 }
 
 int
-ha_perfschema::rename_table(const char *, const char *,
-                            const dd::Table *, dd::Table *)
+ha_perfschema::rename_table(const char *,
+                            const char *,
+                            const dd::Table *,
+                            dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
 int
-ha_perfschema::create(const char *, TABLE *table_arg,
-                      HA_CREATE_INFO *, dd::Table *)
+ha_perfschema::create(const char *,
+                      TABLE *table_arg,
+                      HA_CREATE_INFO *,
+                      dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::create");
   DBUG_ASSERT(table_arg);

@@ -295,7 +295,7 @@ search:
 
     /* Add a new record in digest stat array. */
     DBUG_ASSERT(safe_index < digest_max);
-    pfs= &statements_digest_stat_array[safe_index];
+    pfs = &statements_digest_stat_array[safe_index];
 
     if (pfs->m_lock.is_free())
     {

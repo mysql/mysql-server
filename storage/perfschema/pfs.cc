@@ -143,7 +143,7 @@ report_memory_accounting_error(const char *api_name,
   as opposed to the INFORMATION_SCHEMA whose purpose is to inspect metadata.
 
   From a user point of view, the performance schema consists of:
-  - a dedicated database schema, named PERFORMANCE_SCHEMA,
+  - a dedicated database schema, named @c performance_schema,
   - SQL tables, used to query the server internal state or change
   configuration settings.
 
@@ -177,29 +177,35 @@ report_memory_accounting_error(const char *api_name,
 
   @subsection INT_COMPILING Compiling interface
 
-  The implementation of the performance schema can be enabled or disabled at
-  build time, when building MySQL from the source code.
+  The performance schema storage engine, the code that expose SQL tables,
+  is always compiled.
 
-  When building with the performance schema code, some compilation flags
-  are available to change the default values used in the code, if required.
+  The instrumentation points, that collects data to the storage engine,
+  can be enabled or disabled at build time,
+  when building MySQL from the source code.
+  Each kind of instrumentation can be enabled or disabled independently.
 
   For more details, see:
-  @verbatim ./configure --help @endverbatim
+  @verbatim ccmake @endverbatim
+
+  Press [t] to toggle advanced mode (Currently Off)
+  and search for options named like @c DISABLE_PSI_MUTEX.
 
   To compile with the performance schema:
-  @verbatim ./configure --with-perfschema @endverbatim
+  @verbatim cmake @endverbatim
+
+  To compile without some performance schema instrumentation:
+  @verbatim cmake -DDISABLE_PSI_MUTEX @endverbatim
 
   The implementation of all the compiling options is located in
-  @verbatim ./storage/perfschema/plug.in @endverbatim
+  @verbatim ./storage/perfschema/CMakeLists.txt @endverbatim
 
   @subsection INT_STARTUP Server startup interface
 
-  The server startup interface consists of the "./mysqld ..."
+  The server startup interface consists of the @code ./mysqld ... @endcode
   command line used to start the server.
-  When the performance schema is compiled in the server binary,
-  extra command line options are available.
 
-  These extra start options allow the DBA to:
+  These start options allow the DBA to:
   - enable or disable the performance schema
   - specify some sizing parameters.
 
@@ -207,7 +213,7 @@ report_memory_accounting_error(const char *api_name,
   @verbatim ./sql/mysqld --verbose --help  @endverbatim
 
   The implementation of all the startup options is located in
-  @verbatim ./sql/mysqld.cc, my_long_options[] @endverbatim
+  file @code ./sql/mysqld.cc @endcode, see for example @c Sys_pfs_enabled.
 
   @subsection INT_BOOTSTRAP Server bootstrap interface
 
@@ -254,8 +260,7 @@ report_memory_accounting_error(const char *api_name,
   It displays data related to the memory usage of the performance schema,
   as well as statistics about lost events, if any.
 
-  The SHOW STATUS command is implemented in
-  @verbatim ./storage/perfschema/pfs_engine_table.cc @endverbatim
+  The SHOW STATUS command is implemented in @c pfs_show_status.
 
   @subsection INT_QUERY Query interface
 
@@ -275,7 +280,8 @@ report_memory_accounting_error(const char *api_name,
   in behavior.
 
   To achieve this, the overall design of the performance schema complies
-  with the following very severe design constraints:
+  (for the most part, there are some exceptions)
+  with the following very severe design constraints.
 
   The parser is unchanged. There are no new keywords, no new statements.
   This guarantees that existing applications will run the same way with or
@@ -286,10 +292,15 @@ report_memory_accounting_error(const char *api_name,
   code will proceed.
 
   None of the instrumentation points allocate memory.
-  All the memory used by the performance schema is pre-allocated at startup,
-  and is considered "static" during the server life time.
+  In general, the memory used by the performance schema is pre-allocated at
+  startup.
+  For some instrumentations, memory is pre-allocated incrementally, by chunks,
+  at runtime.
+  In both cases, memory is considered "static" during the server life time.
+  Performance schema memory can be reused, but is never returned.
 
-  None of the instrumentation points use any pthread_mutex, pthread_rwlock,
+  For nominal code paths,
+  none of the instrumentation points use any pthread_mutex, pthread_rwlock,
   or pthread_cond (or platform equivalents).
   Executing the instrumentation point should not cause thread scheduling to
   change in the server.
@@ -300,7 +311,7 @@ report_memory_accounting_error(const char *api_name,
   - mutex free
   - rwlock free
 
-  TODO: All the code located in storage/perfschema is malloc free,
+  Currently, most of the code located in storage/perfschema is malloc free,
   but unfortunately the usage of LF_HASH introduces some memory allocation.
   This should be revised if possible, to use a lock-free,
   malloc-free hash code table.
@@ -394,10 +405,11 @@ report_memory_accounting_error(const char *api_name,
   from the server binary, using build time configuration options.
 
   Regardless, the following types of deployment are valid:
-  - a server supporting the performance schema + a storage engine
-  that is not instrumented
-  - a server not supporting the performance schema + a storage engine
-  that is instrumented
+  - a server supporting the performance schema instrumentation X + a storage
+  engine
+  that is not instrumented for X
+  - a server not supporting the performance schema Y + a storage engine
+  that is instrumented for Y
 
   @subpage PAGE_PFS_PSI
 
@@ -421,18 +433,19 @@ report_memory_accounting_error(const char *api_name,
   that provides many helpers for a developer instrumenting some code,
   to make the instrumentation as easy as possible.
 
-  The ABI layer consists of:
+  The ABI layer consists of files such as:
 @code
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_file.h"
 @endcode
 
-  The API layer consists of:
+  The API layer consists of files such as:
 @code
 #include "mysql/psi/mutex_mutex.h"
 #include "mysql/psi/mutex_file.h"
 @endcode
 
-  The first helper is for mutexes, rwlocks and conditions,
+  The first helper is for mutexes,
   the second for file io.
 
   The API layer exposes C macros and typedefs which will expand:
@@ -459,7 +472,7 @@ report_memory_accounting_error(const char *api_name,
   but the list will constantly grow when more instruments are supported.
   To support binary compatibility with plugins compiled with a different
   version of the instrumentation, the ABI itself is versioned
-  (see @c PSI_v1, @c PSI_v2).
+  (see @c PSI_MUTEX_VERSION_1, @c PSI_MUTEX_VERSION_2).
 
   For a given instrumentation point in the API, the basic coding pattern
   used is:
@@ -476,8 +489,9 @@ report_memory_accounting_error(const char *api_name,
   in implemented, when the instrumentation is compiled in:
 
 @verbatim
-static inline int mysql_mutex_lock(
-  mysql_mutex_t *that, myf flags, const char *src_file, uint src_line)
+static inline int
+mysql_mutex_lock(
+  mysql_mutex_t *that, const char *src_file, uint src_line)
 {
   int result;
   struct PSI_mutex_locker_state state;
@@ -485,7 +499,7 @@ static inline int mysql_mutex_lock(
 
   ............... (a)
   locker= PSI_MUTEX_CALL(start_mutex_wait)(&state, that->p_psi, PSI_MUTEX_LOCK,
-                                           locker, src_file, src_line);
+                                           src_file, src_line);
 
   ............... (b)
   result= pthread_mutex_lock(&that->m_mutex);
@@ -526,7 +540,7 @@ static inline int mysql_mutex_lock(...)
 
   ............... (a)
   locker= pfs_start_mutex_wait_v1(&state, that->p_psi, PSI_MUTEX_LOCK,
-                                  locker, src_file, src_line);
+                                  src_file, src_line);
 
   ............... (b)
   result= pthread_mutex_lock(&that->m_mutex);
@@ -556,7 +570,7 @@ static inline int mysql_mutex_lock(...)
 
   ............... (a)
   locker= PSI_server->start_mutex_wait(&state, that->p_psi, PSI_MUTEX_LOCK,
-                                       locker, src_file, src_line);
+                                       src_file, src_line);
 
   ............... (b)
   result= pthread_mutex_lock(&that->m_mutex);

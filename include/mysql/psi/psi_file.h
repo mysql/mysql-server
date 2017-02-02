@@ -151,7 +151,7 @@ typedef enum PSI_file_operation PSI_file_operation;
 
 /**
   File instrument information.
-  @since PSI_VERSION_1
+  @since PSI_FILE_VERSION_1
   This structure is used to register an instrumented file.
 */
 struct PSI_file_info_v1

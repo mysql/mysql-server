@@ -125,7 +125,7 @@ typedef struct PSI_sp_locker PSI_sp_locker;
 
 /**
   Statement instrument information.
-  @since PSI_VERSION_1
+  @since PSI_STATEMENT_VERSION_1
   This structure is used to register an instrumented statement.
 */
 struct PSI_statement_info_v1

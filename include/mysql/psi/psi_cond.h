@@ -114,7 +114,7 @@ typedef enum PSI_cond_operation PSI_cond_operation;
 
 /**
   Condition information.
-  @since PSI_VERSION_1
+  @since PSI_COND_VERSION_1
   This structure is used to register an instrumented cond.
 */
 struct PSI_cond_info_v1
