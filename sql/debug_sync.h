@@ -29,6 +29,7 @@
 #include "my_compiler.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 class THD;
 

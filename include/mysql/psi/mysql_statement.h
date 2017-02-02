@@ -22,6 +22,7 @@
 */
 
 #include "my_compiler.h"
+#include "my_inttypes.h"
 #include "mysql/psi/psi_statement.h"
 #include "pfs_stage_provider.h"      // IWYU pragma: keep
 #include "pfs_statement_provider.h"  // IWYU pragma: keep

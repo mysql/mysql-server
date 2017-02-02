@@ -52,6 +52,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "opt_hints.h"

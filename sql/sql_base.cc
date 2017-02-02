@@ -60,6 +60,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"

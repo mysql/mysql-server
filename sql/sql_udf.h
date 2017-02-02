@@ -24,6 +24,7 @@
 
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql_com.h"               // Item_result
 #include "sql_alloc.h"               // Sql_alloc

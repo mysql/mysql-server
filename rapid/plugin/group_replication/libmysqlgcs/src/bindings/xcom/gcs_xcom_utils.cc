@@ -16,6 +16,9 @@
 #include "gcs_xcom_utils.h"
 
 #include <errno.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <algorithm>
 #include <climits>
 #include <iostream>

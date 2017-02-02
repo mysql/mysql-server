@@ -13,17 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <stdlib.h>
 
-#include "x_platform.h"
-
-#include "xcom_vp.h"
 #include "node_no.h"
-#include "simset.h"
-#include "task.h"
 #include "server_struct.h"
-#include "xcom_detector.h"
+#include "simset.h"
 #include "site_struct.h"
+#include "task.h"
+#include "x_platform.h"
+#include "xcom_detector.h"
+#include "xcom_vp.h"
 
 #ifdef WIN
 #include "sock_probe_win32.c"

@@ -39,6 +39,7 @@
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"

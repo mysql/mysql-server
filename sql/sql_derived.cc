@@ -30,6 +30,7 @@
 #include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "mysqld.h"                        // internal_tmp_disk_storage_engine
 #include "opt_trace.h"                        // opt_trace_disable_etc
 #include "query_options.h"

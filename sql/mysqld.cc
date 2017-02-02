@@ -399,6 +399,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_regex.h"
+#include "my_shm_defaults.h"
 #include "my_stacktrace.h"              // my_set_exception_pointers
 #include "my_time.h"
 #include "my_timer.h"                   // my_timer_initialize
@@ -504,6 +505,9 @@
 #include "shared_memory_connection.h"
 #endif
 
+#ifdef MY_MSCRT_DEBUG
+#include <crtdbg.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>

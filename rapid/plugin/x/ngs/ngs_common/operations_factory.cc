@@ -21,6 +21,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 
 #include "my_inttypes.h"
 #include "my_io.h"

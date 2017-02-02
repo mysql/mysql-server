@@ -48,6 +48,7 @@
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/psi/psi_base.h"

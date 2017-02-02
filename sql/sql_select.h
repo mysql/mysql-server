@@ -37,6 +37,7 @@
 #include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "opt_costmodel.h"
 #include "opt_explain_format.h"       // Explain_sort_clause
 #include "set_var.h"

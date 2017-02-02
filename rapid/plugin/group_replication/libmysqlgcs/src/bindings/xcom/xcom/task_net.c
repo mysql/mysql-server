@@ -21,24 +21,27 @@
 #define _GNU_SOURCE
 #endif
 
-#include "x_platform.h"
-
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <sys/types.h>
+
+#include "x_platform.h"
 
 #ifndef WIN
 #include <sys/socket.h>
 #endif
 
-#include <errno.h>
 #include <assert.h>
-#include <string.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "simset.h"
-#include "task_debug.h"
-#include "xcom_vp.h"
 #include "task.h"
+#include "task_debug.h"
 #include "task_os.h"
+#include "xcom_vp.h"
 
 /**
  * Wrapper function which retries and checks errors from socket

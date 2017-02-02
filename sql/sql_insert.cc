@@ -42,6 +42,7 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"

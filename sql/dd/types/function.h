@@ -17,6 +17,7 @@
 #define DD__FUNCTION_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 
 #include "dd/types/column.h"              // dd::Column::enum_column_types
 #include "dd/types/routine.h"             // dd::Routine

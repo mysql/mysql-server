@@ -23,6 +23,7 @@
 #include "binary_log_types.h"  // enum_field_types
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "mysql/psi/mysql_mutex.h"
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
 #include "prealloced_array.h"

@@ -42,6 +42,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"

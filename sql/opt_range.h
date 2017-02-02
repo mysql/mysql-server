@@ -37,6 +37,7 @@
 #include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_table_map.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD

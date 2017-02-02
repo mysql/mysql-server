@@ -25,6 +25,7 @@
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_table_map.h"
 #include "sql_class.h"
 #include "test_utils.h"
 #include "tztime.h"

@@ -34,35 +34,39 @@
 #include "x_platform.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
 #include "openssl/err.h"
+#include "openssl/ssl.h"
 #endif
 
 #include <limits.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <stdlib.h>
-#include "xcom_vp.h"
+
 #include "node_connection.h"
+#include "xcom_vp.h"
 
 #ifndef WIN
 #include <arpa/inet.h>
 #endif
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <stdio.h>
 #include <assert.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #ifdef __sun
 #include <procfs.h>
 #endif
 
+#include "simset.h"
+#include "task.h"
 #include "task_debug.h"
 #include "task_net.h"
-#include "simset.h"
 #include "task_os.h"
-#include "task.h"
 #include "xcom_cfg.h"
 #ifndef USE_SELECT
 #include <sys/poll.h>

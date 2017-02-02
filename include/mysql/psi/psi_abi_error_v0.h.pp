@@ -2,6 +2,7 @@
 #include "my_global.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;

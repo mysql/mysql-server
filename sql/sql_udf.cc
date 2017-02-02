@@ -46,6 +46,7 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_memory.h"

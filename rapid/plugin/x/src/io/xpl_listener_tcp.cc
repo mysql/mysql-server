@@ -20,6 +20,9 @@
 #include "io/xpl_listener_tcp.h"
 
 #include <errno.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 
 #include "my_io.h"
 #include "mysqlx_version.h"

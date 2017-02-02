@@ -34,6 +34,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sqlcommand.h"                 // SQLCOM_END
 #include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t

@@ -17,6 +17,7 @@
 #define DD__TABLESPACE_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 #include <vector>
 
 #include "dd/collection.h"                // dd::Collection

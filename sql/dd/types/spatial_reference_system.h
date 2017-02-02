@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "gis/srs/srs.h"                  // srid_t
 
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object

@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
 #include "my_io.h"
+#include "my_sharedlib.h"
 #include "server_component.h"
 
 typedef std::string my_string;

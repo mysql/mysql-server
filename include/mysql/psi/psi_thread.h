@@ -26,8 +26,10 @@
 */
 
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "my_thread.h"      /* my_thread_handle */
 #include "psi_base.h"
 

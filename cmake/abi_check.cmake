@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -88,9 +88,6 @@ IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v1.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_data_lock_v0.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_data_lock_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_data_lock_v2.h
       ${CMAKE_SOURCE_DIR}/include/mysql/services.h
     )
   ENDIF()

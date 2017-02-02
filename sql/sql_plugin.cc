@@ -45,6 +45,7 @@
 #include "my_list.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
@@ -264,14 +265,14 @@
     st_service_ref
 */
 
-#include "srv_session.h"       // Srv_session::check_for_stale_threads()
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
 
 #include <algorithm>
 #include <new>
 
-#ifdef HAVE_DLFCN_H
-#include <dlfcn.h>
-#endif
+#include "srv_session.h"       // Srv_session::check_for_stale_threads()
 
 using std::min;
 using std::max;

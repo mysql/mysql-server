@@ -20,6 +20,9 @@
 #include <my_sys.h>
 #include <my_time.h>
 #include <mysys_err.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>

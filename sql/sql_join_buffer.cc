@@ -36,6 +36,7 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_macros.h"
+#include "my_table_map.h"
 #include "opt_trace.h"      // Opt_trace_object
 #include "psi_memory_key.h" // key_memory_JOIN_CACHE
 #include "records.h"

@@ -23,6 +23,7 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "parse_tree_helpers.h"
 #include "test_utils.h"
 

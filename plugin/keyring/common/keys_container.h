@@ -26,6 +26,7 @@
 #include "keyring_memory.h"
 #include "logger.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 namespace keyring {
 

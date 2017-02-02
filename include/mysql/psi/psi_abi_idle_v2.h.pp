@@ -1,7 +1,27 @@
 #include "mysql/psi/psi_idle.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef char my_bool;
+typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
@@ -23,4 +43,4 @@ struct PSI_idle_bootstrap
 typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
 typedef struct PSI_placeholder PSI_idle_service_t;
 typedef struct PSI_placeholder PSI_idle_locker_state;
-extern MYSQL_PLUGIN_IMPORT PSI_idle_service_t *psi_idle_service;
+extern PSI_idle_service_t *psi_idle_service;

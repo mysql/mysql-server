@@ -36,6 +36,9 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <stdio.h>
 #include <violite.h>
 
@@ -49,6 +52,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_shm_defaults.h"
 #include "mysql.h"
 #include "mysql/client_authentication.h"
 #include "mysql/plugin_auth_common.h"

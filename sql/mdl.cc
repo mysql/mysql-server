@@ -26,6 +26,7 @@
 #include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_murmur3.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"

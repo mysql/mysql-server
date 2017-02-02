@@ -25,6 +25,7 @@
 
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 
 class JOIN;
 class JOIN_TAB;

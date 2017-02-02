@@ -55,6 +55,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "mysql/mysql_lex_string.h"       // LEX_STRING

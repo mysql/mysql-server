@@ -24,6 +24,9 @@
   Please keep the test framework tools identical in all versions!
 */
 
+#ifdef MY_MSCRT_DEBUG
+#include <crtdbg.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <hash.h>

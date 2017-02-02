@@ -24,6 +24,7 @@
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
 #include "mysqld.h"                     // connection_events_loop_aborted
+#include "my_shm_defaults.h"
 #include "sql_class.h"                  // THD
 #include "psi_memory_key.h"
 

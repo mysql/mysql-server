@@ -456,6 +456,7 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "sql_alloc.h"           // Sql_alloc
 
 class Opt_trace_context;

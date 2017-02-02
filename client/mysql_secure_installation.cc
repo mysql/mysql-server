@@ -24,6 +24,7 @@
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_shm_defaults.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
