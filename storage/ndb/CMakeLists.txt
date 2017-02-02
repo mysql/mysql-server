@@ -208,9 +208,6 @@ ELSE()
   ENDIF()
 ENDIF()
 
-OPTION(WITH_NDB_BINLOG
-  "Disable NDB binlog" ON)
-
 OPTION(WITH_ERROR_INSERT
   "Enable error injection in NDB" OFF)
 
