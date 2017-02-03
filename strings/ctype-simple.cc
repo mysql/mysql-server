@@ -1745,7 +1745,7 @@ bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 uint my_strxfrm_flag_normalize(uint flags)
 {
-  flags &= (MY_STRXFRM_PAD_WITH_SPACE | MY_STRXFRM_PAD_TO_MAXLEN);
+  flags &= MY_STRXFRM_PAD_TO_MAXLEN;
   return flags;
 }
 
@@ -1755,8 +1755,9 @@ my_strxfrm_pad(const CHARSET_INFO *cs,
                uchar *str, uchar *frmend, uchar *strend,
                uint nweights, uint flags)
 {
-  if (nweights && frmend < strend && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  if (nweights && frmend < strend)
   {
+    // PAD SPACE behavior.
     uint fill_length= MY_MIN((uint) (strend - frmend), nweights * cs->mbminlen);
     cs->cset->fill(cs, (char*) frmend, fill_length, cs->pad_char);
     frmend+= fill_length;

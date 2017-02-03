@@ -6515,6 +6515,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6548,6 +6549,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6581,6 +6583,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6614,6 +6617,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6647,6 +6651,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6680,6 +6685,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6713,6 +6719,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6746,6 +6753,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_ascii_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6779,6 +6787,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6812,6 +6821,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6845,6 +6855,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6878,6 +6889,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6911,6 +6923,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6944,6 +6957,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -6977,6 +6991,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7010,6 +7025,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7043,6 +7059,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7076,6 +7093,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7109,6 +7127,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7142,6 +7161,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7175,6 +7195,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7208,6 +7229,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7241,6 +7263,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7274,6 +7297,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7307,6 +7331,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7340,6 +7365,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7373,6 +7399,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7406,6 +7433,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7439,6 +7467,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7472,6 +7501,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7505,6 +7535,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7538,6 +7569,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7571,6 +7603,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7604,6 +7637,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7637,6 +7671,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7670,6 +7705,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7703,6 +7739,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7736,6 +7773,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7769,6 +7807,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7802,6 +7841,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7835,6 +7875,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_ascii_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7868,6 +7909,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7901,6 +7943,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7934,6 +7977,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -7967,6 +8011,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8000,6 +8045,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8033,6 +8079,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8066,6 +8113,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8099,6 +8147,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8132,6 +8181,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8165,6 +8215,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8198,6 +8249,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8231,6 +8283,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8264,6 +8317,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8297,6 +8351,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8330,6 +8385,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8363,6 +8419,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8396,6 +8453,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8429,6 +8487,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8462,6 +8521,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8495,6 +8555,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 ,
 {
@@ -8528,6 +8589,7 @@ CHARSET_INFO compiled_charsets[] = {
   1,                          /* levels_for_compare */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
+  PAD_SPACE
 }
 };
 } // extern "C"

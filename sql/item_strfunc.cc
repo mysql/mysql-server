@@ -3896,6 +3896,7 @@ String *Item_func_weight_string::val_str(String *str)
   else
   {
     size_t input_length= input->length();
+    size_t used_num_codepoints= num_codepoints;
     if (num_codepoints)
     {
       // Truncate the string to the requested number of code points.
@@ -3903,10 +3904,19 @@ String *Item_func_weight_string::val_str(String *str)
         cs->cset->charpos(cs, input->ptr(), input->ptr() + input_length,
                           num_codepoints));
     }
+    else
+    {
+      /*
+        Give in exactly the right number of code points, so that we
+        do not get any excess trailing space from PAD SPACE collations.
+      */
+      used_num_codepoints= cs->cset->numchars(
+        cs, input->ptr(), input->ptr() + input_length);
+    }
     output_length= cs->coll->strnxfrm(
       cs,
       (uchar *) tmp_value.ptr(), output_buf_size,
-      num_codepoints ? num_codepoints : output_buf_size,
+      used_num_codepoints,
       (const uchar *) input->ptr(), input_length,
       flags);
   }

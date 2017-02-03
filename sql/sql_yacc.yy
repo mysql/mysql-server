@@ -9601,13 +9601,11 @@ function_call_conflict:
           }
         | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_num_codepoints ')'
           {
-            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6,
-                        MY_STRXFRM_PAD_WITH_SPACE);
+            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6, 0);
           }
         | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_num_codepoints ')'
           {
-            $$= NEW_PTN Item_func_weight_string(@$,
-                        $3, 0, $6, MY_STRXFRM_PAD_WITH_SPACE, true);
+            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6, 0, true);
           }
         | WEIGHT_STRING_SYM '(' expr ',' ulong_num ',' ulong_num ',' ulong_num ')'
           {

@@ -712,5 +712,6 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   0,                            /* escape_with_backslash_is_dangerous */
   2,                            /* levels_for_compare */
   &my_charset_8bit_handler,
-  &my_collation_czech_ci_handler
+  &my_collation_czech_ci_handler,
+  PAD_SPACE
 };

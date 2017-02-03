@@ -3673,8 +3673,8 @@ public:
   uint32 key_length() const { return (uint32) field_length; }
   uint32 sort_length() const
   {
-    return (uint32) field_length + (field_charset == &my_charset_bin ?
-                                    length_bytes : 0);
+    return (uint32) field_length +
+      (field_charset->pad_attribute == NO_PAD ? 2 : 0);
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);

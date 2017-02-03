@@ -538,6 +538,7 @@ public:
     cset= &my_charset_8bit_handler;
     coll= &mock_collation;
     mbmaxlen= 1;
+    pad_attribute= PAD_SPACE;
   }
   ~Mock_charset() { EXPECT_TRUE(strnxfrm_called); }
 };

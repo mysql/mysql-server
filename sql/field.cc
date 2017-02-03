@@ -7324,7 +7324,6 @@ size_t Field_string::make_sort_key(uchar *to, size_t length)
     field_charset->coll->strnxfrm(field_charset,
                                   to, length, char_length(),
                                   ptr, input_length,
-                                  MY_STRXFRM_PAD_WITH_SPACE |
                                   MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
   return length;
@@ -7759,21 +7758,21 @@ size_t Field_varstring::make_sort_key(uchar *to, size_t length)
   size_t orig_length= length;
   size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
-  if (field_charset == &my_charset_bin)
+  if (field_charset->pad_attribute == NO_PAD)
   {
-    /* Store length last in high-byte order to sort longer strings first */
-    if (length_bytes == 1)
-      to[length-1]= tot_length;
-    else
-      mi_int2store(to+length-2, tot_length);
-    length-= length_bytes;
+    /*
+      Store length last in high-byte order to sort longer strings first.
+      Note that we always store two bytes, since otherwise, we would be
+      breaking the invariant that strnxfrm needs an even number of bytes.
+    */
+    mi_int2store(to + length - 2, tot_length);
+    length-= 2;
   }
  
   tot_length= field_charset->coll->strnxfrm(field_charset,
                                             to, length, length,
                                             ptr + length_bytes,
                                             tot_length,
-                                            MY_STRXFRM_PAD_WITH_SPACE |
                                             MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);
   return orig_length;
@@ -8452,8 +8451,9 @@ int Field_blob::do_save_field_metadata(uchar *metadata_ptr)
 
 uint32 Field_blob::sort_length() const
 {
+  // TODO: Isn't the conditional here inverted?
   return (uint32) (current_thd->variables.max_sort_length + 
-                   (field_charset == &my_charset_bin ? 0 : packlength));
+                   (field_charset->pad_attribute == NO_PAD ? 0 : packlength));
 }
 
 
@@ -8467,7 +8467,7 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length)
     memset(to, 0, length);
   else
   {
-    if (field_charset == &my_charset_bin)
+    if (field_charset->pad_attribute == NO_PAD)
     {
       /*
         Store length of blob last in blob to shorter blobs before longer blobs
@@ -8501,7 +8501,6 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length)
     blob_length= field_charset->coll->strnxfrm(field_charset,
                                                to, length, length,
                                                blob, blob_length,
-                                               MY_STRXFRM_PAD_WITH_SPACE |
                                                MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }

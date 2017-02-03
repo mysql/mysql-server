@@ -3796,7 +3796,7 @@ hex(weight_string('abc' as char(3)))
 616263
 select hex(weight_string('abc' as char(5)));
 hex(weight_string('abc' as char(5)))
-6162630000
+616263
 select hex(weight_string('abc', 1, 2, 0xC0));
 hex(weight_string('abc', 1, 2, 0xC0))
 61
@@ -3868,7 +3868,7 @@ hex(weight_string(cast(_latin1 0x808080 as char) as char(3)))
 808080
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(5)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(5)))
-8080800000
+808080
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0))
 80

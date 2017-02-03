@@ -456,7 +456,8 @@ CHARSET_INFO my_charset_latin1=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_8bit_simple_ci_handler
+    &my_collation_8bit_simple_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -764,7 +765,8 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   0,                                    /* escape_with_backslash_is_dangerous */
   1,                                    /* levels_for_compare */
   &my_charset_handler,
-  &my_collation_german2_ci_handler
+  &my_collation_german2_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -799,6 +801,7 @@ CHARSET_INFO my_charset_latin1_bin=
   0,                                    /* escape_with_backslash_is_dangerous */
   1,                                    /* levels_for_compare */
   &my_charset_handler,
-  &my_collation_8bit_bin_handler
+  &my_collation_8bit_bin_handler,
+  PAD_SPACE
 };
 

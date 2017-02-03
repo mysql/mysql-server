@@ -6909,7 +6909,8 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_big5_handler,
-    &my_collation_big5_chinese_ci_handler
+    &my_collation_big5_chinese_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6944,5 +6945,6 @@ CHARSET_INFO my_charset_big5_bin=
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_big5_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };
