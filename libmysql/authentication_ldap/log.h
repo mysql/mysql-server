@@ -68,7 +68,7 @@ private:
 template<class LOGGER_TYPE>
 Logger<LOGGER_TYPE>::Logger(std::string file_name) {
   m_logger_initilzed = -1;
-  m_log_level = LOG_LEVEL_ALL;
+  m_log_level = LOG_LEVEL_NONE;
   m_log_writer = NULL;
   m_log_writer = (Log_writer*) (new LOGGER_TYPE());
   m_logger_initilzed = m_log_writer->Open(file_name);
@@ -109,7 +109,7 @@ void Logger<LOGGER_TYPE>::Log(std::string msg) {
     break;
   case log_type::LOG_ERROR:
     plugin_error_level = MY_ERROR_LEVEL;
-    if (LOG_LEVEL_NONE > m_log_level) {
+    if (LOG_LEVEL_NONE >= m_log_level) {
       goto  WRITE_SERVER_LOG;
     }
     header << "<ERROR> ";
