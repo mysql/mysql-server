@@ -1714,7 +1714,8 @@ CHARSET_INFO my_charset_utf16_general_ci=
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
   &my_charset_utf16_handler,
-  &my_collation_utf16_general_ci_handler
+  &my_collation_utf16_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -1749,7 +1750,8 @@ CHARSET_INFO my_charset_utf16_bin=
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
   &my_charset_utf16_handler,
-  &my_collation_utf16_bin_handler
+  &my_collation_utf16_bin_handler,
+  PAD_SPACE
 };
 
 
@@ -1886,7 +1888,8 @@ CHARSET_INFO my_charset_utf16le_general_ci=
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
   &my_charset_utf16le_handler,
-  &my_collation_utf16_general_ci_handler
+  &my_collation_utf16_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -1921,7 +1924,8 @@ CHARSET_INFO my_charset_utf16le_bin=
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
   &my_charset_utf16le_handler,
-  &my_collation_utf16_bin_handler
+  &my_collation_utf16_bin_handler,
+  PAD_SPACE
 };
 
 
@@ -2829,7 +2833,8 @@ CHARSET_INFO my_charset_utf32_general_ci=
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
   &my_charset_utf32_handler,
-  &my_collation_utf32_general_ci_handler
+  &my_collation_utf32_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -2864,7 +2869,8 @@ CHARSET_INFO my_charset_utf32_bin=
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
   &my_charset_utf32_handler,
-  &my_collation_utf32_bin_handler
+  &my_collation_utf32_bin_handler,
+  PAD_SPACE
 };
 
 
@@ -3453,7 +3459,8 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_general_ci_handler
+    &my_collation_ucs2_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -3488,7 +3495,8 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
   0,                          /* escape_with_backslash_is_dangerous    */
   1,                                               /* levels_for_compare */
   &my_charset_ucs2_handler,
-  &my_collation_ucs2_general_ci_handler
+  &my_collation_ucs2_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -3523,5 +3531,6 @@ CHARSET_INFO my_charset_ucs2_bin=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_bin_handler
+    &my_collation_ucs2_bin_handler,
+    PAD_SPACE
 };

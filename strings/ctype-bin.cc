@@ -432,16 +432,33 @@ int my_wildcmp_bin(const CHARSET_INFO *cs,
 
 extern "C" {
 static size_t
-my_strnxfrm_8bit_bin(const CHARSET_INFO *cs,
-                     uchar * dst, size_t dstlen, uint nweights,
-                     const uchar *src, size_t srclen, uint flags)
+my_strnxfrm_8bit_bin_pad_space(const CHARSET_INFO *cs,
+                               uchar * dst, size_t dstlen, uint nweights,
+                               const uchar *src, size_t srclen, uint flags)
 {
-  set_if_smaller(srclen, dstlen);
-  set_if_smaller(srclen, nweights);
+  srclen= std::min(srclen, dstlen);
+  srclen= std::min<size_t>(srclen, nweights);
   if (dst != src)
     memcpy(dst, src, srclen);
   return my_strxfrm_pad(cs, dst, dst + srclen, dst + dstlen,
-                        (uint)(nweights - srclen), flags);
+                        static_cast<uint>(nweights - srclen), flags);
+}
+
+static size_t
+my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs,
+                            uchar * dst, size_t dstlen, uint nweights,
+                            const uchar *src, size_t srclen, uint flags)
+{
+  srclen= std::min(srclen, dstlen);
+  srclen= std::min<size_t>(srclen, nweights);
+  if (dst != src)
+    memcpy(dst, src, srclen);
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && srclen < dstlen)
+  {
+    cs->cset->fill(cs, pointer_cast<char*>(dst) + srclen, dstlen - srclen, cs->pad_char);
+    return dstlen;
+  }
+  return srclen;
 }
 
 
@@ -512,7 +529,7 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
   my_coll_init_8bit_bin,
   my_strnncoll_8bit_bin,
   my_strnncollsp_8bit_bin,
-  my_strnxfrm_8bit_bin,
+  my_strnxfrm_8bit_bin_pad_space,
   my_strnxfrmlen_simple,
   my_like_range_simple,
   my_wildcmp_bin,
@@ -528,7 +545,7 @@ static MY_COLLATION_HANDLER my_collation_binary_handler =
   NULL,			/* init */
   my_strnncoll_binary,
   my_strnncollsp_binary,
-  my_strnxfrm_8bit_bin,
+  my_strnxfrm_8bit_bin_no_pad,
   my_strnxfrmlen_simple,
   my_like_range_simple,
   my_wildcmp_bin,
@@ -602,5 +619,6 @@ CHARSET_INFO my_charset_bin =
     0,                          /* escape_with_backslash_is_dangerous */
     1,                          /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_binary_handler
+    &my_collation_binary_handler,
+    NO_PAD
 };

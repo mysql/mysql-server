@@ -1199,8 +1199,9 @@ static void BM_Latin1_CI(size_t num_iterations)
   StartBenchmarkTiming();
   for (size_t i= 0; i < num_iterations; ++i)
   {
-    ret = my_strnxfrm(
-      cs, dest, sizeof(dest), pointer_cast<const uchar *>(content), len);
+    ret = cs->coll->strnxfrm(
+      cs, dest, sizeof(dest), sizeof(dest), pointer_cast<const uchar *>(content), len,
+      MY_STRXFRM_PAD_TO_MAXLEN);
   }
   StopBenchmarkTiming();
 

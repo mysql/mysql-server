@@ -34839,7 +34839,8 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_cp932_bin=
@@ -34873,5 +34874,6 @@ CHARSET_INFO my_charset_cp932_bin=
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };

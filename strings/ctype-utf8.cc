@@ -5177,7 +5177,7 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, Mb_wc mb_wc,
   }
 
 pad:
-  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  if (dst < de && nweights)  // PAD SPACE behavior.
     dst+= my_strxfrm_pad_nweights_unicode(dst, de, nweights);
 
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
@@ -5245,9 +5245,10 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
     }
   }
 
-  if (flags & MY_STRXFRM_PAD_WITH_SPACE)
+  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
   {
-    for ( ; dst < de && nweights; nweights--)
+    // Pad with an infinite amount of spaces.
+    while (dst < de)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5258,10 +5259,10 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
       }
     }
   }
-  
-  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
+  else
   {
-    while (dst < de)
+    // Regular PAD SPACE behavior.
+    for ( ; dst < de && nweights; nweights--)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5979,7 +5980,8 @@ CHARSET_INFO my_charset_utf8_general_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler
+    &my_collation_utf8_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6014,7 +6016,8 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler
+    &my_collation_utf8_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6049,7 +6052,8 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   0,                          /* escape_with_backslash_is_dangerous */
   1,                                            /* levels_for_compare */
   &my_charset_utf8_handler,
-  &my_collation_utf8_general_ci_handler
+  &my_collation_utf8_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -6085,7 +6089,8 @@ CHARSET_INFO my_charset_utf8_bin=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_bin_handler
+    &my_collation_utf8_bin_handler,
+    PAD_SPACE
 };
 
 
@@ -7390,7 +7395,8 @@ CHARSET_INFO my_charset_filename=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_filename_handler,
-    &my_collation_filename_handler
+    &my_collation_filename_handler,
+    PAD_SPACE
 };
 
 
@@ -8236,7 +8242,8 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_utf8mb4_general_ci_handler
+  &my_collation_utf8mb4_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -8272,5 +8279,6 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_utf8mb4_bin_handler
+  &my_collation_utf8mb4_bin_handler,
+  PAD_SPACE
 };

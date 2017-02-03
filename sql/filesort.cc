@@ -1554,7 +1554,6 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             cs->coll->strnxfrm(cs, to, sort_field->length,
                                item->max_char_length(),
                                (uchar*) from, length,
-                               MY_STRXFRM_PAD_WITH_SPACE |
                                MY_STRXFRM_PAD_TO_MAXLEN);
           DBUG_ASSERT(tmp_length == sort_field->length);
         }
@@ -2476,7 +2475,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 	  sortorder->need_strnxfrm= true;
 	  *multi_byte_charset= 1;
 	}
-        else if (cs == &my_charset_bin)
+        else if (cs->pad_attribute == NO_PAD)
         {
           /* Store length last to be able to sort blob/varbinary */
           sortorder->suffix_length= suffix_length(sortorder->length);
