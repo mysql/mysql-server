@@ -8575,6 +8575,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         /* NOTE push_back allocates memory using transactions mem_root! */
         thd_ndb->changed_tables.push_back(get_share(m_share),
                                           thd->get_transaction()->transaction_memroot());
+        /* Add all the cascading dependent childs to this list */
+        append_dependents_to_changed_tables(thd_ndb->changed_tables,
+                                            thd->get_transaction()->transaction_memroot());
       }
 
       if (opt_ndb_cache_check_time)
