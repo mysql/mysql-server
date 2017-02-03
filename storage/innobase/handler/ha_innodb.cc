@@ -13629,7 +13629,7 @@ create_table_info_t::create_table_update_global_dd(
 			NULL : reinterpret_cast<dd::Partition*>(dd_table);
 		int error = dd_table_open_on_dd_obj(
 			client, dd_table->table(), part, m_table_name,
-			NULL, table, true, m_thd);
+			table, true, m_thd);
 		ut_ad(error == 0);
 		ut_ad(table != NULL);
 	}

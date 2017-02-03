@@ -326,7 +326,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 SELECT * FROM t1, t2;
 i	i
 1	1
@@ -1621,7 +1621,7 @@ t1	CREATE TABLE `t1` (
   `f3` char(10) DEFAULT 'My ID#',
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
-  CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
 #
@@ -1892,10 +1892,10 @@ t2	CREATE TABLE `t2` (
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   PRIMARY KEY (`c`,`d`),
-  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `f3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `f3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
@@ -2342,13 +2342,13 @@ INSERT INTO t4 VALUES (1),(2),(3),(4),(5);
 INSERT INTO t5 VALUES (1);
 DELETE t5 FROM t4 LEFT JOIN t5 ON t4.a= t5.a;
 DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
 DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
 DELETE IGNORE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`aid`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`aid`) REFERENCES `t1` (`id`))
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
@@ -2418,8 +2418,8 @@ END||
 ** The AFTER trigger isn't fired.
 DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`))
 ** Tables are modified by best effort:
 SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
 i	i
@@ -2449,7 +2449,7 @@ END||
 SET @a:=0;
 ** Errors in the trigger causes the statement to abort.
 DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`))
 SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
 i	i
 1	1
@@ -3007,7 +3007,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `fk` int(11) DEFAULT NULL,
   KEY `x` (`fk`),
-  CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`PK`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`PK`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
 #
