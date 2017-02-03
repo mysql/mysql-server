@@ -171,7 +171,6 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   {
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
-    push(@args, "-DWITH_EMBEDDED_SERVER=1");
   }
 
   if ($opt_valgrind)
