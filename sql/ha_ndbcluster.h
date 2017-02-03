@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -445,6 +445,7 @@ private:
                                       Ndb_fk_list&);
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
+  void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
   static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
                                      const NdbDictionary::Table*,
                                      int drop_flags, bool skip_related);
