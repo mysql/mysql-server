@@ -1146,6 +1146,12 @@ let $values1 = '{}', default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
+--echo # JSON_STORAGE_SIZE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_SIZE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
 --echo #
 --echo # OTHER FUNCTIONS
 --echo #

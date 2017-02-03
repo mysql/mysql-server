@@ -2720,6 +2720,17 @@ protected:
   virtual ~Create_func_json_quote() {}
 };
 
+class Create_func_json_storage_size : public Create_func_arg1
+{
+public:
+  static Create_func_json_storage_size s_singleton;
+  virtual Item *create(THD *thd, Item *arg1)
+  {
+    return new (thd->mem_root) Item_func_json_storage_size(POS(), arg1);
+  }
+};
+Create_func_json_storage_size Create_func_json_storage_size::s_singleton;
+
 class Create_func_json_unquote : public Create_native_func
 {
 public:
@@ -7552,6 +7563,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_REMOVE") }, BUILDER(Create_func_json_remove)},
   { { C_STRING_WITH_LEN("JSON_MERGE") }, BUILDER(Create_func_json_merge)},
   { { C_STRING_WITH_LEN("JSON_QUOTE") }, BUILDER(Create_func_json_quote)},
+  { { C_STRING_WITH_LEN("JSON_STORAGE_SIZE") }, BUILDER(Create_func_json_storage_size)},
   { { C_STRING_WITH_LEN("JSON_UNQUOTE") }, BUILDER(Create_func_json_unquote)},
   { { C_STRING_WITH_LEN("IS_FREE_LOCK") }, BUILDER(Create_func_is_free_lock)},
   { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},
