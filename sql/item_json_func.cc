@@ -3571,3 +3571,48 @@ String *Item_func_json_pretty::val_str(String *str)
   }
   /* purecov: end */
 }
+
+
+longlong Item_func_json_storage_size::val_int()
+{
+  DBUG_ASSERT(fixed);
+
+  /*
+    If the input is a reference to a JSON column, return the actual storage
+    size of the value in the table.
+  */
+  if (args[0]->type() == FIELD_ITEM && args[0]->field_type() == MYSQL_TYPE_JSON)
+  {
+    null_value= args[0]->is_null();
+    if (null_value)
+      return 0;
+    return down_cast<Item_field*>(args[0])->field->data_length();
+  }
+
+  /*
+    Otherwise, return the size required to store the argument if it were
+    serialized to the binary JSON format.
+  */
+  Json_wrapper wrapper;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+  try
+  {
+    if (get_json_wrapper(args, 0, &buffer, func_name(), &wrapper))
+      return error_int();
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_int();
+  }
+  /* purecov: end */
+
+  null_value= args[0]->null_value;
+  if (null_value)
+    return 0;
+
+  if (wrapper.to_binary(&buffer))
+    return error_int();                         /* purecov: inspected */
+  return buffer.length();
+}

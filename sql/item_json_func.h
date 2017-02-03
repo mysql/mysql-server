@@ -820,6 +820,19 @@ public:
 };
 
 /**
+  Class that represents the function JSON_STORAGE_SIZE.
+*/
+class Item_func_json_storage_size : public Item_int_func
+{
+public:
+  Item_func_json_storage_size(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  const char *func_name() const { return "json_storage_size"; }
+  longlong val_int();
+};
+
+/**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification revison 1.0.
   This method is implemented in item_geofunc.cc.
 
