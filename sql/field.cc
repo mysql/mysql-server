@@ -7183,7 +7183,9 @@ double Field_string::val_real(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    ErrConvString err((char*) ptr, field_length, cs);
+    size_t length=
+      cs->cset->lengthsp(cs, pointer_cast<const char*>(ptr), field_length);
+    ErrConvString err((char*) ptr, length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
@@ -7206,7 +7208,9 @@ longlong Field_string::val_int(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    ErrConvString err((char*) ptr, field_length, cs);
+    size_t length=
+      cs->cset->lengthsp(cs, pointer_cast<const char*>(ptr), field_length);
+    ErrConvString err((char*) ptr, length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
@@ -7238,11 +7242,14 @@ String *Field_string::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
 my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  const CHARSET_INFO *cs= charset();
   int err= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr, field_length,
-                          charset(), decimal_value);
+                          cs, decimal_value);
   if (err)
   {
-    ErrConvString errmsg((char*) ptr, field_length, charset());
+    size_t length=
+      cs->cset->lengthsp(cs, pointer_cast<const char*>(ptr), field_length);
+    ErrConvString errmsg((char*) ptr, length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),

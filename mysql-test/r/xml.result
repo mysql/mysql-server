@@ -994,20 +994,20 @@ CALL spxml('<a><b>b1</b><b>b2</b></a>', '1 and string');
 ExtractValue(xml,'/a/b[$i]')
 b1
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '1 and string    '
-Warning	1292	Truncated incorrect INTEGER value: '1 and string    '
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
 CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string and 1');
 ExtractValue(xml,'/a/b[$i]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1    '
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1    '
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
 CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string');
 ExtractValue(xml,'/a/b[$i]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string          '
-Warning	1292	Truncated incorrect INTEGER value: 'string          '
+Warning	1292	Truncated incorrect INTEGER value: 'string'
+Warning	1292	Truncated incorrect INTEGER value: 'string'
 DROP PROCEDURE spxml;
 SET sql_mode = default;
 select UpdateXML('<a>a</a>',repeat('a b ',1000),'');
