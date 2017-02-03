@@ -24,6 +24,8 @@
   Please keep the test framework tools identical in all versions!
 */
 
+#include "my_config.h"
+
 #ifdef MY_MSCRT_DEBUG
 #include <crtdbg.h>
 #endif

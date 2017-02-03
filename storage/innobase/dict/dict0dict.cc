@@ -24,6 +24,8 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#include "my_config.h"
+
 #include <stdlib.h>
 #include <strfunc.h>
 #include <algorithm>

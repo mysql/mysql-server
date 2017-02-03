@@ -16,6 +16,8 @@
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
 
+#include "my_config.h"
+
 #include "lf.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

@@ -23,6 +23,8 @@
   of blocks.  For the differnet block types, look at _mi_get_block_info()
 */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 
 #include "my_compiler.h"

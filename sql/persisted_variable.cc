@@ -15,6 +15,8 @@
 
 #include "persisted_variable.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>

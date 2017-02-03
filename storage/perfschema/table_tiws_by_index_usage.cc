@@ -18,6 +18,8 @@
   Table TABLE_IO_WAITS_SUMMARY_BY_INDEX_USAGE (implementation).
 */
 
+#include "my_config.h"
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"

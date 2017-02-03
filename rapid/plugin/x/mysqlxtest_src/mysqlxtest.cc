@@ -17,8 +17,9 @@
  * 02110-1301  USA
  */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include "my_config.h"
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -32,26 +33,26 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "common/utils_string_parsing.h"
 #include "dummy_stream.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include "my_global.h"
-#include "print_version.h"
-#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include "my_loglevel.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_session.h"
 #include "mysqlx_version.h"
-#include "ngs_common/bind.h"
 #include "mysqlxtest_error_names.h"
-#include "common/utils_string_parsing.h"
+#include "ngs_common/bind.h"
 #include "ngs_common/chrono.h"
 #include "ngs_common/protocol_const.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/to_string.h"
+#include "print_version.h"
 #include "utils_mysql_parsing.h"
 #include "violite.h"
+#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
@@ -60,8 +61,8 @@
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
 const char CMD_ARG_SEPARATOR = '\t';
 
-#include <mysql/service_my_snprintf.h>
 #include <mysql.h>
+#include <mysql/service_my_snprintf.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")

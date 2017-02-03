@@ -32,6 +32,4 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "my_config.h"
-
 #endif  // MY_GLOBAL_INCLUDED

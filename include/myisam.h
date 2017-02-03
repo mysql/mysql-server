@@ -22,6 +22,8 @@
 #ifndef _myisam_h
 #define _myisam_h
 
+#include "my_config.h"
+
 #include "keycache.h"
 #include "m_ctype.h"
 #include "m_string.h"

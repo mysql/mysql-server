@@ -41,6 +41,8 @@
   only. And it is sufficient to calculate the checksum once only.
 */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>

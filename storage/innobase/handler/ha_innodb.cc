@@ -34,6 +34,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
+#include "my_config.h"
+
 #include <current_thd.h>
 #include <dd/properties.h>
 #include <dd/types/tablespace.h>

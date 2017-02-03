@@ -31,6 +31,8 @@
   server.
 */ 
 
+#include "my_config.h"
+
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_global.h>

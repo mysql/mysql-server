@@ -19,6 +19,8 @@
   Performance schema table helpers (implementation).
 */
 
+#include "my_config.h"
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

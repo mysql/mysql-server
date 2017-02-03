@@ -86,6 +86,8 @@
 */
 
 #define MYSQL_SERVER 1
+#include "my_config.h"
+
 #include <m_ctype.h>
 #include <mysql/plugin.h>
 #include <algorithm>

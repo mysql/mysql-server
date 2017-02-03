@@ -16,6 +16,8 @@
 
 #include "table.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

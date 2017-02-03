@@ -22,6 +22,8 @@
 #define MYSQL41_HASH_INCLUDED
 
 
+#include "my_config.h"
+
 #include "my_compiler.h"
 #include "my_inttypes.h"
 

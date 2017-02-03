@@ -23,6 +23,8 @@
   the file descriptior.
 */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #ifndef _WIN32

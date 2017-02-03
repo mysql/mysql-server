@@ -15,6 +15,8 @@
 
 /* Describe, check and repair of MyISAM tables */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>

@@ -27,6 +27,8 @@
   There is no reference counting and no unloading either.
 */
 
+#include "my_config.h"
+
 #include <m_string.h>
 #include <my_global.h>
 #include <my_sys.h>

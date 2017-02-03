@@ -19,6 +19,8 @@
 
 #include "ngs_common/operations_factory.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #ifndef _WIN32

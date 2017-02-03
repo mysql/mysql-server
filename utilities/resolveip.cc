@@ -15,6 +15,8 @@
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
+#include "my_config.h"
+
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_getopt.h>
@@ -22,9 +24,9 @@
 #include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "print_version.h"
 
 #include "my_compiler.h"
+#include "print_version.h"
 
 #ifndef WIN32
 #  include <netdb.h>

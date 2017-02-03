@@ -17,6 +17,9 @@
 ** Ask for a password from tty
 ** This is an own file to avoid conflicts with curses
 */
+
+#include "my_config.h"
+
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_global.h>

@@ -15,6 +15,8 @@
 
 /* Pack MyISAM file */
 
+#include "my_config.h"
+
 #include <assert.h>
 #include <fcntl.h>
 #include <my_getopt.h>

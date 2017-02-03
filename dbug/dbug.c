@@ -79,6 +79,8 @@
  *
  */
 
+#include "my_config.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <m_string.h>

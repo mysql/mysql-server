@@ -22,6 +22,8 @@
 
 #include "mysqlx_connection.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <sstream>
 #ifdef HAVE_SYS_UN_H

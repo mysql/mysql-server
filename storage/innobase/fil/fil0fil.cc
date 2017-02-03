@@ -23,6 +23,8 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 

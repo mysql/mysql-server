@@ -16,6 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 /*
 ** Ask for a password from tty
 ** This is an own file to avoid conflicts with curses

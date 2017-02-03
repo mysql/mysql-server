@@ -19,6 +19,8 @@
 
 #include "io/xpl_listener_unix_socket.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>

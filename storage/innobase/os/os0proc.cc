@@ -24,6 +24,8 @@ process control primitives
 Created 9/30/1995 Heikki Tuuri
 *******************************************************/
 
+#include "my_config.h"
+
 #include <errno.h>
 
 #include "ha_prototypes.h"

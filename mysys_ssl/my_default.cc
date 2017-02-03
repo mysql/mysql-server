@@ -37,6 +37,8 @@
                                 the login file.
 */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <my_aes.h>
 #include <my_dir.h>

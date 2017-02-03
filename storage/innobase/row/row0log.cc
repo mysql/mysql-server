@@ -25,6 +25,8 @@ Created 2011-05-26 Marko Makela
 
 #include "row0log.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <algorithm>
 #include <map>

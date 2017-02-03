@@ -29,6 +29,8 @@
 
 #include "sql_union.h"
 
+#include "my_config.h"
+
 #include <string.h>
 #include <sys/types.h>
 

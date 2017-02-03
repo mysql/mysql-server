@@ -15,6 +15,8 @@
 
 /* key handling functions */
 
+#include "my_config.h"
+
 #include <stdlib.h>
 
 #include "fulltext.h"

@@ -18,6 +18,8 @@
  * 02110-1301  USA
  */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

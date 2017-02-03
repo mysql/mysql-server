@@ -23,6 +23,8 @@ Various utilities for Innobase.
 Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
+#include "my_config.h"
+
 #include <errno.h>
 
 #include "ha_prototypes.h"

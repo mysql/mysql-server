@@ -15,6 +15,8 @@
 
 /* Test av isam-databas: stor test */
 
+#include "my_config.h"
+
 #include <signal.h>
 
 #include "heapdef.h"		/* Because of hp_find_block */

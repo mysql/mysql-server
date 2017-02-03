@@ -20,6 +20,8 @@
   @file include/my_sys.h
 */
 
+#include "my_config.h"
+
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */

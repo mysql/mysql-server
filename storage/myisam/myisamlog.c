@@ -15,6 +15,8 @@
 
 /* write whats in isam.log */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <my_tree.h>
 #include <stdarg.h>

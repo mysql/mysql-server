@@ -19,6 +19,8 @@
 
 #include "xpl_server.h"
 
+#include "my_config.h"
+
 #include <mysql/plugin.h>
 
 #include "auth_mysql41.h"

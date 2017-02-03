@@ -32,6 +32,8 @@ class PFS_opaque_container_page;
 
 class THD;
 
+#include "my_config.h"
+
 #include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
