@@ -26,7 +26,7 @@ SET @@GLOBAL.Mysqlx_port_open_timeout=1;
 --echo # X Plugin started with timeout set to "0"
 --echo #
 --echo #
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 --let $assert_text= Mysqlx_port_open_timeout global variablem must exist
 --let $assert_cond= [SELECT COUNT(@@GLOBAL.Mysqlx_port_open_timeout) as Result;, Result, 1] =1
@@ -126,7 +126,7 @@ UNINSTALL PLUGIN `mysqlx`;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --error ER_CANT_INITIALIZE_UDF
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 --let $assert_text= Mysqlx_port_open_timeout global variablem shouldn't exist
 --let $assert_cond= [SELECT COUNT(*) as Result from performance_schema.global_variables WHERE VARIABLE_NAME ="Mysqlx_port_open_timeout";, Result, 1] =0
 --source include/assert.inc
@@ -143,7 +143,7 @@ UNINSTALL PLUGIN `mysqlx`;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --error ER_CANT_INITIALIZE_UDF
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 --let $assert_text= Mysqlx_port_open_timeout global variablem shouldn't exist
 --let $assert_cond= [SELECT COUNT(*) as Result from performance_schema.global_variables WHERE VARIABLE_NAME ="Mysqlx_port_open_timeout";, Result, 1] =0
 --source include/assert.inc
@@ -160,7 +160,7 @@ UNINSTALL PLUGIN `mysqlx`;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --error ER_CANT_INITIALIZE_UDF
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 --let $assert_text= Mysqlx_port_open_timeout global variablem shouldn't exist
 --let $assert_cond= [SELECT COUNT(*) as Result from performance_schema.global_variables WHERE VARIABLE_NAME ="Mysqlx_port_open_timeout";, Result, 1] =0
 --source include/assert.inc

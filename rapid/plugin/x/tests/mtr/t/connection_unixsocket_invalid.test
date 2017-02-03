@@ -67,7 +67,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MASTER_MYSOCK;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --let $wait_for_unixsocket_status = undefined_value
- --source ../include/xplugin_install_and_wait.inc
+ --source include/xplugin_install_and_wait.inc
 
 # The legacy UNIX socket should be still valid
 connect(socket_con,localhost,root,,,,$MASTER_MYSOCK);

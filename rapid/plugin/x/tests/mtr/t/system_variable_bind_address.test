@@ -20,7 +20,7 @@ SET @@GLOBAL.Mysqlx_bind_address=1;
 --echo # X Plugin started with *
 --echo #
 --echo #
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 --let $assert_text= Mysqlx_bind_address global variablem must exist
 --let $assert_cond= [SELECT COUNT(@@GLOBAL.Mysqlx_bind_address) as Result;, Result, 1] =1

@@ -57,7 +57,7 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_data_home_dir
 SELECT @@global.innodb_redo_log_encrypt;
 SELECT @@global.innodb_undo_log_encrypt;
 
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 --write_file $MYSQL_TMP_DIR/log_encrypt_xplugin_test.tmp
 -->sql

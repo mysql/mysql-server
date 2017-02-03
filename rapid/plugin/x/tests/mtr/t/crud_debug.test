@@ -105,7 +105,7 @@ EOF
 # Request a crash, and restart the server.
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source ../include/xplugin_wait_for_interfaces.inc
+--source include/xplugin_wait_for_interfaces.inc
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
@@ -278,7 +278,7 @@ EOF
 # Request a crash, and restart the server.
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source ../include/xplugin_wait_for_interfaces.inc
+--source include/xplugin_wait_for_interfaces.inc
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
