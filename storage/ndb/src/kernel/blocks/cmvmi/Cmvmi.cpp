@@ -2058,6 +2058,10 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     Uint32 resource_id = cursor->data[0];
     Resource_limit resource_limit;
 
+    if (resource_id == 0)
+    {
+      resource_id++;
+    }
     while(m_ctx.m_mm.get_resource_limit(resource_id, resource_limit))
     {
       jam();

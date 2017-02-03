@@ -488,16 +488,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
     pgman_pages + stpages + transmem;
 
-  if (sum)
-  {
-    Resource_limit rl;
-    rl.m_min = 0;
-    rl.m_max = sum;
-    rl.m_resource_id = 0;
-    ed.m_mem_manager->set_resource_limit(rl);
-  }
-
-  if (!ed.m_mem_manager->init(watchCounter))
+  if (!ed.m_mem_manager->init(watchCounter, sum))
   {
     struct ndb_mgm_param_info dm;
     struct ndb_mgm_param_info sga;
