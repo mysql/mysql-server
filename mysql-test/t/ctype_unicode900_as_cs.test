@@ -107,7 +107,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a CHAR(10)) COLLATE utf8mb4_da_0900_as_cs;
 INSERT INTO t1 VALUES('z'), (_utf16 0x00C50053), (_utf16 0x00C50073), (_utf16 0x00E50053), (_utf16 0x00E50073), (_utf16 0x00C10053), (_utf16 0x00C10073), (_utf16 0x00E10073), (_utf16 0x00E10053), ('aAS'), ('aAs'), ('AS'), ('As'), ('as'), ('aS'), ('aas'), ('AAS'), ('Aas'), ('AAs'), ('aaS'), ('AaS');
-SELECT HEX(CONVERT(a USING utf16)) FROM t1 ORDER BY a;
+SELECT HEX(CONVERT(a USING utf16)), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, BINARY a;
 DROP TABLE t1;
 
 CREATE TABLE t1 (a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_da_0900_as_cs;
