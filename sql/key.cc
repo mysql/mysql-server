@@ -287,7 +287,6 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
        key < key_end ; 
        key_part++, key+= store_length)
   {
-    uint length;
     store_length= key_part->store_length;
 
     if (key_part->null_bit)
@@ -300,32 +299,21 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
       key++;
       store_length--;
     }
-    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
-                                   HA_BIT_PART))
+    if (key_part->bin_cmp &&
+        !(key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
+                                     HA_BIT_PART)))
     {
+      // We can use memcpy.
+      uint length= min((uint) (key_end-key), store_length);
+      if (memcmp(key,table->record[0]+key_part->offset,length))
+        return 1;
+    }
+    else
+    {
+      // Use the regular comparison function.
       if (key_part->field->key_cmp(key, key_part->length))
 	return 1;
-      continue;
     }
-    length= min((uint) (key_end-key), store_length);
-    if (!(key_part->bin_cmp))
-    {
-      const CHARSET_INFO *cs= key_part->field->charset();
-      size_t char_length= key_part->length / cs->mbmaxlen;
-      const uchar *pos= table->record[0] + key_part->offset;
-      if (length > char_length)
-      {
-        char_length= my_charpos(cs, pos, pos + length, char_length);
-        set_if_smaller(char_length, length);
-      }
-      if (cs->coll->strnncollsp(cs,
-                                key, length,
-                                pos, char_length))
-        return 1;
-      continue;
-    }
-    if (memcmp(key,table->record[0]+key_part->offset,length))
-      return 1;
   }
   return 0;
 }

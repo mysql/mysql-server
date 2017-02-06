@@ -7302,6 +7302,20 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
   }
   else
     a_len= b_len= field_length;
+
+  if (field_charset->pad_attribute == NO_PAD &&
+      !(table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH))
+  {
+    /*
+      Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
+      this doesn't matter, for but NO PAD, we need to do it ourselves here.
+    */
+    a_len= field_charset->cset->lengthsp(
+      field_charset, (const char*) a_ptr, a_len);
+    b_len= field_charset->cset->lengthsp(
+      field_charset, (const char*) b_ptr, b_len);
+  }
+
   return field_charset->coll->strnncollsp(field_charset,
                                           a_ptr, a_len,
                                           b_ptr, b_len);
@@ -7315,10 +7329,24 @@ size_t Field_string::make_sort_key(uchar *to, size_t length)
     Find out by calling charpos, since just using field_length
     could give strnxfrm a buffer with more than char_length() code
     points, which is not allowed.
+
+    The min() is because charpos() is allowed to return a value past
+    the end of the string for “end of string”.
   */
   size_t input_length= std::min<size_t>(field_length,
     field_charset->cset->charpos(field_charset, pointer_cast<const char *>(ptr),
       pointer_cast<const char *>(ptr) + field_length, char_length()));
+
+  if (field_charset->pad_attribute == NO_PAD &&
+      !(table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH))
+  {
+    /*
+      Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
+      this doesn't matter, for but NO PAD, we need to do it ourselves here.
+    */
+    input_length= field_charset->cset->lengthsp(
+      field_charset, (const char*) ptr, input_length);
+  }
 
   size_t tmp MY_ATTRIBUTE((unused))=
     field_charset->coll->strnxfrm(field_charset,

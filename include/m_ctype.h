@@ -381,6 +381,21 @@ typedef struct my_charset_handler_st
   size_t  (*well_formed_len)(const struct charset_info_st *,
                              const char *b,const char *e,
                              size_t nchars, int *error);
+  /**
+    Given a pointer and a length in bytes, returns a new length in bytes where
+    all trailing space characters are stripped. This holds even for NO PAD
+    collations.
+
+    Exception: The "binary" collation, which is used behind-the-scenes to implement
+    the BINARY type (by mapping it to CHAR(n) COLLATE "binary"), returns just the
+    length back with no stripping. It's done that way so that Field_string
+    (implementing CHAR(n)) returns the full padded width on read (as opposed to
+    a normal CHAR, where we usually strip the spaces on read), but it's
+    suboptimal, since lengthsp() is also used in a number of other places,
+    e.g. stripping trailing spaces from enum values given in by the user.
+    If you call this function, be aware of this special exception and consider
+    the implications.
+  */
   size_t  (*lengthsp)(const struct charset_info_st *, const char *ptr,
                       size_t length);
   size_t  (*numcells)(const struct charset_info_st *, const char *b,
