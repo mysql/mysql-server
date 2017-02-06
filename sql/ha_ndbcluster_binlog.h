@@ -88,8 +88,9 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    const NDBTAB *ndbtab,
                                    uint server_id);
 
-int ndb_create_table_from_engine(THD *thd, const char *db,
-                                 const char *table_name);
+int ndb_create_table_from_engine(THD *thd, const char *schema_name,
+                                 const char *table_name,
+                                 bool force_overwrite = false);
 int ndbcluster_binlog_start();
 
 int ndbcluster_binlog_end();

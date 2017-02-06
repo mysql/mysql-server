@@ -50,6 +50,7 @@
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
 #include "derror.h"         // ER_THD
 #include "log.h"            // sql_print_*
+#include "ndb_dd.h"
 
 extern bool opt_ndb_log_orig;
 extern bool opt_ndb_log_bin;
@@ -1346,30 +1347,33 @@ int find_all_files(THD *thd, Ndb* ndb)
       /* finalize construction of path */
       end+= tablename_to_filename(elmt.name, end,
                                   (uint)(sizeof(key)-(end-key)));
-      uchar* data = NULL;
-      size_t length;
-      int discover= 0;
-      if (readfrm(key, &data, &length))
+      dd::sdi_t sdi;
+      bool need_install = false;
+      bool need_overwrite = false;
+      if (!ndb_dd_serialize_table(thd,
+                                  elmt.database, elmt.name,
+                                  sdi))
       {
-        discover= 1;
-        sql_print_information("NDB: missing frm for %s.%s, discovering...",
-                              elmt.database, elmt.name);
+        need_install = true;
+        ndb_log_info("Table %s.%s does not exist in DD, installing...",
+                     elmt.database, elmt.name);
       }
-      else if (cmp_unpacked_frm(ndbtab, data, length))
+      else if (cmp_unpacked_frm(ndbtab, sdi.c_str(), sdi.length()))
       {
-        discover= 1;
-        sql_print_information("NDB: mismatch in frm for %s.%s,"
-                                " discovering...",
-                                elmt.database, elmt.name);
+        need_install = true;
+        need_overwrite = true;
+        ndb_log_info("Table %s.%s have different defintion in DD, installing",
+                     elmt.database, elmt.name);
       }
-      my_free(data);
 
-      if (discover)
+      if (need_install)
       {
-        /* ToDo 4.1 database needs to be created if missing */
-        if (ndb_create_table_from_engine(thd, elmt.database, elmt.name))
+        if (ndb_create_table_from_engine(thd, elmt.database, elmt.name,
+                                         need_overwrite))
         {
-          /* ToDo 4.1 handle error */
+          // Failed to create table from NDB
+          ndb_log_error("Failed to install table %s.%s from NDB",
+                        elmt.database, elmt.name);
         }
       }
       else
@@ -1544,7 +1548,10 @@ setup(void)
         break;
     }
     if (ndb_schema_share == NULL)  //Needed for 'ndb_schema_dist_is_ready()'
-      break;  
+    {
+      ndb_log_verbose(50, "Schema distribution not setup, retry...");
+      break;
+    }
 
     /**
      * NOTE: At this point the creation of 'ndb_schema_share' has set

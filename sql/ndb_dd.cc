@@ -22,11 +22,11 @@
 #include <iostream> // cout
 
 bool ndb_sdi_serialize(class THD *thd,
-                       const dd::Table &table,
+                       const dd::Table &table_def,
                        const char* schema_name,
                        dd::sdi_t& sdi)
 {
-  sdi = dd::serialize(thd, table, dd::String_type(schema_name));
+  sdi = dd::serialize(thd, table_def, dd::String_type(schema_name));
   if (sdi.empty())
     return false; // Failed to serialize
 
@@ -36,4 +36,228 @@ bool ndb_sdi_serialize(class THD *thd,
   return true; // OK
 }
 
+#include "sql_class.h"
+#include "transaction.h"
+#include "mdl.h"            // MDL_*
 
+#include "dd/dd.h"
+#include "dd/types/schema.h"
+#include "dd/types/table.h"
+#include "dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "dd/impl/sdi.h"           // dd::deserialize
+
+
+
+bool ndb_dd_serialize_table(class THD *thd,
+                            const char* schema_name,
+                            const char* table_name,
+                            dd::sdi_t& sdi)
+
+{
+  DBUG_ENTER("ndb_dd_serialize_table");
+
+  // First aquire MDL locks
+  {
+    MDL_request_list mdl_requests;
+    MDL_request schema_request;
+    MDL_request mdl_request;
+
+    MDL_REQUEST_INIT(&schema_request,
+                     MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION);
+
+    mdl_requests.push_front(&schema_request);
+    mdl_requests.push_front(&mdl_request);
+
+    if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
+    {
+      DBUG_RETURN(false);
+    }
+
+    // Acquired MDL on the schema and table involved
+  }
+
+  {
+    /*
+       Implementation details from which storage the DD uses leaks out
+       and the user of these functions magically need to turn auto commit
+       off.
+       I.e as in sql_table.cc, execute_ddl_log_recovery()
+           'Prevent InnoDB from automatically committing InnoDB transaction
+            each time data-dictionary tables are closed after being updated.'
+
+      Need to check how it can be hidden or if the THD settings need to be
+      restored
+    */
+    thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+    thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+  }
+
+  {
+    dd::cache::Dictionary_client* client= thd->dd_client();
+    dd::cache::Dictionary_client::Auto_releaser ar{client};
+
+    const dd::Schema *schema= nullptr;
+    if (client->acquire(schema_name, &schema))
+    {
+      DBUG_RETURN(false);
+    }
+    if (schema == nullptr)
+    {
+      DBUG_ASSERT(false); // Database does not exist
+      DBUG_RETURN(false);
+    }
+
+    const dd::Table *existing= nullptr;
+    if (client->acquire(schema->name(), table_name, &existing))
+    {
+      DBUG_RETURN(false);
+    }
+
+    if (existing == nullptr)
+    {
+      // Table does not exist in DD
+      DBUG_RETURN(false);
+    }
+
+    const bool serialize_res =
+        ndb_sdi_serialize(thd,
+                          *existing,
+                          schema_name,
+                          sdi);
+    if (!serialize_res)
+    {
+      // Failed to serialize table
+      DBUG_ASSERT(false); // Should not happen
+      DBUG_RETURN(false);
+    }
+
+    trans_commit_stmt(thd);
+    trans_commit(thd);
+  }
+
+  // TODO Must be done in _all_ return paths
+  thd->mdl_context.release_transactional_locks();
+
+  DBUG_RETURN(true); // OK!
+}
+
+
+bool
+ndb_dd_install_table(class THD *thd,
+                     const char* schema_name,
+                     const char* table_name,
+                     const dd::sdi_t &sdi, bool force_overwrite)
+{
+
+  DBUG_ENTER("ndb_dd_install_table");
+
+  // First aquire MDL locks
+  {
+    MDL_request_list mdl_requests;
+    MDL_request schema_request;
+    MDL_request mdl_request;
+
+    MDL_REQUEST_INIT(&schema_request,
+                     MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION);
+
+    mdl_requests.push_front(&schema_request);
+    mdl_requests.push_front(&mdl_request);
+
+    if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
+    {
+      DBUG_RETURN(false);
+    }
+
+    // Acquired MDL on the schema and table involved
+  }
+
+  {
+    /*
+       Implementation details from which storage the DD uses leaks out
+       and the user of these functions magically need to turn auto commit
+       off.
+       I.e as in sql_table.cc, execute_ddl_log_recovery()
+           'Prevent InnoDB from automatically committing InnoDB transaction
+            each time data-dictionary tables are closed after being updated.'
+
+      Need to check how it can be hidden or if the THD settings need to be
+      restored
+    */
+    thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+    thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+  }
+
+  {
+    dd::cache::Dictionary_client* client= thd->dd_client();
+    dd::cache::Dictionary_client::Auto_releaser ar{client};
+
+    const dd::Schema *schema= nullptr;
+
+    if (client->acquire(schema_name, &schema))
+    {
+      DBUG_RETURN(false);
+    }
+    if (schema == nullptr)
+    {
+      DBUG_ASSERT(false); // Database does not exist
+      DBUG_RETURN(false);
+    }
+
+    std::unique_ptr<dd::Table> table_object{dd::create_object<dd::Table>()};
+    if (dd::deserialize(thd, sdi, table_object.get()))
+    {
+      DBUG_RETURN(false);
+    }
+
+    // Assign the id of the schema to the table_object
+    table_object->set_schema_id(schema->id());
+
+
+    const dd::Table *existing= nullptr;
+    if (client->acquire(schema->name(), table_object->name(), &existing))
+    {
+      DBUG_RETURN(false);
+    }
+
+    if (existing != nullptr)
+    {
+      // Table already exists
+      if (!force_overwrite)
+      {
+        // Don't overwrite existing table
+        DBUG_ASSERT(false);
+        DBUG_RETURN(false);
+      }
+
+      // Continue and overwrite
+      DBUG_ASSERT(false); // No such case yet
+    }
+
+    if (client->store(table_object.get()))
+    {
+      // trans_rollback...
+      DBUG_ASSERT(false); // Failed to store
+      DBUG_RETURN(false);
+    }
+
+    trans_commit_stmt(thd);
+    trans_commit(thd);
+  }
+
+
+  // TODO Must be done in _all_ return paths
+  thd->mdl_context.release_transactional_locks();
+
+  DBUG_RETURN(true); // OK!
+
+}
