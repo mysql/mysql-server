@@ -5869,11 +5869,32 @@ static bool prepare_foreign_key(THD *thd,
   }
 
   fk_info->key_parts= fk_key->columns.size();
+
   if (fk_key->ref_db.str)
+  {
     fk_info->ref_db= fk_key->ref_db;
+    if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
+    {
+      char buff[NAME_CHAR_LEN];
+      my_stpncpy(buff, fk_info->ref_db.str, NAME_CHAR_LEN);
+      my_casedn_str(system_charset_info, buff);
+      fk_info->ref_db.str= sql_strdup(buff);
+      fk_info->ref_db.length= strlen(fk_info->ref_db.str);
+    }
+  }
   else
     fk_info->ref_db= thd->db(); // No schema given, use current schema
+
   fk_info->ref_table= fk_key->ref_table;
+  if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
+  {
+    char buff[NAME_CHAR_LEN];
+    my_stpncpy(buff, fk_info->ref_table.str, NAME_CHAR_LEN);
+    my_casedn_str(system_charset_info, buff);
+    fk_info->ref_table.str= sql_strdup(buff);
+    fk_info->ref_table.length= strlen(fk_info->ref_table.str);
+  }
+
   fk_info->delete_opt= fk_key->delete_opt;
   fk_info->update_opt= fk_key->update_opt;
   fk_info->match_opt= fk_key->match_opt;
