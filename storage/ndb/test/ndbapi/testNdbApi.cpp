@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7061,6 +7061,151 @@ runFinaliseCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+void
+asyncCallback(int res, NdbTransaction* trans, void* obj)
+{
+  
+}
+
+int
+runTestOldApiScanFinalise(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = ctx->getTab();
+
+  /**
+   * Test behaviour of 'old api' scan prepare + send 
+   * without subsequent execAsynchPrepare()
+   * Note that use of async API with scans is not 
+   * currently documented, but it is possible.
+   */
+  {
+    NdbTransaction * trans = pNdb->startTransaction();
+    CHECK(trans != NULL);
+    
+    /**
+     *  Prepare transaction, so that it is considered for
+     * sending
+     */
+    trans->executeAsynchPrepare(NdbTransaction::NoCommit,
+                                asyncCallback,
+                                NULL);
+
+    /**
+     * Now define a scan, which is not prepared
+     */
+
+    NdbScanOperation* scanOp = trans->getNdbScanOperation(tab);
+    CHECK(scanOp != NULL);
+
+    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
+                             0,
+                             16) == 0);
+    
+    for(int a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      CHECK(scanOp->getValue(tab->getColumn(a)) != 0);
+    }
+
+    /**
+     * Now call send and check behaviour
+     * Expect : 
+     *   send will finalise + send the scan
+     *   scan will proceed as expected (no rows in resultset)
+     */
+
+    CHECK(pNdb->sendPollNdb() != 0);
+
+    ndbout_c("Trans error : %u %s\n"
+             "Scan error : %u %s\n",
+             trans->getNdbError().code,
+             trans->getNdbError().message,
+             scanOp->getNdbError().code,
+             scanOp->getNdbError().message);
+
+    /* Specific error for this case now */
+    CHECK(trans->getNdbError().code == 4342);
+    CHECK(scanOp->getNdbError().code == 4342);
+
+    /**
+     * Now attempt nextResult
+     */
+    int nextRes = scanOp->nextResult();
+    
+    ndbout_c("Next result : %d\n"
+             "ScanError : %u %s",
+             nextRes,
+             scanOp->getNdbError().code,
+             scanOp->getNdbError().message);
+    CHECK(nextRes == -1);
+    CHECK(scanOp->getNdbError().code == 4342); /* Scan defined but not prepared */
+
+    trans->close();
+  }
+
+/* Test requires DBUG error injection */
+#ifndef DBUG_OFF
+  /**
+   * Test behaviour of 'old api' scan finalisation
+   * failure
+   */
+  {
+    NdbTransaction * trans = pNdb->startTransaction();
+    CHECK(trans != NULL);
+
+    NdbScanOperation* scanOp = trans->getNdbScanOperation(tab);
+    CHECK(scanOp != NULL);
+
+    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
+                             0,
+                             16) == 0);
+    
+    for(int a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      CHECK(scanOp->getValue(tab->getColumn(a)) != 0);
+    }
+
+    /* Force failure in finalisation via error-insert */
+    DBUG_SET_INITIAL("+d,ndb_scanbuff_oom");
+
+    int execRes = trans->execute(NdbTransaction::NoCommit,
+                                 NdbOperation::AbortOnError);
+
+    DBUG_SET_INITIAL("-d,ndb_scanbuff_oom");
+
+    NdbError transError = trans->getNdbError();
+    NdbError scanError1 = scanOp->getNdbError();
+
+    int nextRes = scanOp->nextResult();
+    
+    NdbError scanError2 = scanOp->getNdbError();
+
+    ndbout_c("execRes : %d\n"
+             "transError : %u %s\n"
+             "scanError : %u %s\n"
+             "nextRes + scanError : %d %u %s",
+             execRes, 
+             transError.code, transError.message,
+             scanError1.code, scanError1.message,
+             nextRes,
+             scanError2.code, scanError2.message);
+    
+    CHECK(execRes == 0);
+    CHECK(transError.code == 4000);
+    CHECK(scanError1.code == 4000);
+    CHECK(nextRes == -1);
+    CHECK(scanError2.code == 4000);
+
+    trans->close();
+  }
+#endif
+
+  return NDBT_OK;
+}
+
+
+
+
 static int reCreateTableHook(Ndb* ndb,
                              NdbDictionary::Table & table,
                              int when,
@@ -7654,6 +7799,11 @@ TESTCASE("CheckTransIdMt",
   STEPS(runCheckTransIdMt, CheckTransIdSteps);
   VERIFIER(runVerifyCheckTransIdMt);
   FINALIZER(runFinaliseCheckTransIdMt);
+}
+TESTCASE("OldApiScanFinalise",
+         "Test error during finalise behaviour")
+{
+  VERIFIER(runTestOldApiScanFinalise);
 }
 TESTCASE("CheckDisconnectCommit",
          "Check commit post API disconnect")

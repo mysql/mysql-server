@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -774,6 +774,16 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     }
     DBUG_VOID_RETURN;
   }//if
+
+  /**
+   * Perform scan finalisation here
+   */
+  NdbScanOperation* tScanOp = m_theFirstScanOperation;
+  while (tScanOp)
+  {
+    tScanOp->finaliseScan();
+    tScanOp = (NdbScanOperation*)tScanOp->next();
+  }
 
   NdbQueryImpl* const lastLookupQuery = getLastLookupQuery(m_firstQuery);
 
