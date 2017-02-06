@@ -26,8 +26,6 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 # Disabled list(Due to server issues)
 (Due to InnoDB issues)
 
-innodb-wl5980-discard     : WL#9525 disables it, waiting for discard tablespace fix
-
 innodb_bulk_create_index_debug : WL#9525 disables it, tablespaces are not crash-safe for now
 
 create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it

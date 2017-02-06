@@ -15841,8 +15841,6 @@ ha_innobase::rename_table_impl(
 		table = dict_table_check_if_in_cache_low(norm_to);
 		ut_ad(table != NULL);
 
-		ut_ad(!table->ibd_file_missing);
-
                 rename_dd_filename = dict_table_is_file_per_table(table);
 
                 if (rename_dd_filename) {
@@ -15866,9 +15864,9 @@ ha_innobase::rename_table_impl(
 
 	log_buffer_flush_to_disk();
 
-	if (rename_dd_filename) {
-		ut_ad(new_path != NULL);
-
+	/* Allow to rename a table without ibd file, which has no
+	new_path, so no need to update anything */
+	if (rename_dd_filename && new_path != NULL) {
 		dd::Object_id		dd_space_id =
 			(*to_table->indexes()->begin())->tablespace_id();
 
