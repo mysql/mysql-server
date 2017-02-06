@@ -45,6 +45,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_executed = false;
   m_scan_buffer= NULL;
   m_scanUsingOldApi= true;
+  m_scanFinalisedOk= false;
   m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
 }
@@ -118,6 +119,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_read_range_no = 0;
   m_executed = false;
   m_scanUsingOldApi= true;
+  m_scanFinalisedOk = false;
   m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
   m_pruneState= SPS_UNKNOWN;
@@ -1689,11 +1691,15 @@ NdbScanOperation::executeCursor(int nodeId)
    */  
   NdbImpl* theImpl = theNdb->theImpl;
 
-  int res = 0;
-  if (m_scanUsingOldApi && finaliseScanOldApi() == -1)
+  if (!m_scanFinalisedOk)
   {
-    res = -1;
-    goto done;
+    if (theError.code == 0)
+    {
+      /* Scan defined but not prepared */
+      setErrorCodeAbort(4342);
+    }
+
+    return -1;
   }
 
   {
@@ -1708,11 +1714,12 @@ NdbScanOperation::executeCursor(int nodeId)
       
       if (doSendScan(nodeId) == -1)
       {
-        res = -1;
-        goto done;
+        return -1;
       }
       
       m_executed= true; // Mark operation as executed
+
+      return 0;
     } 
     else
     {
@@ -1728,27 +1735,10 @@ NdbScanOperation::executeCursor(int nodeId)
         TRACE_DEBUG("The node is stopping when attempting to start a scan");
         setErrorCode(4030);
       }//if
-      res = -1;
       tCon->theCommitStatus = NdbTransaction::Aborted;
+      return -1;
     }//if
   }
-
-done:
-    /**
-   * Set pointers correctly
-   *   so that nextResult will handle it correctly
-   *   even if doSendScan was never called
-   *   bug#42454
-   */
-  m_curr_row = 0;
-  m_sent_receivers_count = theParallelism;
-  if(m_ordered)
-  {
-    m_current_api_receiver = theParallelism;
-    m_api_receivers_count = theParallelism;
-  }
-
-  return res;
 }
 
 
@@ -2287,6 +2277,39 @@ int NdbScanOperation::finaliseScanOldApi()
   return result;
 }
 
+
+void NdbScanOperation::finaliseScan()
+{
+  int res = 0;
+  assert(m_scanFinalisedOk == false);
+  
+  if (m_scanUsingOldApi)
+  {
+    /* Here we transform an set of scan definitions
+     * from the 'old api' into an NdbRecord style
+     * scan operation
+     */
+    res = finaliseScanOldApi();
+  }
+  
+  /**
+   * In all cases, initialise members necessary for correct
+   * nextResult() calls even without successful send of
+   * the scan...
+   * See bug#42545
+   */
+  m_curr_row = 0;
+  m_sent_receivers_count = theParallelism;
+  if (m_ordered)
+  {
+    m_current_api_receiver = theParallelism;
+    m_api_receivers_count = theParallelism;
+  }
+
+  m_scanFinalisedOk = (res == 0);
+}
+  
+
 /***************************************************************************
 int prepareSendScan(Uint32 aTC_ConnectPtr,
                     Uint64 aTransactionId,
@@ -2385,6 +2408,13 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   assert(theParallelism > 0);
   const Uint32 alloc_size = ((full_rowsize+bufsize)*theParallelism) / sizeof(Uint32);
   Uint32 *buf= new Uint32[alloc_size];
+  DBUG_EXECUTE_IF("ndb_scanbuff_oom",
+                  {
+                    ndbout_c("DBUG_EXECUTE_IF(ndb_scanbuff_oom...");
+                    delete buf;
+                    buf = NULL;
+                  }
+  );
   if (!buf)
   {
     setErrorCodeAbort(4000); // "Memory allocation error"
@@ -3949,6 +3979,12 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   {
     theNdbCon->theReleaseOnClose = true;
     return -1;
+  }
+
+  if (!m_executed)
+  {
+    /* Nothing sent, nothing to wait for */
+    return 0;
   }
   
   /**
