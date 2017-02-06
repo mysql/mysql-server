@@ -4,11 +4,12 @@
 
 --source include/have_binlog_format_mixed.inc
 
---let $delay=1000000
---let $delay_as_secs= `SELECT $delay / 1000000.0`
-
 --let $bgcd_saved=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+--let $sync_binlog_saved=`SELECT @@GLOBAL.sync_binlog`
+
+--let $delay=1000000
 --eval SET GLOBAL binlog_group_commit_sync_delay=$delay
+SET GLOBAL sync_binlog = 1;
 
 SET @clock_in = SYSDATE();
 CREATE TABLE t1 (c1 INT) Engine=InnoDB;
@@ -18,6 +19,37 @@ SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
 --let $assert_cond= [SELECT @elapsed >= @@GLOBAL.binlog_group_commit_sync_delay]
 --source include/assert.inc
 
+#
+# Bug#21420180 BINLOG_GROUP_COMMIT_SYNC_DELAY SHOULD BE CONSIDERED ONLY WHEN
+#              SYNCING BINLOG
+#
+# Execute 1000 insertions (i.e., 1000 groups , one transaction per group).
+# Without the fix, it will take 1000 * binlog_group_commit_sync_delay which
+# is 1000 seconds (> 15 mints). Hence test script will be timed out.
+# But with fix, it should not take more than few seconds (that depends
+# on Pb2 machine speed and also depends on various build options too.
+#
+--let $group_count=1000
+--eval SET GLOBAL sync_binlog=$group_count
+--let $i=0
+
+SET @clock_in = SYSDATE();
+--disable_query_log
+while ($i <= $group_count)
+{
+  --eval INSERT INTO t1 VALUES ($i)
+  --inc $i
+}
+--enable_query_log
+SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
+--let $assert_text="Assert that the above statements should not take more than 1000 seconds"
+--let $assert_cond= [SELECT @elapsed < 1000 * @@GLOBAL.binlog_group_commit_sync_delay]
+--source include/assert.inc
+
+# End of Bug#21420180 test
+
+# Cleanup
 --eval SET GLOBAL binlog_group_commit_sync_delay=$bgcd_saved
+--eval SET GLOBAL sync_binlog=$sync_binlog_saved
 
 DROP TABLE t1;
