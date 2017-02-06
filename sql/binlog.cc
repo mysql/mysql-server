@@ -9155,10 +9155,15 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     DBUG_RETURN(finish_commit(thd));
   }
 
-  /* Shall introduce a delay. */
-  stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
-                                      opt_binlog_group_commit_sync_delay,
-                                      Stage_manager::SYNC_STAGE);
+  /*
+    Shall introduce a delay only if it is going to do sync
+    in this ongoing SYNC stage. The "+1" used below in the
+    if condition is to count the ongoing sync stage.
+  */
+  if (!flush_error && (sync_counter + 1 >= get_sync_period()))
+    stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
+                                        opt_binlog_group_commit_sync_delay,
+                                        Stage_manager::SYNC_STAGE);
 
   final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
 
