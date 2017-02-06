@@ -1148,7 +1148,7 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
 {
   size_t clen= 1;
   int flag;
-  uchar *s, *beg;
+  uchar *s, *beg= nullptr;
   const MY_CONTRACTION *contraction_begin= cs->uca->contractions.item;
   const MY_CONTRACTION *contraction_end=
     contraction_begin + cs->uca->contractions.nitems;
