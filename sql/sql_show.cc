@@ -7875,9 +7875,7 @@ extern ST_FIELD_INFO optimizer_trace_info[];
 
 ST_SCHEMA_TABLE schema_tables[]=
 {
-  /* TODO: Modify this view name from COLUMNS_PRIVILEGES back to COLUMNS_PRIVILEGES
-  after lower case table names issue resolved. */
-  {"COLUMNS_PRIVILEGES", column_privileges_fields_info, create_schema_table,
+  {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
@@ -7915,9 +7913,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
   {"TABLESPACES", tablespaces_fields_info, create_schema_table,
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
-  /* TODO: Modify this view name from TABLES_PRIVILEGES back to TABLE_PRIVILEGES
-  after lower case table names issue resolved. */
-  {"TABLES_PRIVILEGES", table_privileges_fields_info, create_schema_table,
+  {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
   {"TRIGGERS", triggers_fields_info, create_schema_table,
    get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,

@@ -280,7 +280,7 @@ SELECT table_schema,table_name FROM information_schema.tables
 WHERE table_schema = 'information_schema' AND table_name = 'TABLES';
 
 # Check 2: Show the privileges of the user on some INFORMATION_SCHEMA tables.
-SELECT * FROM information_schema.tables_privileges
+SELECT * FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'information_schema';
@@ -334,10 +334,10 @@ let $my_select1 = SELECT 'empty result set was expected' AS my_col
 FROM information_schema.schema_privileges
 WHERE table_schema = 'information_schema';
 let $my_select2 = SELECT 'empty result set was expected' AS my_col
-FROM information_schema.tables_privileges
+FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
 let $my_select3 = SELECT 'empty result set was expected' AS my_col
-FROM information_schema.columns_privileges
+FROM information_schema.column_privileges
 WHERE table_schema = 'information_schema';
 eval $my_select1;
 eval $my_select2;

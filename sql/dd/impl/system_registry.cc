@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,9 +138,7 @@ void System_views::init()
     "STATISTICS",
     "ST_GEOMETRY_COLUMNS",
     "ST_SPATIAL_REFERENCE_SYSTEMS",
-    /* TODO: Modify this view name from TABLES_CONSTRAINTS back to TABLE_CONSTRAINTS
-    after lower case table names issue resolved. */
-    "TABLES_CONSTRAINTS",
+    "TABLE_CONSTRAINTS",
     "TABLES",
     "TABLES_DYNAMIC",
     "VIEWS",

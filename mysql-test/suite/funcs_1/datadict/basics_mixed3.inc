@@ -15,7 +15,7 @@
 #    user_privileges
 SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
-SELECT DISTINCT table_schema FROM information_schema.columns_privileges
+SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
@@ -31,9 +31,9 @@ WHERE table_schema LIKE 'db_data%' OR index_schema LIKE 'db_data%';
 SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_schema LIKE 'db_data%';
 SELECT DISTINCT constraint_schema,table_schema
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-SELECT DISTINCT table_schema FROM information_schema.tables_privileges
+SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers

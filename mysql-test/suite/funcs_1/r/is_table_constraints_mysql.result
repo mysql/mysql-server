@@ -3,7 +3,7 @@ CREATE DATABASE db_datadict;
 DROP   USER testuser1@localhost;
 CREATE USER testuser1@localhost;
 GRANT SELECT ON db_datadict.* TO testuser1@localhost;
-SELECT * FROM information_schema.tables_constraints
+SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name,constraint_name COLLATE utf8_general_ci;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
@@ -42,7 +42,7 @@ def	mysql	PRIMARY	mysql	time_zone_transition	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone_transition_type	PRIMARY KEY
 def	mysql	PRIMARY	mysql	user	PRIMARY KEY
 # Establish connection testuser1 (user=testuser1)
-SELECT * FROM information_schema.tables_constraints
+SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name,constraint_name COLLATE utf8_general_ci;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE

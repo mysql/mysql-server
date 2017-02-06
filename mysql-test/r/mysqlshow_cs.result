@@ -83,7 +83,7 @@ Database: information_schema
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
-| COLUMNS_PRIVILEGES                    |
+| COLUMN_PRIVILEGES                     |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -136,9 +136,9 @@ Database: information_schema
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | TABLES                                |
 | TABLESPACES                           |
-| TABLES_CONSTRAINTS                    |
 | TABLES_DYNAMIC                        |
-| TABLES_PRIVILEGES                     |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
@@ -151,7 +151,7 @@ Database: INFORMATION_SCHEMA
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
-| COLUMNS_PRIVILEGES                    |
+| COLUMN_PRIVILEGES                     |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -204,9 +204,9 @@ Database: INFORMATION_SCHEMA
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | TABLES                                |
 | TABLESPACES                           |
-| TABLES_CONSTRAINTS                    |
 | TABLES_DYNAMIC                        |
-| TABLES_PRIVILEGES                     |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |

@@ -716,10 +716,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
 --
 -- INFORMATION_SCHEMA.TABLE_CONSTRAINTS
 --
--- TODO: Modify this view name from TABLES_CONSTRAINTS back to TABLE_CONSTRAINTS
--- after lower case table names issue resolved.
 SET @str=CONCAT("
-CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_CONSTRAINTS AS
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS
   (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
           sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
           CONVERT(idx.name USING utf8) AS CONSTRAINT_NAME,

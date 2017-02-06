@@ -24,9 +24,9 @@
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 
-let $is_table = COLUMNS_PRIVILEGES;
+let $is_table = COLUMN_PRIVILEGES;
 
-# The table INFORMATION_SCHEMA.COLUMNS_PRIVILEGES must exist
+# The table INFORMATION_SCHEMA.COLUMN_PRIVILEGES must exist
 eval SHOW TABLES FROM information_schema LIKE '$is_table';
 
 --echo #######################################################################
@@ -39,9 +39,9 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 
 
 --echo #########################################################################
---echo # Testcase 3.2.5.1: INFORMATION_SCHEMA.COLUMNS_PRIVILEGES layout
+--echo # Testcase 3.2.5.1: INFORMATION_SCHEMA.COLUMN_PRIVILEGES layout
 --echo #########################################################################
-# Ensure that the INFORMATION_SCHEMA.COLUMNS_PRIVILEGES table has the following
+# Ensure that the INFORMATION_SCHEMA.COLUMN_PRIVILEGES table has the following
 # columns, in the following order:
 #
 # GRANTEE (shows the name of a user who has either granted,
@@ -64,16 +64,16 @@ eval SHOW CREATE TABLE information_schema.$is_table;
 eval SHOW COLUMNS FROM information_schema.$is_table;
 
 # Note: Retrieval of information within information_schema.columns
-#       about information_schema.columns_privileges is in is_columns_is.test.
+#       about information_schema.column_privileges is in is_columns_is.test.
 
 # Show that TABLE_CATALOG is always NULL.
 SELECT table_catalog, table_schema, table_name, column_name, privilege_type
-FROM information_schema.columns_privileges WHERE table_catalog IS NOT NULL;
+FROM information_schema.column_privileges WHERE table_catalog IS NOT NULL;
 
 
 --echo ######################################################################
 --echo # Testcase 3.2.5.2+3.2.5.3+3.2.5.4:
---echo #          INFORMATION_SCHEMA.COLUMNS_PRIVILEGES accessible information
+--echo #          INFORMATION_SCHEMA.COLUMN_PRIVILEGES accessible information
 --echo ######################################################################
 # 3.2.5.2:  Ensure that the table shows the relevant information on every
 #           column privilege which has been granted to the current user or
@@ -85,9 +85,9 @@ FROM information_schema.columns_privileges WHERE table_catalog IS NOT NULL;
 # 3.2.5.4:  Ensure that the table does not show any information on any
 #           privileges that are not column privileges for the current user.
 #
-# Note: Check of content within information_schema.columns_privileges about the
+# Note: Check of content within information_schema.column_privileges about the
 #       databases information_schema, mysql and test is in
-#       is_columns_privileges_is_mysql_test.test
+#       is_column_privileges_is_mysql_test.test
 #
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
@@ -120,7 +120,7 @@ GRANT INSERT, SELECT ON db_datadict.t1 TO 'testuser3'@'localhost'
 WITH GRANT OPTION;
 GRANT ALL            ON db_datadict.*  TO 'testuser3'@'localhost';
 
-let $select= SELECT * FROM information_schema.columns_privileges
+let $select= SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 eval $select;
@@ -146,8 +146,8 @@ eval $select;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser3, localhost, testuser3, , db_datadict);
 
---echo # FIXME: Is it correct that granted TABLES do not occur in COLUMNS_PRIVILEGES?
-SELECT * FROM information_schema.tables_privileges
+--echo # FIXME: Is it correct that granted TABLES do not occur in COLUMN_PRIVILEGES?
+SELECT * FROM information_schema.table_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee,table_schema,table_name,privilege_type;
 SELECT * FROM information_schema.schema_privileges
@@ -176,7 +176,7 @@ DROP USER 'testuser3'@'localhost';
 
 
 --echo ################################################################################
---echo # 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.COLUMNS_PRIVILEGES modifications
+--echo # 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.COLUMN_PRIVILEGES modifications
 --echo ################################################################################
 # 3.2.1.13: Ensure that the creation of any new database object (e.g. table or
 #           column) automatically inserts all relevant information on that
@@ -208,7 +208,7 @@ DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT ALL ON test.* TO 'testuser1'@'localhost';
 
-let $my_select = SELECT * FROM information_schema.columns_privileges
+let $my_select = SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 let $my_show = SHOW GRANTS FOR 'testuser1'@'localhost';
@@ -320,33 +320,33 @@ CREATE USER 'testuser1'@'localhost';
 GRANT SELECT (f1) ON db_datadict.t1 TO 'testuser1'@'localhost';
 
 --error ER_DBACCESS_DENIED_ERROR
-INSERT INTO information_schema.columns_privileges
-SELECT * FROM information_schema.columns_privileges;
+INSERT INTO information_schema.column_privileges
+SELECT * FROM information_schema.column_privileges;
 
 --error ER_DBACCESS_DENIED_ERROR
-UPDATE information_schema.columns_privileges SET table_schema = 'test'
+UPDATE information_schema.column_privileges SET table_schema = 'test'
 WHERE table_name = 't1';
 
 --error ER_DBACCESS_DENIED_ERROR
-DELETE FROM information_schema.columns_privileges WHERE table_name = 't1';
+DELETE FROM information_schema.column_privileges WHERE table_name = 't1';
 --error ER_DBACCESS_DENIED_ERROR
-TRUNCATE information_schema.columns_privileges;
+TRUNCATE information_schema.column_privileges;
 
 --error ER_DBACCESS_DENIED_ERROR
 CREATE INDEX my_idx_on_tables
-ON information_schema.columns_privileges(table_schema);
+ON information_schema.column_privileges(table_schema);
 --error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE information_schema.columns_privileges ADD f1 INT;
+ALTER TABLE information_schema.column_privileges ADD f1 INT;
 
 --error ER_DBACCESS_DENIED_ERROR
-DROP TABLE information_schema.columns_privileges;
+DROP TABLE information_schema.column_privileges;
 
 --error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE information_schema.columns_privileges
-RENAME db_datadict.columns_privileges;
+ALTER TABLE information_schema.column_privileges
+RENAME db_datadict.column_privileges;
 --error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE information_schema.columns_privileges
-RENAME information_schema.xcolumns_privileges;
+ALTER TABLE information_schema.column_privileges
+RENAME information_schema.xcolumn_privileges;
 
 # Cleanup
 DROP DATABASE db_datadict;
