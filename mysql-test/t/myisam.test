@@ -413,7 +413,7 @@ drop table t1;
 #
 # two bugs in myisam-space-stripping feature
 #
-create table t1 ( a text not null, key a (a(20)));
+create table t1 ( a text collate latin1_swedish_ci not null, key a (a(20)));
 insert into t1 values ('aaa   '),('aaa'),('aa');
 check table t1;
 repair table t1;
@@ -463,9 +463,9 @@ drop table t1;
 create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
-update t1 set b='b ' where a=2;
+update t1 set b='b\b' where a=2;
 --error ER_DUP_ENTRY
-update t1 set b='b  ' where a > 1;
+update t1 set b='B' where a > 1;
 --error ER_DUP_ENTRY
 insert into t1 (b) values ('b');
 select * from t1;

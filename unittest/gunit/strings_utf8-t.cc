@@ -667,11 +667,11 @@ private:
 /* Test for string comparison */
 TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate)
 {
-  // SOFT HYPHEN equals SPACE.
-  EXPECT_TRUE(equals(u8"\u00ad", " "));
+  // SOFT HYPHEN does not equal SPACE (the former has zero weight).
+  EXPECT_FALSE(equals(u8"\u00ad", " "));
 
-  // SOFT HYPHEN equals NO-BREAK SPACE.
-  EXPECT_TRUE(equals(u8"\u00ad", u8"\u00a0"));
+  // SPACE equals NO-BREAK SPACE.
+  EXPECT_TRUE(equals(" ", u8"\u00a0"));
 
   EXPECT_FALSE(equals(u8"Æ", "A"));
   EXPECT_FALSE(equals(u8"ß", "S"));

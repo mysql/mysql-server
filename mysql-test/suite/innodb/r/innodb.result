@@ -2437,19 +2437,20 @@ g	10
 h	10
 i	10
 drop table t1;
+SET NAMES utf8mb4;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
 insert into t1 values ('a ');
 ERROR 23000: Duplicate entry 'a' for key 'a'
 alter table t1 modify a varchar(10);
-insert into t1 values ('a '),('a  '),('a   '),('a         ');
-ERROR 23000: Duplicate entry 'a ' for key 'a'
-insert into t1 values ('a     ');
-ERROR 23000: Duplicate entry 'a     ' for key 'a'
-insert into t1 values ('a          ');
-ERROR 23000: Duplicate entry 'a         ' for key 'a'
-insert into t1 values ('a ');
-ERROR 23000: Duplicate entry 'a ' for key 'a'
+insert into t1 values ('a'),('á'),('à'),('å');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('á');
+ERROR 23000: Duplicate entry 'á' for key 'a'
+insert into t1 values ('A');
+ERROR 23000: Duplicate entry 'A' for key 'a'
+insert into t1 values ('å');
+ERROR 23000: Duplicate entry 'å' for key 'a'
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;
 concat(a,'.')
@@ -2467,6 +2468,7 @@ select concat(a,'.') from t1;
 concat(a,'.')
 a  .
 drop table t1;
+SET NAMES DEFAULT;
 create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(5)));
 show create table t1;
 Table	Create Table

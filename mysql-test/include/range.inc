@@ -843,9 +843,9 @@ explain select * from t1 where a between 'a' and 'a ';
 explain select * from t1 where a = 'a' or a='a ';
 
 --replace_column 10 #
-explain select * from t2 where a between 'a' and 'a '; 
+explain select * from t2 where a between 'a' and 'A';
 --replace_column 10 #
-explain select * from t2 where a = 'a' or a='a ';
+explain select * from t2 where a = 'a' or a='A';
 
 update t1 set a='b' where a<>'a';
 --replace_column 10 #
@@ -1448,13 +1448,16 @@ drop table t1;
 --echo # RESULT AFTER MYSQL 5.1.
 --echo #
 
+# This test tests interactions between CHAR columns and PAD collations,
+# so it doesn't make sense to test it with our default NO PAD collation.
+
 CREATE TABLE t1(
  F1 CHAR(5) NOT NULL,
  F2 CHAR(5) NOT NULL,
  F3 CHAR(5) NOT NULL,
  PRIMARY KEY(F1),
  INDEX IDX_F2(F2)
-);
+) COLLATE latin1_swedish_ci;
 
 INSERT INTO t1 VALUES
 ('A','A','A'),('AA','AA','AA'),('AAA','AAA','AAA'),

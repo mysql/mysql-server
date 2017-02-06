@@ -1937,7 +1937,7 @@ create table t2(s varchar(10) not null primary key);
 create table t3(s varchar(10) not null primary key);
 insert into t1 values ('one\t'), ('two\t');
 insert into t2 values ('one\r'), ('two\t');
-insert into t3 values ('one '), ('two\t');
+insert into t3 values ('one\b'), ('two\t');
 select * from t1 where s = 'one';
 select * from t2 where s = 'one';
 select * from t3 where s = 'one';
