@@ -1,5 +1,5 @@
 drop table if exists t1,t2,t3;
-CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) ENGINE = InnoDB;
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) ENGINE = InnoDB charset utf8mb4;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text indexes', 'are called collections'),
 ('Only MyISAM tables','support collections'),
@@ -9,7 +9,7 @@ ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES
-t1	1	a	2	b	NULL	5	1	NULL	YES	FULLTEXT			YES
+t1	1	a	2	b	NULL	5	0	NULL	YES	FULLTEXT			YES
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Full-text indexes	are called collections
@@ -236,14 +236,14 @@ id int(11),
 ticket int(11),
 KEY ti (id),
 KEY tit (ticket)
-) ENGINE = InnoDB;
+) charset utf8mb4 ENGINE = InnoDB;
 INSERT INTO t1 VALUES (2,3),(1,2);
 CREATE TABLE t2 (
 ticket int(11),
 inhalt text,
 KEY tig (ticket),
 fulltext index tix (inhalt)
-) ENGINE = InnoDB;
+) charset utf8mb4 ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 INSERT INTO t1 VALUES (3,3);
 ANALYZE TABLE t1;
@@ -260,7 +260,7 @@ test.t2	analyze	status	OK
 show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t2	1	tig	1	ticket	A	3	NULL	NULL	YES	BTREE			YES
-t2	1	tix	1	inhalt	NULL	3	1	NULL	YES	FULLTEXT			YES
+t2	1	tix	1	inhalt	NULL	3	0	NULL	YES	FULLTEXT			YES
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -268,7 +268,7 @@ t2	CREATE TABLE `t2` (
   `inhalt` text,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select * from t2 where MATCH inhalt AGAINST (NULL);
 ticket	inhalt
 select * from t2 where  MATCH inhalt AGAINST ('foobar');
@@ -429,13 +429,13 @@ SELECT a FROM t1 WHERE MATCH a AGAINST('test' IN BOOLEAN MODE);
 a
 test's
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) ENGINE = InnoDB;
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) charset utf8mb4 ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10000) DEFAULT NULL,
   FULLTEXT KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('test'),('test1'),('test');
