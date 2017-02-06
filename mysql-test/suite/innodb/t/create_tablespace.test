@@ -173,8 +173,6 @@ DROP TABLESPACE `s_வணக்கம்`;
 --echo #
 --echo # Try to create a tablespace with the reserved case-sensitive prefix 'innodb_'
 --echo #
-# TODO: Revert following changes on error name once InnoDB can
-# validate tablespace infos at first
 --error ER_TABLESPACE_EXISTS
 CREATE TABLESPACE `innodb_system` ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
@@ -183,19 +181,16 @@ SHOW WARNINGS;
 # Possible, but not wise!
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 's_InnoDB_System.ibd';
 DROP TABLESPACE `InnoDB_System`;
-#--error ER_WRONG_FILE_NAME
---error ER_DUP_ENTRY
+--error ER_TABLESPACE_DUP_FILENAME
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1';
 SHOW WARNINGS;
 # Possible, but not wise!
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1.ibd';
 DROP TABLESPACE `InnoDB_System`;
 
-#--error ER_WRONG_TABLESPACE_NAME
 --error ER_TABLESPACE_EXISTS
 CREATE TABLESPACE `innodb_temporary` ADD DATAFILE 's_bad.ibd';
 SHOW WARNINGS;
-#--error ER_TABLESPACE_MISSING_WITH_NAME
 --error ER_WRONG_TABLESPACE_NAME
 DROP TABLESPACE `innodb_temporary`;
 # Possible, but not wise!

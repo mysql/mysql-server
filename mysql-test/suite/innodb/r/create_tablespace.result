@@ -204,10 +204,10 @@ Error	1031	Table storage engine for 'innodb_system' doesn't have this option
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 's_InnoDB_System.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1';
-ERROR 23000: Duplicate entry 'ibdata1' for key 'file_name'
+ERROR HY000: Duplicate file name for tablespace 'InnoDB_System'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1062	Duplicate entry 'ibdata1' for key 'file_name'
+Error	3584	Duplicate file name for tablespace 'InnoDB_System'
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `innodb_temporary` ADD DATAFILE 's_bad.ibd';

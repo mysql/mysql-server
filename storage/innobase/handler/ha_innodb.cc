@@ -346,6 +346,11 @@ static ulong	innobase_active_counter	= 0;
 
 static hash_table_t*	innobase_open_tables;
 
+/** Array of data files of the system tablespace */
+static std::vector<Plugin_tablespace::Plugin_tablespace_file*,
+		   ut_allocator<Plugin_tablespace::Plugin_tablespace_file*>
+		  > innobase_sys_files;
+
 /** Allowed values of innodb_change_buffering */
 static const char* innodb_change_buffering_names[] = {
 	"none",		/* IBUF_USE_NONE */
@@ -1424,6 +1429,12 @@ innodb_shutdown(
 		innodb_inited = 0;
 		hash_table_free(innobase_open_tables);
 		innobase_open_tables = NULL;
+
+		for (auto file : innobase_sys_files) {
+			UT_DELETE(file);
+		}
+		innobase_sys_files.clear();
+		innobase_sys_files.shrink_to_fit();
 
 		mutex_free(&master_key_id_mutex);
 		srv_shutdown();
@@ -4845,12 +4856,18 @@ innobase_init_files(
 			"",
 			/* Engine */
 			innobase_hton_name);
-
-#if 1//WL#6394 TODO: can we remove this?
-		static Plugin_tablespace::Plugin_tablespace_file sys_file(
-			"ibdata1", "");
-		innodb.add_file(&sys_file);
-#endif
+		Tablespace::files_t::const_iterator	end =
+			srv_sys_space.m_files.end();
+		Tablespace::files_t::const_iterator	begin =
+			srv_sys_space.m_files.begin();
+		for (Tablespace::files_t::const_iterator it = begin;
+		     it != end;
+		     ++it) {
+			innobase_sys_files.push_back(UT_NEW_NOKEY(
+				Plugin_tablespace::Plugin_tablespace_file(
+					it->name(), "")));
+			innodb.add_file(innobase_sys_files.back());
+		}
 		tablespaces->push_back(&innodb);
 
 	} else {
@@ -13570,8 +13587,6 @@ innobase_write_dd_index(
 	const dict_index_t*	index)
 {
 	ut_ad(index->id != 0);
-	/* TODO: The tablespace could be missing, thus page is FIL_NULL */
-	//ut_ad(index->page != FIL_NULL || (index->type & DICT_FTS) != 0);
 	ut_ad(index->page >= FSP_FIRST_INODE_PAGE_NO);
 
 	dd_index->set_tablespace_id(dd_space_id);
@@ -13620,8 +13635,6 @@ create_table_info_t::create_table_update_global_dd(
 
 	dict_table_t*	table = dd_table_open_on_name_in_mem(
 		m_table_name, false, DICT_ERR_IGNORE_NONE);
-	/* TODO: A better solution could be preventing this table to
-	be evicted during the whole creation process */
 	if (table == NULL) {
 		dd::Partition*	part =
 			dd_table->table().partition_type()
@@ -14445,7 +14458,6 @@ ha_innobase::get_extra_columns_and_keys(
 			col->set_type(dd::enum_column_types::LONGLONG);
 			col->set_nullable(false);
 			col->set_unsigned(true);
-			/* TODO: Check which collation id is correct */
 			col->set_collation_id(1);
 			fts_doc_id = col;
 		}

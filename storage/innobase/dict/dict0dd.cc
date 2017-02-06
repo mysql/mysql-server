@@ -2004,7 +2004,8 @@ dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
                       dd_space_key_strings[DD_SPACE_ID], &id));
         ut_ad(id == space_id);
 
-	/* Check if the name starts with "innodb_file_per_table" */
+	/* TODO NewDD: Once the tablespace name is same with the table name,
+	this becomes invalid */
         if (strncmp(name, dict_sys_t::file_per_table_name, suffix - name - 1)) {
                 /* Not starting with innodb_file_per_table. */
                 return(false);

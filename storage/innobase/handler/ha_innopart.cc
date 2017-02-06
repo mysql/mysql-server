@@ -2652,9 +2652,10 @@ ha_innopart::create(
 
 	info.allocate_trx();
 
-	/* TODO: These tablespace names can be got by dd::Tablespace::name
-	according to dd_part->tablespace_id(). This work-around can prevent
-	accessing DD tables after holding InnoDB DD locks/mutexes. */
+	/* It's also doable to get tablespace names by accessing
+	dd::Tablespace::name according to dd_part->tablespace_id().
+	However, it costs more. So as long as partition_element contains
+	tablespace name, it's easier to check it */
 	std::vector<const char*>	tablespace_names;
 	List_iterator_fast <partition_element>
 		part_it(form->part_info->partitions);
@@ -3303,7 +3304,6 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 		info->alias = NULL;
 		info->min_rows = 0;
 
-		/* TODO: Add DDL_LOG to avoid missing partitions on crash. */
 		error = ha_innobase::delete_table_impl<dd::Partition>(
 			name, dd_part, SQLCOM_TRUNCATE);
 		if (error == 0) {

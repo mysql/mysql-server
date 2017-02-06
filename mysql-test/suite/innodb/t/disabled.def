@@ -48,6 +48,4 @@ innodb_bug-13628249       : Waiting for WL#9175
 
 innodb-copy-alter-debug	  : Require atomic DDL, WL#9536
 
-create_tablespace	  : partition table data dir
-
 bootstrap		  : waiting fix from mysql-trunk

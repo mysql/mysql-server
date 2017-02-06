@@ -2474,9 +2474,10 @@ struct metadata_applier
                 ut_ad(dict_sys->dynamic_metadata != NULL);
 		ib_uint64_t	autoinc = table->autoinc;
                 dict_table_load_dynamic_metadata(table);
-		/* TODO: Do it in a better way. This judgement is for
-		those tables which were not opened by ha_innobase::open(),
-		thus innobase_initialize_autoinc() was not called */
+		/* For those tables which were not opened by
+		ha_innobase::open() and not initialized by
+		innobase_initialize_autoinc(), the next counter should be
+		advanced properly */
 		if (autoinc != table->autoinc && table->autoinc != ~0ULL) {
 			++table->autoinc;
 		}
