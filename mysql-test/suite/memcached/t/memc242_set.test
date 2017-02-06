@@ -66,7 +66,6 @@ if (!$memd->set("E","Essen")) {
 $memd->disconnect_all;
 EOF
 
-
 --sorted_result
 SELECT c1,c2 FROM t1;
 
@@ -83,7 +82,7 @@ $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
---source include/restart_mysqld.inc
+
 --sorted_result
 SELECT c1,c2 FROM t1;
 
@@ -108,3 +107,5 @@ DROP TABLE t1;
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
+
+SET @@global.tx_isolation= @tx_isolation;

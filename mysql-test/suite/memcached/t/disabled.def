@@ -10,6 +10,4 @@
 ##############################################################################
 memc286_sdi_create  @solaris : Server eats up all memory 
 
-memc220_fkey_1 : WL#7141 disables FOREIGN KEY until WL#7595
-memc248_fkey_2 : WL#7141 disables FOREIGN KEY until WL#7595
 memcached_alter_column  : Pending for fix. line 88: query 'reap' succeeded - should have failed
