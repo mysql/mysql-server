@@ -39,7 +39,7 @@ SELECT * FROM tab2 ORDER BY col_7;
 # stop the server
 [1(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
 : start the server with innodb_checksum_algorithm=strict_innodb
-# restart
+# restart: --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (2, ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'), ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'));
 SET @col_1 = repeat('a', 5);
@@ -56,7 +56,7 @@ SELECT * FROM tab2 ORDER BY col_7;
 # stop the server
 [1(b)]: Rewrite into new checksum=crc32 for all *.ibd file and ibdata1
 # start the server with innodb_checksum_algorithm=strict_crc32
-# restart
+# restart: --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (3, ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
 ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
