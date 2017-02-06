@@ -961,12 +961,12 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	/* TODO: Check this */
-	//if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)) {
-	//	ut_ad(!m_prebuilt->table->is_temporary());
-	//	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
-	//	DBUG_RETURN(HA_ERR_UNSUPPORTED);
-        //}
+	if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)
+	    && innobase_need_rebuild(ha_alter_info)) {
+		ut_ad(!m_prebuilt->table->is_temporary());
+		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
+		DBUG_RETURN(HA_ERR_UNSUPPORTED);
+        }
 
 	if (altered_table->found_next_number_field != NULL) {
 		dd_set_autoinc(new_dd_tab->se_private_data(),
