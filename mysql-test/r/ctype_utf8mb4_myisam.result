@@ -77,13 +77,13 @@ CONVERT(_koi8r'????' USING utf8mb4) LIKE CONVERT(_koi8r'????' USING utf8mb4)
 1
 SELECT 'a' = 'a ';
 'a' = 'a '
-1
+0
 SELECT 'a\0' < 'a';
 'a\0' < 'a'
 0
 SELECT 'a\0' < 'a ';
 'a\0' < 'a '
-0
+1
 SELECT 'a\t' < 'a';
 'a\t' < 'a'
 0
@@ -109,9 +109,9 @@ CREATE TABLE t1 (a char(10) character set utf8mb4 not null) ENGINE MyISAM;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
-61	0	0
-61	0	0
-6100	0	0
+61	0	-1
+61	0	-1
+6100	0	-1
 6109	1	1
 DROP TABLE t1;
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
@@ -1153,7 +1153,6 @@ id	city
 2	Durban
 select * from t1 where city = 'Durban ';
 id	city
-2	Durban
 drop table t1;
 create table t1 (x set('A', 'B') default 0) character set utf8mb4 engine MyISAM;
 ERROR 42000: Invalid default value for 'x'

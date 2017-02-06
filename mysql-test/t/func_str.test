@@ -852,7 +852,8 @@ INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
 SELECT ASCII(code), code FROM t1 WHERE code='A12';
 SELECT ASCII(code), code FROM t1 WHERE code='A12' AND ASCII(code)=65;
 
-INSERT INTO t1 VALUES ('a12 '), ('A12  ');
+# a12<BEL> and A12<BEL><BEL>, respectively.
+INSERT INTO t1 VALUES (_utf16 0x0061003100320007), (_utf16 0x00410031003200070007);
 
 SELECT LENGTH(code), code FROM t1 WHERE code='A12';
 SELECT LENGTH(code), code FROM t1 WHERE code='A12' AND LENGTH(code)=5;

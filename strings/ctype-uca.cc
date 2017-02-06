@@ -2113,183 +2113,6 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   return ( s_res - t_res );
 }
 
-template<class Mb_wc, int LEVELS_FOR_COMPARE>
-static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
-                                       const Mb_wc mb_wc,
-                                       const uchar *s, size_t slen,
-                                       const uchar *t, size_t tlen)
-{
-  int s_res= 0;
-  int t_res= 0;
-
-  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> sscanner(mb_wc, cs, s, slen);
-  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> tscanner(mb_wc, cs, t, tlen);
-
-  /*
-    We compare 2 strings in same level first. If only string A's scanner
-    has gone to next level, which means another string, B's weight of
-    current level is longer than A's. We'll compare B's remaining weights
-    with space.
-  */
-  for (uint current_lv= 0; current_lv < LEVELS_FOR_COMPARE; ++current_lv)
-  {
-    /* Run the scanners until one of them runs out of current lv */
-    do
-    {
-      s_res= sscanner.next();
-      t_res= tscanner.next();
-    } while (s_res == t_res && s_res >= 0 &&
-             sscanner.get_weight_level() == current_lv &&
-             tscanner.get_weight_level() == current_lv);
-    /* Two scanners run to next level at same time */
-    if (sscanner.get_weight_level() == tscanner.get_weight_level())
-    {
-      if (s_res == t_res && s_res >= 0)
-        continue;
-      break;
-    }
-
-    if (tscanner.get_weight_level() > current_lv)
-    {
-      const uint16 space_weight= UCA900_WEIGHT(
-        cs->uca->weights[0], current_lv, 0x20);
-      /* compare the first string to spaces */
-      do
-      {
-        if (s_res != space_weight)
-          return (s_res - space_weight);
-        s_res= sscanner.next();
-      } while (s_res >= 0 && sscanner.get_weight_level() == current_lv);
-      if (sscanner.get_weight_level() > current_lv && s_res == t_res)
-        continue;
-      break;
-    }
-
-    if (sscanner.get_weight_level() > current_lv)
-    {
-      const uint16 space_weight= UCA900_WEIGHT(
-        cs->uca->weights[0], current_lv, 0x20);
-      /* compare the second string to spaces */
-      do
-      {
-        if (space_weight != t_res)
-          return (space_weight - t_res);
-        t_res= tscanner.next();
-      } while (t_res >= 0 && tscanner.get_weight_level() == current_lv);
-      if (tscanner.get_weight_level() > current_lv && s_res == t_res)
-        continue;
-      break;
-    }
-  }
-
-  return ( s_res - t_res );
-}
-
-// Simpler version of my_strnncollsp_uca_900_tmpl for only a single level.
-// (Avoids calling get_weight_level(), which saves time.)
-template<class Mb_wc>
-static int my_strnncollsp_uca_900_tmpl_single_level(const CHARSET_INFO *cs,
-                                                    const Mb_wc mb_wc,
-                                                    const uchar *s, size_t slen,
-                                                    const uchar *t, size_t tlen)
-{
-  int s_res= 0;
-  int t_res= 0;
-
-  uca_scanner_900<Mb_wc, 1> sscanner(mb_wc, cs, s, slen);
-  uca_scanner_900<Mb_wc, 1> tscanner(mb_wc, cs, t, tlen);
-
-  do
-  {
-    s_res= sscanner.next();
-    t_res= tscanner.next();
-  } while (s_res == t_res && s_res >= 0);
-
-  if (s_res != t_res && s_res >= 0 && t_res >= 0)
-  {
-    // Most common case: Both scanners still have weights left,
-    // but they are different.
-    return ( s_res - t_res );
-  }
-
-  if (s_res < 0 && t_res < 0)
-  {
-    // Both ended at the same time, without ever showing a difference.
-    return 0;
-  }
-
-  uint16 space_weight= UCA900_WEIGHT(
-    cs->uca->weights[0], /*weight_lv=*/0, 0x20);
-
-  if (t_res < 0)
-  {
-    /* compare the first string to spaces */
-    do
-    {
-      if (s_res != space_weight)
-        return (s_res - space_weight);
-      s_res= sscanner.next();
-    } while (s_res >= 0);
-
-    // The first string ran out without showing anything but spaces.
-    return 0;
-  }
-
-  DBUG_ASSERT(s_res < 0);
-
-  /* compare the second string to spaces */
-  do
-  {
-    if (space_weight != t_res)
-      return (space_weight - t_res);
-    t_res= tscanner.next();
-  } while (t_res >= 0);
-
-  // The second string ran out without showing anything but spaces.
-  return 0;
-}
-
-
-static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
-                                  const uchar *s, size_t slen,
-                                  const uchar *t, size_t tlen)
-{
-  if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
-  {
-    switch (cs->levels_for_compare) {
-    case 1:
-      return my_strnncollsp_uca_900_tmpl_single_level<Mb_wc_utf8mb4>(
-        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-    case 2:
-      return my_strnncollsp_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
-        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-    default:
-      DBUG_ASSERT(false);
-    case 3:
-      return my_strnncollsp_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
-        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-    }
-  }
-  else
-  {
-    Mb_wc_through_function_pointer mb_wc(cs);
-    switch (cs->levels_for_compare)
-    {
-    case 1:
-      return my_strnncollsp_uca_900_tmpl_single_level<decltype(mb_wc)>(
-        cs, mb_wc, s, slen, t, tlen);
-    case 2:
-      return my_strnncollsp_uca_900_tmpl<decltype(mb_wc), 2>(
-        cs, mb_wc, s, slen, t, tlen);
-    default:
-      DBUG_ASSERT(false);
-    case 3:
-      return my_strnncollsp_uca_900_tmpl<decltype(mb_wc), 3>(
-        cs, mb_wc, s, slen, t, tlen);
-    }
-  }
-}
-
 /*
   Calculates hash value for the given string,
   according to the collation, and ignoring trailing spaces.
@@ -5426,6 +5249,14 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
   }
 }
 
+static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
+                                  const uchar *s, size_t slen,
+                                  const uchar *t, size_t tlen)
+{
+  // We are a NO PAD collation, so this is identical to strnncoll.
+  return my_strnncoll_uca_900(cs, s, slen, t, tlen, false);
+}
+
 }  // extern "C"
 
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
@@ -5434,7 +5265,6 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const uchar *s, size_t slen,
                                       ulong *n1)
 {
-  slen= cs->cset->lengthsp(cs, (char*) s, slen);
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(mb_wc, cs, s, slen);
 
   /*
@@ -5471,35 +5301,9 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   uint64 h= *n1;
   h^= 14695981039346656037ULL;
 
-  /*
-    We don't want any 0x0001 weights before level markers or end-of-string
-    to count (see comments on my_strnxfrm_uca_900_tmpl for rationale).
-    Thus, whenever we see a 0x0001 weight, we keep updating pending_hash,
-    but we don't actually update h before we see something else. This way,
-    we can roll back the effect of these weights (similar to
-    strip_space_weights()) if we need to.
-  */
-  uint64 pending_hash= h;
-
   scanner.for_each_weight([&](int s_res, bool is_level_separator) {
-    if (is_level_separator)
-    {
-      /*
-        Level marker; roll back the hash to the last point we saw
-        a non-0x0001 weight, effectively doing space stripping.
-      */
-      pending_hash= h;
-    }
-
-    pending_hash^= s_res;
-    pending_hash*= 1099511628211ULL;
-
-    if (s_res != 0x0001)
-    {
-      // Commit any pending 0x0001 weights.
-      h= pending_hash;
-    }
-
+    h^= s_res;
+    h*= 1099511628211ULL;
     return true;
   }, [](int) { return true; });
 
@@ -5548,20 +5352,6 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
 }
 
 }  // extern "C"
-
-/**
-  For each level, strip all 0x0001 weights from the end of the level.
-  See the comments on my_strnxfrm_uca_900_tmpl for rationale.
-*/
-static inline uchar *strip_space_weights(const uchar *d0, uchar *dst)
-{
-  while (dst > d0 && dst[-2] == 0x00 && dst[-1] == 0x01)
-  {
-    dst-= sizeof(uint16);
-  }
-
-  return dst;
-}
 
 /**
   Since pad space takes so much space (and time) to write for complicated
@@ -5674,7 +5464,6 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
     --dst_end;
   }
 
-restart:
   if (dst != dst_end)
   {
     scanner.for_each_weight([&dst, d0, dst_end, flags]
@@ -5682,8 +5471,6 @@ restart:
       DBUG_ASSERT(is_level_separator == (s_res == 0));
       if (LEVELS_FOR_COMPARE == 1)
         DBUG_ASSERT(!is_level_separator);
-      else if (is_level_separator)  // PAD SPACE behavior.
-        dst= strip_space_weights(d0, dst);
 
       dst= store16be(dst, s_res);
       return (dst < dst_end);
@@ -5691,60 +5478,6 @@ restart:
     [&dst, dst_end](int num_weights) {
       return (dst < dst_end - num_weights * 2);
     });
-  }
-
-  {
-    // PAD SPACE behavior.
-    uchar *nonspace_end= strip_space_weights(d0, dst);
-    if (dst == dst_end && dst != nonspace_end)
-    {
-      /*
-        If we went out of room for the output, there are two situations; either,
-        the string has more non-space characters left for us, in which case we are
-        done. However, if _only_ space weights (0x0001) in this level is space,
-        we should strip them and restart! This is required for prefix correctness,
-        ie. strnxfrm with an N-byte output buffer should give the same first
-        N bytes as if running with an infinite output buffer.
-
-        This is an edge case, so it's fine that it's not particularly fast.
-      */
-      for ( ;; )
-      {
-        int s_res= scanner.next();
-        if (s_res == -1)
-        {
-          /*
-            End of string without ever seeing anything except space.
-            We need to strip the spaces we've added, and then we're done.
-          */
-          dst= nonspace_end;
-          break;
-        }
-        if (s_res == 0)
-        {
-          /*
-            End of level without seeing anything except space, but there are
-            more levels. We need to strip the spaces we've added, write out
-            the level separator, and then restart the normal loop writing weights
-            (for the next level) as if nothing had happened.
-          */
-          dst= store16be(nonspace_end, s_res);
-          goto restart;
-        }
-        if (s_res != 0x0001)
-        {
-          // A non-space weight; we should _not_ strip spaces, just end.
-          break;
-        }
-
-        // Another space, so we still don't know; keep scanning the string.
-        DBUG_ASSERT(s_res == 0x0001);
-      }
-    }
-    else
-    {
-      dst= nonspace_end;
-    }
   }
 
   if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
@@ -10315,7 +10048,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
@@ -10350,7 +10083,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
@@ -10385,7 +10118,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
@@ -10420,7 +10153,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
@@ -10455,7 +10188,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
@@ -10490,7 +10223,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
@@ -10525,7 +10258,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
@@ -10560,7 +10293,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
@@ -10595,7 +10328,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
@@ -10630,7 +10363,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
@@ -10665,7 +10398,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
@@ -10700,7 +10433,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
@@ -10735,7 +10468,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
@@ -10770,7 +10503,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
@@ -10805,7 +10538,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
@@ -10840,7 +10573,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
@@ -10875,7 +10608,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 #if 0
@@ -10911,7 +10644,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 #endif
 
@@ -10947,7 +10680,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
@@ -10982,7 +10715,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
@@ -11017,7 +10750,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 #if 0
@@ -11053,7 +10786,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 #endif
 
@@ -11089,7 +10822,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_0900_as_cs=
@@ -11124,7 +10857,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
@@ -11159,7 +10892,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
@@ -11194,7 +10927,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
@@ -11229,7 +10962,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
@@ -11264,7 +10997,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
@@ -11299,7 +11032,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
@@ -11334,7 +11067,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
@@ -11369,7 +11102,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs=
@@ -11404,7 +11137,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
@@ -11439,7 +11172,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
@@ -11474,7 +11207,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
@@ -11509,7 +11242,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
@@ -11544,7 +11277,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
@@ -11579,7 +11312,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
@@ -11614,7 +11347,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
@@ -11649,7 +11382,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs=
@@ -11684,7 +11417,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 #if 0
@@ -11720,7 +11453,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 #endif
 
@@ -11756,7 +11489,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
@@ -11791,7 +11524,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
@@ -11826,7 +11559,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 #if 0
@@ -11862,7 +11595,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 #endif
 
@@ -11898,7 +11631,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
@@ -11933,5 +11666,5 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
-  PAD_SPACE
+  NO_PAD
 };

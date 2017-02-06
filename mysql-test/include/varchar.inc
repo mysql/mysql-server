@@ -178,6 +178,8 @@ drop table t1;
 # Test unique keys
 #
 
+SET NAMES utf8mb4;  # Make sure á etc. below are interpreted correctly as UTF-8.
+
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
 --error ER_DUP_ENTRY
@@ -185,13 +187,13 @@ insert into t1 values ('a ');
 
 alter table t1 modify a varchar(10);
 --error ER_DUP_ENTRY
-insert into t1 values ('a '),('a  '),('a   '),('a         ');
+insert into t1 values ('a'),('á'),('à'),('å');
 --error ER_DUP_ENTRY
-insert into t1 values ('a     ');
+insert into t1 values ('á');
 --error ER_DUP_ENTRY
-insert into t1 values ('a          ');
+insert into t1 values ('A');
 --error ER_DUP_ENTRY
-insert into t1 values ('a ');
+insert into t1 values ('å');
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;
 update t1 set a='abc    ' where a like 'a ';
@@ -201,6 +203,8 @@ select concat(a,'.') from t1;
 update t1 set a='a  ' where a like 'a      ';
 select concat(a,'.') from t1;
 drop table t1;
+
+SET NAMES DEFAULT;
 
 #
 # test show create table

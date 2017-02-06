@@ -348,54 +348,22 @@ TEST(StrXfrmTest, JapaneseUTF8MB4_1)
   expect_arrays_equal(answer2, buf, buf_len);
 }
 
-/*
-  This and UTF8MB4PadCorrectness_2 together test an edge case where
-  we run out of output bytes before we know whether we should strip
-  spaces or not. (In _1, we should; in _2, we should not.)
-*/
-TEST(StrXfrmTest, UTF8MB4PadCorrectness_1)
+TEST(StrXfrmTest, UTF8MB4PadCorrectness)
 {
   CHARSET_INFO *cs= init_collation("utf8mb4_0900_as_cs");
 
-  const char* src= "abc     ";
-  unsigned char buf[22];
-
-  static const unsigned char full_answer[22] = {
-    0x1c, 0x47, 0x1c, 0x60, 0x1c, 0x7a,  // abc
-    0x00, 0x00,  // Level separator.
-    0x00, 0x20, 0x00, 0x20, 0x00, 0x20,  // Accents for abc.
-    0x00, 0x00,  // Level separator.
-    0x00, 0x02, 0x00, 0x02, 0x00, 0x02,  // Case for abc.
-  };
-
-  for (size_t maxlen= 0; maxlen < sizeof(buf); maxlen += 2) {
-    SCOPED_TRACE("maxlen=" + to_string(maxlen) + "/" + to_string(sizeof(buf)));
-    memset(buf, 0xff, sizeof(buf));
-    my_strnxfrm(
-      cs, buf, maxlen, pointer_cast<const uchar *>(src), strlen(src));
-    expect_arrays_equal(full_answer, buf, maxlen);
-  }
-}
-
-TEST(StrXfrmTest, UTF8MB4PadCorrectness_2)
-{
-  CHARSET_INFO *cs= init_collation("utf8mb4_0900_as_cs");
-
-  const char* src= "abc    a";
-  unsigned char buf[52];
+  const char* src= "abc    ";
+  unsigned char buf[46];
 
   static const unsigned char full_answer[52] = {
     0x1c, 0x47, 0x1c, 0x60, 0x1c, 0x7a,  // abc
     0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,  // Four spaces.
-    0x1c, 0x47,  // a
     0x00, 0x00,  // Level separator.
     0x00, 0x20, 0x00, 0x20, 0x00, 0x20,  // Accents for abc.
     0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,  // Accents for four spaces.
-    0x00, 0x20,  // Accents for a.
     0x00, 0x00,  // Level separator.
     0x00, 0x02, 0x00, 0x02, 0x00, 0x02,  // Case for abc.
     0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,  // Case for four spaces.
-    0x00, 0x02,  // Case for a.
   };
 
   for (size_t maxlen= 0; maxlen < sizeof(buf); maxlen += 2) {
@@ -1212,6 +1180,7 @@ static void BM_Latin1_CI(size_t num_iterations)
 }
 BENCHMARK(BM_Latin1_CI);
 
+// Since the UCA collations are NO PAD, strnncollsp should heed spaces.
 TEST(PadCollationTest, BasicTest)
 {
   constexpr char foo[] = "foo";
@@ -1227,8 +1196,8 @@ TEST(PadCollationTest, BasicTest)
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
-  // "foo" == "foo    "
-  EXPECT_EQ(my_strnncollsp(cs,
+  // "foo" < "foo    "
+  EXPECT_LT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(foosp), strlen(foosp)),
             0);
@@ -1237,7 +1206,7 @@ TEST(PadCollationTest, BasicTest)
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(bar), strlen(bar)),
             0);
-  // "foo" < "foobar" because "foo    " < "foobar"
+  // "foo" < "foobar".
   EXPECT_LT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foo), strlen(foo),
                            pointer_cast<const uchar *>(foobar), strlen(foobar)),
@@ -1245,8 +1214,8 @@ TEST(PadCollationTest, BasicTest)
 
   // Exactly the same tests in reverse.
 
-  // "foo    " == "foo"
-  EXPECT_EQ(my_strnncollsp(cs,
+  // "foo    " > "foo"
+  EXPECT_GT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foosp), strlen(foosp),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
@@ -1255,7 +1224,7 @@ TEST(PadCollationTest, BasicTest)
                            pointer_cast<const uchar *>(bar), strlen(bar),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
             0);
-  // "foobar" > "foo" because "foobar" > "foo    "
+  // "foobar" > "foo".
   EXPECT_GT(my_strnncollsp(cs,
                            pointer_cast<const uchar *>(foobar), strlen(foobar),
                            pointer_cast<const uchar *>(foo), strlen(foo)),
@@ -1292,7 +1261,7 @@ int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char *b)
   }
 }
 
-TEST(StrxfrmTest, PadCollation)
+TEST(StrxfrmTest, NoPadCollation)
 {
   CHARSET_INFO *ai_ci= init_collation("utf8mb4_0900_ai_ci");
   CHARSET_INFO *as_cs= init_collation("utf8mb4_0900_as_cs");
@@ -1301,19 +1270,18 @@ TEST(StrxfrmTest, PadCollation)
   EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc", "abc"), 0);
   EXPECT_NE(compare_through_strxfrm(ai_ci, "abc", "def"), 0);
 
-  // Spaces from the end should not matter, no matter the collation.
-  EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc", "abc  "), 0);
-  EXPECT_EQ(compare_through_strxfrm(as_cs, "abc", "abc  "), 0);
+  // Spaces from the end should matter, no matter the collation.
+  EXPECT_LT(compare_through_strxfrm(ai_ci, "abc", "abc  "), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs, "abc", "abc  "), 0);
   EXPECT_LT(compare_through_strxfrm(as_cs, "abc", "Abc  "), 0);
 
   // Same with other types of spaces.
-  EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc", u8"abc \u00a0"), 0);
+  EXPECT_LT(compare_through_strxfrm(ai_ci, "abc", u8"abc \u00a0"), 0);
 
   // Non-breaking space should compare _equal_ to space in ai_ci,
   // but _after_ in as_cs.
   EXPECT_EQ(compare_through_strxfrm(ai_ci, "abc ", u8"abc\u00a0"), 0);
   EXPECT_LT(compare_through_strxfrm(as_cs, "abc ", u8"abc\u00a0"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs, "abc", u8"abc\u00a0"), 0);
 
   // Also in the middle of the string.
   EXPECT_EQ(compare_through_strxfrm(ai_ci, "a c", u8"a\u00a0c"), 0);
@@ -1438,13 +1406,13 @@ TEST(PadCollationTest, HashSort)
   EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, "abc"));
   EXPECT_NE(hash(ai_ci, "abc"), hash(ai_ci, "def"));
 
-  // Spaces from the end should not matter, no matter the collation.
-  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, "abc  "));
-  EXPECT_EQ(hash(as_cs, "abc"), hash(as_cs, "abc  "));
+  // Spaces from the end should matter, no matter the collation.
+  EXPECT_NE(hash(ai_ci, "abc"), hash(ai_ci, "abc  "));
+  EXPECT_NE(hash(as_cs, "abc"), hash(as_cs, "abc  "));
   EXPECT_NE(hash(as_cs, "abc"), hash(as_cs, "Abc  "));
 
   // Same with other types of spaces.
-  EXPECT_EQ(hash(ai_ci, "abc"), hash(ai_ci, u8"abc \u00a0"));
+  EXPECT_NE(hash(ai_ci, "abc"), hash(ai_ci, u8"abc \u00a0"));
 
   // Non-breaking space should compare _equal_ to space in ai_ci,
   // but _inequal_ in as_cs.

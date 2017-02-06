@@ -157,7 +157,8 @@ insert into t1 values (0x60),(0x61),(0x62),(0x63),(0x64),(0x65),(0x66),(0x67),(0
 insert into t1 values (0x70),(0x71),(0x72),(0x73),(0x74),(0x75),(0x76),(0x77),(0x78),(0x79),(0x7A),(0x7B),(0x7C),(0x7D),(0x7E),(0x7F);
 SELECT GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR ''), GROUP_CONCAT(hex(c1) ORDER BY BINARY c1) FROM t1 GROUP BY c1;
 GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR '')	GROUP_CONCAT(hex(c1) ORDER BY BINARY c1)
- 	20,7F
+	7F
+ 	20
 _	5F
 -	2D
 ,	2C
@@ -859,13 +860,13 @@ F09090A8	44520000002000000002	𐐨
 DROP TABLE t1;
 SELECT 'a' = 'a ';
 'a' = 'a '
-1
+0
 SELECT 'a\0' < 'a';
 'a\0' < 'a'
 0
 SELECT 'a\0' < 'a ';
 'a\0' < 'a '
-0
+1
 SELECT 'a\t' < 'a';
 'a\t' < 'a'
 0
