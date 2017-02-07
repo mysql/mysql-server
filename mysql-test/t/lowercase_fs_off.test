@@ -54,7 +54,7 @@ connection default;
 GRANT SELECT ON t1 to user_1@localhost;
 connection con1;
 --sorted_result
-select * from information_schema.tables_privileges;
+select * from information_schema.table_privileges;
 connection default;
 disconnect con1;
 

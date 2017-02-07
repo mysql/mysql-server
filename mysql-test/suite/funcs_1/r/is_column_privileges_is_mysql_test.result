@@ -6,7 +6,7 @@ CREATE DATABASE db_datadict;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
-SELECT * FROM information_schema.columns_privileges
+SELECT * FROM information_schema.column_privileges
 WHERE table_schema IN ('information_schema','mysql','test')
 ORDER BY table_schema, table_name, column_name;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -20,7 +20,7 @@ SHOW DATABASES LIKE 'test';
 Database (test)
 test
 # Establish connection testuser1 (user=testuser1)
-SELECT * FROM information_schema.columns_privileges
+SELECT * FROM information_schema.column_privileges
 WHERE table_schema IN ('information_schema','mysql','test')
 ORDER BY table_schema, table_name, column_name;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE

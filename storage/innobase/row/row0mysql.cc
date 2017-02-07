@@ -3087,8 +3087,6 @@ error_handling:
 			<< table->name
 			<< " because tablespace full";
 
-		/* TODO: NewDD: Atomic DDL should drop any already created
-		tablespace, indexes */
 		dict_mem_table_free(table);
 
 		break;

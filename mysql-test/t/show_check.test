@@ -1533,7 +1533,7 @@ SHOW EXTENDED FULL COLUMNS FROM t1;
 SHOW INDEX FROM t1;
 SELECT table_schema, table_name, index_name, column_name FROM
        INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
-SELECT * FROM INFORMATION_SCHEMA.TABLES_CONSTRAINTS WHERE table_name='t1';
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
 SELECT constraint_schema, constraint_name, table_name, column_name FROM
        INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
 

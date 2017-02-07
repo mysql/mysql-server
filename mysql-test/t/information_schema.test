@@ -247,8 +247,8 @@ grant select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@local
 grant all on test.* to mysqltest_1@localhost with grant option;
 select * from information_schema.USER_PRIVILEGES where grantee like '%mysqltest_1%';
 select * from information_schema.SCHEMA_PRIVILEGES where grantee like '%mysqltest_1%';
-select * from information_schema.TABLES_PRIVILEGES where grantee like '%mysqltest_1%';
-select * from information_schema.COLUMNS_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
 delete from mysql.user where user like 'mysqltest%';
 delete from mysql.db where user like 'mysqltest%';
 delete from mysql.tables_priv where user like 'mysqltest%';
@@ -266,7 +266,7 @@ alter table t1 add constraint constraint_1 unique (a);
 alter table t1 add constraint unique key_1(a);
 alter table t1 add constraint constraint_2 unique key_2(a);
 show create table t1;
-select * from information_schema.TABLES_CONSTRAINTS where
+select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test" order by constraint_name;
 select * from information_schema.key_column_usage where
 TABLE_SCHEMA= "test" order by constraint_name;
@@ -290,8 +290,8 @@ create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 grant select (a) on test.t1 to joe@localhost with grant option;
-select * from INFORMATION_SCHEMA.COLUMNS_PRIVILEGES WHERE table_schema != 'sys';
-select * from INFORMATION_SCHEMA.TABLES_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';
@@ -373,7 +373,7 @@ drop view v1;
 
 create view vo as select 'a' union select 'a';
 show index from vo;
-select * from information_schema.TABLES_CONSTRAINTS where
+select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_NAME= "vo";
 select * from information_schema.key_column_usage where
 TABLE_NAME= "vo";
@@ -427,7 +427,7 @@ select column_name from information_schema.columns
 where table_schema='test' order by column_name;
 select index_name from information_schema.statistics where
 table_schema='test' order by index_name;
-select constraint_name from information_schema.tables_constraints
+select constraint_name from information_schema.table_constraints
 where table_schema='test' order by constraint_name;
 show create view v2;
 show create table v3;
@@ -631,31 +631,27 @@ connect (con2,localhost,user2,,mysqltest);
 connect (con3,localhost,user3,,mysqltest);
 connect (con4,localhost,user4,,);
 connection con1;
-#TODO: we need to change the name back after lowercase issue fixed.
-select * from information_schema.columns_privileges order by grantee;
-select * from information_schema.tables_privileges order by grantee;
+select * from information_schema.column_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
 select * from information_schema.schema_privileges order by grantee;
 select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con2;
-#TODO: we need to change the name back after lowercase issue fixed.
-select * from information_schema.columns_privileges order by grantee;
-select * from information_schema.tables_privileges order by grantee;
+select * from information_schema.column_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
 select * from information_schema.schema_privileges order by grantee;
 select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con3;
-#TODO: we need to change the name back after lowercase issue fixed.
-select * from information_schema.columns_privileges order by grantee;
-select * from information_schema.tables_privileges order by grantee;
+select * from information_schema.column_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
 select * from information_schema.schema_privileges order by grantee;
 select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con4;
-#TODO: we need to change the name back after lowercase issue fixed.
-select * from information_schema.columns_privileges where grantee like '%user%'
+select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
-select * from information_schema.tables_privileges where grantee like '%user%'
+select * from information_schema.table_privileges where grantee like '%user%'
 order by grantee;
 select * from information_schema.schema_privileges where grantee like '%user%'
 order by grantee;
@@ -1031,7 +1027,7 @@ drop table t1,t2;
 #
 # Bug#24630 Subselect query crashes mysqld
 #
-select 1 as f1 from information_schema.tables  where "COLUMNS_PRIVILEGES"=
+select 1 as f1 from information_schema.tables  where "COLUMN_PRIVILEGES"=
 (select cast(table_name as char)  from information_schema.tables
  where table_schema != 'performance_schema' order by table_name limit 1) limit 1;
 
@@ -1263,8 +1259,8 @@ select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
 select * from information_schema.tables where table_schema = NULL;
 select * from information_schema.tables where table_catalog = NULL;
 select * from information_schema.tables where table_name = NULL;
-select * from `information_schema`.`TABLES_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
-select * from `information_schema`.`TABLES_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
 --replace_column 17 #
 select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
 --replace_column 17 #
@@ -1867,7 +1863,7 @@ eval $query;
 
 let $query=
 SELECT 1 AS F1 FROM information_schema.tables
-WHERE "COLUMNS_PRIVILEGES"=
+WHERE "COLUMN_PRIVILEGES"=
       (SELECT CAST(TABLE_NAME AS CHAR)
       FROM information_schema.tables
       WHERE table_schema != 'PERFORMANCE_SCHEMA'

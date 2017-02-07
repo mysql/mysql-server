@@ -62,11 +62,11 @@ CREATE TABLE user_privileges                       ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE schema_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-CREATE TABLE tables_privileges                      ( c1 INT );
+CREATE TABLE table_privileges                      ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-CREATE TABLE columns_privileges                     ( c1 INT );
+CREATE TABLE column_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-CREATE TABLE tables_constraints                     ( c1 INT );
+CREATE TABLE table_constraints                     ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE key_column_usage                      ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -103,11 +103,11 @@ CREATE TABLE information_schema. user_privileges                       ( c1 INT 
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE information_schema. schema_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-CREATE TABLE information_schema. tables_privileges                      ( c1 INT );
+CREATE TABLE information_schema. table_privileges                      ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-CREATE TABLE information_schema. columns_privileges                     ( c1 INT );
+CREATE TABLE information_schema. column_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-CREATE TABLE information_schema. tables_constraints                     ( c1 INT );
+CREATE TABLE information_schema. table_constraints                     ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE information_schema. key_column_usage                      ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -152,11 +152,11 @@ CREATE TABLE user_privileges                       ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE TABLE schema_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
-CREATE TABLE tables_privileges                      ( c1 INT );
+CREATE TABLE table_privileges                      ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
-CREATE TABLE columns_privileges                     ( c1 INT );
+CREATE TABLE column_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
-CREATE TABLE tables_constraints                     ( c1 INT );
+CREATE TABLE table_constraints                     ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE TABLE key_column_usage                      ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
@@ -193,11 +193,11 @@ CREATE TABLE information_schema. user_privileges                       ( c1 INT 
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE TABLE information_schema. schema_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
-CREATE TABLE information_schema. tables_privileges                      ( c1 INT );
+CREATE TABLE information_schema. table_privileges                      ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
-CREATE TABLE information_schema. columns_privileges                     ( c1 INT );
+CREATE TABLE information_schema. column_privileges                     ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
-CREATE TABLE information_schema. tables_constraints                     ( c1 INT );
+CREATE TABLE information_schema. table_constraints                     ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE TABLE information_schema. key_column_usage                      ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
@@ -329,7 +329,7 @@ SELECT table_schema,table_name FROM information_schema.tables
 WHERE table_schema = 'information_schema' AND table_name = 'TABLES';
 TABLE_SCHEMA	TABLE_NAME
 information_schema	TABLES
-SELECT * FROM information_schema.tables_privileges
+SELECT * FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 SELECT * FROM information_schema.schema_privileges
@@ -372,11 +372,11 @@ FROM information_schema.schema_privileges
 WHERE table_schema = 'information_schema';
 my_col
 SELECT 'empty result set was expected' AS my_col
-FROM information_schema.tables_privileges
+FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
 my_col
 SELECT 'empty result set was expected' AS my_col
-FROM information_schema.columns_privileges
+FROM information_schema.column_privileges
 WHERE table_schema = 'information_schema';
 my_col
 GRANT ALTER ON information_schema.*
@@ -420,11 +420,11 @@ FROM information_schema.schema_privileges
 WHERE table_schema = 'information_schema';
 my_col
 SELECT 'empty result set was expected' AS my_col
-FROM information_schema.tables_privileges
+FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
 my_col
 SELECT 'empty result set was expected' AS my_col
-FROM information_schema.columns_privileges
+FROM information_schema.column_privileges
 WHERE table_schema = 'information_schema';
 my_col
 DROP USER 'testuser1'@'localhost';
@@ -434,7 +434,7 @@ DROP USER 'testuser1'@'localhost';
 SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
-SELECT DISTINCT table_schema FROM information_schema.columns_privileges
+SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT constraint_schema,table_schema
@@ -457,10 +457,10 @@ SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
 SELECT DISTINCT constraint_schema,table_schema
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
-SELECT DISTINCT table_schema FROM information_schema.tables_privileges
+SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
@@ -486,7 +486,7 @@ SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
 db_datadict
-SELECT DISTINCT table_schema FROM information_schema.columns_privileges
+SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT constraint_schema,table_schema
@@ -514,11 +514,11 @@ WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
 db_datadict
 SELECT DISTINCT constraint_schema,table_schema
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 db_datadict	db_datadict
-SELECT DISTINCT table_schema FROM information_schema.tables_privileges
+SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
@@ -537,7 +537,7 @@ GRANT ALL ON test.* TO 'testuser1'@'localhost';
 SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
-SELECT DISTINCT table_schema FROM information_schema.columns_privileges
+SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT constraint_schema,table_schema
@@ -560,10 +560,10 @@ SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
 SELECT DISTINCT constraint_schema,table_schema
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
-SELECT DISTINCT table_schema FROM information_schema.tables_privileges
+SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT trigger_schema,event_object_schema

@@ -961,12 +961,12 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	/* TODO: Check this */
-	//if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)) {
-	//	ut_ad(!m_prebuilt->table->is_temporary());
-	//	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
-	//	DBUG_RETURN(HA_ERR_UNSUPPORTED);
-        //}
+	if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)
+	    && innobase_need_rebuild(ha_alter_info)) {
+		ut_ad(!m_prebuilt->table->is_temporary());
+		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
+		DBUG_RETURN(HA_ERR_UNSUPPORTED);
+        }
 
 	if (altered_table->found_next_number_field != NULL) {
 		dd_set_autoinc(new_dd_tab->se_private_data(),
@@ -8530,8 +8530,6 @@ protected:
 		bool		file_per_table,
 		ib_uint64_t	autoinc);
 
-	/** TODO: Replace all these with proper low-level functions
-	for handler APIs */
 protected:
 	int create_table(
 		const char*	name,
@@ -8685,7 +8683,7 @@ alter_part::create(
 		part_name, table, &create_info, dd_part, file_per_table));
 }
 
-/* TODO: Remove this */
+/* TODO maybe WL#9536: Remove this */
 int
 alter_part::create_table(
 	const char*     name,
@@ -8748,7 +8746,7 @@ alter_part::create_table(
 	return(error);
 }
 
-/* TODO: Remove this */
+/* TODO maybe WL#9536: Remove this */
 int
 alter_part::delete_table(
 	const char*             name,
@@ -8814,7 +8812,7 @@ alter_part::delete_table(
 	return(false);
 }
 
-/* TODO: Remove this */
+/* TODO maybe WL#9536: Remove this */
 int
 alter_part::rename_table(
 	const char*     	from,
@@ -9819,8 +9817,8 @@ alter_part_factory::check_conflict_and_create(
 			  PART_TO_BE_ADDED, false));
 }
 
-/** Check if the two (sub)partitions conflict with each other.
-That is they have same name and both are innodb_file_per_table
+/** Check if the two (sub)partitions conflict with each other,
+Which means they have same name.
 @param[in]      new_part        New partition to check
 @param[in]      old_part        Old partition to check
 @retval True    Conflict
@@ -9835,22 +9833,8 @@ alter_part_factory::is_conflict(
 		return(false);
 	}
 
-#if 0
-	/* TODO: Check if these make sense. Currently, to prevent conflict
-	name in table cache, as long as partition and subpartition names
-	are same, it's called conflict */
-	const char*	ts1 = new_part->tablespace_name;
-	const char*	ts2 = old_part->tablespace_name;
-	const char*	file_per_table = dict_sys_t::file_per_table_name;
-
-	if ((ts1 == NULL && ts2 == NULL)
-	    || ((ts1 != NULL && strcmp(file_per_table, ts1) == 0)
-		&& (ts2 != NULL && strcmp(file_per_table, ts2) == 0))) {
-		return(true);
-	}
-
-	return(false);
-#endif
+	/* To prevent the conflict(same) names in table cache, not to
+	check the innodb_file_per_table */
 	return(true);
 }
 
@@ -11016,27 +11000,6 @@ ha_innopart::commit_inplace_alter_partition(
         return(false);
 }
 
-/* TODO: Check if this is necessary */
-/** Notify the engine that the table structure has been updated.
-This is for 'ALTER TABLE ... PARTITION' and a corresponding function
-to notify_table_changed().
-@param[in,out]  ha_alter_info   Structure describing changes to be done
-                                by ALTER TABLE and holding data used
-                                during in-place alter.
-@note No errors are allowed. */
-/*
-void
-ha_innopart::notify_partition_changed(Alter_inplace_info* ha_alter_info)
-{
-        if (alter_parts* ctx = static_cast<alter_parts*>(
-                    ha_alter_info->handler_ctx)) {
-                ctx->post_commit();
-                UT_DELETE(ctx);
-                ha_alter_info->handler_ctx = nullptr;
-        }
-}
-*/
-
 /** Check if the DATA DIRECTORY is specified (implicitly or explicitly)
 @param[in]      part    The dd::Partition to be checked
 @return true    the DATA DIRECTORY is specified (implicitly or explicitly)
@@ -11214,7 +11177,7 @@ ha_innopart::exchange_partition_low(
         char			temp_name[FN_REFLEN];
         snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
 
-	/* TODO: Handle rollback */
+	/* TODO WL#9536: Handle rollback */
 	int	error;
 	error = rename_table_for_exchange(trx, swap_name, temp_name, swap_id);
 	ut_a(error == DB_SUCCESS);

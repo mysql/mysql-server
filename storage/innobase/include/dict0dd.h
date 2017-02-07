@@ -297,10 +297,6 @@ based on a Global DD object.
 @param[in]	dd_table	Global DD table object
 @param[in]	dd_part		Global DD partition or subpartition, or NULL
 @param[in]	tbl_name	table name, or NULL if not known
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	table		InnoDB table (NULL if not found or loadable)
 @param[in]	skip_mdl	whether meta-data locking is skipped
 @return error code
@@ -311,7 +307,6 @@ dd_table_open_on_dd_obj(
 	const dd::Table&		dd_table,
 	const dd::Partition*		dd_part,
 	const char*			tbl_name,
-	bool*				uncached,
 	dict_table_t*&			table,
 	bool				skip_mdl,
 	THD*				thd);
@@ -398,10 +393,6 @@ dd_table_open_on_name_in_mem(
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	ib_table	InnoDB table handle
 @param[in]	dd_table	Global DD table or partition object
 @param[in]	skip_mdl	whether meta-data locking is skipped
@@ -415,7 +406,6 @@ dd_open_table(
 	dd::cache::Dictionary_client*	client,
 	const TABLE*			table,
 	const char*			norm_name,
-	bool*				uncached,
 	dict_table_t*&			ib_table,
 	const Table*			dd_table,
 	bool				skip_mdl,

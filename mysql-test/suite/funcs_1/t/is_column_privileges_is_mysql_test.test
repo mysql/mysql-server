@@ -1,6 +1,6 @@
-# suite/funcs_1/t/is_columns_privileges_is_mysql_test.test
+# suite/funcs_1/t/is_column_privileges_is_mysql_test.test
 #
-# Check the content of information_schema.columns_privileges about the databases
+# Check the content of information_schema.column_privileges about the databases
 # information_schema and mysql visible to high and low privileged users.
 #
 # Author:
@@ -34,7 +34,7 @@ DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
 
-let $my_select = SELECT * FROM information_schema.columns_privileges
+let $my_select = SELECT * FROM information_schema.column_privileges
 WHERE table_schema IN ('information_schema','mysql','test')
 ORDER BY table_schema, table_name, column_name;
 let $my_show1 = SHOW DATABASES LIKE 'information_schema';

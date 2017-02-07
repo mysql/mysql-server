@@ -35,7 +35,6 @@ E	Essen
 H	Hamburg
 Here the memcached results with E:
 Essen
-# restart
 SELECT c1,c2 FROM t1;
 c1	c2
 B	Berlin
@@ -49,3 +48,4 @@ Hamburg
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;

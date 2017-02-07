@@ -563,15 +563,15 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 CREATE PROCEDURE p1() DELETE IGNORE FROM t1 WHERE i = 1;
 CALL p1();
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 PREPARE stm FROM 'CALL p1()';
 EXECUTE stm;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 DEALLOCATE PREPARE stm;
 DROP TABLE t2, t1;
 DROP PROCEDURE p1;
@@ -597,11 +597,11 @@ REFERENCES t1 (a), CONSTRAINT c_b FOREIGN KEY (b) REFERENCES t2 (a)) ENGINE=Inno
 INSERT INTO t3 (a, b) VALUES (1, 1);
 DELETE IGNORE FROM t1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_a` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_a` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
 DELETE IGNORE t1,t2 FROM t1,t2;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_a` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_b` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_a` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_b` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
 SELECT * FROM t1;
 a
 1
@@ -624,8 +624,8 @@ b
 5
 DELETE IGNORE FROM t1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
 SELECT * FROM t1;
 a
 1

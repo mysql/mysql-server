@@ -103,10 +103,6 @@ based on a Global DD object.
 @param[in]	dd_table	Global DD table object
 @param[in]	dd_part		Global DD partition or subpartition, or NULL
 @param[in]	tbl_name	table name, or NULL if not known
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	table		InnoDB table (NULL if not found or loadable)
 @param[in]	skip_mdl	whether meta-data locking is skipped
 @return	error code
@@ -117,7 +113,6 @@ dd_table_open_on_dd_obj(
 	const dd::Table&		dd_table,
 	const dd::Partition*		dd_part,
 	const char*			tbl_name,
-	bool*				uncached,
 	dict_table_t*&			table,
 	bool				skip_mdl,
 	THD*				thd)
@@ -232,12 +227,12 @@ dd_table_open_on_dd_obj(
 
 			if (dd_part == NULL) {
 				table = dd_open_table(
-					client, &td, tab_namep, uncached,
-					table, &dd_table, skip_mdl, thd);
+					client, &td, tab_namep, table,
+					&dd_table, skip_mdl, thd);
 			} else {
 				table = dd_open_table(
-					client, &td, tab_namep, uncached,
-					table, dd_part, skip_mdl, thd);
+					client, &td, tab_namep, table,
+					dd_part, skip_mdl, thd);
 			}
 		}
 
@@ -374,9 +369,7 @@ dd_table_open_on_id_low(
 				same_name = false;
 			} else {
 				dd_part = *i;
-				/* TODO: NEW_DD, unquote after partition
-				WL#9162 is ported
-				ut_ad(dd_part_is_stored(dd_part)); */
+				ut_ad(dd_part_is_stored(dd_part));
 			}
 		}
 
@@ -397,7 +390,7 @@ dd_table_open_on_id_low(
 	dict_table_t*	ib_table = nullptr;
 
 	dd_table_open_on_dd_obj(
-		dc, *dd_table, dd_part, tbl_name, nullptr,
+		dc, *dd_table, dd_part, tbl_name,
 		ib_table, mdl == nullptr/*, table */, thd);
 
 	if (mdl && ib_table == nullptr) {
@@ -738,7 +731,7 @@ dd_table_open_on_name(
 			ut_ad(dd_table->partitions().empty());
 			dd_table_open_on_dd_obj(
 				client, *dd_table, nullptr, name,
-				nullptr, table, skip_mdl, thd);
+				table, skip_mdl, thd);
 		}
 	}
 
@@ -1255,12 +1248,9 @@ dd_fill_one_dict_index(
 			is_asc = false;
 		}
 			
-#if 1//WL#7743 FIXME: do not set HA_PART_KEY_SEG for SPATIAL indexes
 		if (key.flags & HA_SPATIAL) {
 			prefix_len = 0;
-		} else
-#endif
-		if (key.flags & HA_FULLTEXT) {
+		} else if (key.flags & HA_FULLTEXT) {
 			prefix_len = 0;
 		} else if (key_part->key_part_flag & HA_PART_KEY_SEG) {
 			/* SPATIAL and FULLTEXT index always are on
@@ -2014,7 +2004,8 @@ dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
                       dd_space_key_strings[DD_SPACE_ID], &id));
         ut_ad(id == space_id);
 
-	/* TODO */
+	/* TODO NewDD: Once the tablespace name is same with the table name,
+	this becomes invalid */
         if (strncmp(name, dict_sys_t::file_per_table_name, suffix - name - 1)) {
                 /* Not starting with innodb_file_per_table. */
                 return(false);
@@ -2065,7 +2056,7 @@ dd_tablespace_is_implicit(
 @param[in]	col_names	column names, or NULL
 @param[in]	dict_locked	True if dict_sys->mutex is already held,
 				otherwise false
-@return DB_SUCESS 	if successfully load FK constraint */
+@return DB_SUCCESS 	if successfully load FK constraint */
 dberr_t
 dd_table_load_fk_from_dd(
 	dict_table_t*			m_table,
@@ -2208,10 +2199,6 @@ the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
 @param[in]	tbl_name	Table Name
 @param[in]	col_names	column names, or NULL
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
 @param[in]	thd		thread THD
@@ -2219,7 +2206,7 @@ the foreign table, if this table is referenced by the foreign table
 				otherwise false
 @param[in]	char_charsets	whether to check charset compatibility
 @param[in,out]	fk_tables	name list for tables that refer to this table
-@return DB_SUCESS 	if successfully load FK constraint */
+@return DB_SUCCESS 	if successfully load FK constraint */
 dberr_t
 dd_table_load_fk(
 	dd::cache::Dictionary_client*	client,
@@ -2261,16 +2248,12 @@ the foreign table, if this table is referenced by the foreign table
 @param[in,out]	client		data dictionary client
 @param[in]	tbl_name	Table Name
 @param[in]	col_names	column names, or NULL
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
 @param[in]	thd		thread THD
 @param[in]	char_charsets	whether to check charset compatibility
 @param[in,out]	fk_tables	name list for tables that refer to this table
-@return DB_SUCESS 	if successfully load FK constraint */
+@return DB_SUCCESS 	if successfully load FK constraint */
 dberr_t
 dd_table_check_for_child(
 	dd::cache::Dictionary_client*	client,
@@ -2664,10 +2647,6 @@ dd_load_tablespace(
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	ib_table	InnoDB table handle
 @param[in]	dd_table	Global DD table or partition object
 @param[in]	skip_mdl	whether meta-data locking is skipped
@@ -2682,7 +2661,6 @@ dd_open_table_one(
 	dd::cache::Dictionary_client*	client,
 	const TABLE*			table,
 	const char*			norm_name,
-	bool*				uncached,
 	dict_table_t*&			ib_table,
 	const Table*			dd_table,
 	bool				skip_mdl,
@@ -2700,8 +2678,7 @@ dd_open_table_one(
 	} else if (dd_tablespace_is_implicit(
 		client, dd_first_index(dd_table)->tablespace_id(),
 		&implicit)) {
-		/* Tablespace no longer exist, it could be already dropped
-		TODO: should we do more verification/error report */
+		/* Tablespace no longer exist, it could be already dropped */
 		return(NULL);
 	}
 
@@ -2939,7 +2916,7 @@ dd_open_fk_tables(
 
 			fk_table = dd_open_table_one(
 				client, &td, fk_table_name.m_name,
-				nullptr, fk_table, dd_table,
+				fk_table, dd_table,
 				false, thd, fk_list);
 
 			closefrm(&td, false);
@@ -2956,10 +2933,6 @@ next:
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
-@param[in,out]	uncached	NULL if the table should be added to the cache;
-				if not, *uncached=true will be assigned
-				when ib_table was allocated but not cached
-				(used during delete_table and rename_table)
 @param[out]	ib_table	InnoDB table handle
 @param[in]	dd_table	Global DD table or partition object
 @param[in]	skip_mdl	whether meta-data locking is skipped
@@ -2973,7 +2946,6 @@ dd_open_table(
 	dd::cache::Dictionary_client*	client,
 	const TABLE*			table,
 	const char*			norm_name,
-	bool*				uncached,
 	dict_table_t*&			ib_table,
 	const Table*			dd_table,
 	bool				skip_mdl,
@@ -2982,7 +2954,7 @@ dd_open_table(
 	dict_table_t*			m_table = NULL;
 	dict_names_t			fk_list;
 
-	m_table = dd_open_table_one(client, table, norm_name, uncached,
+	m_table = dd_open_table_one(client, table, norm_name,
 				    ib_table, dd_table, skip_mdl, thd,
 				    fk_list);
 
@@ -3002,11 +2974,11 @@ dd_open_table(
 
 template dict_table_t* dd_open_table<dd::Table>(
         dd::cache::Dictionary_client*, const TABLE*, const char*,
-	bool*, dict_table_t*&, const dd::Table*, bool, THD*);
+	dict_table_t*&, const dd::Table*, bool, THD*);
 
 template dict_table_t* dd_open_table<dd::Partition>(
 	dd::cache::Dictionary_client*, const TABLE*, const char*,
-	bool*, dict_table_t*&, const dd::Partition*, bool, THD*);
+	dict_table_t*&, const dd::Partition*, bool, THD*);
 
 /** Get next record from a new dd system table, like mysql.tables...
 @param[in,out]	pcur		persistent cursor
@@ -3243,3 +3215,4 @@ dd_process_dd_indexes_rec(
 
 	return(true);
 }
+

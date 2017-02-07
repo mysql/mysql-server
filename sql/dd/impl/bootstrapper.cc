@@ -1358,10 +1358,6 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   Key_length_error_handler key_error_handler;
 
   create_predefined_tablespaces(thd);
-  // This will create dd::Schema object for mysql schema
-  // TODO: Enable while fixing upgrade code.
-  //if (create_dd_schema(thd))
-  //  return true;
 
   // Mark flag true as DD creation uses it to get version number
   opt_initialize= true;
@@ -1380,8 +1376,6 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   thd->push_internal_handler(&key_error_handler);
   bootstrap_error_handler.set_log_error(false);
   bool error =false;
-  // TODO: Enable while fixing upgrade code.
-  //error= create_tables(thd, dd_upgrade_flag, nullptr);
   bootstrap_error_handler.set_log_error(true);
   thd->pop_internal_handler();
   if (error)
@@ -1396,10 +1390,8 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   bootstrap_error_handler.set_log_error(false);
 
   bool exists= false;
-  // TODO: Enable while fixing upgrade code.
   exists= true;
   uint dd_version= 1;
-  //d->get_actual_dd_version(thd, &exists);
 
   // Reset log error verbosity and pop internal error handler.
   log_error_verbosity= saved_verbosity;

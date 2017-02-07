@@ -179,18 +179,18 @@ v INT,
 CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
 ) ENGINE=InnoDB;
 INSERT INTO t2 VALUES(2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(1);
 DELETE FROM t1 WHERE id = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
 DROP TABLE t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE t1;
 SET FOREIGN_KEY_CHECKS=1;
 INSERT INTO t2 VALUES(3);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
 DROP TABLE t2;
 create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
 insert into t1 values (1),(2);
@@ -253,19 +253,19 @@ create table t4(a int primary key,constraint foreign key(a)references t3(a)) row
 insert into t1 values(1);
 insert into t3 values(1);
 insert into t2 values(2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
 insert into t4 values(2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
 insert into t2 values(1);
 insert into t4 values(1);
 update t1 set a=2;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
 update t2 set a=2;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
 update t3 set a=2;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
 update t4 set a=2;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
 truncate t1;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
 truncate t3;
@@ -313,7 +313,7 @@ create table t1 (a int primary key,s1 varbinary(3) not null unique) engine=innod
 create table t2 (s1 binary(2) not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
 insert into t1 values(1,0x4100),(2,0x41),(3,0x4120),(4,0x42);
 insert into t2 values(0x42);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 insert into t2 values(0x41);
 select hex(s1) from t2;
 hex(s1)
@@ -323,15 +323,15 @@ select hex(s1) from t2;
 hex(s1)
 4100
 update t1 set s1=0x12 where a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 update t1 set s1=0x12345678 where a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 SET sql_mode = default;
 update t1 set s1=0x123457 where a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 update t1 set s1=0x1220 where a=1;
 select hex(s1) from t2;
 hex(s1)
@@ -345,11 +345,11 @@ select hex(s1) from t2;
 hex(s1)
 4200
 delete from t1 where a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 delete from t1 where a=2;
 update t2 set s1=0x4120;
 delete from t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 delete from t1 where a!=3;
 select a,hex(s1) from t1;
 a	hex(s1)
@@ -375,7 +375,7 @@ hex(s1)
 12
 delete from t1 where a=1;
 delete from t1 where a=2;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON DELETE NO ACTION ON UPDATE CASCADE)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 select a,hex(s1) from t1;
 a	hex(s1)
 2	12
@@ -433,7 +433,7 @@ t1	CREATE TABLE `t1` (
   `c2` bigint(20) NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`),
-  CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION
+  CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 drop foreign key c2_fk;
 show create table t1;
@@ -695,7 +695,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
-  CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
 SET innodb_strict_mode=ON;

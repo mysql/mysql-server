@@ -456,7 +456,7 @@ INSERT INTO t1_child SET f1 = 2, f2 = 2;
 RETURN 1;
 END//
 SELECT f1_two_inserts();
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1_child`, CONSTRAINT `t1_child_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1_parent` (`f1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1_child`, CONSTRAINT `t1_child_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1_parent` (`f1`))
 SELECT * FROM t1_child;
 f1	f2
 DROP TABLE t1_child;

@@ -346,6 +346,11 @@ static ulong	innobase_active_counter	= 0;
 
 static hash_table_t*	innobase_open_tables;
 
+/** Array of data files of the system tablespace */
+static std::vector<Plugin_tablespace::Plugin_tablespace_file*,
+		   ut_allocator<Plugin_tablespace::Plugin_tablespace_file*>
+		  > innobase_sys_files;
+
 /** Allowed values of innodb_change_buffering */
 static const char* innodb_change_buffering_names[] = {
 	"none",		/* IBUF_USE_NONE */
@@ -1424,6 +1429,12 @@ innodb_shutdown(
 		innodb_inited = 0;
 		hash_table_free(innobase_open_tables);
 		innobase_open_tables = NULL;
+
+		for (auto file : innobase_sys_files) {
+			UT_DELETE(file);
+		}
+		innobase_sys_files.clear();
+		innobase_sys_files.shrink_to_fit();
 
 		mutex_free(&master_key_id_mutex);
 		srv_shutdown();
@@ -4845,12 +4856,18 @@ innobase_init_files(
 			"",
 			/* Engine */
 			innobase_hton_name);
-
-#if 1//WL#6394 TODO: can we remove this?
-		static Plugin_tablespace::Plugin_tablespace_file sys_file(
-			"ibdata1", "");
-		innodb.add_file(&sys_file);
-#endif
+		Tablespace::files_t::const_iterator	end =
+			srv_sys_space.m_files.end();
+		Tablespace::files_t::const_iterator	begin =
+			srv_sys_space.m_files.begin();
+		for (Tablespace::files_t::const_iterator it = begin;
+		     it != end;
+		     ++it) {
+			innobase_sys_files.push_back(UT_NEW_NOKEY(
+				Plugin_tablespace::Plugin_tablespace_file(
+					it->name(), "")));
+			innodb.add_file(innobase_sys_files.back());
+		}
 		tablespaces->push_back(&innodb);
 
 	} else {
@@ -7037,16 +7054,16 @@ ha_innobase::open(
 
 			if (!(ib_table = dd_open_table(
 				client, table, norm_name,
-				nullptr, ib_table, table_def, false,
+				ib_table, table_def, false,
 				thd))) {
 				set_my_errno(ENOENT);
 				DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 			}
 			if (autoinc) {
-			dict_table_autoinc_lock(ib_table);
-			dict_table_autoinc_update_if_greater(
-				ib_table, autoinc);
-			dict_table_autoinc_unlock(ib_table);
+				dict_table_autoinc_lock(ib_table);
+				dict_table_autoinc_update_if_greater(
+					ib_table, autoinc);
+				dict_table_autoinc_unlock(ib_table);
 			}
 		}
 	} else {
@@ -13516,8 +13533,6 @@ innobase_write_dd_index(
 	const dict_index_t*	index)
 {
 	ut_ad(index->id != 0);
-	/* TODO: The tablespace could be missing, thus page is FIL_NULL */
-	//ut_ad(index->page != FIL_NULL || (index->type & DICT_FTS) != 0);
 	ut_ad(index->page >= FSP_FIRST_INODE_PAGE_NO);
 
 	dd_index->set_tablespace_id(dd_space_id);
@@ -13566,8 +13581,6 @@ create_table_info_t::create_table_update_global_dd(
 
 	dict_table_t*	table = dd_table_open_on_name_in_mem(
 		m_table_name, false, DICT_ERR_IGNORE_NONE);
-	/* TODO: A better solution could be preventing this table to
-	be evicted during the whole creation process */
 	if (table == NULL) {
 		dd::Partition*	part =
 			dd_table->table().partition_type()
@@ -13575,7 +13588,7 @@ create_table_info_t::create_table_update_global_dd(
 			NULL : reinterpret_cast<dd::Partition*>(dd_table);
 		int error = dd_table_open_on_dd_obj(
 			client, dd_table->table(), part, m_table_name,
-			NULL, table, true, m_thd);
+			table, true, m_thd);
 		ut_ad(error == 0);
 		ut_ad(table != NULL);
 	}
@@ -14391,7 +14404,6 @@ ha_innobase::get_extra_columns_and_keys(
 			col->set_type(dd::enum_column_types::LONGLONG);
 			col->set_nullable(false);
 			col->set_unsigned(true);
-			/* TODO: Check which collation id is correct */
 			col->set_collation_id(1);
 			fts_doc_id = col;
 		}
@@ -15139,7 +15151,7 @@ ha_innobase::delete_table_impl(
 			(dd_tab->table().partition_type() == dd::Table::PT_NONE
 			 ? NULL
 			 : reinterpret_cast<const dd::Partition*>(dd_tab)),
-			norm_name, NULL, tab, true, thd);
+			norm_name, tab, true, thd);
 
 		if (error == 0 && tab != NULL) {
 			file_per_table = dict_table_is_file_per_table(tab);
@@ -15761,8 +15773,6 @@ ha_innobase::rename_table_impl(
 		table = dict_table_check_if_in_cache_low(norm_to);
 		ut_ad(table != NULL);
 
-		ut_ad(!table->ibd_file_missing);
-
                 rename_dd_filename = dict_table_is_file_per_table(table);
 
                 if (rename_dd_filename) {
@@ -15786,9 +15796,9 @@ ha_innobase::rename_table_impl(
 
 	log_buffer_flush_to_disk();
 
-	if (rename_dd_filename) {
-		ut_ad(new_path != NULL);
-
+	/* Allow to rename a table without ibd file, which has no
+	new_path, so no need to update anything */
+	if (rename_dd_filename && new_path != NULL) {
 		dd::Object_id		dd_space_id =
 			(*to_table->indexes()->begin())->tablespace_id();
 

@@ -1,6 +1,6 @@
-# suite/funcs_1/t/is_tables_constraints.test
+# suite/funcs_1/t/is_table_constraints.test
 #
-# Check the layout of information_schema.tables_constraints and the impact of
+# Check the layout of information_schema.table_constraints and the impact of
 # CREATE/ALTER/DROP TABLE/VIEW/SCHEMA/COLUMN ... on it.
 #
 # Note:
@@ -29,9 +29,9 @@ if (!$require_case_insensitive_file_system)
 --source include/have_innodb.inc
 let $engine_type       = InnoDB;
 
-let $is_table = TABLES_CONSTRAINTS;
+let $is_table = TABLE_CONSTRAINTS;
 
-# The table INFORMATION_SCHEMA.TABLES_CONSTRAINTS must exist
+# The table INFORMATION_SCHEMA.TABLE_CONSTRAINTS must exist
 eval SHOW TABLES FROM information_schema LIKE '$is_table';
 
 --echo #######################################################################
@@ -44,9 +44,9 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 
 
 --echo #########################################################################
---echo # Testcase 3.2.10.1: INFORMATION_SCHEMA.TABLES_CONSTRAINTS layout
+--echo # Testcase 3.2.10.1: INFORMATION_SCHEMA.TABLE_CONSTRAINTS layout
 --echo #########################################################################
-# Ensure that the INFORMATION_SCHEMA.TABLES_CONSTRAINTS table has the following
+# Ensure that the INFORMATION_SCHEMA.TABLE_CONSTRAINTS table has the following
 # columns, in the following order:
 #
 # CONSTRAINT_CATALOG (always shows NULL),
@@ -68,19 +68,19 @@ eval SHOW CREATE TABLE information_schema.$is_table;
 eval SHOW COLUMNS FROM information_schema.$is_table;
 
 # Note: Retrieval of information within information_schema.columns about
-#       information_schema.tables_constraints is in is_columns_is.test.
+#       information_schema.table_constraints is in is_columns_is.test.
 
 # Show that CONSTRAINT_CATALOG IS NULL
 SELECT constraint_catalog, constraint_schema, constraint_name,
        table_schema, table_name
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE constraint_catalog IS NOT NULL AND
       table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name, constraint_name;
 
 
 --echo #########################################################################################
---echo # Testcase 3.2.7.2 + 3.2.7.3: INFORMATION_SCHEMA.TABLES_CONSTRAINTS accessible information
+--echo # Testcase 3.2.7.2 + 3.2.7.3: INFORMATION_SCHEMA.TABLE_CONSTRAINTS accessible information
 --echo #########################################################################################
 # 3.2.7.2:  Ensure that the table shows the relevant information on every
 #           column, defined to be part of an index key, which is accessible to
@@ -88,10 +88,10 @@ ORDER BY table_schema,table_name, constraint_name;
 # 3.2.7.3:  Ensure that the table does not show any information on any indexed
 #           column that is not accessible to the current user or PUBLIC.
 #
-# Note: Check of content within tables_constraints about tables within
+# Note: Check of content within table_constraints about tables within
 #       database           is checked in
-#       mysql              is_tables_constraints_mysql
-#       information_schema is_tables_constraints_is
+#       mysql              is_table_constraints_mysql
+#       information_schema is_table_constraints_is
 #
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
@@ -116,7 +116,7 @@ CREATE USER 'testuser1'@'localhost';
 GRANT SELECT(f5) ON db_datadict.t1 TO 'testuser1'@'localhost';
 SHOW GRANTS FOR 'testuser1'@'localhost';
 
-let $my_select = SELECT * FROM information_schema.tables_constraints
+let $my_select = SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema,table_name, constraint_name;
 let $my_show1 = SHOW INDEXES FROM db_datadict.t1;
@@ -159,7 +159,7 @@ DROP DATABASE db_datadict;
 
 
 --echo #########################################################################################
---echo # Testcase 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.TABLES_CONSTRAINTS modifications
+--echo # Testcase 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.TABLE_CONSTRAINTS modifications
 --echo #########################################################################################
 # 3.2.1.13: Ensure that the creation of any new database object (e.g. table or
 #           column) automatically inserts all relevant information on that
@@ -177,7 +177,7 @@ DROP TABLE IF EXISTS test.t1_my_table;
 --enable_warnings
 CREATE DATABASE db_datadict;
 
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name LIKE 't1_my_table%';
 --replace_result $engine_type <engine_type>
 eval
@@ -186,32 +186,32 @@ CREATE TABLE test.t1_my_table
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 ENGINE = $engine_type;
 # Settings used in CREATE TABLE must be visible
-# in information_schema.tables_constraints.
+# in information_schema.table_constraints.
 SELECT constraint_name, table_schema, table_name, constraint_type
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE table_name = 't1_my_table';
 #
 # Check modification of TABLE_NAME
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name LIKE 't1_my_table%';
 RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name LIKE 't1_my_table%';
 #
 # Check modification of TABLE_SCHEMA
-SELECT table_schema,table_name FROM information_schema.tables_constraints
+SELECT table_schema,table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 RENAME TABLE test.t1_my_tablex TO db_datadict.t1_my_tablex;
-SELECT table_schema,table_name FROM information_schema.tables_constraints
+SELECT table_schema,table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 #
 let $my_select = SELECT constraint_schema, constraint_name, table_schema,
 table_name, constraint_type
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex'
 ORDER BY table_schema,table_name, constraint_name;
 #
-# Check ADD INDEX being not UNIQUE (does not show up in tables_constraints)
+# Check ADD INDEX being not UNIQUE (does not show up in table_constraints)
 eval $my_select;
 CREATE INDEX f2 ON db_datadict.t1_my_tablex(f2);
 eval $my_select;
@@ -240,33 +240,33 @@ eval $my_select;
 #
 # Check impact of DROP TABLE
 SELECT table_name
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 DROP TABLE db_datadict.t1_my_tablex;
 SELECT table_name
-FROM information_schema.tables_constraints
+FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 #
 # No UNIQUE CONSTRAINT -> no entry in key_column_usage
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict.t1_my_tablex
 ENGINE = $engine_type AS
 SELECT 1 AS f1;
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 # UNIQUE CONSTRAINT -> entry in key_column_usage
 ALTER TABLE db_datadict.t1_my_tablex ADD PRIMARY KEY(f1);
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 #
 # Check impact of DROP SCHEMA
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 DROP DATABASE db_datadict;
-SELECT table_name FROM information_schema.tables_constraints
+SELECT table_name FROM information_schema.table_constraints
 WHERE table_name = 't1_my_tablex';
 #
 
@@ -304,37 +304,37 @@ ENGINE = $engine_type;
 --error ER_DBACCESS_DENIED_ERROR
 
 --error ER_DBACCESS_DENIED_ERROR
-INSERT INTO information_schema.tables_constraints
+INSERT INTO information_schema.table_constraints
        (constraint_schema, constraint_name, table_name)
 VALUES (          'mysql',       'primary',       'db');
 --error ER_DBACCESS_DENIED_ERROR
-INSERT INTO information_schema.tables_constraints
-SELECT * FROM information_schema.tables_constraints;
+INSERT INTO information_schema.table_constraints
+SELECT * FROM information_schema.table_constraints;
 
 --error ER_DBACCESS_DENIED_ERROR
-UPDATE information_schema.tables_constraints
+UPDATE information_schema.table_constraints
 SET  table_name = 'db1' WHERE constraint_name = 'primary';
 
 --error ER_DBACCESS_DENIED_ERROR
-DELETE FROM information_schema.tables_constraints WHERE table_name = 't1';
+DELETE FROM information_schema.table_constraints WHERE table_name = 't1';
 --error ER_DBACCESS_DENIED_ERROR
-TRUNCATE information_schema.tables_constraints;
+TRUNCATE information_schema.table_constraints;
 
 --error ER_DBACCESS_DENIED_ERROR
-CREATE INDEX i3 ON information_schema.tables_constraints(table_name);
+CREATE INDEX i3 ON information_schema.table_constraints(table_name);
 
 --error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE information_schema.tables_constraints ADD f1 INT;
+ALTER TABLE information_schema.table_constraints ADD f1 INT;
 
 --error ER_DBACCESS_DENIED_ERROR
-DROP TABLE information_schema.tables_constraints;
+DROP TABLE information_schema.table_constraints;
 
 --error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE information_schema.tables_constraints
-RENAME db_datadict.tables_constraints;
+ALTER TABLE information_schema.table_constraints
+RENAME db_datadict.table_constraints;
 --error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE information_schema.tables_constraints
-RENAME information_schema.xtables_constraints;
+ALTER TABLE information_schema.table_constraints
+RENAME information_schema.xtable_constraints;
 
 # Cleanup
 DROP TABLE db_datadict.t1;

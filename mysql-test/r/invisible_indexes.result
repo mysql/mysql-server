@@ -512,7 +512,7 @@ CREATE TABLE t1c ( t1p_a INT );
 ALTER TABLE t1c ADD CONSTRAINT FOREIGN KEY ( t1p_a ) REFERENCES t1p( a );
 ALTER TABLE t1c ALTER INDEX t1p_a INVISIBLE;
 INSERT INTO t1c VALUES ( 1 );
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1c`, CONSTRAINT `t1c_ibfk_1` FOREIGN KEY (`t1p_a`) REFERENCES `t1p` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1c`, CONSTRAINT `t1c_ibfk_1` FOREIGN KEY (`t1p_a`) REFERENCES `t1p` (`a`))
 SELECT * FROM t1c;
 t1p_a
 DROP TABLE t1c, t1p;

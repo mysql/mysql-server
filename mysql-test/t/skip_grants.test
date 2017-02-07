@@ -119,10 +119,8 @@ set global event_scheduler=1;
 #
 # Bug#26285 Selecting information_schema crahes server
 #
-#TODO: Change the name back once the lowercase issue fixed.
-select count(*) from information_schema.COLUMNS_PRIVILEGES;
+select count(*) from information_schema.COLUMN_PRIVILEGES;
 select count(*) from information_schema.SCHEMA_PRIVILEGES;
-#TODO: Change the name back once the lowercase issue fixed.
-select count(*) from information_schema.TABLES_PRIVILEGES;
+select count(*) from information_schema.TABLE_PRIVILEGES;
 select count(*) from information_schema.USER_PRIVILEGES;
 --echo End of 5.0 tests

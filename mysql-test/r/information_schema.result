@@ -70,7 +70,7 @@ CHARACTER_SETS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
-COLUMNS_PRIVILEGES
+COLUMN_PRIVILEGES
 ENGINES
 EVENTS
 FILES
@@ -94,9 +94,9 @@ ST_GEOMETRY_COLUMNS
 ST_SPATIAL_REFERENCE_SYSTEMS
 TABLES
 TABLESPACES
-TABLES_CONSTRAINTS
 TABLES_DYNAMIC
-TABLES_PRIVILEGES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
@@ -449,12 +449,12 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	def	test	ALTER ROUTINE	YES
 'mysqltest_1'@'localhost'	def	test	EVENT	YES
 'mysqltest_1'@'localhost'	def	test	TRIGGER	YES
-select * from information_schema.TABLES_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	def	test	t1	SELECT	NO
 'mysqltest_1'@'localhost'	def	test	t1	INSERT	NO
 'mysqltest_1'@'localhost'	def	test	t1	UPDATE	NO
-select * from information_schema.COLUMNS_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	def	test	t1	a	SELECT	NO
 'mysqltest_1'@'localhost'	def	test	t1	a	INSERT	NO
@@ -483,7 +483,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-select * from information_schema.TABLES_CONSTRAINTS where
+select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test" order by constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	test	constraint_1	test	t1	UNIQUE
@@ -525,10 +525,10 @@ def	test	v3	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@loc
 grant select (a) on test.t1 to joe@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-select * from INFORMATION_SCHEMA.COLUMNS_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'joe'@'localhost'	def	test	t1	a	SELECT	YES
-select * from INFORMATION_SCHEMA.TABLES_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 drop view v1, v2, v3;
 drop table t1;
@@ -611,7 +611,7 @@ drop view v1;
 create view vo as select 'a' union select 'a';
 show index from vo;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-select * from information_schema.TABLES_CONSTRAINTS where
+select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_NAME= "vo";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 select * from information_schema.key_column_usage where
@@ -629,9 +629,9 @@ show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
 TABLESPACES
-TABLES_CONSTRAINTS
 TABLES_DYNAMIC
-TABLES_PRIVILEGES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 create database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -640,9 +640,9 @@ show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
 TABLES	SYSTEM VIEW
 TABLESPACES	SYSTEM VIEW
-TABLES_CONSTRAINTS	SYSTEM VIEW
 TABLES_DYNAMIC	SYSTEM VIEW
-TABLES_PRIVILEGES	SYSTEM VIEW
+TABLE_CONSTRAINTS	SYSTEM VIEW
+TABLE_PRIVILEGES	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
 create table t1(a int);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -654,9 +654,9 @@ show tables like "T%";
 Tables_in_information_schema (T%)
 TABLES
 TABLESPACES
-TABLES_CONSTRAINTS
 TABLES_DYNAMIC
-TABLES_PRIVILEGES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 select table_name from tables where table_name='user';
 TABLE_NAME
@@ -714,7 +714,7 @@ select index_name from information_schema.statistics where
 table_schema='test' order by index_name;
 INDEX_NAME
 f1_key
-select constraint_name from information_schema.tables_constraints
+select constraint_name from information_schema.table_constraints
 where table_schema='test' order by constraint_name;
 constraint_name
 show create view v2;
@@ -840,7 +840,7 @@ SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
 where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE UTF8_GENERAL_CI;
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
-COLUMNS_PRIVILEGES	TABLE_NAME	select
+COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
 INNODB_BUFFER_PAGE	TABLE_NAME	select
 INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
@@ -854,9 +854,9 @@ STATISTICS_BASE	TABLE_NAME	select
 STATISTICS_DYNAMIC	TABLE_NAME	select
 ST_GEOMETRY_COLUMNS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
-TABLES_CONSTRAINTS	TABLE_NAME	select
 TABLES_DYNAMIC	TABLE_NAME	select
-TABLES_PRIVILEGES	TABLE_NAME	select
+TABLE_CONSTRAINTS	TABLE_NAME	select
+TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
@@ -940,10 +940,10 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 grant select on *.* to user4@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-select * from information_schema.columns_privileges order by grantee;
+select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	mysqltest	t1	f1	SELECT	NO
-select * from information_schema.tables_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.schema_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -954,9 +954,9 @@ show grants;
 Grants for user1@localhost
 GRANT USAGE ON *.* TO `user1`@`localhost`
 GRANT SELECT (`f1`) ON `mysqltest`.`t1` TO `user1`@`localhost`
-select * from information_schema.columns_privileges order by grantee;
+select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-select * from information_schema.tables_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	mysqltest	t2	SELECT	NO
 select * from information_schema.schema_privileges order by grantee;
@@ -968,9 +968,9 @@ show grants;
 Grants for user2@localhost
 GRANT USAGE ON *.* TO `user2`@`localhost`
 GRANT SELECT ON `mysqltest`.`t2` TO `user2`@`localhost`
-select * from information_schema.columns_privileges order by grantee;
+select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-select * from information_schema.tables_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.schema_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -982,11 +982,11 @@ show grants;
 Grants for user3@localhost
 GRANT USAGE ON *.* TO `user3`@`localhost`
 GRANT SELECT ON `mysqltest`.* TO `user3`@`localhost`
-select * from information_schema.columns_privileges where grantee like '%user%'
+select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	mysqltest	t1	f1	SELECT	NO
-select * from information_schema.tables_privileges where grantee like '%user%'
+select * from information_schema.table_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	mysqltest	t2	SELECT	NO
@@ -1291,7 +1291,7 @@ TABLE_NAME
 t1
 t2
 drop table t1,t2;
-select 1 as f1 from information_schema.tables  where "COLUMNS_PRIVILEGES"=
+select 1 as f1 from information_schema.tables  where "COLUMN_PRIVILEGES"=
 (select cast(table_name as char)  from information_schema.tables
 where table_schema != 'performance_schema' order by table_name limit 1) limit 1;
 f1
@@ -1315,7 +1315,7 @@ group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
 TABLE_NAME	group_concat(t.table_schema, '.', t.table_name)	num1
 COLLATIONS	information_schema.COLLATIONS	1
 COLUMNS	information_schema.COLUMNS	1
-COLUMNS_PRIVILEGES	information_schema.COLUMNS_PRIVILEGES	1
+COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
 ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
@@ -1338,9 +1338,9 @@ ST_GEOMETRY_COLUMNS	information_schema.ST_GEOMETRY_COLUMNS	1
 ST_SPATIAL_REFERENCE_SYSTEMS	information_schema.ST_SPATIAL_REFERENCE_SYSTEMS	1
 TABLES	information_schema.TABLES	1
 TABLESPACES	information_schema.TABLESPACES	1
-TABLES_CONSTRAINTS	information_schema.TABLES_CONSTRAINTS	1
 TABLES_DYNAMIC	information_schema.TABLES_DYNAMIC	1
-TABLES_PRIVILEGES	information_schema.TABLES_PRIVILEGES	1
+TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
+TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
 VIEWS	information_schema.VIEWS	1
 create table t1(f1 int);
@@ -1527,9 +1527,9 @@ select * from information_schema.tables where table_catalog = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 select * from information_schema.tables where table_name = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
-select * from `information_schema`.`TABLES_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-select * from `information_schema`.`TABLES_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2052,14 +2052,14 @@ ORDER BY table_name
 LIMIT 1);
 1
 EXPLAIN SELECT 1 AS F1 FROM information_schema.tables
-WHERE "COLUMNS_PRIVILEGES"=
+WHERE "COLUMN_PRIVILEGES"=
 (SELECT CAST(TABLE_NAME AS CHAR)
 FROM information_schema.tables
 WHERE table_schema != 'PERFORMANCE_SCHEMA'
       ORDER BY table_name LIMIT 1)
 LIMIT 1;
 SELECT 1 AS F1 FROM information_schema.tables
-WHERE "COLUMNS_PRIVILEGES"=
+WHERE "COLUMN_PRIVILEGES"=
 (SELECT CAST(TABLE_NAME AS CHAR)
 FROM information_schema.tables
 WHERE table_schema != 'PERFORMANCE_SCHEMA'

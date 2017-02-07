@@ -138,9 +138,7 @@ void System_views::init()
     "STATISTICS",
     "ST_GEOMETRY_COLUMNS",
     "ST_SPATIAL_REFERENCE_SYSTEMS",
-    /* TODO: Modify this view name from TABLES_CONSTRAINTS back to TABLE_CONSTRAINTS
-    after lower case table names issue resolved. */
-    "TABLES_CONSTRAINTS",
+    "TABLE_CONSTRAINTS",
     "TABLES",
     "TABLES_DYNAMIC",
     "VIEWS",

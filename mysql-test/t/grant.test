@@ -346,10 +346,10 @@ grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
 grant update (d) on mysqltest_2.t2 to mysqltest_3@localhost;
 connect (conn1,localhost,mysqltest_3,,);
 connection conn1;
-SELECT * FROM INFORMATION_SCHEMA.COLUMNS_PRIVILEGES
+SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES
  WHERE GRANTEE = '''mysqltest_3''@''localhost'''
  ORDER BY TABLE_NAME,COLUMN_NAME,PRIVILEGE_TYPE;
-SELECT * FROM INFORMATION_SCHEMA.TABLES_PRIVILEGES
+SELECT * FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES
  WHERE GRANTEE = '''mysqltest_3''@''localhost'''
  ORDER BY TABLE_NAME,PRIVILEGE_TYPE;
 SELECT * from INFORMATION_SCHEMA.SCHEMA_PRIVILEGES
@@ -455,13 +455,13 @@ GRANT ALL PRIVILEGES ON mysqltest.dummyview TO dummy@localhost;
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
-PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLES_PRIVILEGES WHERE GRANTEE
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
 --sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
-PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLES_PRIVILEGES WHERE GRANTEE
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 SHOW FIELDS FROM mysql.tables_priv;
 use test;
@@ -479,13 +479,13 @@ GRANT CREATE VIEW ON mysqltest.dummyview TO dummy@localhost;
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
-PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLES_PRIVILEGES WHERE GRANTEE
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
 --sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
-PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLES_PRIVILEGES WHERE GRANTEE
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 use test;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
@@ -501,13 +501,13 @@ GRANT SHOW VIEW ON mysqltest.dummyview TO dummy@localhost;
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
-PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLES_PRIVILEGES WHERE GRANTEE
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
 --sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
-PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLES_PRIVILEGES WHERE GRANTEE
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 use test;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
@@ -659,7 +659,7 @@ flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.columns_privileges;
+select * from  information_schema.column_privileges;
 connect (conn4,localhost,mysqltest_8,,);
 select * from t1;
 disconnect conn4;
@@ -669,7 +669,7 @@ revoke update (a) on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.columns_privileges;
+select * from  information_schema.column_privileges;
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
@@ -683,7 +683,7 @@ flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.tables_privileges where table_schema NOT IN ('sys');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 connect (conn5,localhost,mysqltest_8,,);
 select * from t1;
 disconnect conn5;
@@ -693,7 +693,7 @@ revoke update on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.tables_privileges where table_schema NOT IN ('sys');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;

@@ -43,11 +43,11 @@ eval $dd_part1 user_privileges                       $dd_part2;
 --error ER_DBACCESS_DENIED_ERROR
 eval $dd_part1 schema_privileges                     $dd_part2;
 --error ER_DBACCESS_DENIED_ERROR
-eval $dd_part1 tables_privileges                      $dd_part2;
+eval $dd_part1 table_privileges                      $dd_part2;
 --error ER_DBACCESS_DENIED_ERROR
-eval $dd_part1 columns_privileges                     $dd_part2;
+eval $dd_part1 column_privileges                     $dd_part2;
 --error ER_DBACCESS_DENIED_ERROR
-eval $dd_part1 tables_constraints                     $dd_part2;
+eval $dd_part1 table_constraints                     $dd_part2;
 --error ER_DBACCESS_DENIED_ERROR
 eval $dd_part1 key_column_usage                      $dd_part2;
 --error ER_DBACCESS_DENIED_ERROR
