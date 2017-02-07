@@ -4901,7 +4901,9 @@ protected:
           the old schema and table name in this method for some reason it
           has to use ha_alter_info object to figure it out.
  */
- virtual void notify_table_changed(Alter_inplace_info *ha_alter_info) { };
+ virtual void
+ notify_table_changed(Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)))
+ { };
 
 public:
  /* End of On-line/in-place ALTER TABLE interface. */
@@ -5210,7 +5212,7 @@ public:
             to data-dictionary only if storage engine supports atomic DDL
             (i.e. has HTON_SUPPORTS_ATOMIC_DDL flag set).
   */
-  virtual int truncate(dd::Table *table_def)
+  virtual int truncate(dd::Table *table_def MY_ATTRIBUTE((unused)))
   { return HA_ERR_WRONG_COMMAND; }
   virtual int optimize(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
@@ -5327,10 +5329,14 @@ public:
     @retval  0      Success.
     @retval  non-0  Error.
   */
-  virtual int get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
-                                         const List<Create_field> *create_list,
-                                         const KEY *key_info, uint key_count,
-                                         dd::Table *table)
+  virtual int
+    get_extra_columns_and_keys(const HA_CREATE_INFO
+                               *create_info MY_ATTRIBUTE((unused)),
+                               const List<Create_field>
+                               *create_list MY_ATTRIBUTE((unused)),
+                               const KEY *key_info MY_ATTRIBUTE((unused)),
+                               uint key_count MY_ATTRIBUTE((unused)),
+                               dd::Table *table MY_ATTRIBUTE((unused)))
   { return 0; }
 
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share)

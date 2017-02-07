@@ -742,7 +742,7 @@ public:
 
   const char *func_name() const override { return "json_pretty"; }
 
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     set_data_type_string(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
     return false;

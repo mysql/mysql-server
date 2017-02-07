@@ -570,10 +570,6 @@ list_err:
 
   @param[in,out] unknown_key       reference on the line with unknown
                                    parameter and the parsing point
-  @param[in] base                  base address for parameter writing
-                                   (structure like TABLE)
-  @param[in] mem_root              MEM_ROOT for parameters allocation
-  @param[in] end                   the end of the configuration
 
   @note
     This hook used to catch no longer supported keys and process them for
@@ -589,8 +585,8 @@ list_err:
 
 bool
 File_parser_dummy_hook::process_unknown_string(const char *&unknown_key,
-                                               uchar* base, MEM_ROOT *mem_root,
-                                               const char *end)
+                                               uchar*, MEM_ROOT*,
+                                               const char*)
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));

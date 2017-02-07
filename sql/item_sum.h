@@ -795,7 +795,7 @@ public:
   { set_data_type_longlong(); }
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item)
   { set_data_type_longlong(); }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     maybe_null= false;
     for (uint i= 0; i < arg_count; i++)
@@ -896,7 +896,7 @@ class Item_sum_count :public Item_sum_int
   {
     return has_with_distinct() ? COUNT_DISTINCT_FUNC : COUNT_FUNC;
   }
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
     maybe_null= false;
     null_value= FALSE;

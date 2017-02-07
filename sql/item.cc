@@ -2559,7 +2559,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
   tmp_field->field= false;
 }
 
-bool Item_ident_for_show::fix_fields(THD *thd, Item **ref)
+bool Item_ident_for_show::fix_fields(THD*, Item**)
 {
   maybe_null= field->maybe_null();
   decimals= field->decimals();

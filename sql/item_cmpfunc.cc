@@ -6118,7 +6118,7 @@ float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
                                                   COND_FILTER_EQUALITY);
 }
 
-bool Item_func_isnull::resolve_type(THD *thd)
+bool Item_func_isnull::resolve_type(THD*)
 {
   max_length= 1;
   maybe_null= false;

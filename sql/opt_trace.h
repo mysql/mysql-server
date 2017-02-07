@@ -1136,7 +1136,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp);
    @retval 0 ok
    @retval 1 error
 */
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*);
 
 //@}
 

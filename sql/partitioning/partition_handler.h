@@ -345,7 +345,7 @@ private:
 
     @sa Partition_handler::truncate_partition().
   */
-  virtual int truncate_partition_low(dd::Table *table_def)
+  virtual int truncate_partition_low(dd::Table*)
   { return HA_ERR_WRONG_COMMAND; }
   /**
     Change partitions.
@@ -379,11 +379,12 @@ private:
 
     @sa Partition_handler::exchange_partition().
   */
-  virtual int exchange_partition_low(const char *part_table_path,
-                                     const char *swap_table_path,
-                                     uint part_id,
-                                     dd::Table *part_table_def,
-                                     dd::Table *swap_table_def)
+  virtual int
+    exchange_partition_low(const char *part_table_path MY_ATTRIBUTE((unused)),
+                           const char *swap_table_path MY_ATTRIBUTE((unused)),
+                           uint part_id MY_ATTRIBUTE((unused)),
+                           dd::Table *part_table_def MY_ATTRIBUTE((unused)),
+                           dd::Table *swap_table_def MY_ATTRIBUTE((unused)))
   { return HA_ERR_WRONG_COMMAND; }
 
   /**

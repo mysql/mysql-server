@@ -72,8 +72,8 @@ class File_parser_dummy_hook: public Unknown_key_hook
 {
 public:
   File_parser_dummy_hook() {}                 /* Remove gcc warning */
-  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
-                                      MEM_ROOT *mem_root, const char *end);
+  virtual bool process_unknown_string(const char *&unknown_key, uchar*,
+                                      MEM_ROOT*, const char*);
 };
 
 extern File_parser_dummy_hook file_parser_dummy_hook;

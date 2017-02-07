@@ -2245,7 +2245,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_trigger"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD*)
   {
     max_length= 4;
     maybe_null= true;
@@ -2262,7 +2262,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_routine"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD*)
   {
     max_length= 4;
     maybe_null= true;
@@ -2278,7 +2278,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_event"; }
-  bool resolve_type(THD *thd)
+  bool resolve_type(THD*)
   {
     max_length= 21;
     maybe_null= true;

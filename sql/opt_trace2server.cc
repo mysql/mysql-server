@@ -522,7 +522,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 } // namespace
 
 
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*)
 {
   TABLE *table= tables->table;
   Opt_trace_info info;
