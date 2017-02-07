@@ -971,111 +971,6 @@ void ndbcluster_binlog_init(handlerton* h)
 }
 
 
-static bool
-create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
-                         const char* table, size_t table_length,
-                         const char* create_definitions,
-                         const char* create_options)
-{
-  /* Need a connection to create table, else retry later. */
-  if (g_ndb_cluster_connection->get_no_ready() <= 0)
-    return true; 
-
-  if (opt_ndb_extra_logging)
-    sql_print_information("NDB: Creating %s.%s", db, table);
-
-  Ndb_local_connection mysqld(thd);
-
-  /*
-    Check if table exists in MySQL "dictionary"(i.e on disk)
-    if so, remove it since there is none in Ndb
-  */
-  {
-    char path[FN_REFLEN + 1];
-    build_table_filename(path, sizeof(path) - 1,
-                         db, table, reg_ext, 0);
-    if (my_delete(path, MYF(0)) == 0)
-    {
-      /*
-        The .frm file existed and was deleted from disk.
-        It's possible that someone has tried to use it and thus
-        it might have been inserted in the table definition cache.
-        It must be flushed to avoid that it exist only in the
-        table definition cache.
-      */
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB: Flushing %s.%s", db, table);
-
-      /* Flush mysql.ndb_apply_status table, ignore all errors */
-      (void)mysqld.flush_table(db, db_length,
-                               table, table_length);
-    }
-  }
-
-  const bool create_if_not_exists = true;
-  const bool res = mysqld.create_sys_table(db, db_length,
-                                           table, table_length,
-                                           create_if_not_exists,
-                                           create_definitions,
-                                           create_options);
-  return res;
-}
-
-
-static bool
-ndb_apply_table__create(THD *thd)
-{
-  DBUG_ENTER("ndb_apply_table__create");
-
-  /* NOTE! Updating this table schema must be reflected in ndb_restore */
-  const bool res =
-    create_cluster_sys_table(thd,
-                             STRING_WITH_LEN("mysql"),
-                             STRING_WITH_LEN("ndb_apply_status"),
-                             // table_definition
-                             "server_id INT UNSIGNED NOT NULL,"
-                             "epoch BIGINT UNSIGNED NOT NULL, "
-                             "log_name VARCHAR(255) BINARY NOT NULL, "
-                             "start_pos BIGINT UNSIGNED NOT NULL, "
-                             "end_pos BIGINT UNSIGNED NOT NULL, "
-                             "PRIMARY KEY USING HASH (server_id)",
-                             // table_options
-                             "ENGINE=NDB CHARACTER SET latin1");
-  DBUG_RETURN(res);
-}
-
-
-static bool
-ndb_schema_table__create(THD *thd)
-{
-  DBUG_ENTER("ndb_schema_table__create");
-
-  /* NOTE! Updating this table schema must be reflected in ndb_restore */
-  const bool res =
-    create_cluster_sys_table(thd,
-                             STRING_WITH_LEN("mysql"),
-                             STRING_WITH_LEN("ndb_schema"),
-                             // table_definition
-                             "db VARBINARY("
-                             NDB_MAX_DDL_NAME_BYTESIZE_STR
-                             ") NOT NULL,"
-                             "name VARBINARY("
-                             NDB_MAX_DDL_NAME_BYTESIZE_STR
-                             ") NOT NULL,"
-                             "slock BINARY(32) NOT NULL,"
-                             "query BLOB NOT NULL,"
-                             "node_id INT UNSIGNED NOT NULL,"
-                             "epoch BIGINT UNSIGNED NOT NULL,"
-                             "id INT UNSIGNED NOT NULL,"
-                             "version INT UNSIGNED NOT NULL,"
-                             "type INT UNSIGNED NOT NULL,"
-                             "PRIMARY KEY USING HASH (db,name)",
-                             // table_options
-                             "ENGINE=NDB CHARACTER SET latin1");
-  DBUG_RETURN(res);
-}
-
-
 /*
    ndb_notify_tables_writable
    
@@ -1445,6 +1340,110 @@ int find_all_files(THD *thd, Ndb* ndb)
 
   DBUG_RETURN(-(skipped + unhandled));
 }
+
+  static bool
+  create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
+                           const char* table, size_t table_length,
+                           const char* create_definitions,
+                           const char* create_options)
+  {
+    /* Need a connection to create table, else retry later. */
+    if (g_ndb_cluster_connection->get_no_ready() <= 0)
+      return true;
+
+    if (opt_ndb_extra_logging)
+      sql_print_information("NDB: Creating %s.%s", db, table);
+
+    Ndb_local_connection mysqld(thd);
+
+    /*
+      Check if table exists in MySQL "dictionary"(i.e on disk)
+      if so, remove it since there is none in Ndb
+    */
+    {
+      char path[FN_REFLEN + 1];
+      build_table_filename(path, sizeof(path) - 1,
+                           db, table, reg_ext, 0);
+      if (my_delete(path, MYF(0)) == 0)
+      {
+        /*
+        The .frm file existed and was deleted from disk.
+        It's possible that someone has tried to use it and thus
+        it might have been inserted in the table definition cache.
+        It must be flushed to avoid that it exist only in the
+        table definition cache.
+        */
+        if (opt_ndb_extra_logging)
+          sql_print_information("NDB: Flushing %s.%s", db, table);
+
+        /* Flush mysql.ndb_apply_status table, ignore all errors */
+        (void)mysqld.flush_table(db, db_length,
+                                 table, table_length);
+      }
+    }
+
+    const bool create_if_not_exists = true;
+    const bool res = mysqld.create_sys_table(db, db_length,
+                                             table, table_length,
+                                             create_if_not_exists,
+                                             create_definitions,
+                                             create_options);
+    return res;
+  }
+
+
+  static bool
+  ndb_apply_table__create(THD *thd)
+  {
+    DBUG_ENTER("ndb_apply_table__create");
+
+    /* NOTE! Updating this table schema must be reflected in ndb_restore */
+    const bool res =
+      create_cluster_sys_table(thd,
+                               STRING_WITH_LEN("mysql"),
+                               STRING_WITH_LEN("ndb_apply_status"),
+                               // table_definition
+                               "server_id INT UNSIGNED NOT NULL,"
+                               "epoch BIGINT UNSIGNED NOT NULL, "
+                               "log_name VARCHAR(255) BINARY NOT NULL, "
+                               "start_pos BIGINT UNSIGNED NOT NULL, "
+                               "end_pos BIGINT UNSIGNED NOT NULL, "
+                               "PRIMARY KEY USING HASH (server_id)",
+                               // table_options
+                               "ENGINE=NDB CHARACTER SET latin1");
+    DBUG_RETURN(res);
+  }
+
+
+  static bool
+  ndb_schema_table__create(THD *thd)
+  {
+    DBUG_ENTER("ndb_schema_table__create");
+
+    /* NOTE! Updating this table schema must be reflected in ndb_restore */
+    const bool res =
+      create_cluster_sys_table(thd,
+                               STRING_WITH_LEN("mysql"),
+                               STRING_WITH_LEN("ndb_schema"),
+                               // table_definition
+                               "db VARBINARY("
+                               NDB_MAX_DDL_NAME_BYTESIZE_STR
+                               ") NOT NULL,"
+                               "name VARBINARY("
+                               NDB_MAX_DDL_NAME_BYTESIZE_STR
+                               ") NOT NULL,"
+                               "slock BINARY(32) NOT NULL,"
+                               "query BLOB NOT NULL,"
+                               "node_id INT UNSIGNED NOT NULL,"
+                               "epoch BIGINT UNSIGNED NOT NULL,"
+                               "id INT UNSIGNED NOT NULL,"
+                               "version INT UNSIGNED NOT NULL,"
+                               "type INT UNSIGNED NOT NULL,"
+                               "PRIMARY KEY USING HASH (db,name)",
+                               // table_options
+                               "ENGINE=NDB CHARACTER SET latin1");
+    DBUG_RETURN(res);
+  }
 
   Ndb_binlog_setup(const Ndb_binlog_setup&); // Not copyable
   Ndb_binlog_setup operator=(const Ndb_binlog_setup&); // Not assignable
