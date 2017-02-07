@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,6 +99,7 @@ main.lock_sync                         WL6378_DEBUG_SYNC
 thread_pool.thread_pool_i_s : Enabled by WL9495.
 
 // Hangs after 5 contineous run using ./mtr --repeat=30 - Thayu
+// Raised Bug#25508568 to track this.
 i_innodb.innodb_bug14150372 : WL6599_INNODB_SPORADIC
 
 Restrictions OR waiting for WL/Bug fixes:
