@@ -3184,11 +3184,7 @@ public:
 
   std::string get_socket_name()
   {
-#if defined(_WIN32)
-    return MYSQLX_NAMEDPIPE;
-#else
     return MYSQLX_UNIX_ADDR;
-#endif
   }
 
   My_command_line_options(int argc, char **argv)
