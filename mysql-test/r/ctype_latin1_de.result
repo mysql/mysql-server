@@ -622,28 +622,28 @@ hex(weight_string('ß'))
 5353
 select hex(weight_string('ä' as char(1)));
 hex(weight_string('ä' as char(1)))
-41
+4145
 select hex(weight_string('ö' as char(1)));
 hex(weight_string('ö' as char(1)))
-4F
+4F45
 select hex(weight_string('ü' as char(1)));
 hex(weight_string('ü' as char(1)))
-55
+5545
 select hex(weight_string('ß' as char(1)));
 hex(weight_string('ß' as char(1)))
-53
+5353
 select hex(weight_string('xä' as char(2)));
 hex(weight_string('xä' as char(2)))
-5841
+584145
 select hex(weight_string('xö' as char(2)));
 hex(weight_string('xö' as char(2)))
-584F
+584F45
 select hex(weight_string('xü' as char(2)));
 hex(weight_string('xü' as char(2)))
-5855
+585545
 select hex(weight_string('xß' as char(2)));
 hex(weight_string('xß' as char(2)))
-5853
+585353
 #
 # End of 5.6 tests
 #

@@ -467,19 +467,19 @@ CHARSET_INFO my_charset_latin1=
  *
  * The modern sort order is used, where:
  *
- * '‰'  ->  "ae"
- * 'ˆ'  ->  "oe"
- * '¸'  ->  "ue"
- * 'ﬂ'  ->  "ss"
+ * '√§'  ->  "ae"
+ * '√∂'  ->  "oe"
+ * '√º'  ->  "ue"
+ * '√ü'  ->  "ss"
  */
 
 
 /*
  * This is a simple latin1 mapping table, which maps all accented
  * characters to their non-accented equivalents.  Note: in this
- * table, '‰' is mapped to 'A', 'ˇ' is mapped to 'Y', etc. - all
+ * table, '√§' is mapped to 'A', '√ø' is mapped to 'Y', etc. - all
  * accented characters except the following are treated the same way.
- * ‹, ¸, ÷, ˆ, ƒ, ‰
+ * √ú, √º, √ñ, √∂, √Ñ, √§
  */
 
 static const uchar sort_order_latin1_de[] = {
@@ -541,15 +541,14 @@ static const uchar combo2map[]={
 
 /*
   Some notes about the following comparison rules:
-  By definition, my_strnncoll_latin_de must works exactly as if had called
-  my_strnxfrm_latin_de() on both strings and compared the result strings.
+  By definition, my_strnncoll_latin1_de() must work exactly as if one had called
+  my_strnxfrm_latin1_de() on both strings and compared the resulting strings.
 
-  This means that:
-  ƒ must also matches ¡E and AË, because my_strxn_frm_latin_de() will convert
-  both to AE.
+  This means that √Ñ must also match √ÅE and A√®, because my_strxnfrm_latin1_de()
+  will convert both to AE.
 
-  The other option would be to not do any accent removal in
-  sort_order_latin_de[] at all
+  The other option would be to not do any accent removal in sort_order_latin_de[]
+  at all.
 */
 
 
@@ -674,10 +673,9 @@ my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
   {
     uchar chr= combo1map[*src];
     *dst++= chr;
-    if ((chr= combo2map[*src]) && dst < de && nweights > 1)
+    if ((chr= combo2map[*src]) && dst < de)
     {
       *dst++= chr;
-      nweights--;
     }
   }
   return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
@@ -694,7 +692,7 @@ static void my_hash_sort_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused))
 
   /*
     Remove end space. We have to do this to be able to compare
-    'AE' and 'ƒ' as identical
+    'AE' and '√Ñ' as identical
   */
   end= skip_trailing_space(key, len);
 
