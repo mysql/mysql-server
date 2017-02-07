@@ -13065,7 +13065,6 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
     DBUG_RETURN(res);
   }
 
-  // Init table lock structure
   /* ndb_share reference handler */
   if ((m_share=get_share(name, table, FALSE)) == 0)
   {
@@ -13089,6 +13088,8 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
 
   DBUG_PRINT("NDB_SHARE", ("%s handler  use_count: %u",
                            m_share->key_string(), m_share->use_count));
+ 
+  // Init table lock structure
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
 
   if ((res= get_metadata(thd, table_def)))
