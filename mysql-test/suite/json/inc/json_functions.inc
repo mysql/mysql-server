@@ -3,7 +3,6 @@
 
 SET NAMES utf8;
 CREATE TABLE t1 (pk int  NOT NULL PRIMARY KEY AUTO_INCREMENT, i INT, j JSON);
-SHOW CREATE TABLE t1;
 INSERT INTO t1(i, j) VALUES (0, NULL);
 INSERT INTO t1(i, j) VALUES (1, '{"a": 2}');
 INSERT INTO t1(i, j) VALUES (2, '[1,2]');
@@ -1907,12 +1906,18 @@ drop table jtable;
 --echo # ----------------------------------------------------------------------
 
 select coalesce(cast(1 as json), cast(2 as json));
-select coalesce(j, cast(3 as json)) from t order by c;
-select coalesce(j, 666) from t order by c;
-select json_type(coalesce(j, '[1,2,3]')) from t order by c;
-select json_type(coalesce(j, 'abc')) from t order by c;
-select json_type(coalesce(j, cast('"arg2"' as json))) from t order by c;
-select json_type(coalesce(j, j)) from t order by c;
+--sorted_result
+select j, coalesce(j, cast(3 as json)) from t;
+--sorted_result
+select j, coalesce(j, 666) from t;
+--sorted_result
+select j, json_type(coalesce(j, '[1,2,3]')) from t;
+--sorted_result
+select j, json_type(coalesce(j, 'abc')) from t;
+--sorted_result
+select j, json_type(coalesce(j, cast('"arg2"' as json))) from t;
+--sorted_result
+select j, json_type(coalesce(j, j)) from t;
 --echo inconsistent result: error message depends on the order of evaluation of rows
 --echo --error ER_INVALID_JSON_TEXT_IN_PARAM
 --echo select json_type(coalesce(json_extract(concat(j, 'abc'), '\$'), j)) from t;

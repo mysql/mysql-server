@@ -11,7 +11,7 @@ drop table t2;
 # characters in by inserting them one by one and checking that we insert
 # a single character,  which we can test JSON_QUOTE on:
 
-create table t (c varchar(20));
+create table t (c varchar(20)) charset utf8mb4;
 insert into t values ('\\');
 select char_length(c) from t;
 insert into t values (X'0C');                   # formfeed \f

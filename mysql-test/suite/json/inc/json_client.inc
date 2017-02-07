@@ -3,7 +3,7 @@
 
 --echo # Verify that the client can show JSON data and metadata.
 
-CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL);
+CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL) CHARSET utf8mb4;
 SHOW CREATE TABLE t;
 INSERT INTO t VALUES
 (0, NULL, 'null'),

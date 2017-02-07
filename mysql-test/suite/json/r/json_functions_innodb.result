@@ -3,14 +3,6 @@ set default_storage_engine=innodb;
 # ----------------------------------------------------------------------
 SET NAMES utf8;
 CREATE TABLE t1 (pk int  NOT NULL PRIMARY KEY AUTO_INCREMENT, i INT, j JSON);
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
-  `i` int(11) DEFAULT NULL,
-  `j` json DEFAULT NULL,
-  PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1(i, j) VALUES (0, NULL);
 INSERT INTO t1(i, j) VALUES (1, '{"a": 2}');
 INSERT INTO t1(i, j) VALUES (2, '[1,2]');
@@ -6359,36 +6351,36 @@ drop table jtable;
 select coalesce(cast(1 as json), cast(2 as json));
 coalesce(cast(1 as json), cast(2 as json))
 1
-select coalesce(j, cast(3 as json)) from t order by c;
-coalesce(j, cast(3 as json))
-2
-7
-[1, 2, 3]
-select coalesce(j, 666) from t order by c;
-coalesce(j, 666)
-2
-7
-[1, 2, 3]
-select json_type(coalesce(j, '[1,2,3]')) from t order by c;
-json_type(coalesce(j, '[1,2,3]'))
-INTEGER
-INTEGER
-ARRAY
-select json_type(coalesce(j, 'abc')) from t order by c;
-json_type(coalesce(j, 'abc'))
-INTEGER
-INTEGER
-ARRAY
-select json_type(coalesce(j, cast('"arg2"' as json))) from t order by c;
-json_type(coalesce(j, cast('"arg2"' as json)))
-INTEGER
-INTEGER
-ARRAY
-select json_type(coalesce(j, j)) from t order by c;
-json_type(coalesce(j, j))
-INTEGER
-INTEGER
-ARRAY
+select j, coalesce(j, cast(3 as json)) from t;
+j	coalesce(j, cast(3 as json))
+2	2
+7	7
+[1, 2, 3]	[1, 2, 3]
+select j, coalesce(j, 666) from t;
+j	coalesce(j, 666)
+2	2
+7	7
+[1, 2, 3]	[1, 2, 3]
+select j, json_type(coalesce(j, '[1,2,3]')) from t;
+j	json_type(coalesce(j, '[1,2,3]'))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
+select j, json_type(coalesce(j, 'abc')) from t;
+j	json_type(coalesce(j, 'abc'))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
+select j, json_type(coalesce(j, cast('"arg2"' as json))) from t;
+j	json_type(coalesce(j, cast('"arg2"' as json)))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
+select j, json_type(coalesce(j, j)) from t;
+j	json_type(coalesce(j, j))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
 inconsistent result: error message depends on the order of evaluation of rows
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 select json_type(coalesce(json_extract(concat(j, 'abc'), '$'), j)) from t;

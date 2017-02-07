@@ -1,7 +1,7 @@
 #
 # Setup test.
 #
-CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+CREATE TABLE t1 (a int, k int, b VARCHAR(10)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES
 (1, 1, "alfa"),
 (1, 2, null),
@@ -160,7 +160,7 @@ EXPLAIN
           "read_cost": "0.25",
           "eval_cost": "0.80",
           "prefix_cost": "1.05",
-          "data_read_per_join": "192"
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -197,7 +197,7 @@ EXPLAIN
           "read_cost": "0.25",
           "eval_cost": "0.80",
           "prefix_cost": "1.05",
-          "data_read_per_join": "192"
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -234,7 +234,7 @@ EXPLAIN
           "read_cost": "0.25",
           "eval_cost": "0.80",
           "prefix_cost": "1.05",
-          "data_read_per_join": "192"
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -273,7 +273,7 @@ EXPLAIN
             "read_cost": "0.25",
             "eval_cost": "0.80",
             "prefix_cost": "1.05",
-            "data_read_per_join": "192"
+            "data_read_per_join": "448"
           },
           "used_columns": [
             "a",
@@ -304,7 +304,7 @@ EXPLAIN
         "read_cost": "0.25",
         "eval_cost": "0.80",
         "prefix_cost": "1.05",
-        "data_read_per_join": "192"
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "b"
@@ -332,7 +332,7 @@ EXPLAIN
         "read_cost": "0.25",
         "eval_cost": "0.80",
         "prefix_cost": "1.05",
-        "data_read_per_join": "192"
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "b"
@@ -360,7 +360,7 @@ EXPLAIN
         "read_cost": "0.25",
         "eval_cost": "0.80",
         "prefix_cost": "1.05",
-        "data_read_per_join": "192"
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "b"
@@ -390,7 +390,7 @@ EXPLAIN
           "read_cost": "0.25",
           "eval_cost": "0.80",
           "prefix_cost": "1.05",
-          "data_read_per_join": "192"
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "b"
@@ -526,7 +526,7 @@ EXPLAIN
           "read_cost": "0.25",
           "eval_cost": "0.80",
           "prefix_cost": "1.05",
-          "data_read_per_join": "192"
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -557,7 +557,7 @@ EXPLAIN
         "read_cost": "0.25",
         "eval_cost": "0.80",
         "prefix_cost": "1.05",
-        "data_read_per_join": "192"
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "k",
