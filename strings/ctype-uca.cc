@@ -1475,7 +1475,10 @@ ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next()
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);
     if (mblen <= 0)
+    {
+      ++weight_lv;
       return -1;
+    }
 
     sbeg+= mblen;
     char_index++;
@@ -1847,7 +1850,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
     s		First string
     slen	First string length
     t		Second string
-    tlen	Seconf string length
+    tlen	Second string length
   
   NOTES:
     Initializes two weight scanners and gets weights
@@ -1879,7 +1882,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
     positive number - means the first string is bigger
 */
 
-template<class Scanner, class Mb_wc>
+template<class Scanner, int LEVELS_FOR_COMPARE, class Mb_wc>
 static int my_strnncoll_uca(const CHARSET_INFO *cs, 
                             const Mb_wc mb_wc,
 			    const uchar *s, size_t slen,
@@ -1890,14 +1893,67 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
   Scanner tscanner(mb_wc, cs, t, tlen);
   int s_res;
   int t_res;
-  
-  do
+
+  /*
+    We compare 2 strings in same level first. If only string A's scanner
+    has gone to next level, which means another string, B's weight of
+    current level is longer than A's. We'll compare B's remaining weights
+    with space.
+  */
+  for (uint current_lv= 0; current_lv < LEVELS_FOR_COMPARE; ++current_lv)
   {
-    s_res= sscanner.next();
-    t_res= tscanner.next();
-  } while ( s_res == t_res && s_res >0);
-  
-  return  (t_is_prefix && t_res < 0) ? 0 : (s_res - t_res);
+    /* Run the scanners until one of them runs out of current lv */
+    do
+    {
+      s_res= sscanner.next();
+      t_res= tscanner.next();
+    } while (s_res == t_res && s_res >= 0 &&
+             sscanner.get_weight_level() == current_lv &&
+             tscanner.get_weight_level() == current_lv);
+
+    /*
+      Two scanners run to next level at same time, or we found a difference,
+      or we found an error.
+    */
+    if (sscanner.get_weight_level() == tscanner.get_weight_level())
+    {
+      if (s_res == t_res && s_res >= 0)
+        continue;
+      break;  // Error or inequality found, end.
+    }
+
+    if (tscanner.get_weight_level() > current_lv)
+    {
+      // t ran out of weights on this level, and s didn't.
+      if (t_is_prefix)
+      {
+        // Consume the rest of the weights from s.
+        do {
+          s_res= sscanner.next();
+        } while (s_res >= 0 && sscanner.get_weight_level() == current_lv);
+
+        if (s_res < 0) break;  // Error found, end.
+
+        // s is now also on the next level. Continue comparison.
+        continue;
+      }
+      else
+      {
+        // s is longer than t (and t_prefix isn't set).
+        return 1;
+      }
+    }
+
+    if (sscanner.get_weight_level() > current_lv)
+    {
+      // s ran out of weights on this level, and t didn't.
+      return -1;
+    }
+
+    break;
+  }
+
+  return ( s_res - t_res );
 }
 
 
@@ -5279,12 +5335,12 @@ static int my_strnncoll_any_uca(const CHARSET_INFO *cs,
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
-    return my_strnncoll_uca<uca_scanner_any<Mb_wc_utf8mb4>>(
+    return my_strnncoll_uca<uca_scanner_any<Mb_wc_utf8mb4>, 1>(
       cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
   }
 
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(
+  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>, 1>(
     cs, mb_wc, s, slen, t, tlen, t_is_prefix);
 }
 
@@ -5338,15 +5394,15 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
     switch (cs->levels_for_compare)
     {
     case 1:
-      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 1>>(
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 1>, 1>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     case 2:
-      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 2>>(
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 2>, 2>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     default:
       DBUG_ASSERT(false);
     case 3:
-      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>>(
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>, 3>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     }
   }
@@ -5355,15 +5411,15 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
   switch (cs->levels_for_compare)
   {
   case 1:
-    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 1>>(
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 1>, 1>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   case 2:
-    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 2>>(
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 2>, 2>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   default:
     DBUG_ASSERT(false);
   case 3:
-    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>>(
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>, 3>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   }
 }
@@ -5755,7 +5811,7 @@ static int my_strnncoll_ucs2_uca(const CHARSET_INFO *cs,
                                  bool t_is_prefix)
 {
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(
+  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>, 1>(
     cs, mb_wc, s, slen, t, tlen, t_is_prefix);
 }
 
