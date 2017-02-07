@@ -1426,8 +1426,6 @@ insert into u1 values (4);
 create view v1 (c1) as select * from t1;
 
 # Backup should not fail for Bug#21527. Flush priviliges test begins.
-# TODO (Bug#22655287): mysqldump should skip the innodb_*_stats tables.
-# Restoring the dump will cause errors (see below).
 --exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Clean up
@@ -1446,11 +1444,7 @@ flush privileges;
 --echo # Restore. Flush Privileges test ends.
 --echo #
 
-# TODO (Bug#22655287): mysqldump should skip the innodb_*_stats tables.
-# Restoring the dump will cause errors. Using '--force' will ignore
-# errors and allow the dump to be restored. Fixing Bug#22655287 should
-# allow the command below to succeed without '--force'.
---exec $MYSQL --force < $MYSQLTEST_VARDIR/tmp/bug21527.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Do as a user
 connection user1;
@@ -1812,8 +1806,6 @@ drop database mysqldump_test_db;
 #
 # Bug#26121 mysqldump includes LOCK TABLES general_log WRITE
 #
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats See
-# Bug#22655287
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
 # take a backup of sys db.
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
@@ -1885,9 +1877,7 @@ DROP DATABASE mysqldump_test_db;
 USE test;
 CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
 SHOW EVENTS;
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP --skip-events --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug29938.sql
+--exec $MYSQL_DUMP --skip-events --all-databases > $MYSQLTEST_VARDIR/tmp/bug29938.sql
 
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
 SHOW EVENTS;
@@ -2484,9 +2474,7 @@ while ($colnum)
 }
 --eval CREATE VIEW v1 AS SELECT $str
 
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP -uroot --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug17477959.sql
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug17477959.sql
 #Reload of the dump fails without the patch
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug17477959.sql
 #Cleanup.
@@ -2499,9 +2487,7 @@ DROP VIEW v1;
 CREATE DATABASE `a\\k`;
 CREATE TABLE `a\\k`.t1(i INT);
 SHOW TABLES FROM `a\\k`;
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP -uroot --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug18109728.sql
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug18109728.sql
 DROP DATABASE `a\\k`;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug18109728.sql
 SHOW TABLES FROM `a\\k`;
@@ -2626,9 +2612,7 @@ DROP DATABASE dump_generated;
 # take backup of sys schema
 --exec $MYSQL_DUMP --databases sys --routines > $MYSQLTEST_VARDIR/tmp/sys.sql
 # this will not dump sys schema and sys schema routines.
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+--exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 DROP DATABASE sys;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';

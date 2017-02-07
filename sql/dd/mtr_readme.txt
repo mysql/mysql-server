@@ -74,12 +74,6 @@ innodb.partition                       WL6378_ALTER_PARTITION_TABLESPACE
 // TEST COMMENTED IN-LINE WITHIN .test FILES
 ///////////////////////////////////////////////////////////////////
 
-/*
-  Allow dump/restore of innodb_index_stats and innodb_table_stats.
-  See Bug#22655287
-*/
-sysschema.mysqldump                    WL6378_DDL_ON_DD_TABLE
-
 /** MEDIUM - Joh
   Needs understanding of test case scenario and bit more
   involved study to re-write these tests. We may or may
