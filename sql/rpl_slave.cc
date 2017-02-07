@@ -4551,43 +4551,92 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   mysql_mutex_assert_owner(&rli->data_lock);
   DBUG_ASSERT(!rli->belongs_to_client());
 
-  int type= ev->get_type_code();
-  if (sql_delay && type != binary_log::ROTATE_EVENT &&
-      type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-      type != binary_log::START_EVENT_V3)
+  if (sql_delay)
   {
-    // The time when we should execute the event.
-    time_t sql_delay_end=
-      ev->common_header->when.tv_sec + rli->mi->clock_diff_with_master + sql_delay;
-    // The current time.
-    time_t now= my_time(0);
-    // The time we will have to sleep before executing the event.
-    time_t nap_time= 0;
-    if (sql_delay_end > now)
-      nap_time= sql_delay_end - now;
+    int type= ev->get_type_code();
+    time_t sql_delay_end= 0;
 
-    DBUG_PRINT("info", ("sql_delay= %lu "
-                        "ev->when= %lu "
-                        "rli->mi->clock_diff_with_master= %lu "
-                        "now= %ld "
-                        "sql_delay_end= %ld "
-                        "nap_time= %ld",
-                        sql_delay, (long) ev->common_header->when.tv_sec,
-                        rli->mi->clock_diff_with_master,
-                        (long)now, (long)sql_delay_end, (long)nap_time));
-
-    if (sql_delay_end > now)
+    if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_UNKNOWN &&
+        (type == binary_log::GTID_LOG_EVENT ||
+         type == binary_log::ANONYMOUS_GTID_LOG_EVENT))
     {
-      DBUG_PRINT("info", ("delaying replication event %lu secs",
-                          nap_time));
-      rli->start_sql_delay(sql_delay_end);
-      mysql_mutex_unlock(&rli->data_lock);
-      DBUG_RETURN(slave_sleep(thd, nap_time, sql_slave_killed, rli));
+      if (static_cast<Gtid_log_event*>(ev)->has_commit_timestamps &&
+          DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1))
+      {
+        rli->commit_timestamps_status= Relay_log_info::COMMIT_TS_FOUND;
+      }
+      else
+      {
+        rli->commit_timestamps_status= Relay_log_info::COMMIT_TS_NOT_FOUND;
+      }
+    }
+
+    if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_FOUND)
+    {
+      if (type == binary_log::GTID_LOG_EVENT ||
+          type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
+      {
+        /*
+          Calculate when we should execute the event.
+          The immediate master timestamp is expressed in microseconds.
+          Delayed replication is defined in seconds.
+          Hence convert immediate_commit_timestamp to seconds here.
+        */
+        sql_delay_end=
+          ceil((static_cast<Gtid_log_event*>(ev)->immediate_commit_timestamp)
+          / 1000000.00) + sql_delay;
+      }
+    }
+    else
+    {
+      /*
+        the immediate master does not support commit timestamps
+        in Gtid_log_events
+      */
+      if (type != binary_log::ROTATE_EVENT &&
+          type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+          type != binary_log::START_EVENT_V3 &&
+          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT)
+      {
+        // Calculate when we should execute the event.
+        sql_delay_end=
+          ev->common_header->when.tv_sec + rli->mi->clock_diff_with_master
+          + sql_delay;
+      }
+    }
+    if (sql_delay_end != 0)
+    {
+      // The current time.
+      time_t now= my_time(0);
+      // The amount of time we will have to sleep before executing the event.
+      time_t nap_time= 0;
+
+      if (sql_delay_end > now)
+      {
+        nap_time= sql_delay_end - now;
+
+        DBUG_PRINT("info", ("sql_delay= %lu "
+                            "now= %ld "
+                            "sql_delay_end= %ld "
+                            "nap_time= %ld",
+                            sql_delay,
+                            (long)now, (long)sql_delay_end, (long)nap_time));
+        DBUG_PRINT("info", ("delaying replication event %lu secs",
+                            nap_time));
+        rli->start_sql_delay(sql_delay_end);
+        mysql_mutex_unlock(&rli->data_lock);
+        DBUG_RETURN(slave_sleep(thd, nap_time, sql_slave_killed, rli));
+      }
+      else
+      {
+        DBUG_PRINT("info", ("sql_delay= %lu "
+                            "now= %ld "
+                            "sql_delay_end= %ld ",
+                            sql_delay, (long)now, (long)sql_delay_end));
+      }
     }
   }
-
   mysql_mutex_unlock(&rli->data_lock);
-
   DBUG_RETURN(0);
 }
 

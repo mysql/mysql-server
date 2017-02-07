@@ -252,6 +252,20 @@ public:
   /* number of temporary tables open in this channel */
   std::atomic<int32> atomic_channel_open_temp_tables{0};
 
+  /** the status of the commit timestamps for the relay log */
+  enum
+  {
+    /*
+      no GTID log event has been processed, so it is not known if this log
+      has commit timestamps
+    */
+    COMMIT_TS_UNKNOWN,
+    // the immediate master does not support commit timestamps
+    COMMIT_TS_NOT_FOUND,
+    // the immediate master supports commit timestamps
+    COMMIT_TS_FOUND
+  } commit_timestamps_status;
+
   /*
     Needed to deal properly with cur_log getting closed and re-opened with
     a different log under our feet
@@ -1215,8 +1229,12 @@ private:
   Commit_order_manager* commit_order_mngr;
 
   /**
-    Delay slave SQL thread by this amount, compared to master (in
-    seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.
+    Delay slave SQL thread by this amount of seconds.
+    The delay is applied per transaction and based on the immediate master's
+    commit time. Exceptionally, if a server in the replication chain does not
+    support the commit timestamps in Gtid_log_event, the delay is applied per
+    event and is based on the event timestamp.
+    This is set with CHANGE MASTER TO MASTER_DELAY=X.
 
     Guarded by data_lock.  Initialized by the client thread executing
     START SLAVE.  Written by client threads executing CHANGE MASTER TO

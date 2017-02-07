@@ -1,0 +1,114 @@
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+CHANGE MASTER TO MASTER_DELAY= 5 for channel 'channel_1';;
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+CHANGE MASTER TO MASTER_DELAY= 8 for channel 'channel_3';;
+include/start_slave.inc [FOR CHANNEL 'channel_3']
+[connection server_1]
+CREATE TABLE t1 (a INT);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_1]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_1]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_1]
+UPDATE t1 SET a=2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_1]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_1]
+DELETE FROM t1 WHERE a=2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_1]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_1]
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_1]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_1]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_1]
+[connection server_3]
+CREATE TABLE t2 (a INT);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_3]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_3]
+INSERT INTO t2 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_3]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_3]
+UPDATE t2 SET a=2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_3]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_3]
+DELETE FROM t2 WHERE a=2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_3]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_3]
+START TRANSACTION;
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+COMMIT;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_3]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_3]
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection server_3]
+[connection server_2]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection server_3]
+[connection server_2]
+include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0 For channel 'channel_1';
+CHANGE MASTER TO MASTER_DELAY= 0 For channel 'channel_3';
+include/start_slave_sql.inc
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

@@ -178,6 +178,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     when they are not executing any transaction.
   */
   currently_executing_gtid.set_automatic();
+  commit_timestamps_status= COMMIT_TS_UNKNOWN;
 
   if (!rli_fake)
   {
