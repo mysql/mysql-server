@@ -274,7 +274,7 @@ our $xplugin= 0;
 
 my $opt_record;
 my $opt_report_features;
-my $opt_charset_for_testdb= "latin1";
+my $opt_charset_for_testdb;
 
 our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 
@@ -4025,8 +4025,13 @@ sub mysql_install_db {
 	     "DELETE FROM mysql.user where user= '';\n");
 
   # Create test database
-  mtr_tofile($bootstrap_sql_file,
-	     "CREATE DATABASE test CHARACTER SET $opt_charset_for_testdb;\n");
+  if (defined $opt_charset_for_testdb) {
+    mtr_tofile($bootstrap_sql_file,
+               "CREATE DATABASE test CHARACTER SET $opt_charset_for_testdb;\n");
+  } else {
+    mtr_tofile($bootstrap_sql_file,
+               "CREATE DATABASE test;\n");
+  }
 
   # Create mtr database
   mtr_tofile($bootstrap_sql_file,
