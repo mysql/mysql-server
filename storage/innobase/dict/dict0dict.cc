@@ -7918,7 +7918,7 @@ dict_sdi_remove_from_cache(
 			/* TODO: newDD: Need MDL lock? */
 			sdi_table = dd_table_open_on_id_in_mem(
 				dict_sdi_get_table_id(space_id, copy_num),
-				dict_locked, DICT_TABLE_OP_NORMAL);
+				dict_locked);
 			if (sdi_table) {
 				dd_table_close(sdi_table, nullptr, nullptr,
 					       dict_locked);

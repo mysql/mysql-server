@@ -13003,7 +13003,7 @@ create_table_info_t::initialize_autoinc()
 
 	if (innobase_table == NULL) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 	} else {
 		innobase_table->acquire();
 		ut_ad(innobase_table->is_intrinsic());
@@ -13154,7 +13154,7 @@ create_table_info_t::create_table(
 
 		/* The table object should be in memory */
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 
 		ut_a(innobase_table);
 
@@ -13228,7 +13228,7 @@ create_table_info_t::create_table(
 	structure. They are used for FTS indexed column update handling. */
 	if (m_flags2 & DICT_TF2_FTS) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 
 		fts_t*          fts = innobase_table->fts;
 
@@ -13312,7 +13312,7 @@ create_table_info_t::create_table(
 
 	if (!is_intrinsic_temp_table()) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 
 		if (innobase_table != NULL) {
 			dd_table_close(innobase_table, NULL, NULL, true);
@@ -13344,7 +13344,7 @@ create_table_info_t::create_table_update_dict()
 
 	if (innobase_table == NULL) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, false, DICT_ERR_IGNORE_NONE);
+			m_table_name, false);
 		ut_ad(innobase_table);
 	} else {
 		innobase_table->acquire();
@@ -13634,7 +13634,7 @@ create_table_info_t::create_table_update_global_dd(
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	dict_table_t*	table = dd_table_open_on_name_in_mem(
-		m_table_name, false, DICT_ERR_IGNORE_NONE);
+		m_table_name, false);
 	if (table == NULL) {
 		dd::Partition*	part =
 			dd_table->table().partition_type()

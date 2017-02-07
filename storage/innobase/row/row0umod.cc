@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1125,8 +1125,7 @@ row_undo_mod_parse_undo_rec(
 	Notably, there cannot be a race between ROLLBACK and
 	DROP TEMPORARY TABLE, because temporary tables are
 	private to a single connection. */
-	node->table = dd_table_open_on_id_in_mem(
-		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
+	node->table = dd_table_open_on_id_in_mem(table_id, dict_locked);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */

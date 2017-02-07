@@ -1053,7 +1053,8 @@ row_prebuilt_free(
 		rtr_clean_rtr_info(prebuilt->rtr_info, true);
 	}
 
-	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
+	if (prebuilt->table) {
+		ut_ad(!prebuilt->table->is_fts_aux());
 		dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
 	}
 
@@ -3121,7 +3122,15 @@ error_handling:
 			<< table->name
 			<< " because tablespace full";
 
-		dict_mem_table_free(table);
+		if (dd_table_open_on_name_in_mem(table->name.m_name, true)) {
+
+			/* Server will rollback persisted metadata */
+			dd_table_close(table, nullptr, nullptr, true);
+
+			dict_table_remove_from_cache(table);
+		} else {
+			dict_mem_table_free(table);
+		}
 
 		break;
 
@@ -3440,7 +3449,7 @@ row_table_add_foreign_constraints(
 			 = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 		dict_table_t*	table = dd_table_open_on_name_in_mem(
-			name, true, DICT_ERR_IGNORE_NONE);
+			name, true);
 
 		err = dd_table_load_fk(
 			client, name, nullptr,

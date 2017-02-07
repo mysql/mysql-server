@@ -770,12 +770,9 @@ dd_table_close(
 {
 	dict_table_close(table, dict_locked, false);
 
-	const bool is_temp = table->is_temporary();
-
-	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
-
-	if (!is_temp && mdl != nullptr
+	if (mdl != nullptr
 	    && (*mdl != reinterpret_cast<MDL_ticket*>(-1))) {
+		ut_ad(!table->is_temporary());
 		dd_mdl_release(thd, mdl);
 	}
 }
@@ -1389,7 +1386,6 @@ dd_copy_from_table_share(
 	const TABLE_SHARE*	table_share)
 {
 	if (table->is_temporary()) {
-		//table->set_persistent_stats(false);
 		dict_stats_set_persistent(table, false, true);
 	} else {
 		switch (table_share->db_create_options
@@ -1400,11 +1396,9 @@ dd_copy_from_table_share(
 			STATS_PERSISTENT=0 STATS_PERSISTENT=1,
 			it will be interpreted as STATS_PERSISTENT=1. */
 		case HA_OPTION_STATS_PERSISTENT:
-			//table->set_persistent_stats(true);
 			dict_stats_set_persistent(table, true, false);
 			break;
 		case HA_OPTION_NO_STATS_PERSISTENT:
-			//table->set_persistent_stats(false);
 			dict_stats_set_persistent(table, false, true);
 			break;
 		case 0:
@@ -1631,7 +1625,6 @@ dd_fill_dict_index(
 		ut_ad(!m_table->is_temporary()
 		      || !dict_table_page_size(m_table).is_compressed());
 		if (!m_table->is_temporary()) {
-			//m_table->stats_lock_create();
 			dict_table_stats_latch_create(m_table, true);
 		}
 	} else {
@@ -2297,8 +2290,7 @@ dd_table_check_for_child(
 			/* Load the foreign table first */
 			dict_table_t*	foreign_table =
 				dd_table_open_on_name_in_mem(
-					full_name, true,
-					DICT_ERR_IGNORE_NONE);
+					full_name, true);
 
 			if (foreign_table) {
 				/* TODO: WL6049 needs to fix this.

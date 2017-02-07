@@ -793,8 +793,8 @@ trx_resurrect_locks()
 
 				if (table->ibd_file_missing
 				    || table->is_temporary()) {
-					dd_table_close(table, NULL, NULL, false);
 					mutex_enter(&dict_sys->mutex);
+					dd_table_close(table, NULL, NULL, true);
 					dict_table_remove_from_cache(table);
 					mutex_exit(&dict_sys->mutex);
 					continue;

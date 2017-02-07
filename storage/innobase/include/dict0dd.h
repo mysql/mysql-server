@@ -367,26 +367,22 @@ dd_table_open_on_name(
 /** Returns a table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
-@param[in]	table_op	operation to perform
 @return table, NULL if does not exist */
 UNIV_INLINE
 dict_table_t*
 dd_table_open_on_id_in_mem(
 	table_id_t	table_id,
-	ibool		dict_locked,
-	dict_table_op_t	table_op);
+	ibool		dict_locked);
 
-/** Returns a table object based on table id.
+/** Returns a table object based on table name.
 @param[in]	name		table name
 @param[in]	dict_locked	TRUE=data dictionary locked
-@param[in]	table_op	operation to perform
 @return table, NULL if does not exist */
 UNIV_INLINE
 dict_table_t*
 dd_table_open_on_name_in_mem(
 	const char*	name,
-	ibool		dict_locked,
-	ulint		ignore_op);
+	ibool		dict_locked);
 
 /** Open or load a table definition based on a Global DD object.
 @tparam[in]	Table		dd::Table or dd::Partition
@@ -452,7 +448,7 @@ innodb_session_t*&
 thd_to_innodb_session(
 	THD*    thd);
 
-/** Parse a table name
+/** Parse a table file name into table name and database name
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
