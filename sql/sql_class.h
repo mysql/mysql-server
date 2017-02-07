@@ -3107,11 +3107,11 @@ public:
   }
 
   /**
-    Copies variables.gtid_next to
-    ((Slave_worker *)rli_slave)->currently_executing_gtid,
+    Copies variables.original_commit_timestamp to
+    ((Slave_worker *)rli_slave)->original_commit_timestamp,
     if this is a slave thread.
   */
-  void set_currently_executing_gtid_for_slave_thread();
+  void set_original_commit_timestamp_for_slave_thread();
 
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()

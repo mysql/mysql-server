@@ -2899,11 +2899,21 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         }
 
         if (is_gtid_event(this))
+        {
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
+
+          Gtid_log_event *gtid_log_ev= static_cast<Gtid_log_event*>(this);
+          rli->started_processing(gtid_log_ev);
+        }
+
         if (schedule_next_event(this, rli))
         {
           rli->abort_slave= 1;
+          if (is_gtid_event(this))
+          {
+            rli->clear_processing_trx(true /*need_lock*/);
+          }
           DBUG_RETURN(NULL);
         }
         DBUG_RETURN(ret_worker);
@@ -3170,6 +3180,28 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
     DBUG_ASSERT(ret_worker != NULL);
 
+    //coordinator has ended buffering this group, update monitoring info
+    if (rli->is_processing_trx())
+    {
+      DBUG_EXECUTE_IF("rpl_ps_tables",
+                      {
+                        const char act[]= "now SIGNAL signal.rpl_ps_tables_process_before "
+                                          "WAIT_FOR signal.rpl_ps_tables_process_finish";
+                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                           STRING_WITH_LEN(act)));
+                      };);
+      rli->finished_processing();
+      DBUG_EXECUTE_IF("rpl_ps_tables",
+                      {
+                        const char act[]= "now SIGNAL signal.rpl_ps_tables_process_after_finish "
+                                          "WAIT_FOR signal.rpl_ps_tables_process_continue";
+                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                           STRING_WITH_LEN(act)));
+                      };);
+    }
+
     /*
       The following two blocks are executed if the worker has not been
       notified about new relay-log or a new checkpoints.
@@ -3271,7 +3303,23 @@ int Log_event::apply_event(Relay_log_info *rli)
     }
     else
     {
-      DBUG_RETURN(do_apply_event(rli));
+      int error= do_apply_event(rli);
+      if (rli->is_processing_trx())
+      {
+        // needed to identify DDL's; uses the same logic as in get_slave_worker()
+        if (starts_group() && get_type_code() == binary_log::QUERY_EVENT)
+        {
+          rli->curr_group_seen_begin= true;
+        }
+        if (error == 0 && (ends_group() ||
+                           (get_type_code() == binary_log::QUERY_EVENT &&
+                            !rli->curr_group_seen_begin)))
+        {
+          rli->finished_processing();
+          rli->curr_group_seen_begin= false;
+        }
+      }
+      DBUG_RETURN(error);
     }
   }
 
@@ -3350,7 +3398,40 @@ int Log_event::apply_event(Relay_log_info *rli)
         DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_ASYNC);
       }
     }
-    DBUG_RETURN(do_apply_event(rli));
+
+    int error= do_apply_event(rli);
+    if (rli->is_processing_trx())
+    {
+      // needed to identify DDL's; uses the same logic as in get_slave_worker()
+      if (starts_group() && get_type_code() == binary_log::QUERY_EVENT)
+      {
+        rli->curr_group_seen_begin= true;
+      }
+      if (error == 0 && (ends_group() ||
+                         (get_type_code() == binary_log::QUERY_EVENT &&
+                          !rli->curr_group_seen_begin)))
+      {
+        DBUG_EXECUTE_IF("rpl_ps_tables",
+                        {
+                          const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_before "
+                                            "WAIT_FOR signal.rpl_ps_tables_apply_finish";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        };);
+        rli->finished_processing();
+        rli->curr_group_seen_begin= false;
+        DBUG_EXECUTE_IF("rpl_ps_tables",
+                        {
+                          const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_after_finish "
+                                            "WAIT_FOR signal.rpl_ps_tables_apply_continue";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        };);
+      }
+    }
+    DBUG_RETURN(error);
   }
 
   DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
@@ -3816,6 +3897,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   slave_proxy_id= thd_arg->variables.pseudo_thread_id;
   if (query != 0)
     is_valid_param= true;
+
   /*
   exec_time calculation has changed to use the same method that is used
   to fill out "thd_arg->start_time"
@@ -11773,8 +11855,8 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
-                               uint64 original_commit_timestamp_arg,
-                               uint64 immediate_commit_timestamp_arg)
+                               ulonglong original_commit_timestamp_arg,
+                               ulonglong immediate_commit_timestamp_arg)
 : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
                          original_commit_timestamp_arg,
                          immediate_commit_timestamp_arg),
@@ -11815,8 +11897,8 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
 Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
-                               uint64 original_commit_timestamp_arg,
-                               uint64 immediate_commit_timestamp_arg,
+                               ulonglong original_commit_timestamp_arg,
+                               ulonglong immediate_commit_timestamp_arg,
                                const Gtid_specification spec_arg)
  : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
                          original_commit_timestamp_arg,
@@ -11995,7 +12077,7 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer)
     in the highest bit(MSB). At the same time, we also want to have the original
     value to be able to use in if() later, so we use a temporary variable here.
   */
-  uint64 immediate_commit_timestamp_with_flag= immediate_commit_timestamp;
+  ulonglong immediate_commit_timestamp_with_flag= immediate_commit_timestamp;
 
   // Transaction did not originate at this server, set highest bit to hint this.
   if (immediate_commit_timestamp != original_commit_timestamp)
@@ -12087,8 +12169,13 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     Set the original_commit_timestamp.
     0 will be used if this event does not contain such information.
   */
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
   thd->variables.original_commit_timestamp= original_commit_timestamp;
-  thd->set_currently_executing_gtid_for_slave_thread();
+  thd->set_original_commit_timestamp_for_slave_thread();
+  const_cast<Relay_log_info*>(rli)->started_processing(thd->variables.gtid_next.gtid,
+                                                       original_commit_timestamp,
+                                                       immediate_commit_timestamp,
+                                                       state == GTID_STATEMENT_SKIP);
 
   DBUG_RETURN(0);
 }

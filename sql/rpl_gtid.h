@@ -1065,6 +1065,165 @@ struct Gtid
 
 
 /**
+ Stores information to monitor a transaction during the different replication
+ stages.
+*/
+struct trx_monitoring_info
+{
+  Gtid gtid;
+  ulonglong original_commit_timestamp;
+  ulonglong immediate_commit_timestamp;
+  ulonglong start_time;
+  ulonglong end_time;
+  bool skipped;
+
+  /**
+    Sets the initial information
+
+    @param gtid_arg The Gtid to be stored
+    @param original_ts_arg The original commit timestamp of the Gtid
+    @param immediate_ts_arg The immediate commit timestamp of the Gtid
+    @param start_ts The start timestamp for the monitoring stage of the Gtid
+    @param skipped_arg True if the GTID was already applied
+  */
+  void set(Gtid gtid_arg, ulonglong original_ts_arg, ulonglong immediate_ts_arg,
+           ulonglong start_ts, bool skipped_arg= false)
+  {
+    gtid= gtid_arg;
+    original_commit_timestamp= original_ts_arg;
+    immediate_commit_timestamp= immediate_ts_arg;
+    start_time= start_ts;
+    skipped= skipped_arg;
+  }
+
+  /// Resets this trx_monitoring_info
+  void clear()
+  {
+    gtid= { 0, 0};
+    original_commit_timestamp= 0;
+    immediate_commit_timestamp= 0;
+    start_time= 0;
+    end_time= 0;
+    skipped= false;
+  }
+
+  /**
+    Copies the information from another trx_monitoring_info
+
+    @param other The other trx_monitoring_info to be copied
+  */
+  void copy(trx_monitoring_info *other)
+  {
+    gtid= other->gtid;
+    original_commit_timestamp= other->original_commit_timestamp;
+    immediate_commit_timestamp= other->immediate_commit_timestamp;
+    start_time= other->start_time;
+    end_time= other->end_time;
+  }
+
+  /**
+   Copies the information from another trx_monitoring_info
+   just if the transaction was not skipped.
+
+   @param other The other trx_monitoring_info to be copied
+ */
+  void copy_if_not_skipped(trx_monitoring_info *other)
+  {
+    if (!other->skipped)
+    {
+      copy(other);
+    }
+  }
+
+  /**
+  Copies the info to the corresponding fields in p_s tables.
+
+  @param[out] gtid_arg                       GTID field in the table
+  @param[out] gtid_length_arg                length of the GTID
+  @param[out] original_commit_ts_arg         the original commit timestamp
+  @param[out] immediate_commit_ts_arg        the immediate commit timestamp
+  @param[out] start_time_arg                 the start time field
+  @param[in]  sid_map                        the SID map for the GTID
+ */
+  void copy_to_ps_table(char *gtid_arg,
+                        uint &gtid_length_arg,
+                        ulonglong &original_commit_ts_arg,
+                        ulonglong &immediate_commit_ts_arg,
+                        ulonglong &start_time_arg,
+                        Sid_map* sid_map)
+  {
+    if (is_set())
+    {
+      // the trx_monitoring_info is populated
+      if (!gtid.is_empty())
+      {
+        // the GTID is set
+        Checkable_rwlock *sid_lock= sid_map->get_sid_lock();
+        sid_lock->rdlock();
+        gtid_length_arg= gtid.to_string(sid_map, gtid_arg);
+        sid_lock->unlock();
+      }
+      else
+      {
+        // the transaction is anonymous
+        memcpy(gtid_arg, "ANONYMOUS", 10);
+        gtid_length_arg= 9;
+      }
+      original_commit_ts_arg= original_commit_timestamp;
+      immediate_commit_ts_arg= immediate_commit_timestamp;
+      start_time_arg= start_time/10;
+    }
+    else
+    {
+      // this trx_monitoring_info is not populated, so let's zero the input
+      memcpy(gtid_arg, "", 1);
+      gtid_length_arg= 0;
+      original_commit_ts_arg= 0;
+      immediate_commit_ts_arg= 0;
+      start_time_arg= 0;
+    }
+  }
+
+  /**
+  Copies the info to the corresponding fields in p_s tables.
+
+  @param[out] gtid_arg                       GTID field in the table
+  @param[out] gtid_length_arg                length of the GTID
+  @param[out] original_commit_ts_arg         the original commit timestamp
+  @param[out] immediate_commit_ts_arg        the immediate commit timestamp
+  @param[out] start_time_arg                 the start time field
+  @param[out] end_time_arg                   the end time field
+  @param[in]  sid_map                        the SID map for the GTID
+ */
+  void copy_to_ps_table(char *gtid_arg,
+                        uint &gtid_length_arg,
+                        ulonglong &original_commit_ts_arg,
+                        ulonglong &immediate_commit_ts_arg,
+                        ulonglong &start_time_arg,
+                        ulonglong &end_time_arg,
+                        Sid_map* sid_map)
+  {
+    copy_to_ps_table(gtid_arg, gtid_length_arg, original_commit_ts_arg,
+                     immediate_commit_ts_arg, start_time_arg, sid_map);
+    if (is_set())
+    {
+      end_time_arg= end_time/10;
+    }
+    else
+    {
+      // this trx_monitoring_info is not populated, so zero the remaining input
+      end_time_arg= 0;
+    }
+  }
+
+  /// Returns true if the trx_monitoring_info structure is set, false otherwise
+  bool is_set()
+  {
+    return start_time != 0;
+  }
+};
+
+/**
   Represents a set of GTIDs.
 
   This is structured as an array, indexed by SIDNO, where each element

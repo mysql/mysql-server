@@ -286,7 +286,7 @@ struct System_variables
   */
   bool show_old_temporals;
   // Used for replication delay and lag monitoring
-  uint64 original_commit_timestamp;
+  ulonglong original_commit_timestamp;
 };
 
 

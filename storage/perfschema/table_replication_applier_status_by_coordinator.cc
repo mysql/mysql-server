@@ -70,11 +70,57 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("timestamp") },
     { NULL, 0}
   },
+  {
+    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION")},
+    {C_STRING_WITH_LEN("char(57)")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION")},
+    {C_STRING_WITH_LEN("char(57)")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
 };
 /* clang-format on */
 
 TABLE_FIELD_DEF
-table_replication_applier_status_by_coordinator::m_field_def = {6, field_types};
+table_replication_applier_status_by_coordinator::m_field_def=
+{ 15, field_types };
 
 PFS_engine_table_share
   table_replication_applier_status_by_coordinator::m_share = {
@@ -351,13 +397,28 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
     memcpy(
       m_row.last_error_message, temp_store, m_row.last_error_message_length);
 
-    /** time in millisecond since epoch */
-    m_row.last_error_timestamp = (ulonglong)mi->rli->last_error().skr * 1000000;
+    /** time in microsecond since epoch */
+    m_row.last_error_timestamp= (ulonglong)mi->rli->last_error().skr;
   }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
-  mysql_mutex_unlock(&mi->rli->data_lock);
 
+  mi->rli->get_last_processed_trx()->copy_to_ps_table(m_row.last_processed_trx,
+                                                      m_row.last_processed_trx_length,
+                                                      m_row.last_processed_trx_original_commit_timestamp,
+                                                      m_row.last_processed_trx_immediate_commit_timestamp,
+                                                      m_row.last_processed_trx_start_buffer_timestamp,
+                                                      m_row.last_processed_trx_end_buffer_timestamp,
+                                                      global_sid_map);
+
+  mi->rli->get_processing_trx()->copy_to_ps_table(m_row.processing_trx,
+                                                  m_row.processing_trx_length,
+                                                  m_row.processing_trx_original_commit_timestamp,
+                                                  m_row.processing_trx_immediate_commit_timestamp,
+                                                  m_row.processing_trx_start_buffer_timestamp,
+                                                  global_sid_map);
+
+  mysql_mutex_unlock(&mi->rli->data_lock);
   return 0;
 }
 
@@ -404,6 +465,37 @@ table_replication_applier_status_by_coordinator::read_row_values(
         break;
       case 5: /*last_error_timestamp*/
         set_field_timestamp(f, m_row.last_error_timestamp);
+        break;
+      case 6: /*last_processed_trx*/
+        set_field_char_utf8(f, m_row.last_processed_trx,
+                            m_row.last_processed_trx_length);
+        break;
+      case 7: /*last_processed_trx_original_commit_timestamp*/
+        set_field_timestamp(f,
+                            m_row.last_processed_trx_original_commit_timestamp);
+        break;
+      case 8: /*last_processed_trx_immediate_commit_timestamp*/
+        set_field_timestamp(f,
+                            m_row.last_processed_trx_immediate_commit_timestamp);
+        break;
+      case 9: /*last_processed_trx_start_buffer_timestamp*/
+        set_field_timestamp(f, m_row.last_processed_trx_start_buffer_timestamp);
+        break;
+      case 10: /*last_processed_trx_end_buffer_timestamp*/
+        set_field_timestamp(f, m_row.last_processed_trx_end_buffer_timestamp);
+        break;
+      case 11: /*processing_trx*/
+        set_field_char_utf8(f, m_row.processing_trx,
+                            m_row.processing_trx_length);
+        break;
+      case 12: /*processing_trx_original_commit_timestamp*/
+        set_field_timestamp(f, m_row.processing_trx_original_commit_timestamp);
+        break;
+      case 13: /*processing_trx_immediate_commit_timestamp*/
+        set_field_timestamp(f, m_row.processing_trx_immediate_commit_timestamp);
+        break;
+      case 14: /*processing_trx_start_buffer_timestamp*/
+        set_field_timestamp(f, m_row.processing_trx_start_buffer_timestamp);
         break;
       default:
         DBUG_ASSERT(false);

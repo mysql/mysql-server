@@ -1363,6 +1363,14 @@ public:
   */
   my_thread_id slave_proxy_id;
 
+  /**
+   True if this is a ROLLBACK event injected by the mts coordinator to finish a
+   group corresponding to a partial transaction in the relay log.
+   False otherwise and by default, as it must be explicitly set to true by the
+   coordinator.
+  */
+  bool rollback_injected_by_coord= false;
+
 #ifdef MYSQL_SERVER
 
   Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
@@ -3728,8 +3736,8 @@ public:
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
-                 uint64 original_commit_timestamp_arg,
-                 uint64 immediate_commit_timestamp_arg);
+                 ulonglong original_commit_timestamp_arg,
+                 ulonglong immediate_commit_timestamp_arg);
 
   /**
     Create a new event using the GTID from the given Gtid_specification
@@ -3737,8 +3745,8 @@ public:
   */
   Gtid_log_event(uint32 server_id_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
-                 uint64 original_commit_timestamp_arg,
-                 uint64 immediate_commit_timestamp_arg,
+                 ulonglong original_commit_timestamp_arg,
+                 ulonglong immediate_commit_timestamp_arg,
                  const Gtid_specification spec_arg);
 #endif
 

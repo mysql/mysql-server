@@ -125,6 +125,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    workers_array_initialized(false),
    curr_group_assigned_parts(PSI_NOT_INSTRUMENTED),
    curr_group_da(PSI_NOT_INSTRUMENTED),
+   curr_group_seen_begin(false),
    mts_end_group_sets_max_dbs(false),
    slave_parallel_workers(0),
    exit_counter(0),
@@ -173,12 +174,11 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
-  /*
-    For applier threads, currently_executing_gtid is set to automatic
-    when they are not executing any transaction.
-  */
-  currently_executing_gtid.set_automatic();
   commit_timestamps_status= COMMIT_TS_UNKNOWN;
+  last_processed_trx= new trx_monitoring_info;
+  processing_trx= new trx_monitoring_info;
+  processing_trx->clear();
+  last_processed_trx->clear();
 
   if (!rli_fake)
   {
@@ -281,7 +281,8 @@ Relay_log_info::~Relay_log_info()
 
   set_rli_description_event(NULL);
   delete until_option;
-
+  delete last_processed_trx;
+  delete processing_trx;
   DBUG_VOID_RETURN;
 }
 
@@ -1314,7 +1315,10 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   }
   /* Reset the transaction boundary parser and clear the last GTID queued */
   mi->transaction_parser.reset();
-  mi->clear_last_gtid_queued();
+  mysql_mutex_lock(&mi->data_lock);
+  mi->clear_queueing_trx(false /*need_lock*/);
+  mi->clear_last_queued_trx();
+  mysql_mutex_unlock(&mi->data_lock);
 
   slave_skip_counter= 0;
   mysql_mutex_lock(&data_lock);
@@ -1737,9 +1741,11 @@ int Relay_log_info::rli_init_info()
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   const char *msg= NULL;
   /* Store the GTID of a transaction spanned in multiple relay log files */
-  Gtid gtid_partial_trx= {0, 0};
+  trx_monitoring_info partial_trx;
 
   DBUG_ENTER("Relay_log_info::rli_init_info");
+
+  partial_trx.clear();
 
   mysql_mutex_assert_owner(&data_lock);
 
@@ -1922,7 +1928,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
         relay_log.init_gtid_sets(gtid_set, NULL,
                                  opt_slave_sql_verify_checksum,
                                  true/*true=need lock*/,
-                                 &mi->transaction_parser, &gtid_partial_trx))
+                                 &mi->transaction_parser, &partial_trx))
     {
       sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
@@ -1933,19 +1939,19 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     gtid_set->dbug_print("set of GTIDs in relay log after initialization");
     get_sid_lock()->unlock();
 #endif
-    if (!gtid_partial_trx.is_empty())
+    if (partial_trx.is_set())
     {
       /*
         The init_gtid_set has found an incomplete transaction in the relay log.
-        We add this transaction's GTID to the last_gtid_queued so the IO thread
-        knows which GTID to add to the Retrieved_Gtid_Set when reaching the end
-        of the incomplete transaction.
+        We add this transaction's GTID information to the queueing_trx structure
+        so the IO thread knows which GTID to add to the Retrieved_Gtid_Set when
+        reaching the end of the incomplete transaction.
       */
-      mi->set_last_gtid_queued(gtid_partial_trx);
+      mi->get_queueing_trx()->copy(&partial_trx);
     }
     else
     {
-      mi->clear_last_gtid_queued();
+      mi->clear_queueing_trx(false /* need_lock */);
     }
     /*
       Configures what object is used by the current log to store processed

@@ -2565,7 +2565,7 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.pos= 0;
 }
 
-void THD::set_currently_executing_gtid_for_slave_thread()
+void THD::set_original_commit_timestamp_for_slave_thread()
 {
   /*
     This function may be called in four cases:
@@ -2585,12 +2585,11 @@ void THD::set_currently_executing_gtid_for_slave_thread()
       originating from the master.
 
     Because of the last case, we need to add the following conditions to set
-    currently_executing_gtid.
+    original_commit_timestamp.
   */
   if (system_thread == SYSTEM_THREAD_SLAVE_SQL ||
       system_thread == SYSTEM_THREAD_SLAVE_WORKER)
   {
-    rli_slave->currently_executing_gtid= variables.gtid_next;
     rli_slave->original_commit_timestamp= variables.original_commit_timestamp;
   }
 }

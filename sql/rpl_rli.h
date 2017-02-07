@@ -52,6 +52,7 @@
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"
+#include "log_event.h"        //Gtid_log_event
 
 struct RPL_TABLE_LIST;
 class Commit_order_manager;
@@ -199,16 +200,6 @@ public:
    */
   bool replicate_same_server_id;
 
-  /*
-    The gtid (or anonymous) of the currently executing transaction, or
-    of the last executing transaction if no transaction is currently
-    executing.  This is used to fill the last_seen_transaction
-    column
-    of the table
-    performance_schema.replication_applier_status_by_worker.
-  */
-  Gtid_specification currently_executing_gtid;
-
   /*** The following variables can only be read when protect by data lock ****/
   /*
     cur_log_fd - file descriptor of the current read  relay log
@@ -261,6 +252,109 @@ public:
     // the immediate master supports commit timestamps
     COMMIT_TS_FOUND
   } commit_timestamps_status;
+
+  /**
+   @return the last processed transation information
+  */
+  trx_monitoring_info* get_last_processed_trx()
+  {
+    return last_processed_trx;
+  }
+
+  /**
+   @return the currently processing transaction information
+  */
+  trx_monitoring_info* get_processing_trx()
+  {
+    return processing_trx;
+  }
+
+  /**
+    Stores the details of the transaction which has just started processing
+
+    @param  gtid_arg         the gtid of the trx
+    @param  original_ts_arg  the original commit timestamp of the transaction
+    @param  immediate_ts_arg the immediate commit timestamp of the transaction
+    @param  skipped          true if the transanction was gtid skipped
+  */
+  void started_processing(Gtid gtid_arg, ulonglong original_ts_arg,
+                          ulonglong immediate_ts_arg, bool skipped= false)
+  {
+    mysql_mutex_lock(&data_lock);
+    processing_trx->set(gtid_arg, original_ts_arg, immediate_ts_arg,
+                        my_getsystime() /*start_time*/, skipped);
+    mysql_mutex_unlock(&data_lock);
+  }
+
+  /**
+    Stores the details of the transaction which has just started processing
+
+    @param  gtid_log_ev_arg the gtid log event of the trx
+  */
+  void started_processing(Gtid_log_event *gtid_log_ev_arg)
+  {
+    Gtid gtid= {0, 0};
+    if (gtid_log_ev_arg->get_type() == GTID_GROUP)
+    {
+      gtid= {gtid_log_ev_arg->get_sidno(true), gtid_log_ev_arg->get_gno()};
+    }
+    started_processing(gtid,
+                       gtid_log_ev_arg->original_commit_timestamp,
+                       gtid_log_ev_arg->immediate_commit_timestamp);
+  }
+
+
+  /**
+    When the processing of a transaction is completed, that timestamp is
+    recorded, the information is copied to last_processed_trx and the
+    information in processing_trx is cleared.
+
+    If the transaction was being applied but GTID-skipped, the copy will not
+    happen and the last_processed_trx will keep its current value.
+  */
+  void finished_processing()
+  {
+    mysql_mutex_lock(&data_lock);
+    processing_trx->end_time= my_getsystime();
+    last_processed_trx->copy_if_not_skipped(processing_trx);
+    processing_trx->clear();
+    mysql_mutex_unlock(&data_lock);
+  }
+
+  /**
+   @return True if there is a transaction being currently processed
+  */
+  bool is_processing_trx()
+  {
+    return processing_trx->is_set();
+  }
+
+  /**
+   Clears the processing_trx structure fields. Normally called when there is an
+   error while processing the transaction.
+   @param need_lock true by default. if false then the lock has already been
+                    acquired before the method was called.
+  */
+  void clear_processing_trx(bool need_lock)
+  {
+    if (need_lock)
+    {
+      mysql_mutex_lock(&data_lock);
+    }
+    processing_trx->clear();
+    if (need_lock)
+    {
+      mysql_mutex_unlock(&data_lock);
+    }
+  }
+
+  /**
+   Clears the last_processed_trx structure fields.
+  */
+  void clear_last_processed_trx()
+  {
+    last_processed_trx->clear();
+  }
 
   /*
     If on init_info() call error_on_rli_init_info is true that means
@@ -332,6 +426,20 @@ private:
   bool rli_fake;
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
+
+  /**
+   Stores information on the last processed transaction or the transaction
+   that is currently being processed.
+   STS:
+     - timestamps of the currently applying/last applied transaction
+   MTS:
+     - coordinator thread: timestamps of the currently scheduling/last scheduled
+     transaction in a worker's queue
+     - worker thread: timestamps of the currently applying/last applied
+   transaction
+  */
+  trx_monitoring_info *last_processed_trx;
+  trx_monitoring_info *processing_trx;
 
 public:
   Sid_map* get_sid_map()

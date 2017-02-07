@@ -414,7 +414,7 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
       // this can happen if gtid_mode=on
       DBUG_RETURN(true);
 
-    thd->set_currently_executing_gtid_for_slave_thread();
+    thd->set_original_commit_timestamp_for_slave_thread();
   }
   DBUG_RETURN(false);
 }

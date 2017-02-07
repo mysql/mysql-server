@@ -5185,6 +5185,8 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
   rollback_event->common_header->log_pos= ev->common_header->log_pos;
   rollback_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
 
+  ((Query_log_event*) rollback_event)->rollback_injected_by_coord= true;
+
   if (apply_event_and_update_pos(&rollback_event, thd, rli) !=
       SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
   {
@@ -5711,7 +5713,7 @@ connected:
   if (mi->is_auto_position())
   {
     mi->transaction_parser.reset();
-    mi->clear_last_gtid_queued();
+    mi->clear_queueing_trx(true /* need_lock*/);
   }
 
     DBUG_EXECUTE_IF("dbug.before_get_running_status_yes",
@@ -5904,6 +5906,21 @@ Stopping slave I/O thread due to out-of-memory error from master");
       /* XXX: 'synced' should be updated by queue_event to indicate
          whether event has been synced to disk */
       bool synced= 0;
+#ifndef DBUG_OFF
+      bool was_in_trx= false;
+      if (mi->is_queueing_trx())
+      {
+        was_in_trx= true;
+        DBUG_EXECUTE_IF("rpl_ps_tables_queue",
+                        {
+                          const char act[]= "now SIGNAL signal.rpl_ps_tables_queue_before "
+                                            "WAIT_FOR signal.rpl_ps_tables_queue_finish";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        };);
+      }
+#endif
       QUEUE_EVENT_RESULT queue_res= queue_event(mi, event_buf, event_len);
       if (queue_res == QUEUE_EVENT_ERROR_QUEUING)
       {
@@ -5912,6 +5929,19 @@ Stopping slave I/O thread due to out-of-memory error from master");
                    "could not queue event from master");
         goto err;
       }
+#ifndef DBUG_OFF
+      if (was_in_trx && !mi->is_queueing_trx())
+      {
+        DBUG_EXECUTE_IF("rpl_ps_tables",
+                        {
+                          const char act[]= "now SIGNAL signal.rpl_ps_tables_queue_after_finish "
+                                            "WAIT_FOR signal.rpl_ps_tables_queue_continue";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        };);
+      }
+#endif
       if (RUN_HOOK(binlog_relay_io, after_queue_event,
                    (thd, mi, event_buf, event_len, synced)))
       {
@@ -6894,8 +6924,6 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i)
     rli->workers.resize(i+1);
   rli->workers[i]= w;
 
-  w->currently_executing_gtid.set_automatic();
-
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
       (error= mysql_thread_create(key_thread_slave_worker, &th,
                                   &connection_attrib, handle_slave_worker,
@@ -6994,6 +7022,9 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->checkpoint_seqno= 0;
   rli->mts_last_online_stat= my_time(0);
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
+  //clear monitoring information
+  rli->clear_processing_trx(false /*needs_lock*/ );
+  rli->clear_last_processed_trx();
 
   if (init_hash_workers(rli))  // MTS: mapping_db_to_worker
   {
@@ -7110,7 +7141,8 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
                                                ,w->id, rli->get_channel());
     worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
                                      w->last_error(),
-                                     w->currently_executing_gtid);
+                                     w->get_processing_trx(),
+                                     w->get_last_processed_trx());
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
@@ -7288,7 +7320,6 @@ extern "C" void *handle_slave_sql(void *arg)
   set_timespec_nsec(&rli->ts_exec[0], 0);
   set_timespec_nsec(&rli->ts_exec[1], 0);
   set_timespec_nsec(&rli->stats_begin, 0);
-  rli->currently_executing_gtid.set_automatic();
 
   /* MTS: starting the worker pool */
   if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
@@ -7948,6 +7979,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
   char *save_buf= NULL; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN + FN_REFLEN];
   Gtid gtid= { 0, 0 };
+  ulonglong immediate_commit_timestamp= 0;
+  ulonglong original_commit_timestamp= 0;
   Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF || 
@@ -8266,7 +8299,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       goto err;
     }
     mi->received_heartbeats++;
-    mi->last_heartbeat= my_time(0);
+    mi->last_heartbeat= my_getsystime()/10;
 
 
     /*
@@ -8379,11 +8412,14 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     if (gtid.sidno < 0)
       goto err;
     gtid.gno= gtid_ev.get_gno();
+    original_commit_timestamp= gtid_ev.original_commit_timestamp;
+    immediate_commit_timestamp= gtid_ev.immediate_commit_timestamp;
     inc_pos= event_len;
   }
   break;
 
   case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+  {
     /*
       This cannot normally happen, because the master has a check that
       prevents it from sending anonymous events when auto_position is
@@ -8419,8 +8455,18 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
         goto err;
       }
     }
-    /* fall through */
-
+    /*
+     save the original_commit_timestamp and the immediate_commit_timestamp to
+     be later used for monitoring
+    */
+    Gtid_log_event anon_gtid_ev(buf,
+                                checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
+                                event_len - BINLOG_CHECKSUM_LEN : event_len,
+                                mi->get_mi_description_event());
+    original_commit_timestamp= anon_gtid_ev.original_commit_timestamp;
+    immediate_commit_timestamp= anon_gtid_ev.immediate_commit_timestamp;
+  }
+  /* fall through */
   default:
     inc_pos= event_len;
   break;
@@ -8537,7 +8583,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       */
       if (event_type == binary_log::GTID_LOG_EVENT)
       {
-        mi->set_last_gtid_queued(gtid);
+        // set the timestamp for the start time of queueing this transaction
+        mi->started_queueing(gtid, original_commit_timestamp,
+                             immediate_commit_timestamp);
       }
 
       /*
@@ -8548,16 +8596,18 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       if (event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
       {
 #ifndef DBUG_OFF
-        if (!mi->get_last_gtid_queued()->is_empty())
+        if (!mi->get_queueing_trx()->gtid.is_empty())
         {
           DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
                               "wasn't complete and we found an "
                               "ANONYMOUS_GTID_LOG_EVENT.",
-                              mi->get_last_gtid_queued()->sidno,
-                              mi->get_last_gtid_queued()->gno));
+                              mi->get_queueing_trx()->gtid.sidno,
+                              mi->get_queueing_trx()->gtid.gno));
         }
 #endif
-        mi->clear_last_gtid_queued();
+        // set the timestamp for the start time of queueing this transaction
+        mi->started_queueing(gtid, original_commit_timestamp,
+                             immediate_commit_timestamp);
       }
     }
     else

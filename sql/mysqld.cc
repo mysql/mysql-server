@@ -5466,7 +5466,7 @@ int mysqld_main(int argc, char **argv)
                                      opt_master_verify_checksum,
                                      true/*true=need lock*/,
                                      NULL/*trx_parser*/,
-                                     NULL/*gtid_partial_trx*/,
+                                     NULL/*partial_trx*/,
                                      true/*is_server_starting*/))
       unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -6846,7 +6846,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        static_cast<my_time_t>(mi->last_heartbeat));
+        static_cast<my_time_t>(mi->last_heartbeat/1000000));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }

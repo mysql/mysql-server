@@ -33,6 +33,10 @@ call mtr.add_suppression("Column count of performance_schema.events_statements_s
 # This issue doesn't seem to cause any further trouble (as there is no persistent
 # stats for persistent stats table anyway), so we ignore these warnings here.
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+# new columns were added to these tables
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 

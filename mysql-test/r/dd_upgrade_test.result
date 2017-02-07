@@ -22,6 +22,9 @@ call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.

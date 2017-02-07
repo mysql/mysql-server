@@ -556,13 +556,15 @@ void Slave_worker::copy_values_for_PFS(ulong worker_id,
                                        en_running_state thd_running_status,
                                        THD *worker_thd,
                                        const Error &last_error,
-                                       const Gtid_specification &gtid)
+                                       trx_monitoring_info *processing_trx_arg,
+                                       trx_monitoring_info *last_processed_trx_arg)
 {
   id= worker_id;
   running_status= thd_running_status;
   info_thd= worker_thd;
   m_last_error= last_error;
-  currently_executing_gtid= gtid;
+  get_processing_trx()->copy(processing_trx_arg);
+  get_last_processed_trx()->copy(last_processed_trx_arg);
 }
 
 bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
@@ -2766,6 +2768,44 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
                       ev->mts_group_idx, worker->last_group_done_index));
   /* The group is applied successfully, so error should be 0 */
   worker->slave_worker_ends_group(ev, 0);
+
+  /*
+   check if the finished group started with a gtid_log_event to update the
+   monitoring information
+  */
+  if (current_thd->rli_slave->is_processing_trx())
+  {
+    DBUG_EXECUTE_IF("rpl_ps_tables",
+                    {
+                      const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_before "
+                                        "WAIT_FOR signal.rpl_ps_tables_apply_finish";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
+        ((Query_log_event*)ev)->rollback_injected_by_coord)
+    {
+      /*
+       If this was a rollback event injected by the coordinator because of a
+       partial transaction in the relay log, we must not consider this
+       transaction completed and, instead, clear the monitoring info.
+      */
+      current_thd->rli_slave->clear_processing_trx(true /*need_lock*/);
+    }
+    else
+    {
+      current_thd->rli_slave->finished_processing();
+    }
+    DBUG_EXECUTE_IF("rpl_ps_tables",
+                    {
+                      const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_after_finish "
+                                        "WAIT_FOR signal.rpl_ps_tables_apply_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+  }
 
 #ifndef DBUG_OFF
   DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"

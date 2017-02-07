@@ -625,9 +625,10 @@ public:
     @param [out] trx_parser  This will be used to return the actual
     relaylog transaction parser state because of the possibility
     of partial transactions.
-    @param [out] gtid_partial_trx If a transaction was left incomplete
-    on the relaylog, it's GTID should be returned to be used in the
-    case of the rest of the transaction be added to the relaylog.
+    @param [out] partial_trx If a transaction was left incomplete
+    on the relaylog, its GTID information should be returned to be
+    used in the case of the rest of the transaction be added to the
+    relaylog.
     @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
@@ -635,7 +636,7 @@ public:
                       bool verify_checksum,
                       bool need_lock,
                       Transaction_boundary_parser *trx_parser,
-                      Gtid *gtid_partial_trx,
+                      trx_monitoring_info *partial_trx,
                       bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)

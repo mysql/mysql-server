@@ -25,9 +25,8 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "my_sys.h"                   // my_time
 #include "mysql/psi/mysql_mutex.h"
-
+#include "my_systime.h"              //my_getsystime
 
 /**
    Maximum size of an error message from a slave thread.
@@ -108,9 +107,11 @@ public:
     {
       struct tm tm_tmp;
       struct tm *start;
+      time_t tt_tmp;
 
-      skr= my_time(0);
-      localtime_r(&skr, &tm_tmp);
+      skr= my_getsystime()/10;
+      tt_tmp= skr/1000000;
+      localtime_r(&tt_tmp, &tm_tmp);
       start=&tm_tmp;
 
       sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
@@ -129,8 +130,8 @@ public:
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
     char timestamp[16];
-    /** Error timestamp as time_t variable. Used in performance_schema */
-    time_t skr;
+    /** Error timestamp in microseconds. Used in performance_schema */
+    ulonglong skr;
 
   };
 
