@@ -26,7 +26,7 @@
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
 #include "mysqld.h"                             // reg_ext
-#include "dd/dd_table.h"  // dd::table_legacy_db_type
+#include "dd/dd_table.h"  // dd::table_legacy_db_type, dd::drop_table
 #include "dd/dd_trigger.h"  // dd::table_has_triggers
 #include "sql_trigger.h"  // reload_triggers_for_table
 
@@ -250,9 +250,17 @@ Ndb_local_schema::Table::remove_table(void) const
   (void)remove_file(reg_ext);
   (void)remove_file(ndb_ext);
 
+  // Remove the table from DD
+  if (dd::drop_table<dd::Table>(m_thd, m_db, m_name, true))
+  {
+    log_warning("Failed to drop table from DD");
+    return;
+  }
+
   if (m_has_triggers)
   {
     // Copy to buffers since 'drop_all_triggers' want char*
+    //              ^^^^^^^^^^^^^^^^^ not any more
     char db_name_buf[FN_REFLEN + 1], table_name_buf[FN_REFLEN + 1];
     my_stpcpy(db_name_buf, m_db);
     my_stpcpy(table_name_buf, m_name);
@@ -262,6 +270,12 @@ Ndb_local_schema::Table::remove_table(void) const
       log_warning("Failed to drop all triggers");
     }
   }
+
+  // TODO Presumably also referencing views need to be updated here.
+  // They should probably not be dropped by their references
+  // to the now non existing table must be removed. Assumption is
+  // that if user tries to open such a table an error
+  // saying 'no such table' will be returned
 }
 
 
