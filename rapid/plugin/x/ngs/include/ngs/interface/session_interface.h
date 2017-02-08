@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +20,8 @@
 #ifndef _NGS_SESSION_INTERFACE_H_
 #define _NGS_SESSION_INTERFACE_H_
 
-#include "ngs/protocol_authentication.h"
+#include "authentication_interface.h"
+#include "sql_session_interface.h"
 
 namespace ngs
 {
@@ -52,8 +53,8 @@ public:
 public:
   virtual void on_close(const bool update_old_state = false) = 0;
   virtual void on_kill() = 0;
-  virtual void on_auth_success(const Authentication_handler::Response &response) = 0;
-  virtual void on_auth_failure(const Authentication_handler::Response &response) = 0;
+  virtual void on_auth_success(const Authentication_interface::Response &response) = 0;
+  virtual void on_auth_failure(const Authentication_interface::Response &response) = 0;
 
   // handle a single message, returns true if message was handled false if not
   virtual bool handle_message(Request &command) = 0;
@@ -66,6 +67,8 @@ public:
 
   virtual void mark_as_tls_session() = 0;
   virtual bool is_handled_by(const void *handler) const = 0;
+  virtual Sql_session_interface &data_context() = 0;
+
 };
 
 } // namespace ngs

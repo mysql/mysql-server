@@ -39,7 +39,7 @@ class Options_session_supports_ssl : public Options_session_default
 public:
   Options_session_supports_ssl() {}
 
-  bool supports_tls() { return true; }
+  bool supports_tls() const { return true; }
 };
 
 

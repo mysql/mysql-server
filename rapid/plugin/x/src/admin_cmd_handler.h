@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,20 +20,21 @@
 #ifndef _ADMIN_CMD_HANDLER_H_
 #define _ADMIN_CMD_HANDLER_H_
 
-#include <string>
 #include <map>
+#include <string>
 #include <vector>
-#include <google/protobuf/repeated_field.h>
-#include "ngs_common/smart_ptr.h"
 
-#include "ngs/error_code.h"
-#include "ngs/protocol_fwd.h"
+#include <google/protobuf/repeated_field.h>
+
 #include "mysqlx_datatypes.pb.h"
+#include "ngs_common/smart_ptr.h"
+#include "ngs/error_code.h"
+#include "ngs/interface/sql_session_interface.h"
+#include "ngs/protocol_fwd.h"
 
 namespace xpl
 {
 class Session;
-class Sql_data_context;
 class Session_options;
 
 class Admin_command_handler
@@ -96,7 +97,7 @@ protected:
   } m_command_handler;
 
   Session &m_session;
-  Sql_data_context &m_da;
+  ngs::Sql_session_interface &m_da;
   Session_options &m_options;
 };
 

@@ -19,22 +19,20 @@
 
 #include "xpl_server.h"
 
-#include "my_config.h"
-
-#include <mysql/plugin.h>
-
 #include "auth_mysql41.h"
 #include "auth_plain.h"
 #include "io/xpl_listener_factory.h"
+#include "my_config.h"
 #include "my_inttypes.h"
 #include "my_thread_local.h"
-#include "mysql/service_ssl_wrapper.h"
 #include "mysql_show_variable_wrapper.h"
 #include "mysql_variables.h"
+#include "mysql/plugin.h"
+#include "mysql/service_ssl_wrapper.h"
 #include "mysqlx_version.h"
+#include "ngs/interface/authentication_interface.h"
 #include "ngs/interface/listener_interface.h"
 #include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_authentication.h"
 #include "ngs/scheduler.h"
 #include "ngs/server_acceptors.h"
 #include "sql_data_result.h"

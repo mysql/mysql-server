@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,35 +18,28 @@
  */
 
 #include "buffering_command_delegate.h"
-#include "xpl_log.h"
+
 #include "ngs_common/bind.h"
 
-using namespace xpl;
-
+namespace xpl {
 
 Buffering_command_delegate::Buffering_command_delegate()
-: Callback_command_delegate(ngs::bind(&Buffering_command_delegate::begin_row_cb, this),
-                            ngs::bind(&Buffering_command_delegate::end_row_cb, this, ngs::placeholders::_1))
-{
-}
+    : Callback_command_delegate(
+          ngs::bind(&Buffering_command_delegate::begin_row_cb, this),
+          ngs::bind(&Buffering_command_delegate::end_row_cb, this,
+                    ngs::placeholders::_1)) {}
 
-
-void Buffering_command_delegate::reset()
-{
+void Buffering_command_delegate::reset() {
   m_resultset.clear();
   Command_delegate::reset();
 }
 
-
-Callback_command_delegate::Row_data *Buffering_command_delegate::begin_row_cb()
-{
+Callback_command_delegate::Row_data *
+Buffering_command_delegate::begin_row_cb() {
   m_resultset.push_back(Row_data());
   return &m_resultset.back();
 }
 
+bool Buffering_command_delegate::end_row_cb(Row_data *row) { return true; }
 
-bool Buffering_command_delegate::end_row_cb(Row_data *row)
-{
-  return true;
-}
-
+}  // namespace xpl

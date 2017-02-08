@@ -26,16 +26,16 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "ngs/client_list.h"
-#include "ngs/interface/server_delegate.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_authentication.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs/thread.h"
 #include "ngs_common/bind.h"
 #include "ngs_common/chrono.h"
 #include "ngs_common/connection_vio.h"
+#include "ngs/client_list.h"
+#include "ngs/interface/authentication_interface.h"
+#include "ngs/interface/server_delegate.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/protocol_encoder.h"
+#include "ngs/protocol/protocol_config.h"
+#include "ngs/thread.h"
 #include "socket_events.h"
 
 
@@ -86,10 +86,10 @@ public:
 
   void on_client_closed(const Client_interface &client);
 
-  Authentication_handler_ptr get_auth_handler(const std::string &name, Session_interface *session);
+  Authentication_interface_ptr get_auth_handler(const std::string &name, Session_interface *session);
   void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client);
   void add_authentication_mechanism(const std::string &name,
-                                    Authentication_handler::create initiator,
+                                    Authentication_interface::Create initiator,
                                     const bool allowed_only_with_secure_connection);
 
   void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
@@ -137,7 +137,7 @@ private:
     const bool should_be_tls_active;
   };
 
-  typedef std::map<Authentication_key, Authentication_handler::create> Auth_handler_map;
+  typedef std::map<Authentication_key, Authentication_interface::Create> Auth_handler_map;
 
   bool m_timer_running;
   bool m_skip_name_resolve;

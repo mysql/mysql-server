@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -65,14 +65,14 @@ public:
 
 public: // impl ngs::Session_interface
   ngs::Error_code init();
-  virtual void on_auth_success(const ngs::Authentication_handler::Response &response);
-  virtual void on_auth_failure(const ngs::Authentication_handler::Response &response);
+  virtual void on_auth_success(const ngs::Authentication_interface::Response &response);
+  virtual void on_auth_failure(const ngs::Authentication_interface::Response &response);
 
   virtual void mark_as_tls_session();
   virtual bool is_handled_by(const void *handler) const;
+  ngs::Sql_session_interface &data_context() override { return m_sql; }
 
 public:
-  virtual Sql_data_context &data_context() { return m_sql; }
   Session_options &options() { return m_options; }
   Session_status_variables &get_status_variables() { return m_status_variables; }
 

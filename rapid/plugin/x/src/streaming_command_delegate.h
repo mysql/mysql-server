@@ -22,8 +22,8 @@
 
 #include <sys/types.h>
 
-#include "command_delegate.h"
 #include "my_inttypes.h"
+#include "ngs/command_delegate.h"
 
 
 namespace ngs
@@ -36,7 +36,7 @@ namespace ngs
 namespace xpl
 {
 
-  class Streaming_command_delegate : public Command_delegate
+  class Streaming_command_delegate : public ngs::Command_delegate
   {
   public:
     Streaming_command_delegate(ngs::Protocol_encoder *proto);

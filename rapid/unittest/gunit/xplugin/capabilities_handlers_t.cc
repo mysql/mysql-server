@@ -1,5 +1,4 @@
-
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -18,12 +17,14 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "mock/session.h"
+#include "account_verification_handler.h"
 #include "mock/capabilities.h"
 #include "mock/ngs_general.h"
+#include "mock/session.h"
 #include "my_config.h"
+#include "ngs/capabilities/handler_auth_mech.h"
+#include "ngs/capabilities/handler_tls.h"
+#include "sql_user_require.h"
 
 namespace ngs
 {
@@ -174,7 +175,6 @@ public:
 {
   return os << "tls-active:" << set_param.m_tls_active << std::endl;
 }
-
 
 
 class SuccessSetCapabilityHanderTlsTestSuite : public CapabilityHanderTlsTestSuite , public WithParamInterface<Set_params>

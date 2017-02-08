@@ -53,32 +53,42 @@ namespace ngs
     ngs::shared_ptr<Session_interface> session() { return m_session; }
 
   public: // impl ngs::Client_interface
-    virtual void run(const bool skip_resolve_name);
+    void run(const bool skip_resolve_name) override;
 
-    virtual void activate_tls();
+    void activate_tls() override;
 
-    virtual void reset_accept_time();
+    void reset_accept_time() override;
 
-    virtual void on_auth_timeout();
-    virtual void on_server_shutdown();
+    void on_auth_timeout() override;
+    void on_server_shutdown() override;
 
-    virtual Server_interface &server() const { return m_server; }
-    virtual Connection_vio  &connection() { return *m_connection; };
+    Server_interface &server() const override { return m_server; }
+    Connection_vio  &connection() override { return *m_connection; };
 
-    virtual void on_session_auth_success(Session_interface &s);
-    virtual void on_session_close(Session_interface &s);
-    virtual void on_session_reset(Session_interface &s);
+    void on_session_auth_success(Session_interface &s) override;
+    void on_session_close(Session_interface &s) override;
+    void on_session_reset(Session_interface &s) override;
 
-    virtual void disconnect_and_trigger_close();
+    void disconnect_and_trigger_close() override;
 
-    virtual const char *client_address() const { return m_client_addr.c_str(); }
-    virtual const char *client_hostname() const { return m_client_host.c_str(); }
-    virtual const char *client_id() const { return m_id; }
-    virtual Client_id client_id_num() const { return m_client_id; }
-    virtual int       client_port() const { return m_client_port; }
+    const char *client_address() const override { return m_client_addr.c_str(); }
+    const char *client_hostname() const override { return m_client_host.c_str(); }
+    const char *client_id() const override { return m_id; }
+    Client_id client_id_num() const override { return m_client_id; }
+    int client_port() const override { return m_client_port; }
 
-    virtual Client_state  get_state() const { return m_state.load(); };
-    virtual chrono::time_point get_accept_time() const;
+    Client_state  get_state() const override { return m_state.load(); };
+    chrono::time_point get_accept_time() const override;
+
+    void set_supports_expired_passwords(bool flag)
+    {
+      m_supports_expired_passwords = flag;
+    }
+
+    bool supports_expired_passwords() const override
+    {
+      return m_supports_expired_passwords;
+    }
 
   protected:
     char m_id[2+sizeof(Client_id)*2+1]; // 64bits in hex, plus 0x plus \0
@@ -114,6 +124,7 @@ namespace ngs
 
     char* m_msg_buffer;
     size_t m_msg_buffer_size;
+    bool m_supports_expired_passwords;
 
     Request *read_one_message(Error_code &ret_error);
 

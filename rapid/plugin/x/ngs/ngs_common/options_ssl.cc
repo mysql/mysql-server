@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,13 +19,14 @@
 
 #include "ngs_common/options_ssl.h"
 
+#include <iterator>
+
 #include "mysql/service_ssl_wrapper.h"
 #include "ngs/memory.h"
-#include <iterator>
 
 using namespace ngs;
 
-std::string Options_session_ssl::ssl_cipher()
+std::string Options_session_ssl::ssl_cipher() const
 {
   char result[1024];
 
@@ -34,7 +35,7 @@ std::string Options_session_ssl::ssl_cipher()
   return result;
 }
 
-std::string Options_session_ssl::ssl_version()
+std::string Options_session_ssl::ssl_version() const
 {
   char result[256];
 
@@ -43,7 +44,7 @@ std::string Options_session_ssl::ssl_version()
   return result;
 }
 
-std::vector<std::string> Options_session_ssl::ssl_cipher_list()
+std::vector<std::string> Options_session_ssl::ssl_cipher_list() const
 {
   std::vector<std::string> result;
   const size_t num_of_elements = 1024;
@@ -56,27 +57,27 @@ std::vector<std::string> Options_session_ssl::ssl_cipher_list()
   return result;
 }
 
-long Options_session_ssl::ssl_verify_depth()
+long Options_session_ssl::ssl_verify_depth() const
 {
-  return  ssl_wrapper_verify_depth(m_vio);
+  return ssl_wrapper_verify_depth(m_vio);
 }
 
-long Options_session_ssl::ssl_verify_mode()
+long Options_session_ssl::ssl_verify_mode() const
 {
-  return  ssl_wrapper_verify_mode(m_vio);
+  return ssl_wrapper_verify_mode(m_vio);
 }
 
-long Options_session_ssl::ssl_sessions_reused()
+long Options_session_ssl::ssl_sessions_reused() const
 {
   return 0;
 }
 
-long Options_session_ssl::ssl_get_verify_result_and_cert()
+long Options_session_ssl::ssl_get_verify_result_and_cert() const
 {
   return ssl_wrapper_get_verify_result_and_cert(m_vio);
 }
 
-std::string Options_session_ssl::ssl_get_peer_certificate_issuer()
+std::string Options_session_ssl::ssl_get_peer_certificate_issuer() const
 {
   char issuer[1024];
 
@@ -85,7 +86,7 @@ std::string Options_session_ssl::ssl_get_peer_certificate_issuer()
   return issuer;
 }
 
-std::string Options_session_ssl::ssl_get_peer_certificate_subject()
+std::string Options_session_ssl::ssl_get_peer_certificate_subject() const
 {
   char subject[1024];
 

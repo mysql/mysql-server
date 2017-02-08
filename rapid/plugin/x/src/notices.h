@@ -25,15 +25,16 @@
 
 namespace ngs {
 class Protocol_encoder;
+class Sql_session_interface;
 }
 
 namespace xpl {
-class Sql_data_context;
 
 namespace notices {
-ngs::Error_code send_warnings(Sql_data_context &da,
+ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
                               ngs::Protocol_encoder &proto,
                               bool skip_single_error = false);
+
 ngs::Error_code send_client_id(ngs::Protocol_encoder &proto,
                                uint64_t client_id);
 ngs::Error_code send_account_expired(ngs::Protocol_encoder &proto);

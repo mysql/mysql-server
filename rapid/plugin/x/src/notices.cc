@@ -21,12 +21,12 @@
 
 #include <vector>
 
-#include "callback_command_delegate.h"
 #include "ngs_common/bind.h"
 #include "ngs_common/protocol_protobuf.h"
+#include "ngs/interface/sql_session_interface.h"
 #include "ngs/protocol_monitor.h"
 #include "protocol.h"
-#include "sql_data_context.h"
+#include "xpl_resultset.h"
 
 namespace xpl {
 
@@ -34,8 +34,8 @@ namespace notices {
 
 namespace {
 
-Callback_command_delegate::Row_data *start_warning_row(
-    Callback_command_delegate::Row_data *row_data) {
+static xpl::Process_resultset::Row *start_warning_row(
+    xpl::Process_resultset::Row *row_data) {
   row_data->clear();
   return row_data;
 }
@@ -49,7 +49,7 @@ inline Mysqlx::Notice::Warning::Level get_warning_level(
   return Mysqlx::Notice::Warning::NOTE;
 }
 
-bool end_warning_row(Callback_command_delegate::Row_data *row,
+bool end_warning_row(xpl::Process_resultset::Row *row,
                      ngs::Protocol_encoder &proto, bool skip_single_error,
                      std::string &last_error, unsigned int &num_errors) {
   typedef Mysqlx::Notice::Warning Warning;
@@ -94,21 +94,19 @@ inline void send_local_notice(const Mysqlx::Notice::SessionStateChanged &notice,
 }
 }  // namespace
 
-ngs::Error_code send_warnings(Sql_data_context &da,
+ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
                               ngs::Protocol_encoder &proto,
                               bool skip_single_error) {
-  Callback_command_delegate::Row_data row_data;
-  Sql_data_context::Result_info winfo;
-  static std::string q = "SHOW WARNINGS";
+  Process_resultset::Row row_data;
+  static const std::string q = "SHOW WARNINGS";
   std::string last_error;
   unsigned int num_errors = 0u;
-
-  // send warnings as notices
-  return da.execute_sql_and_process_results(
-      q.data(), q.length(), ngs::bind(start_warning_row, &row_data),
+  Process_resultset resultset(
+      ngs::bind(start_warning_row, &row_data),
       ngs::bind(end_warning_row, ngs::placeholders::_1, ngs::ref(proto),
-                skip_single_error, last_error, num_errors),
-      winfo);
+                skip_single_error, last_error, num_errors));
+  // send warnings as notices
+  return da.execute(q.data(), q.length(), &resultset);
 }
 
 ngs::Error_code send_account_expired(ngs::Protocol_encoder &proto) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -23,17 +23,16 @@
 #include <string>
 #include <vector>
 
-#include "ngs/server.h"
+#include "mysql_show_variable_wrapper.h"
+#include "mysql/plugin.h"
+#include "ngs_common/atomic.h"
+#include "ngs_common/connection_vio.h"
 #include "ngs/memory.h"
 #include "ngs/scheduler.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs_common/atomic.h"
-#include "xpl_session.h"
-#include "mysql_show_variable_wrapper.h"
-#include "xpl_global_status_variables.h"
-
-#include <mysql/plugin.h>
+#include "ngs/server.h"
 #include "xpl_client.h"
+#include "xpl_global_status_variables.h"
+#include "xpl_session.h"
 
 
 namespace xpl
@@ -59,7 +58,7 @@ public:
   template <void (Client::*method)(st_mysql_show_var *)>
   static void session_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
-  template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)()>
+  template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)() const>
   static void session_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
   template <typename ReturnType, ReturnType (Server::*method)()>
@@ -158,7 +157,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
 }
 
 
-template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)()>
+template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)() const>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
