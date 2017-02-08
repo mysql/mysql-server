@@ -2427,15 +2427,9 @@ row_update_for_mysql_using_upd_graph(
 	trx_start_if_not_started_xa(trx, true);
 
 	if (dict_table_is_referenced_by_foreign_key(table)) {
-		/* Share lock the data dictionary to prevent any
-		table dictionary (for foreign constraint) change.
-		This is similar to row_ins_check_foreign_constraint
-		check protect by the dictionary lock as well.
-		In the future, this can be removed once the Foreign
-		key MDL is implemented */
-		//row_mysql_freeze_data_dictionary(trx);
+		/*TODO: use foreign key MDL to protect foreign
+		key tables(wl#6049) */
 		init_fts_doc_id_for_ref(table, &fk_depth);
-		//row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	node = prebuilt->upd_node;
