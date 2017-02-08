@@ -4988,17 +4988,17 @@ static int do_save_master_pos()
   check_variable_name()
   var_name     - pointer to the beginning of variable name
   var_name_end - pointer to the end of variable name
-  dollar_flag  - flag, if set then variable name should start with '$'
+  dollar_flag  - flag to check whether variable name should start with '$'
 */
-static void check_variable_name(char *var_name,
+static void check_variable_name(const char *var_name,
                                 const char *var_name_end,
-                                my_bool dollar_flag)
+                                const bool dollar_flag)
 {
-  char save_var_name[5];
+  char save_var_name[MAX_VAR_NAME_LENGTH];
   strmake(save_var_name, var_name, (var_name_end - var_name));
 
   // Check if variable name should start with '$'
-  if (dollar_flag && (*var_name != '$'))
+  if (!dollar_flag && (*var_name != '$'))
     die ("Variable name '%s' should start with '$'", save_var_name);
 
   if (*var_name == '$')
@@ -5111,7 +5111,7 @@ static void do_expr(struct st_command *command)
   while (*p && (*p != '=') && !my_isspace(charset_info, *p))
     p++;
   char *var_name_end= p;
-  check_variable_name(var_name, var_name_end, 0);
+  check_variable_name(var_name, var_name_end, 1);
 
   // Skip spaces between <var_name> and '='
   while (my_isspace(charset_info, *p))
@@ -5132,7 +5132,7 @@ static void do_expr(struct st_command *command)
   while (*p && !is_operator(p) && !my_isspace(charset_info, *p))
     p++;
   const char *operand_name_end= p;
-  check_variable_name(operand_name, operand_name_end, 1);
+  check_variable_name(operand_name, operand_name_end, 0);
   VAR *v1= var_get(operand_name, &operand_name_end, 0, 0);
 
   double operand1;
@@ -5166,7 +5166,7 @@ static void do_expr(struct st_command *command)
   while (*p && !my_isspace(charset_info, *p))
     p++;
   operand_name_end= p;
-  check_variable_name(operand_name, operand_name_end, 1);
+  check_variable_name(operand_name, operand_name_end, 0);
   VAR *v2= var_get(operand_name, &operand_name_end, 0, 0);
 
   double operand2;
