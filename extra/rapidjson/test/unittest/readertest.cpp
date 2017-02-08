@@ -19,17 +19,21 @@
 #include "rapidjson/internal/itoa.h"
 #include "rapidjson/memorystream.h"
 
+#include <limits>
+
 using namespace rapidjson;
 
-#ifdef __GNUC__
 RAPIDJSON_DIAG_PUSH
+#ifdef __GNUC__
 RAPIDJSON_DIAG_OFF(effc++)
 RAPIDJSON_DIAG_OFF(float-equal)
 RAPIDJSON_DIAG_OFF(missing-noreturn)
+#if __GNUC__ >= 7
+RAPIDJSON_DIAG_OFF(dangling-else)
 #endif
+#endif // __GNUC__
 
 #ifdef __clang__
-RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(variadic-macros)
 RAPIDJSON_DIAG_OFF(c++98-compat-pedantic)
 #endif
@@ -1774,10 +1778,67 @@ TEST(Reader, TrailingCommaHandlerTerminationIterative) {
     TestTrailingCommaHandlerTermination<kParseIterativeFlag>();
 }
 
-#ifdef __GNUC__
-RAPIDJSON_DIAG_POP
-#endif
+TEST(Reader, ParseNanAndInfinity) {
+#define TEST_NAN_INF(str, x) \
+    { \
+        { \
+            StringStream s(str); \
+            ParseDoubleHandler h; \
+            Reader reader; \
+            ASSERT_EQ(kParseErrorNone, reader.Parse<kParseNanAndInfFlag>(s, h).Code()); \
+            EXPECT_EQ(1u, h.step_); \
+            internal::Double e(x), a(h.actual_); \
+            EXPECT_EQ(e.IsNan(), a.IsNan()); \
+            EXPECT_EQ(e.IsInf(), a.IsInf()); \
+            if (!e.IsNan()) \
+                EXPECT_EQ(e.Sign(), a.Sign()); \
+        } \
+        { \
+            const char* json = "{ \"naninfdouble\": " str " } "; \
+            StringStream s(json); \
+            NumbersAsStringsHandler h(str); \
+            Reader reader; \
+            EXPECT_TRUE(reader.Parse<kParseNumbersAsStringsFlag|kParseNanAndInfFlag>(s, h)); \
+        } \
+        { \
+            char* json = StrDup("{ \"naninfdouble\": " str " } "); \
+            InsituStringStream s(json); \
+            NumbersAsStringsHandler h(str); \
+            Reader reader; \
+            EXPECT_TRUE(reader.Parse<kParseInsituFlag|kParseNumbersAsStringsFlag|kParseNanAndInfFlag>(s, h)); \
+            free(json); \
+        } \
+    }
+#define TEST_NAN_INF_ERROR(errorCode, str, errorOffset) \
+    { \
+        int streamPos = errorOffset; \
+        char buffer[1001]; \
+        strncpy(buffer, str, 1000); \
+        InsituStringStream s(buffer); \
+        BaseReaderHandler<> h; \
+        Reader reader; \
+        EXPECT_FALSE(reader.Parse<kParseNanAndInfFlag>(s, h)); \
+        EXPECT_EQ(errorCode, reader.GetParseErrorCode());\
+        EXPECT_EQ(errorOffset, reader.GetErrorOffset());\
+        EXPECT_EQ(streamPos, s.Tell());\
+    }
 
-#ifdef __clang__
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    double inf = std::numeric_limits<double>::infinity();
+
+    TEST_NAN_INF("NaN", nan);
+    TEST_NAN_INF("-NaN", nan);
+    TEST_NAN_INF("Inf", inf);
+    TEST_NAN_INF("Infinity", inf);
+    TEST_NAN_INF("-Inf", -inf);
+    TEST_NAN_INF("-Infinity", -inf);
+    TEST_NAN_INF_ERROR(kParseErrorValueInvalid, "nan", 1);
+    TEST_NAN_INF_ERROR(kParseErrorValueInvalid, "-nan", 1);
+    TEST_NAN_INF_ERROR(kParseErrorValueInvalid, "NAN", 1);
+    TEST_NAN_INF_ERROR(kParseErrorValueInvalid, "-Infinty", 6);
+
+#undef TEST_NAN_INF_ERROR
+#undef TEST_NAN_INF
+}
+
 RAPIDJSON_DIAG_POP
-#endif

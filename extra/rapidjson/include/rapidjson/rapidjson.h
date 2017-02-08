@@ -68,8 +68,8 @@
     \brief Version of RapidJSON in "<major>.<minor>.<patch>" string format.
 */
 #define RAPIDJSON_MAJOR_VERSION 1
-#define RAPIDJSON_MINOR_VERSION 0
-#define RAPIDJSON_PATCH_VERSION 2
+#define RAPIDJSON_MINOR_VERSION 1
+#define RAPIDJSON_PATCH_VERSION 0
 #define RAPIDJSON_VERSION_STRING \
     RAPIDJSON_STRINGIFY(RAPIDJSON_MAJOR_VERSION.RAPIDJSON_MINOR_VERSION.RAPIDJSON_PATCH_VERSION)
 
@@ -250,7 +250,7 @@
 
 //! Whether using 64-bit architecture
 #ifndef RAPIDJSON_64BIT
-#if defined(__LP64__) || defined(_WIN64) || defined(__EMSCRIPTEN__)
+#if defined(__LP64__) || (defined(__x86_64__) && defined(__ILP32__)) || defined(_WIN64) || defined(__EMSCRIPTEN__)
 #define RAPIDJSON_64BIT 1
 #else
 #define RAPIDJSON_64BIT 0
@@ -529,8 +529,12 @@ RAPIDJSON_NAMESPACE_END
 
 #ifndef RAPIDJSON_HAS_CXX11_RVALUE_REFS
 #if defined(__clang__)
-#define RAPIDJSON_HAS_CXX11_RVALUE_REFS __has_feature(cxx_rvalue_references) && \
+#if __has_feature(cxx_rvalue_references) && \
     (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__) && __GLIBCXX__ >= 20080306)
+#define RAPIDJSON_HAS_CXX11_RVALUE_REFS 1
+#else
+#define RAPIDJSON_HAS_CXX11_RVALUE_REFS 0
+#endif
 #elif (defined(RAPIDJSON_GNUC) && (RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4,3,0)) && defined(__GXX_EXPERIMENTAL_CXX0X__)) || \
       (defined(_MSC_VER) && _MSC_VER >= 1600)
 
@@ -607,9 +611,5 @@ enum Type {
 };
 
 RAPIDJSON_NAMESPACE_END
-
-#if defined(__clang__) || defined(__GNUC__)
-RAPIDJSON_DIAG_OFF(unused-parameter)
-#endif
 
 #endif // RAPIDJSON_RAPIDJSON_H_

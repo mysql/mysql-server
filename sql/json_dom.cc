@@ -32,7 +32,7 @@
 #include "field.h"
 #include "json_path.h"
 #include "m_ctype.h"
-#include "m_string.h"           // my_gcvt, _dig_vec_lower
+#include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -469,12 +469,10 @@ private:
   Json_dom* m_current_element;  ///< The current object/array being parsed.
   size_t m_depth;      ///< The depth at which parsing currently happens.
   std::string m_key;   ///< The name of the current member of an object.
-  bool m_preserve_neg_zero_int; ///< Should -0 be interpreted as -0.0?
 public:
-  Rapid_json_handler(bool preserve_neg_zero_int= false)
+  Rapid_json_handler()
     : m_state(expect_anything), m_dom_as_built(nullptr),
-      m_current_element(nullptr), m_depth(0), m_key(),
-      m_preserve_neg_zero_int(preserve_neg_zero_int)
+      m_current_element(nullptr), m_depth(0), m_key()
   {}
 
   /**
@@ -573,28 +571,21 @@ public:
     return seeing_value(new (std::nothrow) Json_uint(ui64));
   }
 
-  bool Double(double d, bool is_int= false)
+  bool Double(double d)
   {
-    if (is_int && !m_preserve_neg_zero_int)
-    {
-      /*
-        The is_int flag is true only if -0 was seen. Handle it as an
-        integer.
-      */
-      DBUG_ASSERT(d == 0.0);
-      return Int64(static_cast<int64_t>(d));
-    }
-    else
-    {
-      DUMP_CALLBACK("double", state);
-      return seeing_value(new (std::nothrow) Json_double(d));
-    }
+    DUMP_CALLBACK("double", state);
+    return seeing_value(new (std::nothrow) Json_double(d));
   }
 
-  bool RawNumber(const char*, SizeType, bool)
+  bool RawNumber(const char* str, SizeType length, bool)
   {
-    DBUG_ASSERT(false);
-    return false;
+    char *end[]= { const_cast<char*>(str) + length };
+    int error= 0;
+    double value = my_strtod(str, end, &error);
+
+    if (error == EOVERFLOW)
+      return false;
+    return Double(value);
   }
 
   bool String(const char* str, SizeType length, bool)
@@ -676,12 +667,15 @@ private:
 
 Json_dom *Json_dom::parse(const char *text, size_t length,
                           const char **syntaxerr, size_t *offset,
-                          bool preserve_neg_zero_int)
+                          bool handle_numbers_as_double)
 {
-  Rapid_json_handler handler(preserve_neg_zero_int);
+  Rapid_json_handler handler;
   MemoryStream ss(text, length);
   Reader reader;
-  bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
+  bool success=
+    handle_numbers_as_double ?
+    reader.Parse<kParseNumbersAsStringsFlag>(ss, handler) :
+    reader.Parse<kParseDefaultFlags>(ss, handler);
 
   if (success)
   {

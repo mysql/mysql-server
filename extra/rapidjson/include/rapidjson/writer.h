@@ -41,6 +41,7 @@ RAPIDJSON_DIAG_OFF(4127) // conditional expression is constant
 #ifdef __clang__
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(padded)
+RAPIDJSON_DIAG_OFF(unreachable-code)
 #endif
 
 RAPIDJSON_NAMESPACE_BEGIN
@@ -62,6 +63,7 @@ RAPIDJSON_NAMESPACE_BEGIN
 enum WriteFlag {
     kWriteNoFlags = 0,              //!< No flags are set.
     kWriteValidateEncodingFlag = 1, //!< Validate encoding of JSON strings.
+    kWriteNanAndInfFlag = 2,        //!< Allow writing of Infinity, -Infinity and NaN.
     kWriteDefaultFlags = RAPIDJSON_WRITE_DEFAULT_FLAGS  //!< Default write flags. Can be customized by defining RAPIDJSON_WRITE_DEFAULT_FLAGS
 };
 
@@ -167,30 +169,30 @@ public:
     */
     //@{
 
-    bool Null()                 { Prefix(kNullType);   return WriteNull(); }
-    bool Bool(bool b)           { Prefix(b ? kTrueType : kFalseType); return WriteBool(b); }
-    bool Int(int i)             { Prefix(kNumberType); return WriteInt(i); }
-    bool Uint(unsigned u)       { Prefix(kNumberType); return WriteUint(u); }
-    bool Int64(int64_t i64)     { Prefix(kNumberType); return WriteInt64(i64); }
-    bool Uint64(uint64_t u64)   { Prefix(kNumberType); return WriteUint64(u64); }
+    bool Null()                 { Prefix(kNullType);   return EndValue(WriteNull()); }
+    bool Bool(bool b)           { Prefix(b ? kTrueType : kFalseType); return EndValue(WriteBool(b)); }
+    bool Int(int i)             { Prefix(kNumberType); return EndValue(WriteInt(i)); }
+    bool Uint(unsigned u)       { Prefix(kNumberType); return EndValue(WriteUint(u)); }
+    bool Int64(int64_t i64)     { Prefix(kNumberType); return EndValue(WriteInt64(i64)); }
+    bool Uint64(uint64_t u64)   { Prefix(kNumberType); return EndValue(WriteUint64(u64)); }
 
     //! Writes the given \c double value to the stream
     /*!
         \param d The value to be written.
         \return Whether it is succeed.
     */
-    bool Double(double d, bool is_int = false)       { Prefix(kNumberType); return WriteDouble(d); }
+    bool Double(double d)       { Prefix(kNumberType); return EndValue(WriteDouble(d)); }
 
     bool RawNumber(const Ch* str, SizeType length, bool copy = false) {
         (void)copy;
         Prefix(kNumberType);
-        return WriteString(str, length);
+        return EndValue(WriteString(str, length));
     }
 
     bool String(const Ch* str, SizeType length, bool copy = false) {
         (void)copy;
         Prefix(kStringType);
-        return WriteString(str, length);
+        return EndValue(WriteString(str, length));
     }
 
 #if RAPIDJSON_HAS_STDSTRING
@@ -212,10 +214,7 @@ public:
         RAPIDJSON_ASSERT(level_stack_.GetSize() >= sizeof(Level));
         RAPIDJSON_ASSERT(!level_stack_.template Top<Level>()->inArray);
         level_stack_.template Pop<Level>(1);
-        bool ret = WriteEndObject();
-        if (RAPIDJSON_UNLIKELY(level_stack_.Empty()))   // end of json text
-            os_->Flush();
-        return ret;
+        return EndValue(WriteEndObject());
     }
 
     bool StartArray() {
@@ -229,10 +228,7 @@ public:
         RAPIDJSON_ASSERT(level_stack_.GetSize() >= sizeof(Level));
         RAPIDJSON_ASSERT(level_stack_.template Top<Level>()->inArray);
         level_stack_.template Pop<Level>(1);
-        bool ret = WriteEndArray();
-        if (RAPIDJSON_UNLIKELY(level_stack_.Empty()))   // end of json text
-            os_->Flush();
-        return ret;
+        return EndValue(WriteEndArray());
     }
     //@}
 
@@ -253,7 +249,7 @@ public:
         \param length Length of the json.
         \param type Type of the root of json.
     */
-    bool RawValue(const Ch* json, size_t length, Type type) { Prefix(type); return WriteRawValue(json, length); }
+    bool RawValue(const Ch* json, size_t length, Type type) { Prefix(type); return EndValue(WriteRawValue(json, length)); }
 
 protected:
     //! Information for each nested level
@@ -319,9 +315,25 @@ protected:
     }
 
     bool WriteDouble(double d) {
-        if (internal::Double(d).IsNanOrInf())
-            return false;
-        
+        if (internal::Double(d).IsNanOrInf()) {
+            if (!(writeFlags & kWriteNanAndInfFlag))
+                return false;
+            if (internal::Double(d).IsNan()) {
+                PutReserve(*os_, 3);
+                PutUnsafe(*os_, 'N'); PutUnsafe(*os_, 'a'); PutUnsafe(*os_, 'N');
+                return true;
+            }
+            if (internal::Double(d).Sign()) {
+                PutReserve(*os_, 9);
+                PutUnsafe(*os_, '-');
+            }
+            else
+                PutReserve(*os_, 8);
+            PutUnsafe(*os_, 'I'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'f');
+            PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 't'); PutUnsafe(*os_, 'y');
+            return true;
+        }
+
         char buffer[25];
         char* end = internal::dtoa(d, buffer, maxDecimalPlaces_);
         PutReserve(*os_, static_cast<size_t>(end - buffer));
@@ -442,6 +454,13 @@ protected:
         }
     }
 
+    // Flush the value if it is the top level one.
+    bool EndValue(bool ret) {
+        if (RAPIDJSON_UNLIKELY(level_stack_.Empty()))   // end of json text
+            os_->Flush();
+        return ret;
+    }
+
     OutputStream* os_;
     internal::Stack<StackAllocator> level_stack_;
     int maxDecimalPlaces_;
@@ -489,8 +508,25 @@ inline bool Writer<StringBuffer>::WriteUint64(uint64_t u) {
 
 template<>
 inline bool Writer<StringBuffer>::WriteDouble(double d) {
-    if (internal::Double(d).IsNanOrInf())
-        return false;
+    if (internal::Double(d).IsNanOrInf()) {
+        // Note: This code path can only be reached if (RAPIDJSON_WRITE_DEFAULT_FLAGS & kWriteNanAndInfFlag).
+        if (!(kWriteDefaultFlags & kWriteNanAndInfFlag))
+            return false;
+        if (internal::Double(d).IsNan()) {
+            PutReserve(*os_, 3);
+            PutUnsafe(*os_, 'N'); PutUnsafe(*os_, 'a'); PutUnsafe(*os_, 'N');
+            return true;
+        }
+        if (internal::Double(d).Sign()) {
+            PutReserve(*os_, 9);
+            PutUnsafe(*os_, '-');
+        }
+        else
+            PutReserve(*os_, 8);
+        PutUnsafe(*os_, 'I'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'f');
+        PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 't'); PutUnsafe(*os_, 'y');
+        return true;
+    }
     
     char *buffer = os_->Push(25);
     char* end = internal::dtoa(d, buffer, maxDecimalPlaces_);

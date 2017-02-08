@@ -879,7 +879,7 @@ select json_type('3.14');
 json_type('3.14')
 DOUBLE
 select json_type(CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8'));
-ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not follow by other values." at position 4.
+ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not be followed by other values." at position 4.
 # ----------------------------------------------------------------------
 # Test of CAST(literal AS JSON)
 # ----------------------------------------------------------------------

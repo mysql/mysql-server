@@ -102,7 +102,7 @@ ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 i
 INSERT INTO t1(j) VALUES (PI());
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) select ts from auxtbl;
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 't1.j'.
+ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't1.j'.
 DROP TABLE auxtbl;
 INSERT INTO t1(j) VALUES (CAST('15:52:00' as TIME));
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
@@ -130,7 +130,7 @@ execute ps1 using @c;
 execute ps1 using @d;
 execute ps1 using @e;
 execute ps1 using @f;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not follow by other values." at position 4.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
 execute ps1 using @g;
 execute ps2 using @a;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
@@ -141,7 +141,7 @@ execute ps2 using @d;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
 execute ps2 using @e;
 execute ps2 using @f;
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 'pt2.j'.
+ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 'pt2.j'.
 execute ps2 using @g;
 select json_type(j), j from pt1 order by j;
 json_type(j)	j
