@@ -4523,6 +4523,38 @@ sub resfile_report_test ($) {
 }
 
 
+# Search the opt file for '--bootstrap' key word.
+# For each instance of '--bootstrap', save the option immediately after it
+# into an array so that datadir can be reinitialized with those options.
+sub find_bootstrap_opts
+{
+  my ($opt_file)= @_;
+
+  my $bootstrap_opt= 0;
+  my $bootstrap_opts;
+
+  foreach my $opt (@$opt_file)
+  {
+    if ($opt =~ /^--bootstrap=/)
+    {
+      $opt =~ s/--bootstrap=//;
+      push(@$bootstrap_opts, $opt);
+    }
+    elsif ($opt eq "--bootstrap")
+    {
+      $bootstrap_opt= 1;
+      next;
+    }
+    elsif ($bootstrap_opt == 1)
+    {
+      push(@$bootstrap_opts, $opt);
+      $bootstrap_opt= 0;
+    }
+  }
+  return $bootstrap_opts if defined $bootstrap_opts;
+}
+
+
 #
 # Run a single test case
 #
@@ -4555,30 +4587,14 @@ sub run_testcase ($) {
   mtr_verbose("Setting timezone: $timezone");
 
   # If there are bootstrap options in the opt file, add them
-  my $bootstrap_opt = 0;
-  foreach my $opt (@{$tinfo->{master_opt}})
-  {
-    if ($opt =~ /^--bootstrap=/)
-    {
-      $opt =~ s/--bootstrap=//;
-      push(@{$tinfo->{bootstrap_opt}}, $opt);
-    }
-    elsif ($opt eq "--bootstrap")
-    {
-      $bootstrap_opt = 1;
-      next;
-    }
-    elsif ($bootstrap_opt == 1)
-    {
-      push(@{$tinfo->{bootstrap_opt}}, $opt);
-      $bootstrap_opt = 0;
-    }
-  }
+  $tinfo->{bootstrap_master_opt}= find_bootstrap_opts($tinfo->{master_opt});
+  $tinfo->{bootstrap_slave_opt}= find_bootstrap_opts($tinfo->{slave_opt});
 
   # The keyword "--bootstrap" is passed in the opt file to identify
   # the bootstrap variables. Remove this keyword before sending
   # these options to the server.
-  @{$tinfo->{master_opt}} = grep {!/--bootstrap/} @{$tinfo->{master_opt}};
+  @{$tinfo->{master_opt}}= grep {!/--bootstrap/} @{$tinfo->{master_opt}};
+  @{$tinfo->{slave_opt}}= grep {!/--bootstrap/} @{$tinfo->{slave_opt}};
 
   if ( ! using_extern() )
   {
@@ -6549,10 +6565,20 @@ sub start_servers($) {
 
     # Reinitialize the data directory if there are bootstrap options in
     # the opt file.
-    if ($tinfo->{bootstrap_opt})
+    my $bootstrap_opts= (is_slave($mysqld) ?
+                        $tinfo->{bootstrap_slave_opt} :
+                        $tinfo->{bootstrap_master_opt});
+
+    if ($bootstrap_opts)
     {
       clean_dir($datadir);
-      mysql_install_db($mysqld, $datadir, $tinfo->{bootstrap_opt});
+      mysql_install_db($mysqld, $datadir, $bootstrap_opts);
+      my $vardir_path= ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
+
+      # Remove the bootstrap.sql file so that a duplicate set of
+      # SQL statements do not get written to the same file.
+      unlink("$vardir_path/tmp/bootstrap.sql")
+        if (-f "$vardir_path/tmp/bootstrap.sql");
     }
 
     # Create the servers tmpdir
