@@ -5353,99 +5353,6 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
 
 }  // extern "C"
 
-/**
-  Since pad space takes so much space (and time) to write for complicated
-  collations, strnxfrm for UCA 9.0.0 takes a more subtle approach to padding
-  (MY_STRXFRM_PAD_WITH_SPACE) than actually adding spaces; it strips them
-  from the right instead.
-
-  However, we want to _preserve equality_ just as if we actually padded
-  (for both 1-, 2-, and 3-level compare), and we want to maintain a
-  _consistent_ ordering for strings that are not equal.
-  (This ordering will be very similar to, but not identical to,
-  the default DUCET ordering.)
-
-  These are all the code points that could ever sort equal to SPACE:
-
-      0020  ; [*0209.0020.0002] # SPACE
-      00A0  ; [*0209.0020.001B] # NO-BREAK SPACE
-      1680  ; [*0209.0020.0004] # OGHAM SPACE MARK
-      2000  ; [*0209.0020.0004] # EN QUAD
-      2001  ; [*0209.0020.0004] # EM QUAD
-      2002  ; [*0209.0020.0004] # EN SPACE
-      2003  ; [*0209.0020.0004] # EM SPACE
-      2004  ; [*0209.0020.0004] # THREE-PER-EM SPACE
-      2005  ; [*0209.0020.0004] # FOUR-PER-EM SPACE
-      2006  ; [*0209.0020.0004] # SIX-PER-EM SPACE
-      2007  ; [*0209.0020.001B] # FIGURE SPACE
-      2008  ; [*0209.0020.0004] # PUNCTUATION SPACE
-      2009  ; [*0209.0020.0004] # THIN SPACE
-      200A  ; [*0209.0020.0004] # HAIR SPACE
-      202F  ; [*0209.0020.001B] # NARROW NO-BREAK SPACE
-      205F  ; [*0209.0020.0004] # MEDIUM MATHEMATICAL SPACE
-      3000  ; [*0209.0020.0003] # IDEOGRAPHIC SPACE
-
-  Now we make our only ordering change (this happens in uca9-dump.cc,
-  so it is built into the tables). We make a tailoring so that the
-  spaces sort lowest (nothing else ever has a weight of 0x0001):
-
-      0020  ; [*0001.0020.0002] # SPACE
-      00A0  ; [*0001.0020.001B] # NO-BREAK SPACE
-      1680  ; [*0001.0020.0004] # OGHAM SPACE MARK
-      2000  ; [*0001.0020.0004] # EN QUAD
-      2001  ; [*0001.0020.0004] # EM QUAD
-      2002  ; [*0001.0020.0004] # EN SPACE
-      2003  ; [*0001.0020.0004] # EM SPACE
-      2004  ; [*0001.0020.0004] # THREE-PER-EM SPACE
-      2005  ; [*0001.0020.0004] # FOUR-PER-EM SPACE
-      2006  ; [*0001.0020.0004] # SIX-PER-EM SPACE
-      2007  ; [*0001.0020.001B] # FIGURE SPACE
-      2008  ; [*0001.0020.0004] # PUNCTUATION SPACE
-      2009  ; [*0001.0020.0004] # THIN SPACE
-      200A  ; [*0001.0020.0004] # HAIR SPACE
-      202F  ; [*0001.0020.001B] # NARROW NO-BREAK SPACE
-      205F  ; [*0001.0020.0004] # MEDIUM MATHEMATICAL SPACE
-      3000  ; [*0001.0020.0003] # IDEOGRAPHIC SPACE
-
-  Now nothing sorts before SPACE, but SPACE still sorts equal to a few
-  codepoints in primary and secondary weight. (SPACE sorts before everything
-  if you consider all three weights.) In other words:
-
-      [level end marker] < SPACE = [all other spaces] < *  [considering up to 2nd level]
-      [level end marker] < SPACE < *                       [considering up to 3rd level]
-
-  In PAD collations, everything is is conceptually the same length
-  (by definition), so we can safely move things from the second group
-  (ie., the group consisting of “all spaces” for first two levels,
-  only SPACE for the third level) to the first by stripping them
-  from the right. For convenience, let's change some more weights
-  (this does not change the ordering):
-
-      0020  ; [*0001.0001.0001] # SPACE
-      00A0  ; [*0001.0001.001B] # NO-BREAK SPACE
-      1680  ; [*0001.0001.0004] # OGHAM SPACE MARK
-      2000  ; [*0001.0001.0004] # EN QUAD
-      2001  ; [*0001.0001.0004] # EM QUAD
-      2002  ; [*0001.0001.0004] # EN SPACE
-      2003  ; [*0001.0001.0004] # EM SPACE
-      2004  ; [*0001.0001.0004] # THREE-PER-EM SPACE
-      2005  ; [*0001.0001.0004] # FOUR-PER-EM SPACE
-      2006  ; [*0001.0001.0004] # SIX-PER-EM SPACE
-      2007  ; [*0001.0001.001B] # FIGURE SPACE
-      2008  ; [*0001.0001.0004] # PUNCTUATION SPACE
-      2009  ; [*0001.0001.0004] # THIN SPACE
-      200A  ; [*0001.0001.0004] # HAIR SPACE
-      202F  ; [*0001.0001.001B] # NARROW NO-BREAK SPACE
-      205F  ; [*0001.0001.0004] # MEDIUM MATHEMATICAL SPACE
-      3000  ; [*0001.0001.0003] # IDEOGRAPHIC SPACE
-
-  Now we can simply make the rule that every 0x0001 weight in front of
-  a level marker gets stripped. This way, we keep equality of the
-  different spaces on first and second level, but we keep the property
-  that SPACE sorts first (and thus, _inequality_) on the third level.
-  The only thing we have changed is that the SPACE group sorts before
-  e.g. TAB (on the primary level), whereas earlier, it would sort later.
-*/
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        const Mb_wc mb_wc,
@@ -10041,7 +9948,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10076,7 +9983,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10111,7 +10018,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10146,7 +10053,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10181,7 +10088,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10216,7 +10123,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10251,7 +10158,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10286,7 +10193,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10321,7 +10228,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10356,7 +10263,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10391,7 +10298,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10426,7 +10333,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10461,7 +10368,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10496,7 +10403,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10531,7 +10438,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10566,7 +10473,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10601,7 +10508,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10637,7 +10544,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10673,7 +10580,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10708,7 +10615,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10743,7 +10650,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10779,7 +10686,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10815,7 +10722,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10850,7 +10757,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10885,7 +10792,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10920,7 +10827,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10955,7 +10862,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -10990,7 +10897,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11025,7 +10932,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11060,7 +10967,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11095,7 +11002,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11130,7 +11037,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11165,7 +11072,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11200,7 +11107,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11235,7 +11142,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11270,7 +11177,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11305,7 +11212,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11340,7 +11247,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11375,7 +11282,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11410,7 +11317,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11446,7 +11353,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11482,7 +11389,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11517,7 +11424,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11552,7 +11459,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11588,7 +11495,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
@@ -11624,7 +11531,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */

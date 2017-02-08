@@ -103,8 +103,8 @@ insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
 utf8mb4_0900_as_cs	61
-utf8mb4_0900_as_cs	6120
 utf8mb4_0900_as_cs	6109
+utf8mb4_0900_as_cs	6120
 drop table t1;
 create table t1 engine=innodb select repeat('a',50) as c1;
 alter table t1 add index(c1(5));
@@ -343,7 +343,7 @@ HEX(WEIGHT_STRING(CAST(_utf32 x'337F' AS CHAR)))
 FB40E82AFB40DF0FFB40CF1AFB40F93E000000200020002000200000001C001C001C001C
 SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
 HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)))
-2364239C23C50001230B239C239C23B10000002000200020000100200020002000200000001A001A001A001A001A001A001A001A
+2364239C23C50209230B239C239C23B10000002000200020002000200020002000200000001A001A001A001A001A001A001A001A
 select @@collation_connection;
 @@collation_connection
 utf8mb4_0900_as_cs
@@ -872,7 +872,7 @@ SELECT 'a\t' < 'a';
 0
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
-0
+1
 SELECT 'a' LIKE 'a';
 'a' LIKE 'a'
 1

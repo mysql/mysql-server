@@ -106,8 +106,8 @@ insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
 utf8mb4_0900_ai_ci	61
-utf8mb4_0900_ai_ci	6120
 utf8mb4_0900_ai_ci	6109
+utf8mb4_0900_ai_ci	6120
 drop table t1;
 create table t1 engine=innodb select repeat('a',50) as c1;
 alter table t1 add index(c1(5));
@@ -320,7 +320,7 @@ HEX(WEIGHT_STRING(CAST(_utf32 x'337F' AS CHAR)))
 FB40E82AFB40DF0FFB40CF1AFB40F93E
 SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
 HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)))
-2364239C23C50001230B239C239C23B1
+2364239C23C50209230B239C239C23B1
 select @@collation_connection;
 @@collation_connection
 utf8mb4_0900_ai_ci
@@ -853,7 +853,7 @@ SELECT 'a\t' < 'a';
 0
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
-0
+1
 SELECT 'a' LIKE 'a';
 'a' LIKE 'a'
 1
@@ -3788,8 +3788,8 @@ INSERT INTO t1 VALUES(3, _utf16 0x0430), (3, _utf16 0x046A), (3, _utf16 0x04C0);
 INSERT INTO t1 VALUES(4, _utf16 0x2C30), (4, _utf16 0x10D0), (4, _utf16 0x0561), (4, _utf16 0x3041);
 SELECT grp, HEX(CONVERT(ch USING utf16)) FROM t1 ORDER BY ch COLLATE utf8mb4_0900_ai_ci;
 grp	HEX(CONVERT(ch USING utf16))
-0	0020
 0	0009
+0	0020
 0	005F
 0	02DC
 0	2180
@@ -3810,8 +3810,8 @@ grp	HEX(CONVERT(ch USING utf16))
 4	3041
 SELECT grp, HEX(CONVERT(ch USING utf16)) FROM t1 ORDER BY ch COLLATE utf8mb4_hr_0900_ai_ci;
 grp	HEX(CONVERT(ch USING utf16))
-0	0020
 0	0009
+0	0020
 0	005F
 0	02DC
 0	2180

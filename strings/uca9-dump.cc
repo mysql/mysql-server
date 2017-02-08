@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
        use iconv to convert.
     3. ucadump ja < /path/to/ja_han.txt > /path/to/yourfile
 */
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -326,57 +325,6 @@ set_implicit_weights(MY_UCA *uca, const int *pageloaded)
   }
 }
 
-/*
-  Move SPACE to the lowest possible weight, such that:
-
-   1. Everything that is equal to SPACE (on a given level) keeps being
-      equal to it.
-   2. Everything else compares higher to SPACE on the first nonequal level.
-   3. Space gets the weight [.0001.0001.0001].
-
-  For why this is necessary, see the comments on my_strnxfrm_uca_900_tmpl()
-  in ctype-uca.cc.
-*/
-static void
-move_space_weights(MY_UCA *uca)
-{
-  const uint16 space_weights[3]= {
-    uca->item[0x20].weight[0],
-    uca->item[0x20].weight[1],
-    uca->item[0x20].weight[2]
-  };
-
-  for (int code= 0; code < MY_UCA_MAXCHAR; ++code)
-  {
-    MY_UCA_ITEM *item= &uca->item[code];
-    for (int ce= 0; ce < item->num_of_ce; ++ce)
-    {
-      uint16 *weight= item->weight + ce * MY_UCA_CE_SIZE;
-      assert(weight[0] != 0x0001);  // Must be free.
-      if (weight[0] == space_weights[0])
-      {
-        weight[0]= 0x0001;
-
-        /*
-          #2 is now met for the primary level. For the secondary and tertiary
-          level, it is already so in UCA 9.0.0, but we verify it here.
-          Also, we take care of demand #3, while making sure not to disturb
-          demand #1.
-        */
-        for (int level= 1; level < 3; ++level)
-        {
-          assert(weight[level] != 0x0001);  // Must be free.
-          assert(weight[level] >= space_weights[level]);
-          if (weight[level] != space_weights[level])
-            break;  // No need to modify the next levels.
-
-          weight[level]= 0x0001;
-        }
-      }
-    }
-  }
-}
-
 static void
 get_page_statistics(const MY_UCA *uca, int page, int *maxnum)
 {
@@ -618,8 +566,6 @@ main(int ac, char **av)
   load_uca_file(&uca, maxchar, pageloaded);
 
   set_implicit_weights(&uca, pageloaded);
-
-  move_space_weights(&uca);
 
   int pagemaxlen[MY_UCA_NPAGES];
 

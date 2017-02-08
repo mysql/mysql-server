@@ -89,7 +89,7 @@ SELECT 'a\t' < 'a';
 0
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
-0
+1
 SELECT 'a' = 'a ' collate utf8mb4_bin;
 'a' = 'a ' collate utf8mb4_bin
 1
@@ -111,7 +111,7 @@ SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 61	0	-1
 6100	0	-1
-6109	1	1
+6109	1	-1
 61	0	-1
 DROP TABLE t1;
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
