@@ -13824,7 +13824,7 @@ innobase_get_dd_tablespace_id(
 	char	db_name[NAME_LEN + 1];
 	char	table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(parent_table->name.m_name, db_name,
+	dd_parse_tbl_name(parent_table->name.m_name, db_name,
 				table_name, NULL);
 
 	THD*	thd = current_thd;
@@ -13916,7 +13916,7 @@ innobase_fts_create_one_index_dd_table(
 	char	db_name[NAME_LEN + 1];
 	char	table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -14091,7 +14091,7 @@ innobase_fts_create_one_common_dd_table(
 	char	db_name[NAME_LEN + 1];
 	char	table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -14257,7 +14257,7 @@ innobase_fts_drop_dd_table(
 	char    db_name[NAME_LEN + 1];
 	char    table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(name, db_name, table_name, NULL);
+	dd_parse_tbl_name(name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;

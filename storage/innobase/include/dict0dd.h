@@ -202,7 +202,7 @@ dd_set_autoinc(
 	dd::Properties&	se_private_data,
 	uint64		autoinc);
 
-/** Acquire a metadata lock.
+/** Acquire a shared metadata lock.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock
 @param[in]	db	schema name
@@ -364,7 +364,7 @@ dd_table_open_on_name(
 	bool			dict_locked,
 	ulint			ignore_err);
 
-/** Returns a table object based on table id.
+/** Returns a cached table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
@@ -374,7 +374,7 @@ dd_table_open_on_id_in_mem(
 	table_id_t	table_id,
 	ibool		dict_locked);
 
-/** Returns a table object based on table name.
+/** Returns a cached table object based on table name.
 @param[in]	name		table name
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
@@ -457,7 +457,7 @@ thd_to_innodb_session(
 is invalid */
 UNIV_INLINE
 bool
-innobase_parse_tbl_name(
+dd_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name,

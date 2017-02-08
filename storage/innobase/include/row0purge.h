@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -114,7 +114,7 @@ struct purge_node_t {
 	/** MDL ticket for the table name */
         MDL_ticket*             mdl;
 
-        /** MySQL table instance, or NULL if !table->has_index_on_virtual() */
+        /** MySQL table instance */
         TABLE*                  mysql_table;
 
 	/** compiler analysis info of an update */

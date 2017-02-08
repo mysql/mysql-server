@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,8 +83,8 @@ sym_tab_free_private(
 			if (sym->mdl) {
 				dd_table_close(sym->table, thd, &sym->mdl, true);
 			} else {
-				/* TODO: NewDD: Remove. This is only for the
-				InnoDB SYS TABLES */
+				/* TODO: NewDD: Remove with WL#9535. This is only
+				for the InnoDB SYS TABLES */
 				dd_table_close(sym->table, nullptr, nullptr, true);
 			}
 

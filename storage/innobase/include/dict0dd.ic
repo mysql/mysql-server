@@ -68,7 +68,7 @@ dd_get_space_id(const dd::Partition& partition)
 is invalid */
 UNIV_INLINE
 bool
-innobase_parse_tbl_name(
+dd_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name,
@@ -196,7 +196,7 @@ dd_set_hidden_unique_index(
         return(index);
 }
 
-/** Returns a table object based on table id.
+/** Returns a cached table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
@@ -241,7 +241,7 @@ dd_table_open_on_id_in_mem(
         return(table);
 }
 
-/** Returns a table object based on table name.
+/** Returns a cached table object based on table name.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
@@ -369,7 +369,7 @@ get_row_format_name(enum row_type row_format)
         return("ROW_FORMAT");
 }
 
-/** Acquire a metadata lock.
+/** Acquire a shared metadata lock.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock
 @param[in]	db	schema name

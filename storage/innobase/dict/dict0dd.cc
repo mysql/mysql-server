@@ -139,7 +139,7 @@ dd_table_open_on_dd_obj(
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
 
-		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		if (dd_part == NULL) {
 			ut_ad(innobase_strcasecmp(dd_table.name().c_str(),
 						  tbl_buf) == 0);
@@ -278,7 +278,7 @@ dd_table_open_on_id_low(
 	char	tbl_buf[NAME_LEN + 1];
 
 	if (tbl_name) {
-		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		ut_ad(dd_mdl_verify(thd, db_buf, tbl_buf));
 	}
 #endif /* UNIV_DEBUG */
@@ -417,7 +417,7 @@ dd_check_corrupted(dict_table_t*& table)
 			char	db_buf[NAME_LEN + 1];
 			char	tbl_buf[NAME_LEN + 1];
 
-			innobase_parse_tbl_name(
+			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf, NULL);
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
@@ -515,7 +515,7 @@ dd_table_open_on_id(
 		mutex_exit(&dict_sys->mutex);
 	} else {
 		for (;;) {
-			innobase_parse_tbl_name(
+			dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf, NULL);
 			strcpy(full_name, ib_table->name.m_name);
 
@@ -691,7 +691,7 @@ dd_table_open_on_name(
 		DBUG_RETURN(table);
 	}
 
-	if (!innobase_parse_tbl_name(name, db_buf, tbl_buf, NULL)) {
+	if (!dd_parse_tbl_name(name, db_buf, tbl_buf, NULL)) {
 		DBUG_RETURN(nullptr);
 	}
 
@@ -2268,7 +2268,7 @@ dd_table_check_for_child(
 		char    name_buf1[NAME_LEN + 1];
                 char    name_buf2[NAME_LEN + 1];
 
-		innobase_parse_tbl_name(m_table->name.m_name,
+		dd_parse_tbl_name(m_table->name.m_name,
 					name_buf1, name_buf2, NULL);
 
 		client->fetch_fk_children_uncached(name_buf1, name_buf2,
@@ -2746,7 +2746,7 @@ dd_open_fk_tables(
 			char		db_buf[NAME_LEN + 1];
 			char		tbl_buf[NAME_LEN + 1];
 
-			if (!innobase_parse_tbl_name(
+			if (!dd_parse_tbl_name(
 				fk_table_name.m_name,
 				db_buf, tbl_buf, NULL)) {
 				goto next;
