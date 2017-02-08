@@ -31,7 +31,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 # Clean up temporary tables left by crash.
-# TODO: Revisit this after WL#7016
+# TODO: Revisit this after WL#9536
 --disable_query_log
 SET SESSION debug= "+d,skip_dd_table_access_check";
 DELETE FROM mysql.index_column_usage WHERE column_id IN (
