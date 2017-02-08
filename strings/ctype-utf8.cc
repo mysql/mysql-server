@@ -8069,7 +8069,7 @@ my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 } // extern "C"
 
 
-static int
+static inline int
 my_valid_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            const uchar *s, const uchar *e)
 {
