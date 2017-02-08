@@ -11697,7 +11697,8 @@ ha_innopart::prepare_inplace_alter_table(
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
-	ctx_parts->ctx_array[m_tot_parts] = NULL;
+	memset(ctx_parts->ctx_array, 0,
+	       sizeof(inplace_alter_handler_ctx*) * (m_tot_parts + 1));
 
 	ctx_parts->prebuilt_array = UT_NEW_ARRAY_NOKEY(row_prebuilt_t*,
 						       m_tot_parts);
