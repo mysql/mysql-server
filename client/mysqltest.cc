@@ -41,6 +41,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <violite.h>
+#include <cmath> // std::isinf
 
 #include "client_priv.h"
 #include "my_compiler.h"
@@ -378,6 +379,7 @@ enum enum_commands {
   Q_INC,		    Q_DEC,
   Q_SOURCE,	    Q_DISCONNECT,
   Q_LET,		    Q_ECHO,
+  Q_EXPR,
   Q_WHILE,	    Q_END_BLOCK,
   Q_SYSTEM,	    Q_RESULT,
   Q_SAVE_MASTER_POS,
@@ -437,6 +439,7 @@ const char *command_names[]=
   "disconnect",
   "let",
   "echo",
+  "expr",
   "while",
   "end",
   "system",
@@ -4975,6 +4978,272 @@ static int do_save_master_pos()
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
   mysql_free_result(res);
   DBUG_RETURN(0);
+}
+
+
+/*
+  Check if a variable name is valid or not.
+
+  SYNOPSIS
+  check_variable_name()
+  var_name     - pointer to the beginning of variable name
+  var_name_end - pointer to the end of variable name
+  dollar_flag  - flag, if set then variable name should start with '$'
+*/
+static void check_variable_name(char *var_name,
+                                const char *var_name_end,
+                                my_bool dollar_flag)
+{
+  char save_var_name[5];
+  strmake(save_var_name, var_name, (var_name_end - var_name));
+
+  // Check if variable name should start with '$'
+  if (dollar_flag && (*var_name != '$'))
+    die ("Variable name '%s' should start with '$'", save_var_name);
+
+  if (*var_name == '$')
+    var_name++;
+
+  // Check if variable name exists or not
+  if (var_name == var_name_end)
+    die("Missing variable name.");
+
+  // Check for non alphanumeric character(s) in variable name
+  while ((var_name != var_name_end) && my_isvar(charset_info, *var_name))
+    var_name++;
+
+  if (var_name != var_name_end)
+    die ("Invalid variable name '%s'", save_var_name);
+}
+
+
+/*
+  Check if the pointer points to an operator.
+
+  SYNOPSIS
+  is_operator()
+  op - character pointer to mathematical expression
+*/
+static bool is_operator(char *op)
+{
+  if (*op == '+')
+    return true;
+  else if (*op == '-')
+    return true;
+  else if (*op == '*')
+    return true;
+  else if (*op == '/')
+    return true;
+  else if (*op == '%')
+    return true;
+  else if (*op == '&' && *(op + 1) == '&')
+    return true;
+  else if (*op == '|' && *(op + 1) == '|')
+    return true;
+  else if (*op == '&')
+    return true;
+  else if (*op == '|')
+    return true;
+  else if (*op == '^')
+    return true;
+  else if (*op == '>' && *(op + 1) == '>')
+    return true;
+  else if (*op == '<' && *(op + 1) == '<')
+    return true;
+
+  return false;
+}
+
+
+/*
+  Perform basic mathematical operation.
+
+  SYNOPSIS
+  do_expr()
+  command - command handle
+
+  DESCRIPTION
+  expr $<var_name>= <operand1> <operator> <operand2>
+  Perform basic mathematical operation and store the result
+  in a variable($<var_name>). Both <operand1> and <operand2>
+  should be valid MTR variables.
+
+  'expr' command supports only binary operators that operates
+  on two operands and manipulates them to return a result.
+
+  Following mathematical operators are supported.
+  1 Arithmetic Operators
+    1.1 Addition
+    1.2 Subtraction
+    1.3 Multiplication
+    1.4 Division
+    1.5 Modulo
+
+  2 Logical Operators
+    2.1 Logical AND
+    2.2 Logical OR
+
+  3 Bitwise Operators
+    3.1 Binary AND
+    3.2 Binary OR
+    3.3 Binary XOR
+    3.4 Binary Left Shift
+    3.5 Binary Right Shift
+
+  NOTE
+  1. Non-integer operand is truncated to integer value for operations
+     that dont support non-integer operand.
+  2. If the result is an infinite value, then expr command will return
+     'inf' keyword to indicate the result is infinity.
+  3. Division by 0 will result in an infinite value and expr command
+     will return 'inf' keyword to indicate the result is infinity.
+*/
+static void do_expr(struct st_command *command)
+{
+  DBUG_ENTER("do_expr");
+
+  char *p= command->first_argument;
+  if (!*p)
+    die("Missing arguments to expr command.");
+
+  // Find <var_name>
+  char *var_name= p;
+  while (*p && (*p != '=') && !my_isspace(charset_info, *p))
+    p++;
+  char *var_name_end= p;
+  check_variable_name(var_name, var_name_end, 0);
+
+  // Skip spaces between <var_name> and '='
+  while (my_isspace(charset_info, *p))
+    p++;
+
+  if (*p++ != '=')
+    die("Missing assignment operator in expr command.");
+
+  // Skip spaces after '='
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Save the mathematical expression in a variable
+  const char *expr= p;
+
+  // First operand in the expression
+  char *operand_name= p;
+  while (*p && !is_operator(p) && !my_isspace(charset_info, *p))
+    p++;
+  const char *operand_name_end= p;
+  check_variable_name(operand_name, operand_name_end, 1);
+  VAR *v1= var_get(operand_name, &operand_name_end, 0, 0);
+
+  double operand1;
+  if ((my_isdigit(charset_info, *v1->str_val)) ||
+      ((*v1->str_val == '-') && my_isdigit(charset_info, *(v1->str_val + 1))))
+    operand1= strtod(v1->str_val, NULL);
+  else
+    die ("Undefined/invalid first operand '$%s' in expr command.", v1->name);
+
+  // Skip spaces after the first operand
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Extract the operator
+  char *operator_start= p;
+  while (*p && (*p != '$') &&
+         !(my_isspace(charset_info, *p) || my_isvar(charset_info, *p)))
+    p++;
+
+  char math_operator[3];
+  strmake(math_operator, operator_start, (p - operator_start));
+  if (!strlen(math_operator))
+    die ("Missing mathematical operator in expr command.");
+
+  // Skip spaces after the operator
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Second operand in the expression
+  operand_name= p;
+  while (*p && !my_isspace(charset_info, *p))
+    p++;
+  operand_name_end= p;
+  check_variable_name(operand_name, operand_name_end, 1);
+  VAR *v2= var_get(operand_name, &operand_name_end, 0, 0);
+
+  double operand2;
+  if ((my_isdigit(charset_info, *v2->str_val)) ||
+      ((*v2->str_val == '-') && my_isdigit(charset_info, *(v2->str_val + 1))))
+    operand2= strtod(v2->str_val, NULL);
+  else
+    die ("Undefined/invalid second operand '$%s' in expr command.", v2->name);
+
+  // Skip spaces at the end
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Check for any spurious text after the second operand
+  if (*p)
+    die("Invalid mathematical expression '%s' in expr command.", expr);
+
+  double result;
+  // Arithmetic Operators
+  if (!strcmp(math_operator, "+"))
+    result= operand1 + operand2;
+  else if (!strcmp(math_operator, "-"))
+    result= operand1 - operand2;
+  else if (!strcmp(math_operator, "*"))
+    result= operand1 * operand2;
+  else if (!strcmp(math_operator, "/"))
+    result= operand1 / operand2;
+  else if (!strcmp(math_operator, "%"))
+    result= (int) operand1 % (int) operand2;
+  // Logical Operators
+  else if (!strcmp(math_operator, "&&"))
+    result= operand1 && operand2;
+  else if (!strcmp(math_operator, "||"))
+    result= operand1 || operand2;
+  // Bitwise Operators
+  else if (!strcmp(math_operator, "&"))
+    result= (int) operand1 & (int) operand2;
+  else if (!strcmp(math_operator, "|"))
+    result= (int) operand1 | (int) operand2;
+  else if (!strcmp(math_operator, "^"))
+    result= (int) operand1 ^ (int) operand2;
+  else if (!strcmp(math_operator, ">>"))
+    result= (int) operand1 >> (int) operand2;
+  else if (!strcmp(math_operator, "<<"))
+    result= (int) operand1 << (int) operand2;
+  else
+    die("Invalid operator '%s' in expr command", math_operator);
+
+  char buf[128];
+  size_t result_len;
+  // Check if result is an infinite value
+  if (!std::isinf(result))
+  {
+    const char *format= (result < 1e10 && result > -1e10) ? "%f" : "%g";
+    result_len= snprintf(buf, sizeof(buf), format, result);
+  }
+  else
+    // Print 'inf' if result is an infinite value
+    result_len= snprintf(buf, sizeof(buf), "%s", "inf");
+
+  if (result < 1e10 && result > -1e10)
+  {
+    /*
+      Remove the trailing 0's i.e 2.0000000 need to be represented
+      as 2 for consistency, 2.0010000 also becomes 2.001.
+    */
+    while (buf[result_len - 1] == '0')
+      result_len--;
+
+    // Remove trailing '.' if exists
+     if (buf[result_len - 1] == '.')
+      result_len--;
+  }
+
+  var_set(var_name, var_name_end, buf, buf + result_len);
+  command->last_argument= command->end;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -9607,6 +9876,9 @@ int main(int argc, char **argv)
         display_result_lower= TRUE;
         break;
       case Q_LET: do_let(command); break;
+      case Q_EXPR:
+        do_expr(command);
+        break;
       case Q_EVAL_RESULT:
         die("'eval_result' command  is deprecated");
       case Q_EVAL:

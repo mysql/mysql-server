@@ -1303,3 +1303,162 @@ Paris
 # Destination contains a file with the same name as a
 # subdirectory in source, should fail
 # Source directory path and destination directory path are same, should fail
+#
+# BUG#24806741 : MTR: INTRODUCE "EXPR" COMMAND
+#
+#
+# Arithmetic operation
+#
+# Addition operation
+expr $res= 10 + 20
+30
+expr $res= 20 + (-10)
+10
+expr $res= -10 + 10.5
+0.5
+expr $res= -3.5 + 10.5
+7
+expr $res= 1e10 + 1e10
+2e+10
+expr $res= 1e10 + 1e8
+1.01e+10
+# Subtraction operation
+expr $res= 10 - 20
+-10
+expr $res= 20 - (-10)
+30
+expr $res= -10 - 10
+-20
+expr $res= 10.5 - 10
+0.5
+expr $res= 1e10 - 1e8
+9900000000
+expr $res= 1e8 - 1e10
+-9900000000
+# Multiplication operation
+expr $res= 10 * 20
+200
+expr $res= 10 * (-10)
+-100
+expr $res= -10 * 10.5
+-105
+expr $res= 10.5 * (-3.5)
+-36.75
+expr $res= 1e10 * 1e8
+1e+18
+# Division operation
+expr $res= 10 / 20
+0.5
+expr $res= 20 / (-10)
+-2
+expr $res= 10.5 / (-3.5)
+-3
+expr $res= 1e10 / 1e8
+100
+# Modulo operation
+expr $res= 10 % 20
+10
+expr $res= 20 % (-10)
+0
+expr $res= 10.5 % -3.5
+1
+#
+# Logical operation
+#
+# Logical AND operation
+expr $res= 10 && 20
+1
+expr $res= -10 && 0
+0
+expr $res= 20 && -10
+1
+expr $res= 10.5 && -3.5
+1
+expr $res= -3.5 && 0
+0
+expr $res= 0 && 0
+0
+# Logical OR operation
+expr $res= 10 || 20
+1
+expr $res= -10 || 0
+1
+expr $res= -10 || -3.5
+1
+expr $res= 10.5 || 0
+1
+expr $res= 0 || 0
+0
+#
+# Bitwise operation
+#
+# Binary AND operation
+expr $res= 10 & 20
+0
+expr $res= 20 & 10.5
+0
+expr $res= 20 & 0
+0
+expr $res= 10 & 2
+2
+# Binary OR operation
+expr $res= 10 | 20
+30
+expr $res= 20 | 10.5
+30
+expr $res= 20 | 0
+20
+expr $res= 0 | 0
+0
+# Binary XOR operation
+expr $res= 10 ^ 20
+30
+expr $res= 20 ^ 10.5
+30
+expr $res= 20 ^ 0
+20
+# Binary right shift operation
+expr $res= 10 >> 2
+2
+expr $res= 20 >> 3
+2
+expr $res= 20 >> 0
+20
+# Binary left shift operation
+expr $res= 10 << 2
+40
+expr $res= 20 << 3
+160
+expr $res= 20 << 0
+20
+# Infinite result
+expr $res= 1e308 + 1e308
+inf
+# Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
+expr $res= 10 / 0
+inf
+# Invalid mathematical expressions
+expr
+mysqltest: At line 1: Missing arguments to expr command.
+expr $res
+mysqltest: At line 1: Missing assignment operator in expr command.
+expr $res= $a
+mysqltest: At line 1: Undefined/invalid first operand '$a' in expr command.
+expr $res= $b + $a
+mysqltest: At line 1: Undefined/invalid first operand '$b' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $
+mysqltest: At line 1: Missing variable name.
+expr $re@s= $a + $a
+mysqltest: At line 1: Invalid variable name '$re@s'
+expr $res= $a + $a**
+mysqltest: At line 1: Invalid variable name '$a**'
+expr $res= $a + $b + $c
+mysqltest: At line 1: Invalid mathematical expression '$a + $b + $c' in expr command.
+expr $res= $a + b
+mysqltest: At line 1: Variable name 'b' should start with '$'
+expr $res= $a ++ $b
+mysqltest: At line 1: Invalid operator '++' in expr command
