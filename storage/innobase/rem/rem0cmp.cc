@@ -91,6 +91,19 @@ innobase_mysql_cmp(
 	uint cs_num = (uint) dtype_get_charset_coll(prtype);
 
 	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
+		if ((prtype & DATA_MYSQL_TYPE_MASK) == MYSQL_TYPE_STRING &&
+		    cs->pad_attribute == NO_PAD) {
+			/* MySQL specifies that CHAR fields are stripped of
+			trailing spaces before being returned from the database.
+			Normally this is done in Field_string::val_str(),
+			but since we don't involve the Field classes for internal
+			index comparisons, we need to do the same thing here
+			for NO PAD collations. (If not, strnncollsp will ignore
+			the spaces for us, so we don't need to do it here.) */
+			a_length = cs->cset->lengthsp(cs, (const char *) a, a_length);
+			b_length = cs->cset->lengthsp(cs, (const char *) b, b_length);
+		}
+
 		return(cs->coll->strnncollsp(
 			       cs, a, a_length, b, b_length));
 	}
