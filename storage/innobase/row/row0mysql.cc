@@ -4207,6 +4207,7 @@ row_drop_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	bool		is_intrinsic_temp_table	= false;
 	THD*		thd = trx->mysql_thd;
+	dd::Table* table_def = nullptr;
 
 	DBUG_ENTER("row_drop_table_for_mysql");
 	DBUG_PRINT("row_drop_table_for_mysql", ("table: '%s'", name));
@@ -4549,7 +4550,7 @@ row_drop_table_for_mysql(
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
 		/* Make sure the data_dir_path is set if needed. */
-		dict_get_and_save_data_dir_path(table, true);
+		dd_get_and_save_data_dir_path(table, table_def, true);
 
 		err = row_drop_ancillary_fts_tables(table, trx);
 		if (err != DB_SUCCESS) {

@@ -485,7 +485,7 @@ row_quiesce_write_cfg(
 	dberr_t			err;
 	char			name[OS_FILE_MAX_PATH];
 
-	srv_get_meta_data_filename(table, name, sizeof(name));
+	dd_get_meta_data_filename(table, NULL, name, sizeof(name));
 
 	ib::info() << "Writing table metadata to '" << name << "'";
 
@@ -869,7 +869,7 @@ row_quiesce_table_complete(
 	the user tries to drop the database (remove directory). */
 	char		cfg_name[OS_FILE_MAX_PATH];
 
-	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
+	dd_get_meta_data_filename(table, NULL, cfg_name, sizeof(cfg_name));
 
 	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 

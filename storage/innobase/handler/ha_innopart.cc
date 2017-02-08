@@ -2350,7 +2350,7 @@ ha_innopart::update_part_elem(
 	dict_table_t*		ib_table,
 	bool			display_tablespace)
 {
-	dict_get_and_save_data_dir_path(ib_table, false);
+	dd_get_and_save_data_dir_path<dd::Partition>(ib_table, NULL, false);
 	if (ib_table->data_dir_path != NULL) {
 		if (part_elem->data_file_name == NULL
 		    || strcmp(ib_table->data_dir_path,

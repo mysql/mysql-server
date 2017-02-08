@@ -2547,15 +2547,7 @@ dict_load_table_low(
 
 	return(NULL);
 }
-#endif /* INNODB_NO_NEW_DD */
 
-/********************************************************************//**
-Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path and replace the 'databasename/tablename.ibd'
-portion with 'tablename'.
-This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
-Make this data directory path only if it has not yet been saved. */
-static
 void
 dict_save_data_dir_path(
 /*====================*/
@@ -2585,48 +2577,7 @@ dict_save_data_dir_path(
 		ut_free(default_filepath);
 	}
 }
-
-/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
-was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
-@param[in]	table		Table object
-@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
-void
-dict_get_and_save_data_dir_path(
-	dict_table_t*	table,
-	bool		dict_mutex_own)
-{
-	if (DICT_TF_HAS_DATA_DIR(table->flags)
-	    && (!table->data_dir_path)) {
-		char*	path = fil_space_get_first_path(table->space);
-
-		if (!dict_mutex_own) {
-			dict_mutex_enter_for_mysql();
-		}
-
-#ifdef INNODB_NO_NEW_DD
-		if (path == NULL) {
-			path = dict_get_first_path(table->space);
-		}
 #endif /* INNODB_NO_NEW_DD */
-
-		if (path != NULL) {
-			dict_save_data_dir_path(table, path);
-			ut_free(path);
-		}
-
-		if (table->data_dir_path == NULL) {
-			/* Since we did not set the table data_dir_path,
-			unset the flag.  This does not change SYS_DATAFILES
-			or SYS_TABLES or FSP_FLAGS on the header page of the
-			tablespace, but it makes dict_table_t consistent. */
-			table->flags &= ~DICT_TF_MASK_DATA_DIR;
-		}
-
-		if (!dict_mutex_own) {
-			dict_mutex_exit_for_mysql();
-		}
-	}
-}
 
 /** Make sure the tablespace name is saved in dict_table_t if the table
 uses a general tablespace.

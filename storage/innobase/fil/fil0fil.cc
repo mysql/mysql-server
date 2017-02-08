@@ -30,6 +30,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0space.h"
@@ -5688,7 +5689,7 @@ fil_tablespace_iterate(
 			return(DB_CORRUPTION););
 
 	/* Make sure the data_dir_path is set. */
-	dict_get_and_save_data_dir_path(table, false);
+	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);

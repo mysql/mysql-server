@@ -1773,7 +1773,7 @@ dict_table_rename_in_cache(
 		ut_ad(!table->is_temporary());
 
 		/* Make sure the data_dir_path is set. */
-		dict_get_and_save_data_dir_path(table, true);
+		dd_get_and_save_data_dir_path<dd::Table>(table, NULL, true);
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);

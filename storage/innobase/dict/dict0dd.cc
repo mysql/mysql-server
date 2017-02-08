@@ -2444,26 +2444,54 @@ dd_save_data_dir_path(
 }
 
 /** Get the first filepath from mysql.tablespace_datafiles for a given space_id.
-@param[in]	space_id	Tablespace ID
+@param[in]	heap		heap for store file name.
+@param[in]	table		dict table
+@param[in]	dd_table	dd table obj
 @return First filepath (caller must invoke ut_free() on it)
 @retval NULL if no mysql.tablespace_datafilesentry was found. */
 template<typename Table>
 char*
 dd_get_first_path(
+	mem_heap_t*				heap,
+	dict_table_t*			table,
 	const Table*			dd_table)
 {
 	char*		filepath = NULL;
-
 	dd::Tablespace*		dd_space = nullptr;
 	THD*			thd = current_thd;
+	MDL_ticket*     mdl = nullptr;
+	dd::Object_id   dd_space_id;
 
 	ut_ad(!srv_is_being_shutdown);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
-		->tablespace_id();
+	if (dd_table == NULL) {
+		char		db_buf[NAME_LEN + 1];
+		char		tbl_buf[NAME_LEN + 1];
+		const dd::Table*	table_def = nullptr;
+
+		if (!innobase_parse_tbl_name(
+			table->name.m_name,
+			db_buf, tbl_buf, NULL)) {
+			return(filepath);
+		}
+
+		dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf);
+
+		if (client->acquire(db_buf, tbl_buf, &table_def)
+			|| table_def == nullptr) {
+			dd_mdl_release(thd, &mdl);
+			return(filepath);
+		}
+
+		dd_space_id = (*table_def->indexes().begin())->tablespace_id();
+
+		dd_mdl_release(thd, &mdl);
+	} else {
+		dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
+	}
 
 	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
 		dd_space_id, &dd_space)) {
@@ -2474,7 +2502,7 @@ dd_get_first_path(
 	dd::Tablespace_file*	dd_file = const_cast<
 		dd::Tablespace_file*>(*(dd_space->files().begin()));
 
-	filepath = const_cast<char*>(dd_file->filename().c_str());
+	filepath = mem_heap_strdup(heap, dd_file->filename().c_str());
 
 	return(filepath);
 }
@@ -2490,6 +2518,8 @@ dd_get_and_save_data_dir_path(
 	const Table*	dd_table,
 	bool		dict_mutex_own)
 {
+	mem_heap_t*		heap = NULL;
+
 	if (DICT_TF_HAS_DATA_DIR(table->flags)
 	    && (!table->data_dir_path)) {
 		char*	path = fil_space_get_first_path(table->space);
@@ -2499,7 +2529,8 @@ dd_get_and_save_data_dir_path(
 		}
 
 		if (path == NULL) {
-			path = dd_get_first_path(dd_table);
+			heap = mem_heap_create(1000);
+			path = dd_get_first_path(heap, table, dd_table);
 		}
 
 		if (path != NULL) {
@@ -2515,9 +2546,84 @@ dd_get_and_save_data_dir_path(
 		if (!dict_mutex_own) {
 			dict_mutex_exit_for_mysql();
 		}
+
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 }
 
+template void dd_get_and_save_data_dir_path<dd::Table>(
+	dict_table_t*, const dd::Table*, bool);
+
+template void dd_get_and_save_data_dir_path<dd::Partition>(
+	dict_table_t*, const dd::Partition*, bool);
+
+/** Get the meta-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
+void
+dd_get_meta_data_filename(
+	dict_table_t*	table,
+	dd::Table*		dd_table,
+	char*		filename,
+	ulint		max_len)
+{
+	ulint		len;
+	char*		path;
+
+	/* Make sure the data_dir_path is set. */
+	if (dd_table == NULL) {
+		THD*			thd = current_thd;
+		MDL_ticket*     mdl = nullptr;
+		char		db_buf[NAME_LEN + 1];
+		char		tbl_buf[NAME_LEN + 1];
+		const dd::Table*	table_def = nullptr;
+
+		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+		if (!innobase_parse_tbl_name(
+			table->name.m_name,
+			db_buf, tbl_buf, NULL)) {
+			return;
+		}
+
+		dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf);
+
+		if (client->acquire(db_buf, tbl_buf, &table_def)
+			|| table_def == nullptr) {
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		dd_get_and_save_data_dir_path(table, table_def, false);
+		dd_mdl_release(thd, &mdl);
+	}
+	else {
+		dd_get_and_save_data_dir_path(table, dd_table, false);
+	}
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		ut_a(table->data_dir_path);
+
+		path = fil_make_filepath(
+			table->data_dir_path, table->name.m_name, CFG, true);
+	}
+	else {
+		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
+	}
+
+	ut_a(path);
+	len = ut_strlen(path);
+	ut_a(max_len >= len);
+
+	strcpy(filename, path);
+
+	ut_free(path);
+}
 
 /** Opens a tablespace for dd_load_table_one()
 @param[in,out]	dd_table	dd table
@@ -2613,14 +2719,12 @@ dd_load_tablespace(
 		fil_system or SYS_TABLESPACES */
 		dict_get_and_save_space_name(table, true);
 
-#ifdef INNODB_NO_NEW_DD
-		filepath = dict_get_first_path(table->space);
+		filepath = dd_get_first_path(heap, table, dd_table);
 		if (filepath == NULL) {
 			ib::warn() << "Could not find the filepath"
 				" for table " << table->name <<
 				", space ID " << table->space;
 		}
-#endif /* INNODB_NO_NEW_DD */
 	}
 
 	/* Try to open the tablespace.  We set the 2nd param (fix_dict) to

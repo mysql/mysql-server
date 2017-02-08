@@ -12174,8 +12174,8 @@ ha_innobase::update_create_info(
 		create_info->auto_increment_value = stats.auto_increment_value;
 	}
 
-	/* Update the DATA DIRECTORY name from SYS_DATAFILES. */
-	dict_get_and_save_data_dir_path(m_prebuilt->table, false);
+	/* Update the DATA DIRECTORY name. */
+	dd_get_and_save_data_dir_path<dd::Table>(m_prebuilt->table, NULL, false);
 
 	if (m_prebuilt->table->data_dir_path) {
 		create_info->data_file_name = m_prebuilt->table->data_dir_path;
@@ -14856,7 +14856,7 @@ ha_innobase::discard_or_import_tablespace(
 
 		DBUG_RETURN(HA_ERR_TABLE_EXIST);
 	} else {
-		err = row_import_for_mysql(dict_table, m_prebuilt);
+		err = row_import_for_mysql(dict_table, table_def, m_prebuilt);
 
 		if (err == DB_SUCCESS) {
 
@@ -14949,7 +14949,7 @@ ha_innobase::truncate(dd::Table *table_def)
 	if (m_prebuilt->table->is_temporary()) {
 		info.options|= HA_LEX_CREATE_TMP_TABLE;
 	} else {
-		dict_get_and_save_data_dir_path(m_prebuilt->table, false);
+		dd_get_and_save_data_dir_path<dd::Table>(m_prebuilt->table, NULL, false);
 		if (m_prebuilt->table->tablespace != NULL) {
 			tsname = mem_strdup(m_prebuilt->table->tablespace);
 		}

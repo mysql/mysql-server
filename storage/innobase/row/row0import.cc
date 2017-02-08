@@ -3292,6 +3292,7 @@ dberr_t
 row_import_read_cfg(
 /*================*/
 	dict_table_t*	table,	/*!< in: table */
+	dd::Table*		table_def,
 	THD*		thd,	/*!< in: session */
 	row_import&	cfg)	/*!< out: contents of the .cfg file */
 {
@@ -3300,7 +3301,7 @@ row_import_read_cfg(
 
 	cfg.m_table = table;
 
-	srv_get_meta_data_filename(table, name, sizeof(name));
+	dd_get_meta_data_filename(table, table_def, name, sizeof(name));
 
 	FILE*	file = fopen(name, "rb");
 
@@ -3499,6 +3500,7 @@ dberr_t
 row_import_for_mysql(
 /*=================*/
 	dict_table_t*	table,		/*!< in/out: table */
+	dd::Table*		table_def,
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
 {
 	dberr_t		err;
@@ -3569,7 +3571,7 @@ row_import_for_mysql(
 
 	memset(&cfg, 0x0, sizeof(cfg));
 
-	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
+	err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
 	/* Check if the table column definitions match the contents
 	of the config file. */
@@ -3724,7 +3726,7 @@ row_import_for_mysql(
 	/* If the table is stored in a remote tablespace, we need to
 	determine that filepath from the link file and system tables.
 	Find the space ID in SYS_TABLES since this is an ALTER TABLE. */
-	dict_get_and_save_data_dir_path(table, true);
+	dd_get_and_save_data_dir_path(table, table_def, true);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);

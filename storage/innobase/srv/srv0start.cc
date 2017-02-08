@@ -2875,41 +2875,6 @@ srv_shutdown_table_bg_threads(void)
 }
 #endif
 
-/** Get the meta-data filename from the table name for a
-single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length */
-void
-srv_get_meta_data_filename(
-	dict_table_t*	table,
-	char*		filename,
-	ulint		max_len)
-{
-	ulint		len;
-	char*		path;
-
-	/* Make sure the data_dir_path is set. */
-	dict_get_and_save_data_dir_path(table, false);
-
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
-
-		path = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, CFG, true);
-	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
-	}
-
-	ut_a(path);
-	len = ut_strlen(path);
-	ut_a(max_len >= len);
-
-	strcpy(filename, path);
-
-	ut_free(path);
-}
-
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
@@ -2925,7 +2890,7 @@ srv_get_encryption_data_filename(
 	char*		path;
 
 	/* Make sure the data_dir_path is set. */
-	dict_get_and_save_data_dir_path(table, false);
+	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);

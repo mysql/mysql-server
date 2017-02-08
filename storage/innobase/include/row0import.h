@@ -42,6 +42,7 @@ dberr_t
 row_import_for_mysql(
 /*=================*/
 	dict_table_t*	table,		/*!< in/out: table */
+	dd::Table*		table_def,
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct
 						in MySQL */
 	MY_ATTRIBUTE((warn_unused_result));

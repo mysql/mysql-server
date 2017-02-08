@@ -480,6 +480,29 @@ dd_process_dd_indexes_rec(
 	dict_index_t*	index,
 	dict_table_t*	dd_indexes);
 
+/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
+was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
+@param[in]	table		Table object
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
+template<typename Table>
+void
+dd_get_and_save_data_dir_path(
+	dict_table_t*	table,
+	const Table*	dd_table,
+	bool		dict_mutex_own);
+
+/** Get the meta-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
+void
+dd_get_meta_data_filename(
+	dict_table_t*	table,
+	dd::Table*		dd_table,
+	char*		filename,
+	ulint		max_len);
+
 /** Open foreign tables reference a table.
 @param[in,out]	client		data dictionary client
 @param[in]	fk_list		foreign key name list

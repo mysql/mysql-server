@@ -145,11 +145,11 @@ t_utf8_3	CREATE TABLE `t_utf8_3` (
   `a` int(11) DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `s_வணக்கம்` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/#sql_1	#sql_1	0	5	Dynamic	0	General
 test/t !@#$%^&*()_+-={}[]|\?<>,.	s_ !@#$%^&*()_+-={}[]|\?<>,. 	0	5	Dynamic	0	General
@@ -303,7 +303,7 @@ CREATE TABLESPACE s5_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 ERROR HY000: Duplicate file name for tablespace 's5_def'
 CREATE TABLESPACE s6_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd';
 ERROR HY000: Failed to create TABLESPACE s6_def
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -338,10 +338,10 @@ DROP TABLESPACE `s_DEF`;
 # Make a file-per-table tablespace name and try to use it as a General tablespace
 #
 CREATE TABLE t_single (a int, b text);
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	innodb_file_per_table.##	0	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_def	GENERAL	0	0	Dynamic	MYSQLD_DATADIR/test/t_single.ibd
 === information_schema.files ===
@@ -387,7 +387,7 @@ Error	3119	InnoDB: A general tablespace name cannot contain '/'.
 Error	1528	Failed to create TABLESPACE TEST/T_SINGLE
 Error	1031	Table storage engine for 'TEST/T_SINGLE' doesn't have this option
 DROP TABLE t_single;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -412,11 +412,11 @@ INSERT INTO t_dyn_in_def VALUES (1,'a'),(2,'b'),(3,'c');
 #
 DROP TABLESPACE s_def;
 ERROR HY000: Tablespace `s_def` is not empty.
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_def_in_def	s_def	0	5	Dynamic	0	General
 test/t_dyn_in_def	s_def	0	5	Dynamic	0	General
@@ -442,11 +442,11 @@ DROP TABLE t_red_in_def;
 CREATE TABLE test/t_def_in_def (a int, b text) TABLESPACE s_def;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/t_def_in_def (a int, b text) TABLESPACE s_def' at line 1
 CREATE TABLE `test/t_def_in_def` (a int, b text) TABLESPACE s_def;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_def_in_def	s_def	0	5	Dynamic	0	General
 test/test/t_def_in_def	s_def	0	5	Dynamic	0	General
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -495,7 +495,7 @@ ERROR HY000: Tablespace test/s_single doesn't exist.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3510	Tablespace test/s_single doesn't exist.
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -563,11 +563,11 @@ ERROR HY000: Incorrect path value: 'test'
 SHOW WARNINGS;
 Level	Code	Message
 Error	1525	Incorrect path value: 'test'
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_def_in_def	s_def	0	5	Dynamic	0	General
 test/test/t_def_in_def	s_def	0	5	Dynamic	0	General
@@ -585,11 +585,11 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Tablespace `innodb_system` cannot contain a COMPRESSED table
 Error	1031	Table storage engine for 't_zip_in_system' doesn't have this option
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_system	innodb_system	0	5	Compact	0	System
 test/t_dyn_in_system	innodb_system	0	5	Dynamic	0	System
@@ -613,11 +613,11 @@ CREATE TABLE t_red_as_file_per_table (a int, b text) TABLESPACE=innodb_file_per_
 CREATE TABLE t_com_as_file_per_table (a int, b text) TABLESPACE=innodb_file_per_table ROW_FORMAT=compact;
 CREATE TABLE t_dyn_as_file_per_table (a int, b text) TABLESPACE=innodb_file_per_table ROW_FORMAT=dynamic;
 CREATE TABLE t_def_as_remote (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_as_file_per_table	innodb_file_per_table.##	0	5	Compact	0	Single
 test/t_def_as_remote	innodb_file_per_table.##	0	5	Dynamic	0	Single
@@ -662,11 +662,11 @@ ALTER TABLE `t_red_as_file_per_table` TABLESPACE=`s_multiple`, RENAME TO `t_red_
 ALTER TABLE `t_com_as_file_per_table` TABLESPACE=`s_multiple`, RENAME TO `t_com_was_file_per_table`;
 ALTER TABLE `t_dyn_as_file_per_table` TABLESPACE=`s_multiple`, RENAME TO `t_dyn_was_file_per_table`;
 ALTER TABLE `t_def_as_remote` TABLESPACE=`s_multiple`, RENAME TO `t_def_was_remote`;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_was_file_per_table	s_multiple	0	5	Compact	0	General
 test/t_def_was_remote	s_multiple	0	5	Dynamic	0	General
@@ -687,11 +687,11 @@ ALTER TABLE `t_dyn_was_file_per_table` TABLESPACE=`innodb_file_per_table`, RENAM
 ALTER TABLE `t_def_was_remote` TABLESPACE=`innodb_file_per_table`, DATA DIRECTORY='MYSQL_TMP_DIR', RENAME TO `t_def_to_file_per_table`;
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_to_file_per_table	innodb_file_per_table.##	0	5	Compact	0	Single
 test/t_def_to_file_per_table	innodb_file_per_table.##	0	5	Dynamic	0	Single
@@ -762,7 +762,7 @@ CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' MAX_SIZE = 1G;
 CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' NODEGROUP = 5;
 CREATE TABLESPACE s_ignore4 ADD DATAFILE 's_ignore4.ibd' WAIT;
 CREATE TABLESPACE s_ignore5 ADD DATAFILE 's_ignore5.ibd' COMMENT = 'This comment is ignored';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -792,7 +792,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_in_def	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_in_def ROW_FORMAT=redundant;
@@ -945,7 +945,7 @@ t	CREATE TABLE `t` (
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t	s_def	0	4	Dynamic	0	General
 INSERT INTO t VALUES(200, "after RENAME TABLE t_in_def TO t");
@@ -962,7 +962,7 @@ aa	left(bb,50)
 #
 CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
 CREATE TABLESPACE s_alt2 ADD DATAFILE 's_alt2.ibd';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -977,7 +977,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
 ) /*!50100 TABLESPACE `s_alt1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_alt1	0	4	Dynamic	0	General
 ALTER TABLE t_nomad TABLESPACE s_alt2;
@@ -991,7 +991,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
 ) /*!50100 TABLESPACE `s_alt2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_alt2	0	4	Dynamic	0	General
 ALTER TABLE t_nomad TABLESPACE s_def, DROP COLUMN bb;
@@ -1003,10 +1003,10 @@ t_nomad	CREATE TABLE `t_nomad` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_def	0	3	Dynamic	0	General
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -1029,7 +1029,7 @@ t_system	CREATE TABLE `t_system` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	0	4	Dynamic	0	System
 ALTER TABLE t_system TABLESPACE s_def;
@@ -1041,7 +1041,7 @@ t_system	CREATE TABLE `t_system` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_system TABLESPACE=`innodb_system`;
@@ -1053,7 +1053,7 @@ t_system	CREATE TABLE `t_system` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	0	4	Dynamic	0	System
 #
@@ -1131,7 +1131,7 @@ t_still_system	CREATE TABLE `t_still_system` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_still_system	innodb_system	0	4	Dynamic	0	System
 DROP TABLE t_still_system;
@@ -1204,7 +1204,7 @@ t_single	CREATE TABLE `t_single` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	innodb_file_per_table.##	0	4	Dynamic	0	Single
 ALTER TABLE t_single TABLESPACE s_def;
@@ -1216,7 +1216,7 @@ t_single	CREATE TABLE `t_single` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	s_def	0	4	Dynamic	0	General
 DROP TABLE t_single;
@@ -1243,7 +1243,7 @@ t_innodb	CREATE TABLE `t_innodb` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_innodb	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_innodb RENAME TO t_myisam, ENGINE=MyISAM;
@@ -1271,7 +1271,7 @@ t_innodb	CREATE TABLE `t_innodb` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_innodb	s_def	0	4	Dynamic	0	General
 DROP TABLE t_innodb;
@@ -1290,7 +1290,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_dyn_in_s_def ENGINE=MyISAM;
@@ -1303,7 +1303,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 ALTER TABLE t_dyn_in_s_def ENGINE=InnoDB;
 INSERT INTO t_dyn_in_s_def(b) VALUES(33);
@@ -1315,7 +1315,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_dyn_in_s_def ENGINE=Memory;
@@ -1328,7 +1328,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MEMORY AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 ALTER TABLE t_dyn_in_s_def ENGINE=InnoDB;
 INSERT INTO t_dyn_in_s_def(b) VALUES(55);
@@ -1347,7 +1347,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	0	4	Dynamic	0	General
 CHECK TABLE t_dyn_in_s_def;
@@ -1369,7 +1369,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_short_life` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_short_life	0	4	Dynamic	0	General
 ALTER TABLE t_nomad ENGINE=MyISAM;
@@ -1382,7 +1382,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_short_life` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 DROP TABLESPACE s_short_life;
 ALTER TABLE t_nomad ENGINE=InnoDB;
@@ -1397,7 +1397,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_shorter_life` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_shorter_life	0	4	Dynamic	0	General
 DROP TABLE t_nomad;
@@ -1430,7 +1430,7 @@ t_general
 t_single
 t_system
 USE test;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_general	s_def	0	4	Dynamic	0	General
 test/t_single	innodb_file_per_table.##	0	4	Dynamic	0	Single
@@ -1438,17 +1438,17 @@ test/t_system	innodb_system	0	4	Dynamic	0	System
 test1/t_general	s_def	0	4	Dynamic	0	General
 test1/t_single	innodb_file_per_table.##	0	4	Dynamic	0	Single
 test1/t_system	innodb_system	0	4	Dynamic	0	System
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 DROP DATABASE test1;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_general	s_def	0	4	Dynamic	0	General
 test/t_single	innodb_file_per_table.##	0	4	Dynamic	0	Single
 test/t_system	innodb_system	0	4	Dynamic	0	System
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -1465,7 +1465,7 @@ CREATE TABLE t2 (b int , foreign key (b) references t1(a)) ENGINE=innodb ;
 INSERT INTO t1 VALUES (100);
 INSERT INTO t1 VALUES (200);
 INSERT INTO t2 VALUES (100);
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	0	3	Dynamic	0	General
 test/t2	innodb_system	0	4	Dynamic	0	System
@@ -1492,11 +1492,11 @@ CREATE PROCEDURE p1()
 BEGIN
 ALTER TABLE t1 TABLESPACE=s1;
 END|
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	innodb_system	0	4	Dynamic	0	System
 CALL p1();
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	0	4	Dynamic	0	General
 DROP PROCEDURE p1;
