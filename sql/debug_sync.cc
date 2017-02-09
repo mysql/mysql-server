@@ -356,6 +356,7 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_systime.h"

@@ -1,6 +1,5 @@
 ## Various regression tests
 ##
---let $dont_load_plugin = 1
 --let $wait_for_unixsocket_status = no_wait
 --source ../include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
@@ -187,3 +186,4 @@ EOF
 
 ##cleanup
 
+UNINSTALL PLUGIN mysqlx;

@@ -15,7 +15,6 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/have_perfschema.inc
 --source include/gtid_utils.inc
 
 # Total number of connection each performing one insert into table

@@ -24,6 +24,7 @@
 
 #include <string.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"
@@ -289,11 +290,12 @@ search:
     if (safe_index == 0)
     {
       /* Record [0] is reserved. */
-      safe_index = 1;
+      continue;
     }
 
     /* Add a new record in digest stat array. */
-    pfs = &statements_digest_stat_array[safe_index];
+    DBUG_ASSERT(safe_index < digest_max);
+    pfs= &statements_digest_stat_array[safe_index];
 
     if (pfs->m_lock.is_free())
     {

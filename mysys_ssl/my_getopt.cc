@@ -27,9 +27,13 @@
 #include <stdlib.h>
 
 #include "../mysys/mysys_priv.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
 

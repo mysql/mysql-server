@@ -28,105 +28,73 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.ROUTINES;
 Field	Type	Null	Key	Default	Extra
-SPECIFIC_NAME	varchar(64)	NO			
-ROUTINE_CATALOG	varchar(512)	NO			
-ROUTINE_SCHEMA	varchar(64)	NO			
-ROUTINE_NAME	varchar(64)	NO			
-ROUTINE_TYPE	varchar(9)	NO			
-DATA_TYPE	varchar(64)	NO			
-CHARACTER_MAXIMUM_LENGTH	int(21)	YES			
-CHARACTER_OCTET_LENGTH	int(21)	YES			
-NUMERIC_PRECISION	bigint(21)	YES			
-NUMERIC_SCALE	int(21)	YES			
-DATETIME_PRECISION	bigint(21)	YES			
-CHARACTER_SET_NAME	varchar(64)	YES			
-COLLATION_NAME	varchar(64)	YES			
-DTD_IDENTIFIER	varchar(65535)	YES			
-ROUTINE_BODY	varchar(8)	NO			
-ROUTINE_DEFINITION	varchar(65535)	YES			
-EXTERNAL_NAME	varchar(64)	YES			
-EXTERNAL_LANGUAGE	varchar(64)	YES			
-PARAMETER_STYLE	varchar(8)	NO			
+SPECIFIC_NAME	varchar(64)	NO		NULL	
+ROUTINE_CATALOG	varchar(64)	NO		NULL	
+ROUTINE_SCHEMA	varchar(64)	NO		NULL	
+ROUTINE_NAME	varchar(64)	NO		NULL	
+ROUTINE_TYPE	enum('FUNCTION','PROCEDURE')	NO		NULL	
+DATA_TYPE	longtext	NO		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
+NUMERIC_PRECISION	int(10) unsigned	YES		NULL	
+NUMERIC_SCALE	int(10) unsigned	YES		NULL	
+DATETIME_PRECISION	int(10) unsigned	YES		NULL	
+CHARACTER_SET_NAME	varchar(64)	YES		NULL	
+COLLATION_NAME	varchar(64)	YES		NULL	
+DTD_IDENTIFIER	longtext	YES		NULL	
+ROUTINE_BODY	varchar(3)	NO			
+ROUTINE_DEFINITION	longtext	YES		NULL	
+EXTERNAL_NAME	binary(0)	YES		NULL	
+EXTERNAL_LANGUAGE	binary(0)	YES		NULL	
+PARAMETER_STYLE	varchar(3)	NO			
 IS_DETERMINISTIC	varchar(3)	NO			
-SQL_DATA_ACCESS	varchar(64)	NO			
-SQL_PATH	varchar(64)	YES			
-SECURITY_TYPE	varchar(7)	NO			
-CREATED	datetime	NO			
-LAST_ALTERED	datetime	NO			
-SQL_MODE	varchar(8192)	NO			
-ROUTINE_COMMENT	varchar(65535)	NO			
-DEFINER	varchar(93)	NO			
-CHARACTER_SET_CLIENT	varchar(32)	NO			
-COLLATION_CONNECTION	varchar(32)	NO			
-DATABASE_COLLATION	varchar(32)	NO			
+SQL_DATA_ACCESS	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')	NO		NULL	
+SQL_PATH	binary(0)	YES		NULL	
+SECURITY_TYPE	enum('DEFAULT','INVOKER','DEFINER')	NO		NULL	
+CREATED	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+LAST_ALTERED	timestamp	NO		CURRENT_TIMESTAMP	
+SQL_MODE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')	NO		NULL	
+ROUTINE_COMMENT	text	NO		NULL	
+DEFINER	varchar(93)	NO		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
+DATABASE_COLLATION	varchar(64)	NO		NULL	
 SHOW CREATE TABLE information_schema.ROUTINES;
-Table	Create Table
-ROUTINES	CREATE TEMPORARY TABLE `ROUTINES` (
-  `SPECIFIC_NAME` varchar(64) NOT NULL DEFAULT '',
-  `ROUTINE_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `ROUTINE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `ROUTINE_NAME` varchar(64) NOT NULL DEFAULT '',
-  `ROUTINE_TYPE` varchar(9) NOT NULL DEFAULT '',
-  `DATA_TYPE` varchar(64) NOT NULL DEFAULT '',
-  `CHARACTER_MAXIMUM_LENGTH` int(21) DEFAULT NULL,
-  `CHARACTER_OCTET_LENGTH` int(21) DEFAULT NULL,
-  `NUMERIC_PRECISION` bigint(21) unsigned DEFAULT NULL,
-  `NUMERIC_SCALE` int(21) DEFAULT NULL,
-  `DATETIME_PRECISION` bigint(21) unsigned DEFAULT NULL,
-  `CHARACTER_SET_NAME` varchar(64) DEFAULT NULL,
-  `COLLATION_NAME` varchar(64) DEFAULT NULL,
-  `DTD_IDENTIFIER` longtext,
-  `ROUTINE_BODY` varchar(8) NOT NULL DEFAULT '',
-  `ROUTINE_DEFINITION` longtext,
-  `EXTERNAL_NAME` varchar(64) DEFAULT NULL,
-  `EXTERNAL_LANGUAGE` varchar(64) DEFAULT NULL,
-  `PARAMETER_STYLE` varchar(8) NOT NULL DEFAULT '',
-  `IS_DETERMINISTIC` varchar(3) NOT NULL DEFAULT '',
-  `SQL_DATA_ACCESS` varchar(64) NOT NULL DEFAULT '',
-  `SQL_PATH` varchar(64) DEFAULT NULL,
-  `SECURITY_TYPE` varchar(7) NOT NULL DEFAULT '',
-  `CREATED` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `LAST_ALTERED` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `SQL_MODE` varchar(8192) NOT NULL DEFAULT '',
-  `ROUTINE_COMMENT` longtext NOT NULL,
-  `DEFINER` varchar(93) NOT NULL DEFAULT '',
-  `CHARACTER_SET_CLIENT` varchar(32) NOT NULL DEFAULT '',
-  `COLLATION_CONNECTION` varchar(32) NOT NULL DEFAULT '',
-  `DATABASE_COLLATION` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+ROUTINES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`ROUTINES` AS select `rtn`.`name` AS `SPECIFIC_NAME`,`cat`.`name` AS `ROUTINE_CATALOG`,`sch`.`name` AS `ROUTINE_SCHEMA`,`rtn`.`name` AS `ROUTINE_NAME`,`rtn`.`type` AS `ROUTINE_TYPE`,if((`rtn`.`type` = 'PROCEDURE'),'',substring_index(substring_index(`rtn`.`result_data_type_utf8`,'(',1),' ',1)) AS `DATA_TYPE`,internal_dd_char_length(`rtn`.`result_data_type`,`rtn`.`result_char_length`,`coll_result`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`rtn`.`result_data_type`,`rtn`.`result_char_length`,`coll_result`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,`rtn`.`result_numeric_precision` AS `NUMERIC_PRECISION`,`rtn`.`result_numeric_scale` AS `NUMERIC_SCALE`,`rtn`.`result_datetime_precision` AS `DATETIME_PRECISION`,(case `rtn`.`result_data_type` when 'MYSQL_TYPE_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_SET' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `rtn`.`result_data_type` when 'MYSQL_TYPE_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_SET' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) else NULL end) AS `COLLATION_NAME`,if((`rtn`.`type` = 'PROCEDURE'),NULL,`rtn`.`result_data_type_utf8`) AS `DTD_IDENTIFIER`,'SQL' AS `ROUTINE_BODY`,if(can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,TRUE),`rtn`.`definition_utf8`,NULL) AS `ROUTINE_DEFINITION`,NULL AS `EXTERNAL_NAME`,NULL AS `EXTERNAL_LANGUAGE`,'SQL' AS `PARAMETER_STYLE`,if((`rtn`.`is_deterministic` = 0),'NO','YES') AS `IS_DETERMINISTIC`,`rtn`.`sql_data_access` AS `SQL_DATA_ACCESS`,NULL AS `SQL_PATH`,`rtn`.`security_type` AS `SECURITY_TYPE`,`rtn`.`created` AS `CREATED`,`rtn`.`last_altered` AS `LAST_ALTERED`,`rtn`.`sql_mode` AS `SQL_MODE`,`rtn`.`comment` AS `ROUTINE_COMMENT`,`rtn`.`definer` AS `DEFINER`,`cs_client`.`name` AS `CHARACTER_SET_CLIENT`,`coll_conn`.`name` AS `COLLATION_CONNECTION`,`coll_db`.`name` AS `DATABASE_COLLATION` from ((((((((`mysql`.`routines` `rtn` join `mysql`.`schemata` `sch` on((`rtn`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll_client` on((`coll_client`.`id` = `rtn`.`client_collation_id`))) join `mysql`.`character_sets` `cs_client` on((`cs_client`.`id` = `coll_client`.`character_set_id`))) join `mysql`.`collations` `coll_conn` on((`coll_conn`.`id` = `rtn`.`connection_collation_id`))) join `mysql`.`collations` `coll_db` on((`coll_db`.`id` = `rtn`.`schema_collation_id`))) left join `mysql`.`collations` `coll_result` on((`coll_result`.`id` = `rtn`.`result_collation_id`))) left join `mysql`.`character_sets` `cs_result` on((`cs_result`.`id` = `coll_result`.`character_set_id`))) where can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,FALSE)	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.ROUTINES;
 Field	Type	Null	Key	Default	Extra
-SPECIFIC_NAME	varchar(64)	NO			
-ROUTINE_CATALOG	varchar(512)	NO			
-ROUTINE_SCHEMA	varchar(64)	NO			
-ROUTINE_NAME	varchar(64)	NO			
-ROUTINE_TYPE	varchar(9)	NO			
-DATA_TYPE	varchar(64)	NO			
-CHARACTER_MAXIMUM_LENGTH	int(21)	YES			
-CHARACTER_OCTET_LENGTH	int(21)	YES			
-NUMERIC_PRECISION	bigint(21)	YES			
-NUMERIC_SCALE	int(21)	YES			
-DATETIME_PRECISION	bigint(21)	YES			
-CHARACTER_SET_NAME	varchar(64)	YES			
-COLLATION_NAME	varchar(64)	YES			
-DTD_IDENTIFIER	varchar(65535)	YES			
-ROUTINE_BODY	varchar(8)	NO			
-ROUTINE_DEFINITION	varchar(65535)	YES			
-EXTERNAL_NAME	varchar(64)	YES			
-EXTERNAL_LANGUAGE	varchar(64)	YES			
-PARAMETER_STYLE	varchar(8)	NO			
+SPECIFIC_NAME	varchar(64)	NO		NULL	
+ROUTINE_CATALOG	varchar(64)	NO		NULL	
+ROUTINE_SCHEMA	varchar(64)	NO		NULL	
+ROUTINE_NAME	varchar(64)	NO		NULL	
+ROUTINE_TYPE	enum('FUNCTION','PROCEDURE')	NO		NULL	
+DATA_TYPE	longtext	NO		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
+NUMERIC_PRECISION	int(10) unsigned	YES		NULL	
+NUMERIC_SCALE	int(10) unsigned	YES		NULL	
+DATETIME_PRECISION	int(10) unsigned	YES		NULL	
+CHARACTER_SET_NAME	varchar(64)	YES		NULL	
+COLLATION_NAME	varchar(64)	YES		NULL	
+DTD_IDENTIFIER	longtext	YES		NULL	
+ROUTINE_BODY	varchar(3)	NO			
+ROUTINE_DEFINITION	longtext	YES		NULL	
+EXTERNAL_NAME	binary(0)	YES		NULL	
+EXTERNAL_LANGUAGE	binary(0)	YES		NULL	
+PARAMETER_STYLE	varchar(3)	NO			
 IS_DETERMINISTIC	varchar(3)	NO			
-SQL_DATA_ACCESS	varchar(64)	NO			
-SQL_PATH	varchar(64)	YES			
-SECURITY_TYPE	varchar(7)	NO			
-CREATED	datetime	NO			
-LAST_ALTERED	datetime	NO			
-SQL_MODE	varchar(8192)	NO			
-ROUTINE_COMMENT	varchar(65535)	NO			
-DEFINER	varchar(93)	NO			
-CHARACTER_SET_CLIENT	varchar(32)	NO			
-COLLATION_CONNECTION	varchar(32)	NO			
-DATABASE_COLLATION	varchar(32)	NO			
+SQL_DATA_ACCESS	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')	NO		NULL	
+SQL_PATH	binary(0)	YES		NULL	
+SECURITY_TYPE	enum('DEFAULT','INVOKER','DEFINER')	NO		NULL	
+CREATED	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+LAST_ALTERED	timestamp	NO		CURRENT_TIMESTAMP	
+SQL_MODE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')	NO		NULL	
+ROUTINE_COMMENT	text	NO		NULL	
+DEFINER	varchar(93)	NO		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
+DATABASE_COLLATION	varchar(64)	NO		NULL	
 USE test;
 DROP PROCEDURE IF EXISTS sp_for_routines;
 DROP FUNCTION  IF EXISTS function_for_routines;
@@ -140,9 +108,9 @@ WHERE routine_schema = 'test' AND
 OR external_language IS NOT NULL OR sql_path        IS NOT NULL
 OR routine_body      <> 'SQL'    OR parameter_style <> 'SQL'
    OR specific_name     <> routine_name);
-specific_name	routine_catalog	routine_schema	routine_name	routine_type	routine_body	external_name	external_language	parameter_style	sql_path
-function_for_routines	def	test	function_for_routines	FUNCTION	SQL	NULL	NULL	SQL	NULL
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	SQL_PATH
 sp_for_routines	def	test	sp_for_routines	PROCEDURE	SQL	NULL	NULL	SQL	NULL
+function_for_routines	def	test	function_for_routines	FUNCTION	SQL	NULL	NULL	SQL	NULL
 DROP PROCEDURE sp_for_routines;
 DROP FUNCTION  function_for_routines;
 ################################################################################
@@ -713,7 +681,7 @@ VALUES ('p2', 'procedure');
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 UPDATE information_schema.routines SET routine_name = 'p2'
 WHERE routine_body = 'sql';
-ERROR HY000: The target table routines of the UPDATE is not updatable
+ERROR HY000: Information schema queries do not support the 'FOR UPDATE' clause.
 DELETE FROM information_schema.routines ;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 TRUNCATE information_schema.routines ;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1018,6 +1018,35 @@ public:
      * Set frm file to store with this table
      */ 
     int setFrm(const void* data, Uint32 len);
+
+    /**
+      Set unpacked extra metadata for this table
+
+      NOTE! Function will pack the data into buffer
+      of Table object without modifying the "data".
+
+      NOTE! Normally version 1 means that extra metadata contains
+      a frm blob and version 2 means serialized dictionary information.
+      This is however application specific how to use these version
+      numbers.
+
+      returns 0 for success and otherwise error code indicating
+      type of error, for caller error handling
+    */
+    int setExtraMetadata(Uint32 version,
+                         const void* data, Uint32 data_length);
+
+    /**
+      Get unpacked extra metadata for this table
+
+      NOTE! Function will return memory that must be released
+      with free()
+
+      returns 0 for success and otherwise error code
+    */
+    int getExtraMetadata(Uint32& version,
+                         void** data, Uint32* data_length) const;
+
 
     /**
      * Set fragmentation, maps each fragment to specific nodegroup.

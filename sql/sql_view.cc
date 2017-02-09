@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -349,40 +350,42 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
           check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
       goto err;
   }
-  for (SELECT_LEX *sl= select_lex; sl; sl= sl->next_select())
-  {
-    for (TABLE_LIST *tbl= sl->get_table_list(); tbl; tbl= tbl->next_global)
-    {
-      /*
-        Ensure that we have some privileges on this table, more strict check
-        will be done on column level after preparation,
-      */
-      if (check_some_access(thd, VIEW_ANY_ACL, tbl))
-      {
-        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->security_context()->priv_user().str,
-                 thd->security_context()->priv_host().str, tbl->table_name);
-        goto err;
-      }
-      /*
-        We need to check only SELECT_ACL for all normal fields, fields for
-        which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
-        checked later
-      */
-      tbl->set_want_privilege(SELECT_ACL);
-      /*
-        Make sure that all rights are loaded to the TABLE::grant field.
 
-        tbl->table_name will be correct name of table because VIEWs are
-        not opened yet.
-      */
-      if (tbl->is_derived())
-        tbl->set_privileges(SELECT_ACL);
-      else
-        fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                        tbl->get_table_name());
+  for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_global)
+  {
+    /*
+      Ensure that we have some privileges on this table, stricter checks will
+      be performed for each referenced column during resolving.
+    */
+    if (check_some_access(thd, VIEW_ANY_ACL, tbl))
+    {
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
+               thd->security_context()->priv_user().str,
+               thd->security_context()->priv_host().str, tbl->table_name);
+      goto err;
     }
+    /*
+      All tables will be marked as needing SELECT_ACL privileges. This is
+      sufficient for all tables that are referenced in conditions, GROUP BY and
+      ORDER BY lists, and for any other tables if view is used in a SELECT
+      statement. For tables that are changed in INSERT, UPDATE or DELETE
+      statements, more specific marking will be made during resolving of the
+      query that embeds the view.
+    */
+    tbl->set_want_privilege(SELECT_ACL);
+
+    /*
+      Make sure that current table privileges are loaded to the
+      TABLE::grant field. tbl->table_name will be correct name of table
+      because VIEWs are not opened yet.
+    */
+    if (tbl->is_derived())
+      tbl->set_privileges(SELECT_ACL);
+    else
+      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                      tbl->get_table_name());
   }
+
   /*
     Mark fields for special privilege check ("any" privilege)
   */
@@ -808,6 +811,7 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
                         enum_view_create_mode mode,
                         bool commit_dd_changes)
 {
+  bool update_view= false;
   LEX *lex= thd->lex;
 
   /*
@@ -978,6 +982,8 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
         goto err;
       }
 
+      update_view= true;
+
       /*
         TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
@@ -1070,16 +1076,16 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;
   }
 
-  if (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
-      dd::drop_table<dd::View>(thd, view->db, view->table_name,
-                               commit_dd_changes))
+  // It is either ALTER or CREATE OR REPLACE of an existing view.
+  if (update_view)
   {
-    error= 1;
-    goto err;
-  }
-
-  if (dd::create_view(thd, view, view->db, view->table_name,
-                      commit_dd_changes))
+    if (dd::update_view(thd, view, commit_dd_changes))
+    {
+      error= 1;
+      goto err;
+    }
+  } //It is either CREATE or CREATE OR REPLACE of non-existent view.
+  else if (dd::create_view(thd, view, commit_dd_changes))
   {
     error= 1;
     goto err;

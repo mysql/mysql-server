@@ -24,6 +24,13 @@ create table t1 (a int);
 create table t2 (a int unique);
 create table t3 (a int);
 
+## Create a trigger so that the SHOW TRIGGERS command below
+## executes WHERE clause. This is required after WL#9494, as
+## SHOW TRIGGERS is nothing but execution of a SELECT query
+## over data dictionary tables. And a SELECT query does not
+## evaluate the WHERE clause unless there are rows.
+create trigger trg before insert on t1 for each row set @a:=1;
+
 # a workaround for Bug#32633: Can not create any routine if
 # SQL_MODE=no_engine_substitution
 

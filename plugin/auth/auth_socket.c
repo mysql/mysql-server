@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -28,9 +28,11 @@
 #endif
 
 #include <mysql/plugin_auth.h>
-#include <sys/socket.h>
 #include <pwd.h>
 #include <string.h>
+#include <sys/socket.h>
+
+#include "my_compiler.h"
 
 static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
 {

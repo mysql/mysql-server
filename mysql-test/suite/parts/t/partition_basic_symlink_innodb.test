@@ -28,9 +28,6 @@
 --echo #
 --echo # Verify that the DATA/INDEX DIR is stored and used if ALTER to MyISAM.
 --echo #
---source include/have_innodb.inc
-# The server must support symlink for DATA/INDEX DIRECTORY.
---source include/have_symlink.inc
 # windows does not support symlink for DATA/INDEX DIRECTORY.
 --source include/not_windows.inc
 

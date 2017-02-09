@@ -2,6 +2,9 @@
 #  In this test case, we check how changes to temporary tables are written
 #  to the binary log.
 #
+#  It also provides coverage for changes to DROP TABLES binary logging
+#  implemented as part of WL#7743 "New data dictionary: changes to DDL-related
+#  parts of SE API".
 #
 # B - Begin
 # C - Commit

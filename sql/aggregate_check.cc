@@ -22,6 +22,8 @@
 
 #include "aggregate_check.h"
 
+#include "my_config.h"
+
 #include <utility>
 
 #include "derror.h"

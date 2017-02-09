@@ -1,3 +1,2 @@
 let $engine= InnoDB;
---source include/have_innodb.inc
 --source suite/parts/inc/partition-dml-1-8.inc

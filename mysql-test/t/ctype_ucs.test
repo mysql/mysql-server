@@ -781,12 +781,10 @@ SET sql_mode = default;
 set collation_connection=ucs2_general_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set collation_connection=ucs2_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Bug #36418 Character sets: crash if char(256 using utf32)

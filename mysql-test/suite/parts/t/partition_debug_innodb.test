@@ -4,7 +4,6 @@
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 # Crash tests don't work with embedded

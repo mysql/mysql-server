@@ -4,7 +4,6 @@
 #
 #********************************************************
 
---source include/have_innodb.inc
 
 --source include/not_embedded.inc
 --source include/big_test.inc

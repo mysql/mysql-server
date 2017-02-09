@@ -24,21 +24,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   many coding styles. When modifying and extending
   existing source files or modules, the coding style already
   used in that code should be followed in terms of
-  indentations, naming conventions, etc. For completely new
+  indentation, naming conventions, etc. For completely new
   code, the mysqld conventions (with exceptions below) should
   probably be followed.
 
-  Do not make any change to NDB code purely for the sake of
+  Do not make changes to NDB code purely for the sake of
   changing from one formatting style to another. It just causes
   merge annoyances and makes patches harder to read, and we do
   not expect the style to ever become 100% consistent across
-  all of the source code. It is however ok to fix inconsistent
+  all of the source code. However, it is okay to fix inconsistent
   style in lines that are changed for other reasons.
 
   One convention that should be followed for all new or
   modified code, in both mysqld and non-mysqld parts of the
   code, is that class member variables should be named with
-  lowercase words separated by underscores '_', and pre-fixed
+  lowercase words separated by underscores '_', and prefixed
   with 'm_'. Like this:
   ~~~~~~~~~~~~~~~~
   const char *m_my_class_member;
@@ -53,7 +53,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 /**
   @page BRACES Braces
 
-  if, while, etc *must* always have braces.
+  <p>if, while, etc. *must* always have braces, and each brace
+  should be on a separate line.</p>
 
   Good example:
   ~~~~~~~~~~~~~~~~
@@ -63,8 +64,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
       }
   ~~~~~~~~~~~~~~~~
 
-  Braces should be on separate line like above.
-
   Bad example:
   ~~~~~~~~~~~~~~~~
   if (a == b) {
@@ -72,9 +71,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
       }
   ~~~~~~~~~~~~~~~~
 
-  Inline methods inside class(struct) are ok to write like
-  below, (i.e opening brace is on same line as function
-  declaration)
+  Inline methods inside class (struct) are okay to write as shown
+  below (i.e., opening brace is on the same line as the function
+  declaration).
   ~~~~~~~~~~~~~~~~
   struct A
       {
@@ -99,25 +98,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
   In the NDB kernel code, the ndbrequire() facility has
   historically been widely used. However, most of this is now
-  considered misuse, and use of ndbrequire should generally be
+  considered misuse, and use of ndbrequire() should generally be
   avoided. Over time, we want to remove most or all
-  ndbrequires.
+  ndbrequire() instances.
 
   There are three different classes of ndbrequire() usage, with
   corresponding replacement as follows:
 
-  - Verification of code logic, hitting this is a real bug,
-    and the error message should be accordingly. For this use, one
+  - Verification of code logic: Hitting this is a real bug,
+    and the error message should be written accordingly. For this use, one
     option is ndbassert() (only enabled in debug builds), or
     we might need to add ndbchecklogic() or similar.
 
   - Hitting a configurable limit, which cannot be handled
-    gracefully. For this one should use ndbrequireErr(). The
+    gracefully: For this, use ndbrequireErr(). The
     error message should suggest a configuration change to correct the
     problem, or refer to a section in the manual for
     more information.
 
-  - Hitting hardcoded limits; we should really try to avoid
+  - Hitting hardcoded limits: We should really try to avoid
     this, but if it is unavoidable, or if it is a limit we
     think we will never hit, use ndbrequireErr() and add an
     appropriate error message.

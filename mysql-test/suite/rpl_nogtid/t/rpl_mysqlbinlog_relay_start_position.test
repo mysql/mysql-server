@@ -36,7 +36,6 @@
 # are parsing mysqlbinlog output for BINLOG statements, so if we used
 # binlog_format=ROW we might get confused by row events.
 --source include/have_binlog_format_statement.inc
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 --echo ==== Initialize ====

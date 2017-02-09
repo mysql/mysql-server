@@ -19,6 +19,7 @@
 #include <sys/types.h>
 
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
 
 class THD;

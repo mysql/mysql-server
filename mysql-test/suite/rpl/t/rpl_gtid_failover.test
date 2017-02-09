@@ -2,7 +2,6 @@
 #
 # Testing failover scenarios.
 
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed.inc
 #
 # Set up 3 server replication chain: M1 -> S2 -> S3.

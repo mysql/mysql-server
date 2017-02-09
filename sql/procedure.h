@@ -1,7 +1,7 @@
 #ifndef PROCEDURE_INCLUDED
 #define PROCEDURE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "m_ctype.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "sql_string.h"
@@ -44,7 +45,6 @@ public:
   enum Type type() const override { return Item::PROC_ITEM; }
   virtual void set(const char *str, size_t length, const CHARSET_INFO *cs)= 0;
   virtual void set(longlong nr)= 0;
-  virtual enum_field_types field_type() const override= 0;
   void set(const char *str) { set(str, strlen(str), default_charset()); }
 };
 
@@ -54,9 +54,11 @@ class Item_proc_int :public Item_proc
   longlong value;
 public:
   Item_proc_int(const char *name_par) :Item_proc(name_par)
-  { max_length=11; }
+  {
+    set_data_type_longlong();
+    max_length=11;
+  }
   enum Item_result result_type() const override { return INT_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_LONGLONG; }
   void set(longlong nr) override { value= nr; }
   void set(const char *str, size_t length, const CHARSET_INFO *cs) override
   { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
@@ -80,9 +82,8 @@ class Item_proc_string :public Item_proc
 {
 public:
   Item_proc_string(const char *name_par,uint length) :Item_proc(name_par)
-    { this->max_length=length; }
+  { set_data_type_string(length); }
   enum Item_result result_type() const override { return STRING_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_VARCHAR; }
   void set(longlong nr) override { str_value.set(nr, default_charset()); }
   void set(const char *str, size_t length, const CHARSET_INFO *cs) override
   { str_value.copy(str,length,cs); }

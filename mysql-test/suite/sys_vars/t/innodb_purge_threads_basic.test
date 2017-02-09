@@ -3,7 +3,6 @@
 # Access type: Static
 # Data type: numeric
 
---source include/have_innodb.inc
 
 SELECT COUNT(@@GLOBAL.innodb_purge_threads);
 --echo 1 Expected

@@ -4200,5 +4200,36 @@ KEY a (a)
 SELECT * FROM t1 WHERE a IS NULL OR a NOT IN ( 'foo', 'bar' );
 a
 DROP TABLE t1;
+#
+# Bug#25229315: ASSERTION TABLE->M_RECORD_BUFFER.RECORD_SIZE() ==
+#               RECORD_PREFIX_SIZE(TAB)' FAIL
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, vc VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, NULL), (2, 'w');
+CREATE TABLE t2 (
+i INT,
+vc VARCHAR(1),
+pk INT PRIMARY KEY,
+KEY (i),
+KEY (vc)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 'p', 1), (9, 'w', 2), (NULL, 'r', 3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	i,vc	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`vc` = `test`.`t1`.`vc`) or (`test`.`t2`.`i` = `test`.`t1`.`pk`))
+SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
+MIN(t1.pk)
+1
+Warnings:
+Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+DROP TABLE t1, t2;
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 # End of test for Bug#17769777 and Bug#17413040

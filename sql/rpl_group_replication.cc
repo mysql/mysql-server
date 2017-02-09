@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
 #include "rpl_group_replication.h"
 
 #include <stdlib.h>
@@ -25,6 +21,7 @@
 #include "log.h"                  // sql_print_error
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -414,7 +411,6 @@ void set_auto_increment_offset(ulong auto_increment_offset)
   global_system_variables.auto_increment_offset= auto_increment_offset;
 }
 
-#ifdef HAVE_REPLICATION
 void
 get_server_startup_prerequirements(Trans_context_info& requirements,
                                    bool has_lock)
@@ -434,7 +430,6 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
   requirements.parallel_applier_workers= opt_mts_slave_parallel_workers;
   requirements.parallel_applier_preserve_commit_order= opt_slave_preserve_commit_order;
 }
-#endif //HAVE_REPLICATION
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length)

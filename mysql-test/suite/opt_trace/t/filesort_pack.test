@@ -81,7 +81,7 @@ CREATE TABLE t1 (
   c62 VARCHAR(1022) NOT NULL DEFAULT '',
   c63 VARCHAR(1022) NOT NULL DEFAULT '',
   c64 VARCHAR(1021) NOT NULL DEFAULT ''
-) ENGINE = INNODB;
+) ENGINE = INNODB, charset latin1;
 
 SET @save_max_length_for_sort_data = @@max_length_for_sort_data;
 SET @save_sort_buffer_size= @@sort_buffer_size;
@@ -376,7 +376,7 @@ CREATE TABLE t1 (
   c255 CHAR(255) NOT NULL DEFAULT '',
   c256 CHAR(255) NOT NULL DEFAULT '',
   c257 CHAR(254) NOT NULL DEFAULT ''
-) ENGINE = INNODB ROW_FORMAT=COMPACT;
+) ENGINE = INNODB ROW_FORMAT=COMPACT charset latin1;
 
 SELECT * FROM t1 ORDER BY c1;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;

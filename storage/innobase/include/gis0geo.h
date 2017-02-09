@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ The r-tree define from MyISAM
 #define _gis0geo_h
 
 #include "my_global.h"
+#include "page0types.h"
 #include "string.h"
 
 #define SPTYPE HA_KEYTYPE_DOUBLE

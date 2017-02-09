@@ -655,7 +655,7 @@ DROP EVENT e1;;
 SET DEBUG_SYNC="now WAIT_FOR drop";
 SELECT event_name FROM information_schema.events, performance_schema.global_variables
 WHERE definer = VARIABLE_VALUE;
-event_name
+EVENT_NAME
 SET DEBUG_SYNC="now SIGNAL query";
 # Connection con1
 # Reaping: DROP EVENT t1

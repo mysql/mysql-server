@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <my_global.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <mysql/plugin_keyring.h>
+#include <gtest/gtest.h>
 #include <keys_container.h>
-#include "mock_logger.h"
-#include "buffered_file_io_10.h"
+#include <my_global.h>
+#include <mysql/plugin_keyring.h>
 #include <fstream>
-#include "i_serialized_object.h"
+
 #include "buffered_file_io.h"
+#include "buffered_file_io_10.h"
+#include "i_serialized_object.h"
+#include "mock_logger.h"
+#include "my_inttypes.h"
 
 
 namespace keyring__keys_container_unittest

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/mysql_statement.h"
 #include "opt_trace.h"
@@ -521,7 +522,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 } // namespace
 
 
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*)
 {
   TABLE *table= tables->table;
   Opt_trace_info info;

@@ -21,9 +21,10 @@
   Abstract tables for all instruments (declarations).
 */
 
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
+#include "my_compiler.h"
 #include "pfs_engine_table.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**

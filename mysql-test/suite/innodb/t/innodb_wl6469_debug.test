@@ -2,7 +2,6 @@
 # WL#6469: Optimizing CREATE/DROP performance for temporary tables
 #
 
---source include/have_innodb.inc
 
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc

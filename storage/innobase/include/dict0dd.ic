@@ -120,8 +120,8 @@ dd_parse_tbl_name(
 UNIV_INLINE
 const dd::Column*
 dd_find_column(
-	dd::Table* dd_table,
-	const char* name)
+	const dd::Table*	dd_table,
+	const char*		name)
 {
 	for (const dd::Column* c : dd_table->columns()) {
 		if (!my_strcasecmp(system_charset_info,

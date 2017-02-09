@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,24 +16,25 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "xcom_common.h"
+#include "app_data.h"
+#include "my_compiler.h"
+#include "node_list.h"
+#include "node_no.h"
+#include "node_set.h"
+#include "pax_msg.h"
+#include "server_struct.h"
 #include "simset.h"
-#include "xcom_vp.h"
+#include "site_def.h"
+#include "site_struct.h"
+#include "synode_no.h"
 #include "task.h"
 #include "task_debug.h"
-#include "node_no.h"
-#include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "xcom_transport.h"
-#include "xcom_base.h"
-#include "node_set.h"
-#include "app_data.h"
-#include "pax_msg.h"
-#include "synode_no.h"
-#include "site_def.h"
-#include "node_list.h"
 #include "x_platform.h"
+#include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_detector.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
 
 extern task_env *detector;
 extern int	xcom_shutdown;
@@ -128,7 +129,7 @@ int	enough_live_nodes(site_def const *site)
   if (maxnodes == 0)
     return 0;
   for (i = 0; i < maxnodes; i++) {
-    if (i == self || t - site->detected[i] < 5.0) {
+    if (i == self || t - site->detected[i] < DETECTOR_LIVE_TIMEOUT) {
       n++;
     }
   }
@@ -140,7 +141,7 @@ int	enough_live_nodes(site_def const *site)
 
 static void send_my_view(site_def const *site);
 
-#define DETECT(site) (i == get_nodeno(site)) || (site->detected[i] + 5.0 > task_now())
+#define DETECT(site) (i == get_nodeno(site)) || (site->detected[i] + DETECTOR_LIVE_TIMEOUT > task_now())
 
 static void	update_global_count(site_def *site)
 {

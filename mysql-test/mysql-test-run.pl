@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -274,6 +274,7 @@ our $xplugin= 0;
 
 my $opt_record;
 my $opt_report_features;
+my $opt_charset_for_testdb;
 
 our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 
@@ -1298,6 +1299,7 @@ sub command_line_setup {
              'client-libdir=s'          => \$path_client_libdir,
 
              # Misc
+             'charset-for-testdb=s'     => \$opt_charset_for_testdb,
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
@@ -2750,18 +2752,18 @@ sub environment_setup {
   # my_print_defaults
   # ----------------------------------------------------
   my $exe_my_print_defaults=
-    mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
+    mtr_exe_exists(vs_config_dirs('utilities', 'my_print_defaults'),
 		   "$path_client_bindir/my_print_defaults",
-		   "$basedir/extra/my_print_defaults");
+		   "$basedir/utilities/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # Setup env so childs can execute innochecksum
   # ----------------------------------------------------
   my $exe_innochecksum=
-    mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
+    mtr_exe_exists(vs_config_dirs('utilities', 'innochecksum'),
                    "$path_client_bindir/innochecksum",
-                   "$basedir/extra/innochecksum");
+                   "$basedir/utilities/innochecksum");
   $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
   if ( $opt_valgrind_clients )
   {
@@ -2775,9 +2777,9 @@ sub environment_setup {
   # Setup env so childs can execute ibd2sdi
   # ----------------------------------------------------
   my $exe_ibd2sdi=
-    mtr_exe_exists(vs_config_dirs('extra', 'ibd2sdi'),
+    mtr_exe_exists(vs_config_dirs('utilities', 'ibd2sdi'),
                    "$path_client_bindir/ibd2sdi",
-                   "$basedir/extra/ibd2sdi");
+                   "$basedir/utilities/ibd2sdi");
   $ENV{'IBD2SDI'}= native_path($exe_ibd2sdi);
 
   if ( $opt_valgrind_clients )
@@ -2814,12 +2816,22 @@ sub environment_setup {
     $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
   }
 
+  # ----------------------------------------------------
+  # mysqldumpslow
+  # ----------------------------------------------------
+  my $mysqldumpslow=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqldumpslow") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqldumpslow");
+  if ($mysqldumpslow)
+  {
+    $ENV{'MYSQLDUMPSLOW'}= $mysqldumpslow;
+  }
 
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
-  my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
-				 "$basedir/extra/perror",
+  my $exe_perror= mtr_exe_exists(vs_config_dirs('utilities', 'perror'),
+				 "$basedir/utilities/perror",
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
 
@@ -2838,16 +2850,16 @@ sub environment_setup {
   # ----------------------------------------------------
   # lz4_decompress
   # ----------------------------------------------------
-  my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'lz4_decompress'),
-                                 "$basedir/extra/lz4_decompress",
+  my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('utilities', 'lz4_decompress'),
+                                 "$basedir/utilities/lz4_decompress",
                                  "$path_client_bindir/lz4_decompress");
   $ENV{'LZ4_DECOMPRESS'}= native_path($exe_lz4_decompress);
 
   # ----------------------------------------------------
   # zlib_decompress
   # ----------------------------------------------------
-  my $exe_zlib_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'zlib_decompress'),
-                                 "$basedir/extra/zlib_decompress",
+  my $exe_zlib_decompress= mtr_exe_maybe_exists(vs_config_dirs('utilities', 'zlib_decompress'),
+                                 "$basedir/utilities/zlib_decompress",
                                  "$path_client_bindir/zlib_decompress");
   $ENV{'ZLIB_DECOMPRESS'}= native_path($exe_zlib_decompress);
 
@@ -4013,8 +4025,13 @@ sub mysql_install_db {
 	     "DELETE FROM mysql.user where user= '';\n");
 
   # Create test database
-  mtr_tofile($bootstrap_sql_file,
-	     "CREATE DATABASE test;\n");
+  if (defined $opt_charset_for_testdb) {
+    mtr_tofile($bootstrap_sql_file,
+               "CREATE DATABASE test CHARACTER SET $opt_charset_for_testdb;\n");
+  } else {
+    mtr_tofile($bootstrap_sql_file,
+               "CREATE DATABASE test;\n");
+  }
 
   # Create mtr database
   mtr_tofile($bootstrap_sql_file,
@@ -4779,7 +4796,7 @@ sub run_testcase ($) {
     {
       my $res= $test->exit_status();
 
-      if ($res == 0 and $opt_warnings and check_warnings($tinfo) )
+      if ($res == 0 and $opt_warnings and check_warnings($tinfo))
       {
 	# Test case suceeded, but it has produced unexpected
 	# warnings, continue in $res == 1
@@ -4788,55 +4805,82 @@ sub run_testcase ($) {
       }
 
       my $check_res;
+      my $message=
+        "Skip condition should be checked in the beginning of a test case,\n".
+        "before modifying any database objects. Most likely the test case\n".
+        "is skipped with the current server configuration after altering\n".
+        "system status. Please fix the test case to perform the skip\n".
+        "condition check before modifying the system status.";
 
-      if ( $opt_check_testcases and !restart_forced_by_test('force_restart') )
+      if ($opt_check_testcases and
+          !restart_forced_by_test('force_restart') and
+          !restart_forced_by_test('force_restart_if_skipped'))
       {
-        $check_res= check_testcase($tinfo, "after") if !$res;
+        $check_res= check_testcase($tinfo, "after")
+          if ($res == 0 or $res == 62);
+
         # Test succeeded but failed in check-test, failing the test in case
-        # option --fail-check-testcases had been passed
-        if (($res == 0) and $opt_fail_check_testcases) {
-          if ($check_res == 1) {
-            resfile_output($tinfo->{'comment'}) if $opt_resfile;
-            $res= 1;
-          }
+        # option --fail-check-testcases is enabled
+        if (defined $check_res and $check_res == 1 and
+            $opt_fail_check_testcases)
+        {
+          $tinfo->{comment}.= "\n$message" if ($res == 62);
+          resfile_output($tinfo->{'comment'}) if $opt_resfile;
+          $res= 1;
         }
       }
 
-      if ( $res == 0 )
+      if ($res == 0)
       {
-	if ( restart_forced_by_test('force_restart') )
-	{
-	  stop_all_servers($opt_shutdown_timeout);
-	}
-	elsif ( $opt_check_testcases and $check_res )
-	{
-	  if ($check_res == 1) {
-	    # Test case had sideeffects, not fatal error, just continue
-	    stop_all_servers($opt_shutdown_timeout);
-	    mtr_report("Resuming tests...\n");
-	    resfile_output($tinfo->{'check'}) if $opt_resfile;
-	  }
-	  else {
-	    # Test case check failed fatally, probably a server crashed
-	    report_failure_and_restart($tinfo);
-	    return 1;
-	  }
-	}
-	mtr_report_test_passed($tinfo);
+        if (restart_forced_by_test('force_restart'))
+        {
+          stop_all_servers($opt_shutdown_timeout);
+        }
+        elsif ($opt_check_testcases and $check_res)
+        {
+          if ($check_res == 1)
+          {
+            # Test case had side effects, not fatal error, just continue
+            stop_all_servers($opt_shutdown_timeout);
+            mtr_report("Resuming tests...\n");
+            resfile_output($tinfo->{'check'}) if $opt_resfile;
+          }
+          else
+          {
+            # Test case check failed fatally, probably a server crashed
+            report_failure_and_restart($tinfo);
+            return 1;
+          }
+        }
+        mtr_report_test_passed($tinfo);
       }
-      elsif ( $res == 62 )
+      elsif ($res == 62)
       {
-	# Testcase itself tell us to skip this one
-	$tinfo->{skip_detected_by_test}= 1;
-	# Try to get reason from test log file
-	find_testcase_skipped_reason($tinfo);
-	mtr_report_test_skipped($tinfo);
-	# Restart if skipped due to missing perl, it may have had side effects
-	if ( restart_forced_by_test('force_restart_if_skipped') ||
-             $tinfo->{'comment'} =~ /^perl not found/ )
-	{
-	  stop_all_servers($opt_shutdown_timeout);
-	}
+        if (defined $check_res and $check_res == 1)
+        {
+          # Test case had side effects, not fatal error, just continue
+          $tinfo->{check}.= "\n$message";
+          stop_all_servers($opt_shutdown_timeout);
+          mtr_report("Resuming tests...\n");
+          resfile_output($tinfo->{'check'}) if $opt_resfile;
+          mtr_report_test_passed($tinfo);
+        }
+        else
+        {
+          # Testcase itself tell us to skip this one
+          $tinfo->{skip_detected_by_test}= 1;
+
+          # Try to get reason from test log file
+          find_testcase_skipped_reason($tinfo);
+          mtr_report_test_skipped($tinfo);
+
+          # Restart if skipped due to missing perl, it may have had side effects
+          if (restart_forced_by_test('force_restart_if_skipped') ||
+              $tinfo->{'comment'} =~ /^perl not found/)
+          {
+            stop_all_servers($opt_shutdown_timeout);
+          }
+        }
       }
       elsif ( $res == 65 )
       {
@@ -7406,6 +7450,8 @@ Options to control what test suites or cases to run
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
+  only-big-test         Run only big tests and skip the normal(non-big)
+                        tests.
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
@@ -7582,6 +7628,8 @@ Misc options
   gprof                 Collect profiling information using gprof.
   experimental=<file>   Refer to list of tests considered experimental;
                         failures will be marked exp-fail instead of fail.
+  charset-for-testdb    CREATE DATABASE test CHARACTER SET <option value>.
+                        Default value is latin1.
   report-features       First run a "test" that reports mysql features
   timestamp             Print timestamp before each test report line
   timediff              With --timestamp, also print time passed since

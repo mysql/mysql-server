@@ -326,18 +326,21 @@ POINT(7.5 18.75)
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1000. Calculations in function st_centroid will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)))
 POINT(14.768115942028986 10.797101449275363)
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 123456789. Calculations in function st_centroid will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
 POINT(15 10)
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_centroid will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
@@ -448,6 +451,7 @@ POINT(0 0)
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 7000000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 7000000. Calculations in function st_centroid will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 7000000. The axis order is unknown.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

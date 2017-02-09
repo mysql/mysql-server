@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,14 +42,6 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif /* _WIN32 */
 
-// Small extra definition to avoid pulling in my_compiler.h in client code.
-// IWYU pragma: no_include "my_compiler.h"
-#if !defined(_WIN32)
-#define STDCALL
-#else
-#define STDCALL __stdcall
-#endif
-
 #ifndef my_socket_defined
 #define my_socket_defined
 #ifdef _WIN32
@@ -63,6 +55,17 @@ typedef int my_socket;
 #endif /* _WIN32 */
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
+
+// Small extra definition to avoid pulling in my_compiler.h in client code.
+// IWYU pragma: no_include "my_compiler.h"
+#ifndef MY_COMPILER_INCLUDED
+#if !defined(_WIN32)
+#define STDCALL
+#else
+#define STDCALL __stdcall
+#endif
+#endif /* MY_COMPILER_INCLUDED */
+
 
 #include "binary_log_types.h"
 #include "mem_root_fwd.h"
@@ -371,10 +374,6 @@ typedef struct st_mysql_rpl {
   const unsigned char *buffer;           /** Pointer to returned data           */
 } MYSQL_RPL;
 
-#if !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT)
-#define MYSQL_CLIENT
-#endif
-
 /*
   Set up and bring down the server; to ensure that applications will
   work when linked against either the standard client library or the
@@ -534,7 +533,6 @@ unsigned long STDCALL mysql_real_escape_string_quote(MYSQL *mysql,
 void          STDCALL mysql_debug(const char *debug);
 void          STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int  STDCALL mysql_thread_safe(void);
-my_bool       STDCALL mysql_embedded(void);
 my_bool       STDCALL mysql_read_query_result(MYSQL *mysql);
 int           STDCALL mysql_reset_connection(MYSQL *mysql);
 

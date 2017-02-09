@@ -411,11 +411,9 @@ IF(WITH_ASAN AND WITH_MSAN)
 ENDIF()
 
 
-OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
-IF(ENABLE_DEBUG_SYNC) 
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
-ENDIF() 
+# Always enable debug sync for debug builds.
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
  
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage
@@ -486,6 +484,36 @@ IF(LINK_RANDOMIZE)
   SET(CMAKE_CXX_ARCHIVE_CREATE_APPEND "sh -c '${CMAKE_SOURCE_DIR}/scripts/randomize-order.pl ${LINK_RANDOMIZE_SEED} <OBJECTS> && <CMAKE_AR> q <TARGET> <LINK_FLAGS> <OBJECTS>'")
   SET(CMAKE_C_ARCHIVE_CREATE ${CMAKE_CXX_ARCHIVE_CREATE})
   SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
+ENDIF()
+IF(REPRODUCIBLE_BUILD)
+  SET(DEBUG_PREFIX_FLAGS
+    "-fdebug-prefix-map=${CMAKE_SOURCE_DIR}/=./ -fdebug-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=./obj")
+
+  # See if -fdebug-prefix= commands are included in the debug output,
+  # making the build unreproducible with switches recorded.
+  # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69821.
+  EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -g3 -x c -S -fdebug-prefix-map=foo=bar -o - -
+    INPUT_FILE /dev/null OUTPUT_VARIABLE DEBUG_PREFIX_MAP_RESULT)
+  IF(DEBUG_PREFIX_MAP_RESULT MATCHES "foo=bar")
+    SET(DEBUG_PREFIX_FLAGS "${DEBUG_PREFIX_FLAGS} -gno-record-gcc-switches")
+  ENDIF()
+
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_PREFIX_FLAGS}")
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${DEBUG_PREFIX_FLAGS}")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_PREFIX_FLAGS}")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${DEBUG_PREFIX_FLAGS}")
+
+  SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
+  SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
+
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE
+    "${CMAKE_SOURCE_DIR}/scripts/invoke-with-relative-paths.pl")
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE
@@ -610,6 +638,7 @@ ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in ma
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
   ${CMAKE_SOURCE_DIR}/sql/histograms
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
@@ -672,9 +701,9 @@ ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(vio)
-ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(mysys_ssl)
+ADD_SUBDIRECTORY(extra/regex)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
@@ -703,8 +732,8 @@ IF(NOT WITHOUT_SERVER)
   CONFIGURE_COMPONENTS()
 ENDIF()
 
-ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(client)
+ADD_SUBDIRECTORY(utilities)
 ADD_SUBDIRECTORY(sql/share)
 ADD_SUBDIRECTORY(libservices)
 
@@ -745,6 +774,8 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_BINARY_DIR}/include/mysql_version.h )
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
+
+GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
 CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
     ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)

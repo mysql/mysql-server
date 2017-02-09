@@ -7,6 +7,7 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
+SET @query_cache_size.saved = @@query_cache_size;
 #
 # Tests with query cache
 #
@@ -1425,6 +1426,7 @@ SET SESSION query_cache_type=@qc_type;
 --echo # Bug#18383169: QUERIES WITH RANDOM_BYTES() ENTER QUERY CACHE
 --echo #
 
+SET GLOBAL query_cache_size = 1048576;
 CREATE TABLE t1(a INT);
 FLUSH STATUS;
 
@@ -1437,6 +1439,7 @@ SELECT * FROM t1 WHERE AES_ENCRYPT('a','a');
 SHOW STATUS LIKE 'Qcache_not_cached';
 
 DROP TABLE t1;
+SET GLOBAL query_cache_size = default;
 FLUSH STATUS;
 
 
@@ -1444,7 +1447,6 @@ FLUSH STATUS;
 --echo #BUG 18710853: QUERY CACHE NOT INVALIDATED ON CASCADE DELETE IF DB NAME HAS
 --echo #              SPECIAL SYMBOLS
 
-SET @query_cache_size.saved = @@query_cache_size;
 SET GLOBAL query_cache_size = 1024*1024;
 
 CREATE DATABASE `db-db`;

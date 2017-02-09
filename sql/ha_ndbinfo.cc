@@ -16,11 +16,17 @@
 */
 
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbinfo.h"
 #include "my_dbug.h"
 #include "ndb_tdc.h"
+#include "ndb_log.h"
 
+#include "sql_table.h"      // build_table_filename
+#include "sql_class.h"
+#include "current_thd.h"
+#include "derror.h"         // ER_THD
+
+#include <mysql/plugin.h>
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */
@@ -150,7 +156,7 @@ ndbcluster_is_disabled(void)
 }
 
 static handler*
-create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root)
+create_handler(handlerton *hton, TABLE_SHARE *table, bool, MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_ndbinfo(hton, table);
 }
@@ -324,7 +330,8 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
 }
 
 int ha_ndbinfo::create(const char *name, TABLE *form,
-                       HA_CREATE_INFO *create_info)
+                       HA_CREATE_INFO *create_info,
+                       dd::Table *)
 {
   DBUG_ENTER("ha_ndbinfo::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -342,7 +349,8 @@ bool ha_ndbinfo::is_offline(void) const
   return m_impl.m_offline;
 }
 
-int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
+int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked,
+                     const dd::Table *)
 {
   DBUG_ENTER("ha_ndbinfo::open");
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
@@ -718,7 +726,7 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
       }
 
       default:
-        sql_print_error("Found unexpected field type %u", field->type());
+        ndb_log_error("Found unexpected field type %u", field->type());
         break;
       }
 
@@ -818,13 +826,13 @@ ndbinfo_init(void *plugin)
                           opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
-    sql_print_error("Failed to create NdbInfo");
+    ndb_log_error("Failed to create NdbInfo");
     DBUG_RETURN(1);
   }
 
   if (!g_ndbinfo->init())
   {
-    sql_print_error("Failed to init NdbInfo");
+    ndb_log_error("Failed to init NdbInfo");
 
     delete g_ndbinfo;
     g_ndbinfo = NULL;

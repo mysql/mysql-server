@@ -28,6 +28,7 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_global.h"                          // REQUIRED for HAVE_* below
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"

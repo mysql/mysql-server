@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "mf_wcomp.h"                   // wild_one, wild_many
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
@@ -1030,7 +1031,6 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 {
   DBUG_ENTER("change_rpl_filter");
   bool ret= false;
-#ifdef HAVE_REPLICATION
   int thread_mask= 0;
   Master_info *mi= NULL;
 
@@ -1113,6 +1113,5 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 
 err:
   channel_map.unlock();
-#endif //HAVE_REPLICATION
   DBUG_RETURN(ret);
 }

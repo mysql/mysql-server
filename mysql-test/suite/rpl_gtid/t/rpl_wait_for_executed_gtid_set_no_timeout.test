@@ -8,8 +8,6 @@
 # not waiting incase the timeout is not specified by the user.
 
 --let $rpl_gtid_utils= 1
---source include/have_log_bin.inc
---source include/have_gtid.inc
 --source include/master-slave.inc
 
 --connection slave

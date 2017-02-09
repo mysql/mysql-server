@@ -20,10 +20,14 @@
   isamdatabase.
 */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "ftdefs.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "myisam_sys.h"
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */

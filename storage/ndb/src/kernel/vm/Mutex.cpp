@@ -49,7 +49,8 @@ SimulatedBlock::MutexManager::release(Uint32 activeMutexPtrI){
 }
 
 void
-SimulatedBlock::MutexManager::getPtr(ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::getPtr(ActiveMutexPtr& ptr) const
+{
   m_activeMutexes.getPtr(ptr);
 }
 

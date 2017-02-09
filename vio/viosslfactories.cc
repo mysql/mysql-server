@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "vio_priv.h"

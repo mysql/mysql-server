@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ Event_impl::Event_impl()
   m_is_starts_null(false),
   m_is_ends_null(false),
   m_is_event_status_null(false),
-  m_is_last_executed_null(false),
+  m_is_last_executed_null(true),
   m_schema_id(INVALID_OBJECT_ID),
   m_client_collation_id(INVALID_OBJECT_ID),
   m_connection_collation_id(INVALID_OBJECT_ID),

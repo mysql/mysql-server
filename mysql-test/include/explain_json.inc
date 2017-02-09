@@ -1,7 +1,6 @@
 # This file is a collection of regression and coverage tests
 # for WL#5855: Print EXPLAIN in JSON format
 
---source include/have_innodb.inc
 
 set @save_storage_engine= @@default_storage_engine;
 set default_storage_engine=MyISAM;

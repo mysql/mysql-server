@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,11 +14,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "gcs_xcom_networking.h"
-#include "gcs_xcom_utils.h"
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#include <algorithm>
+
 #include "gcs_group_identifier.h"
 #include "gcs_logging.h"
-#include <algorithm>
+#include "gcs_xcom_utils.h"
 #include "sock_probe.h"
+
 #include<bitset>
 #include<set>
 

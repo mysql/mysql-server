@@ -15,6 +15,7 @@
 
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key, 
               key_part_map keypart_map, enum ha_rkey_function find_flag)

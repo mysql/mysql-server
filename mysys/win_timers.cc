@@ -18,6 +18,7 @@
 */
 
 #if defined (_WIN32)
+#include <errno.h>
 #include <windows.h>        /* Timer Queue and IO completion port functions */
 
 #include "my_dbug.h"

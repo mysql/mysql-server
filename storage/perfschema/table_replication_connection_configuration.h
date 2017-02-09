@@ -22,27 +22,21 @@
   Table replication_connection_configuration (declarations).
 */
 
+#include "my_io.h"
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "rpl_info.h" /* CHANNEL_NAME_LENGTH*/
+#include "rpl_mi.h"
+#include "rpl_msr.h"
 #include "table_helper.h"
 
-#ifdef HAVE_REPLICATION
-
-#include "rpl_mi.h"
-#include "mysql_com.h"
-#include "rpl_msr.h"
-#include "rpl_info.h" /* CHANNEL_NAME_LENGTH*/
-
 class Master_info;
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
-
-#ifdef HAVE_REPLICATION
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -100,8 +94,6 @@ struct st_row_connect_config
   uint tls_version_length;
 };
 
-#endif /* HAVE_REPLICATION */
-
 class PFS_index_rpl_connection_config : public PFS_engine_index
 {
 public:
@@ -114,9 +106,8 @@ public:
   {
   }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_name m_key;
 };
@@ -125,18 +116,14 @@ private:
 class table_replication_connection_configuration : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
   int make_row(Master_info *);
-#endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_connect_config m_row;
-#endif /* HAVE_REPLICATION */
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

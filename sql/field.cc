@@ -23,6 +23,8 @@
 
 #include "field.h"
 
+#include <errno.h>
+
 #include <algorithm>
 #include <cmath>                         // isnan
 #include <memory>                        // unique_ptr
@@ -1028,8 +1030,9 @@ void Field::set_tmp_null()
 {
   m_is_tmp_null= true;
 
-  m_count_cuted_fields_saved= table ? table->in_use->count_cuted_fields :
-                                      current_thd->count_cuted_fields;
+  m_check_for_truncated_fields_saved=
+    table ? table->in_use->check_for_truncated_fields :
+            current_thd->check_for_truncated_fields;
 }
 
 
@@ -1479,7 +1482,7 @@ Field_num::get_int(const CHARSET_INFO *cs, const char *from, size_t len,
       goto out_of_range;
     }
   }
-  if (table->in_use->count_cuted_fields != 0)
+  if (table->in_use->check_for_truncated_fields != 0)
     return check_int(cs, from, len, end, error);
 
   return TYPE_OK;
@@ -1565,7 +1568,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    m_null_ptr(null_ptr_arg),
    m_is_tmp_nullable(false),
    m_is_tmp_null(false),
-   m_count_cuted_fields_saved(CHECK_FIELD_IGNORE),
+   m_check_for_truncated_fields_saved(CHECK_FIELD_IGNORE),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
@@ -1624,7 +1627,7 @@ type_conversion_status Field::check_constraints(int mysql_errno)
   */
   DBUG_ASSERT (type() != MYSQL_TYPE_TIMESTAMP);
 
-  switch (m_count_cuted_fields_saved) {
+  switch (m_check_for_truncated_fields_saved) {
   case CHECK_FIELD_WARN:
     set_warning(Sql_condition::SL_WARNING, mysql_errno, 1);
     /* fall through */
@@ -1796,10 +1799,10 @@ type_conversion_status
 Field::store(const char *to, size_t length, const CHARSET_INFO *cs,
              enum_check_fields check_level)
 {
-  enum_check_fields old_check_level= table->in_use->count_cuted_fields;
-  table->in_use->count_cuted_fields= check_level;
+  enum_check_fields old_check_level= table->in_use->check_for_truncated_fields;
+  table->in_use->check_for_truncated_fields= check_level;
   const type_conversion_status res= store(to, length, cs);
-  table->in_use->count_cuted_fields= old_check_level;
+  table->in_use->check_for_truncated_fields= old_check_level;
   return res;
 }
 
@@ -2363,10 +2366,10 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   uchar *left_wall,*right_wall;
   uchar tmp_char;
   /*
-    To remember if table->in_use->cuted_fields has already been incremented,
-    to do that only once
+    To remember if table->in_use->num_truncated_fields has already
+    been incremented, to do that only once
   */
-  bool is_cuted_fields_incr=0;
+  bool has_incremented_num_truncated_fields= false;
 
   /*
     There are three steps in this function :
@@ -2385,7 +2388,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   if (from == end)
   {
     set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    is_cuted_fields_incr=1;
+    has_incremented_num_truncated_fields= true;
   }
   else if (*from == '+' || *from == '-')	// Found some sign ?
   {
@@ -2440,20 +2443,20 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   }
   
   /*
-    We only have to generate warnings if count_cuted_fields is set.
+    We only have to generate warnings if check_for_truncated_fields is set.
     This is to avoid extra checks of the number when they are not needed.
     Even if this flag is not set, it's OK to increment warnings, if
     it makes the code easer to read.
   */
 
-  if (table->in_use->count_cuted_fields)
+  if (table->in_use->check_for_truncated_fields)
   {
     // Skip end spaces
     for (;from != end && my_isspace(&my_charset_bin, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-      is_cuted_fields_incr=1;
+      has_incremented_num_truncated_fields= true;
     }
   }
   
@@ -2616,7 +2619,8 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     {
       if (pos == right_wall) 
       {
-        if (table->in_use->count_cuted_fields && !is_cuted_fields_incr) 
+        if (table->in_use->check_for_truncated_fields &&
+            !has_incremented_num_truncated_fields)
           break; // Go on below to see if we lose non zero digits
         return TYPE_OK;
       }
@@ -2629,7 +2633,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
       {
         if (tmp_char != '0')			// Losing a non zero digit ?
         {
-          if (!is_cuted_fields_incr)
+          if (!has_incremented_num_truncated_fields)
             set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
           return TYPE_OK;
@@ -2647,7 +2651,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     {
       if (tmp_char != '0')			// Losing a non zero digit ?
       {
-        if (!is_cuted_fields_incr)
+        if (!has_incremented_num_truncated_fields)
         {
           /*
             This is a note, not a warning, as we don't want to abort
@@ -2819,7 +2823,7 @@ int Field_decimal::cmp(const uchar *a_ptr,const uchar *b_ptr)
 }
 
 
-void Field_decimal::make_sort_key(uchar *to, size_t length)
+size_t Field_decimal::make_sort_key(uchar *to, size_t length)
 {
   uchar *str,*end;
   for (str=ptr,end=ptr+length;
@@ -2829,7 +2833,7 @@ void Field_decimal::make_sort_key(uchar *to, size_t length)
        str++)
     *to++=' ';
   if (str == end)
-    return;					/* purecov: inspected */
+    return length;				/* purecov: inspected */
 
   if (*str == '-')
   {
@@ -2842,6 +2846,7 @@ void Field_decimal::make_sort_key(uchar *to, size_t length)
 	*to++= *str++;
   }
   else memcpy(to,str,(uint) (end-str));
+  return length;
 }
 
 
@@ -3219,9 +3224,10 @@ int Field_new_decimal::cmp(const uchar *a,const uchar*b)
 }
 
 
-void Field_new_decimal::make_sort_key(uchar *buff, size_t length)
+size_t Field_new_decimal::make_sort_key(uchar *buff, size_t length)
 {
   memcpy(buff, ptr, min(length, static_cast<size_t>(bin_size)));
+  return length;
 }
 
 
@@ -3269,7 +3275,7 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
 {
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
   uint const source_decimal= field_metadata & 0x00ff; 
-  uint const source_size= my_decimal_get_binary_size(source_precision, 
+  uint const source_size= my_decimal_get_binary_size(source_precision,
                                                      source_decimal);
   return (source_size);
 }
@@ -3542,13 +3548,14 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_tiny::make_sort_key(uchar *to, size_t length)
+size_t Field_tiny::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 1);
+  DBUG_ASSERT(length == 1);
   if (unsigned_flag)
     *to= *ptr;
   else
     to[0] = (char) (ptr[0] ^ (uchar) 128);	/* Revers signbit */
+  return 1;
 }
 
 void Field_tiny::sql_type(String &res) const
@@ -3779,9 +3786,9 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_short::make_sort_key(uchar *to, size_t length)
+size_t Field_short::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 2);
+  DBUG_ASSERT(length == 2);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -3800,6 +3807,7 @@ void Field_short::make_sort_key(uchar *to, size_t length)
       to[0] = (char) (ptr[1] ^ 128);		/* Revers signbit */
     to[1]   = ptr[0];
   }
+  return 2;
 }
 
 void Field_short::sql_type(String &res) const
@@ -3986,15 +3994,16 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_medium::make_sort_key(uchar *to, size_t length)
+size_t Field_medium::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 3);
+  DBUG_ASSERT(length == 3);
   if (unsigned_flag)
     to[0] = ptr[2];
   else
     to[0] = (uchar) (ptr[2] ^ 128);		/* Revers signbit */
   to[1] = ptr[1];
   to[2] = ptr[0];
+  return 3;
 }
 
 
@@ -4234,16 +4243,16 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_long::make_sort_key(uchar *to, size_t length)
+size_t Field_long::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 4);  
+  DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
     if (unsigned_flag)
       to[0] = ptr[0];
     else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
+      to[0] = (char) (ptr[0] ^ 128);		/* Reverse sign bit */
     to[1]   = ptr[1];
     to[2]   = ptr[2];
     to[3]   = ptr[3];
@@ -4254,11 +4263,12 @@ void Field_long::make_sort_key(uchar *to, size_t length)
     if (unsigned_flag)
       to[0] = ptr[3];
     else
-      to[0] = (char) (ptr[3] ^ 128);		/* Revers signbit */
+      to[0] = (char) (ptr[3] ^ 128);		/* Reverse sign bit */
     to[1]   = ptr[2];
     to[2]   = ptr[1];
     to[3]   = ptr[0];
   }
+  return 4;
 }
 
 
@@ -4289,7 +4299,7 @@ Field_longlong::store(const char *from, size_t len, const CHARSET_INFO *cs)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= TYPE_WARN_OUT_OF_RANGE;
   }
-  else if (table->in_use->count_cuted_fields && 
+  else if (table->in_use->check_for_truncated_fields &&
            check_int(cs, from, len, end, conv_err))
     error= TYPE_WARN_OUT_OF_RANGE;
   else
@@ -4485,16 +4495,16 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_longlong::make_sort_key(uchar *to, size_t length)
+size_t Field_longlong::make_sort_key(uchar *to, size_t length)
 {
-  const size_t from_length= PACK_LENGTH;
-  const size_t to_length= min(from_length, length);
+  DBUG_ASSERT(length == PACK_LENGTH);
 #ifdef WORDS_BIGENDIAN
   if (table == NULL || !table->s->db_low_byte_first)
-    copy_integer<true>(to, to_length, ptr, from_length, unsigned_flag);
+    copy_integer<true>(to, length, ptr, PACK_LENGTH, unsigned_flag);
   else
 #endif
-    copy_integer<false>(to, to_length, ptr, from_length, unsigned_flag);
+    copy_integer<false>(to, length, ptr, PACK_LENGTH, unsigned_flag);
+  return PACK_LENGTH;
 }
 
 
@@ -4570,7 +4580,7 @@ Field_float::store(const char *from, size_t len, const CHARSET_INFO *cs)
   char *end;
   double nr= my_strntod(cs,(char*) from,len,&end,&conv_error);
   if (conv_error || (!len || ((uint) (end-from) != len &&
-                              table->in_use->count_cuted_fields)))
+                              table->in_use->check_for_truncated_fields)))
   {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE
@@ -4702,11 +4712,9 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-#define FLT_EXP_DIG (sizeof(float)*8-FLT_MANT_DIG)
-
-void Field_float::make_sort_key(uchar *to, size_t length)
+size_t Field_float::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 4);
+  DBUG_ASSERT(length == sizeof(float));
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4717,34 +4725,25 @@ void Field_float::make_sort_key(uchar *to, size_t length)
 #endif
     memcpy(&nr, ptr, min(length, sizeof(float)));
 
-  uchar *tmp= to;
-  if (nr == (float) 0.0)
-  {						/* Change to zero string */
-    tmp[0]=(uchar) 128;
-    memset(tmp + 1, 0, min(length, sizeof(nr) - 1));
-  }
-  else
-  {
-#ifdef WORDS_BIGENDIAN
-    memcpy(tmp, &nr, sizeof(nr));
-#else
-    tmp[0]= ptr[3]; tmp[1]=ptr[2]; tmp[2]= ptr[1]; tmp[3]=ptr[0];
-#endif
-    if (tmp[0] & 128)				/* Negative */
-    {						/* make complement */
-      uint i;
-      for (i=0 ; i < sizeof(nr); i++)
-	tmp[i]= (uchar) (tmp[i] ^ (uchar) 255);
-    }
-    else
-    {
-      ushort exp_part=(((ushort) tmp[0] << 8) | (ushort) tmp[1] |
-		       (ushort) 32768);
-      exp_part+= (ushort) 1 << (16-1-FLT_EXP_DIG);
-      tmp[0]= (uchar) (exp_part >> 8);
-      tmp[1]= (uchar) exp_part;
-    }
-  }
+  /*
+    -0.0 and +0.0 compare identically, so make sure they use exactly the same
+    bit pattern.
+  */
+  if (nr == 0.0f) nr= 0.0f;
+
+  /*
+    Positive floats sort exactly as ints; negative floats need
+    bit flipping. The bit flipping sets the upper bit to 0
+    unconditionally, so put 1 in there for positive numbers
+    (so they sort later for our unsigned comparison).
+    NOTE: This does not sort infinities or NaN correctly.
+  */
+  int32 nr_int;
+  memcpy(&nr_int, &nr, sizeof(nr));
+  nr_int= (nr_int ^ (nr_int >> 31)) | ((~nr_int) & 0x80000000);
+  store32be(to, nr_int);
+
+  return sizeof(float);
 }
 
 
@@ -4800,8 +4799,9 @@ Field_double::store(const char *from, size_t len, const CHARSET_INFO *cs)
   type_conversion_status error= TYPE_OK;
   char *end;
   double nr= my_strntod(cs,(char*) from, len, &end, &conv_error);
-  if ((conv_error != 0) || (!len || ((uint) (end-from) != len &&
-                                     table->in_use->count_cuted_fields)))
+  if (conv_error != 0 ||
+      len == 0 ||
+      (((uint) (end-from) != len && table->in_use->check_for_truncated_fields)))
   {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE
@@ -5044,8 +5044,9 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 /* The following should work for IEEE */
 
-void Field_double::make_sort_key(uchar *to, size_t length)
+size_t Field_double::make_sort_key(uchar *to, size_t length)
 {
+  DBUG_ASSERT(length == sizeof(double));
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -5063,6 +5064,7 @@ void Field_double::make_sort_key(uchar *to, size_t length)
   }
   else
     change_double_for_sort(nr, to);
+  return sizeof(double);
 }
 
 
@@ -5134,35 +5136,35 @@ my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value)
 void
 Field_temporal::set_warnings(ErrConvString str, int warnings)
 {
-  int cut_incremented= 0;
+  bool truncate_incremented= false;
   timestamp_type ts_type= field_type_to_timestamp_type(type());
 
   if (warnings & MYSQL_TIME_WARN_TRUNCATED)
   {
     set_datetime_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
-                         str, ts_type, !cut_incremented);
-    cut_incremented= 1;
+                         str, ts_type, !truncate_incremented);
+    truncate_incremented= true;
   }
   if (warnings & (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE |
                   MYSQL_TIME_WARN_ZERO_IN_DATE))
   {
     set_datetime_warning(Sql_condition::SL_WARNING,
                          ER_WARN_DATA_OUT_OF_RANGE,
-                         str, ts_type, !cut_incremented);
-    cut_incremented= 1;
+                         str, ts_type, !truncate_incremented);
+    truncate_incremented= true;
   }
   if (warnings & MYSQL_TIME_WARN_INVALID_TIMESTAMP)
   {
     set_datetime_warning(Sql_condition::SL_WARNING,
                          ER_WARN_INVALID_TIMESTAMP,
-                         str, ts_type, !cut_incremented);
-    cut_incremented= 1;
+                         str, ts_type, !truncate_incremented);
+    truncate_incremented= true;
   }
   if ((warnings & MYSQL_TIME_NOTE_TRUNCATED) &&
       !(warnings & MYSQL_TIME_WARN_TRUNCATED))
   {
     set_datetime_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED,
-                         str, ts_type, !cut_incremented);
+                         str, ts_type, !truncate_incremented);
   }   
 }
 
@@ -5826,8 +5828,9 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_timestamp::make_sort_key(uchar *to, size_t length MY_ATTRIBUTE((unused)))
+size_t Field_timestamp::make_sort_key(uchar *to, size_t length)
 {
+  DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
   {
@@ -5844,6 +5847,7 @@ void Field_timestamp::make_sort_key(uchar *to, size_t length MY_ATTRIBUTE((unuse
     to[2] = ptr[1];
     to[3] = ptr[0];
   }
+  return 4;
 }
 
 
@@ -6216,12 +6220,13 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_time::make_sort_key(uchar *to, size_t length)
+size_t Field_time::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 3);
+  DBUG_ASSERT(length == 3);
   to[0] = (uchar) (ptr[2] ^ 128);
   to[1] = ptr[1];
   to[2] = ptr[0];
+  return 3;
 }
 
 
@@ -6364,7 +6369,7 @@ Field_year::store(const char *from, size_t len,const CHARSET_INFO *cs)
   if (conv_error)
     ret= TYPE_ERR_BAD_VALUE;
 
-  if (table->in_use->count_cuted_fields)
+  if (table->in_use->check_for_truncated_fields)
     ret= check_int(cs, from, len, end, conv_error);
 
   if (ret != TYPE_OK)
@@ -6625,12 +6630,13 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_newdate::make_sort_key(uchar *to, size_t length)
+size_t Field_newdate::make_sort_key(uchar *to, size_t length)
 {
-  DBUG_ASSERT(length >= 3);
+  DBUG_ASSERT(length == 3);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
+  return 3;
 }
 
 
@@ -6820,16 +6826,16 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr)
     ((ulonglong) a > (ulonglong) b) ? 1 : 0;
 }
 
-void Field_datetime::make_sort_key(uchar *to, size_t length)
+size_t Field_datetime::make_sort_key(uchar *to, size_t length)
 {
-  const size_t pack_length= PACK_LENGTH;
-  const size_t to_length= min(pack_length, length);
+  DBUG_ASSERT(length == PACK_LENGTH);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
-    copy_integer<true>(to, to_length, ptr, pack_length, true);
+    copy_integer<true>(to, length, ptr, PACK_LENGTH, true);
   else
 #endif
-  copy_integer<false>(to, to_length, ptr, pack_length, true);
+  copy_integer<false>(to, length, ptr, PACK_LENGTH, true);
+  return PACK_LENGTH;
 }
 
 
@@ -7022,8 +7028,8 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
   {
     if (test_if_important_data(field_charset, pstr, end))
     {
-      // Warning should only be written when count_cuted_fields is set
-      if (table->in_use->count_cuted_fields)
+      // Warning should only be written when check_for_truncated_fields is set
+      if (table->in_use->check_for_truncated_fields)
       {
         if (!table->in_use->lex->is_ignore() && table->in_use->is_strict_mode())
           set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
@@ -7034,7 +7040,7 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      if (table->in_use->count_cuted_fields)
+      if (table->in_use->check_for_truncated_fields)
       {
         set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
       }
@@ -7177,7 +7183,9 @@ double Field_string::val_real(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    ErrConvString err((char*) ptr, field_length, cs);
+    size_t length=
+      cs->cset->lengthsp(cs, pointer_cast<const char*>(ptr), field_length);
+    ErrConvString err((char*) ptr, length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
@@ -7200,7 +7208,9 @@ longlong Field_string::val_int(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    ErrConvString err((char*) ptr, field_length, cs);
+    size_t length=
+      cs->cset->lengthsp(cs, pointer_cast<const char*>(ptr), field_length);
+    ErrConvString err((char*) ptr, length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
@@ -7232,11 +7242,14 @@ String *Field_string::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
 my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  const CHARSET_INFO *cs= charset();
   int err= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr, field_length,
-                          charset(), decimal_value);
+                          cs, decimal_value);
   if (err)
   {
-    ErrConvString errmsg((char*) ptr, field_length, charset());
+    size_t length=
+      cs->cset->lengthsp(cs, pointer_cast<const char*>(ptr), field_length);
+    ErrConvString errmsg((char*) ptr, length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
@@ -7251,7 +7264,6 @@ struct Check_field_param {
   Field *field;
 };
 
-#ifdef HAVE_REPLICATION
 static bool
 check_field_for_37426(const void *param_arg)
 {
@@ -7263,7 +7275,6 @@ check_field_for_37426(const void *param_arg)
                        param->field->row_pack_length()));
   return param->field->row_pack_length() > 255;
 }
-#endif
 
 bool
 Field_string::compatible_field_size(uint field_metadata,
@@ -7271,12 +7282,10 @@ Field_string::compatible_field_size(uint field_metadata,
                                     uint16 mflags,
                                     int *order_var)
 {
-#ifdef HAVE_REPLICATION
   const Check_field_param check_param = { this };
   if (!is_mts_worker(rli_arg->info_thd) && rpl_master_has_bug(rli_arg, 37426, TRUE,
                          check_field_for_37426, &check_param))
     return FALSE;                        // Not compatible field sizes
-#endif
   return Field::compatible_field_size(field_metadata, rli_arg, mflags, order_var);
 }
 
@@ -7299,7 +7308,7 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_string::make_sort_key(uchar *to, size_t length)
+size_t Field_string::make_sort_key(uchar *to, size_t length)
 {
   /*
     We don't store explicitly how many bytes long this string is.
@@ -7318,6 +7327,7 @@ void Field_string::make_sort_key(uchar *to, size_t length)
                                   MY_STRXFRM_PAD_WITH_SPACE |
                                   MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
+  return length;
 }
 
 
@@ -7744,8 +7754,9 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 }
 
 
-void Field_varstring::make_sort_key(uchar *to, size_t length)
+size_t Field_varstring::make_sort_key(uchar *to, size_t length)
 {
+  size_t orig_length= length;
   size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
   if (field_charset == &my_charset_bin)
@@ -7765,6 +7776,7 @@ void Field_varstring::make_sort_key(uchar *to, size_t length)
                                             MY_STRXFRM_PAD_WITH_SPACE |
                                             MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);
+  return orig_length;
 }
 
 
@@ -8445,10 +8457,11 @@ uint32 Field_blob::sort_length() const
 }
 
 
-void Field_blob::make_sort_key(uchar *to, size_t length)
+size_t Field_blob::make_sort_key(uchar *to, size_t length)
 {
   uchar *blob;
-  size_t blob_length=get_length();
+  size_t blob_length= get_length();
+  size_t orig_length= length;
 
   if (!blob_length)
     memset(to, 0, length);
@@ -8488,6 +8501,7 @@ void Field_blob::make_sort_key(uchar *to, size_t length)
                                                MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
+  return orig_length;
 }
 
 
@@ -8906,10 +8920,28 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  if (json->to_binary(table->in_use, &value))
+  /*
+    We want to serialize the JSON value directly into Field_blob::value if
+    possible, so that we don't have to copy it there afterwards.
+
+    If the Json_wrapper is pointing to a document that already lives in
+    Field_blob::value, it isn't safe to do so, since the source buffer and
+    destination buffer is the same. This can happen if an UPDATE statement
+    updates the same JSON column twice and the second update of the column
+    reads data that the first update wrote to the output buffer. For example:
+
+      UPDATE t SET json_col = <something>, json_col = json_col->'$.path'
+
+    In that case, we serialize into a temporary string, which is later copied
+    into Field_blob::value by store_binary().
+  */
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> tmpstr;
+  String *buffer= json->is_binary_backed_by(&value) ? &tmpstr : &value;
+
+  if (json->to_binary(table->in_use, buffer))
     return TYPE_ERR_BAD_VALUE;
 
-  return store_binary(value.ptr(), value.length());
+  return store_binary(buffer->ptr(), buffer->length());
 }
 
 
@@ -9058,17 +9090,14 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
 }
 
 
-void Field_json::make_sort_key(uchar *to, size_t length)
+size_t Field_json::make_sort_key(uchar *to, size_t length)
 {
   Json_wrapper wr;
   if (val_json(&wr))
   {
-    /* purecov: begin inspected */
-    memset(to, 0, length);
-    return;
-    /* purecov: end */
+    return 0;
   }
-  wr.make_sort_key(to, length);
+  return wr.make_sort_key(to, length);
 }
 
 
@@ -9176,7 +9205,7 @@ Field_enum::store(const char *from, size_t length,const CHARSET_INFO *cs)
 	set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
         ret= TYPE_WARN_TRUNCATED;
       }
-      if (!table->in_use->count_cuted_fields)
+      if (!table->in_use->check_for_truncated_fields)
         ret= TYPE_OK;
     }
     else
@@ -9200,7 +9229,7 @@ type_conversion_status Field_enum::store(longlong nr, bool)
   if ((ulonglong) nr > typelib->count || nr == 0)
   {
     set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    if (nr != 0 || table->in_use->count_cuted_fields)
+    if (nr != 0 || table->in_use->check_for_truncated_fields)
     {
       nr= 0;
       error= TYPE_WARN_TRUNCATED;
@@ -9314,7 +9343,7 @@ int Field_enum::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_enum::make_sort_key(uchar *to, size_t length)
+size_t Field_enum::make_sort_key(uchar *to, size_t length)
 {
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
@@ -9322,6 +9351,7 @@ void Field_enum::make_sort_key(uchar *to, size_t length)
   else
 #endif
   copy_integer<false>(to, length, ptr, packlength, true);
+  return length;
 }
 
 
@@ -10338,9 +10368,10 @@ void Create_field::create_length_to_internal_length(void)
   @note for string fields "length" parameter is assumed to take into account
         character set.
 
-  TODO/FIXME: Try to get rid of this function as its code is redundant with
-  Field::key_length() and Create_field::create_length_to_internal_length()
-  code.
+  TODO: Get rid of this function as its code is redundant with
+        Field::key_length() and Create_field::create_length_to_internal_length()
+        code. However creation of Field object using make_field() just to call
+        Field::key_length() is probably overkill.
 */
 
 /* purecov: begin deadcode */
@@ -11410,7 +11441,7 @@ uint32 Field_blob::max_display_length()
 
   @param level            - level of message (Note/Warning/Error)
   @param code             - error code of message to be produced
-  @param cut_increment    - whenever we should increase cut fields count
+  @param truncate_increment  - whether we should increase truncated fields count
   @param view_db_name     - if set this is the database name for view
                             that causes the warning
   @param view_name        - if set this is the name of view that causes
@@ -11418,9 +11449,9 @@ uint32 Field_blob::max_display_length()
 
   @note
     This function won't produce warning and increase cut fields counter
-    if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+    if check_for_truncated_fields == CHECK_FIELD_IGNORE for current thread.
 
-    if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+    if check_for_truncated_fields == CHECK_FIELD_IGNORE then we ignore notes.
     This allows us to avoid notes in optimisation, like convert_constant_item().
 
     In case of execution statements INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
@@ -11428,14 +11459,15 @@ uint32 Field_blob::max_display_length()
     types of warning: ER_BAD_NULL_ERROR, ER_WARN_NULL_TO_NOTNULL,
     ER_NO_DEFAULT_FOR_FIELD.
   @retval
-    1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+    1 if check_for_truncated_fields == CHECK_FIELD_IGNORE and error level
+    is not NOTE
   @retval
     0 otherwise
 */
 
 bool Field::set_warning(Sql_condition::enum_severity_level level,
                         uint code,
-                        int cut_increment,
+                        int truncate_increment,
                         const char *view_db_name,
                         const char *view_name)
 {
@@ -11446,10 +11478,10 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
 
   THD *thd= table ? table->in_use : current_thd;
 
-  if (!thd->count_cuted_fields)
+  if (!thd->check_for_truncated_fields)
     return level >= Sql_condition::SL_WARNING;
 
-  thd->cuted_fields+= cut_increment;
+  thd->num_truncated_fields+= truncate_increment;
 
   if (thd->lex->sql_command != SQLCOM_INSERT &&
       thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
@@ -11509,25 +11541,25 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   @param code             error code of message to be produced
   @param val              error parameter (the value)
   @param ts_type          type of datetime value (datetime/date/time)
-  @param cut_increment    whenever we should increase cut fields count
+  @param truncate_increment  whether we should increase truncated fields count
   @note
-    This function will always produce some warning but won't increase cut
-    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current
-    thread.
+    This function will always produce some warning but won't increase truncated
+    fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
+    for current thread.
 */
 void 
 Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
                                      uint code,
                                      ErrConvString val,
                                      timestamp_type ts_type,
-                                     int cut_increment)
+                                     int truncate_increment)
 {
   THD *thd= table ? table->in_use : current_thd;
   if ((!thd->lex->is_ignore() &&
        ((thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) ||
         (thd->variables.sql_mode & MODE_STRICT_TRANS_TABLES &&
          !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)))) ||
-      set_warning(level, code, cut_increment))
+      set_warning(level, code, truncate_increment))
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
 }
 

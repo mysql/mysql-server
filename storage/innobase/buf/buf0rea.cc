@@ -36,6 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "mtr0mtr.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0file.h"
 #include "srv0srv.h"
 #include "srv0start.h"

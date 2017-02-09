@@ -7,7 +7,6 @@
 #
 # BUG#22369630 GTID_SET TO_STRING MALLOC ISSUE FOR LARGE SETS
 #
---source include/have_gtid.inc
 --source include/master-slave.inc
 
 --echo

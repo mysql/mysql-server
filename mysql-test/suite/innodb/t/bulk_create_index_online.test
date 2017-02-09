@@ -2,7 +2,6 @@
 --echo # BUG#19316315 CRASH RECOVERY FAILS AFTER ONLINE ADD INDEX
 --echo #
 
---source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/have_debug_sync.inc
 

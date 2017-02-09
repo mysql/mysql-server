@@ -13,6 +13,9 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_config.h"
+
+#include <errno.h>
 #include <fcntl.h>
 
 /**
@@ -20,8 +23,12 @@
   The performance schema implementation of all instruments.
 */
 #include "mdl.h" /* mdl_key_init */
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_thread.h"
 #include "pfs.h"
@@ -1674,7 +1681,7 @@ build_prefix(const LEX_STRING *prefix,
                                                                             \
     *(info->m_key) = key;                                                   \
   }                                                                         \
-  return;
+  return
 
 /* Use C linkage for the interface functions. */
 
@@ -1687,7 +1694,8 @@ C_MODE_START
 void
 pfs_register_mutex_v1(const char *category, PSI_mutex_info_v1 *info, int count)
 {
-  REGISTER_BODY_V1(PSI_mutex_key, mutex_instrument_prefix, register_mutex_class)
+  REGISTER_BODY_V1(
+    PSI_mutex_key, mutex_instrument_prefix, register_mutex_class);
 }
 
 /**
@@ -1742,9 +1750,10 @@ pfs_register_rwlock_v1(const char *category,
       }
       else
       {
-        pfs_print_error("REGISTER_BODY_V1: (sx) name too long <%s> <%s>\n",
-                        category,
-                        info->m_name);
+        pfs_print_error(
+          "pfs_register_rwlock_v1: (sx) name too long <%s> <%s>\n",
+          category,
+          info->m_name);
         key = 0;
       }
     }
@@ -1758,9 +1767,10 @@ pfs_register_rwlock_v1(const char *category,
       }
       else
       {
-        pfs_print_error("REGISTER_BODY_V1: (rw) name too long <%s> <%s>\n",
-                        category,
-                        info->m_name);
+        pfs_print_error(
+          "pfs_register_rwlock_v1: (rw) name too long <%s> <%s>\n",
+          category,
+          info->m_name);
         key = 0;
       }
     }
@@ -1777,7 +1787,7 @@ pfs_register_rwlock_v1(const char *category,
 void
 pfs_register_cond_v1(const char *category, PSI_cond_info_v1 *info, int count)
 {
-  REGISTER_BODY_V1(PSI_cond_key, cond_instrument_prefix, register_cond_class)
+  REGISTER_BODY_V1(PSI_cond_key, cond_instrument_prefix, register_cond_class);
 }
 
 /**
@@ -1790,7 +1800,7 @@ pfs_register_thread_v1(const char *category,
                        int count)
 {
   REGISTER_BODY_V1(
-    PSI_thread_key, thread_instrument_prefix, register_thread_class)
+    PSI_thread_key, thread_instrument_prefix, register_thread_class);
 }
 
 /**
@@ -1800,7 +1810,7 @@ pfs_register_thread_v1(const char *category,
 void
 pfs_register_file_v1(const char *category, PSI_file_info_v1 *info, int count)
 {
-  REGISTER_BODY_V1(PSI_file_key, file_instrument_prefix, register_file_class)
+  REGISTER_BODY_V1(PSI_file_key, file_instrument_prefix, register_file_class);
 }
 
 void
@@ -1902,7 +1912,7 @@ pfs_register_socket_v1(const char *category,
                        int count)
 {
   REGISTER_BODY_V1(
-    PSI_socket_key, socket_instrument_prefix, register_socket_class)
+    PSI_socket_key, socket_instrument_prefix, register_socket_class);
 }
 
 /**
@@ -7207,7 +7217,7 @@ pfs_register_memory_v1(const char *category,
                        int count)
 {
   REGISTER_BODY_V1(
-    PSI_memory_key, memory_instrument_prefix, register_memory_class)
+    PSI_memory_key, memory_instrument_prefix, register_memory_class);
 }
 
 PSI_memory_key

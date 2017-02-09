@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,6 +164,10 @@ public:
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
+  int setExtraMetadata(Uint32 version,
+                       const void* data, Uint32 data_length);
+  int getExtraMetadata(Uint32& extra_metadata_version,
+                       void** data, Uint32* data_length) const;
 
   int setFragmentData(const Uint32* data, Uint32 cnt);
   const Uint32 * getFragmentData() const;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #include "ftdefs.h"
+#include "my_inttypes.h"
 
 ulong ft_min_word_len= 4;
 ulong ft_max_word_len= HA_FT_MAXCHARLEN;

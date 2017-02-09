@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Don't test this under valgrind, memory leaks will occur due restart
 --source include/not_valgrind.inc

@@ -2,7 +2,6 @@
 # BUG#22385442 - INNODB: DIFFICULT TO FIND FREE BLOCKS IN THE BUFFER POOL
 #
 
---source include/have_innodb.inc
 --source include/big_test.inc
 # Disable in valgrind because of timeout, cf. Bug#22755816
 --source include/not_valgrind.inc

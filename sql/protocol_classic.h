@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "my_command.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "mysql_com.h"
 #include "protocol.h"            // Protocol
 #include "sql_string.h"

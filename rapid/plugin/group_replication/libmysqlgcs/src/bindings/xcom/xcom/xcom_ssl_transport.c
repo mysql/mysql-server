@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,14 @@
 */
 
 #ifdef XCOM_HAVE_OPENSSL
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
 
+#include "my_compiler.h"
+#include "openssl/engine.h"
+#include "task_debug.h"
 #include "x_platform.h"
 #include "xcom_ssl_transport.h"
-#include "task_debug.h"
-
-#include "openssl/engine.h"
 
 static const char* ssl_mode_options[]=
 {

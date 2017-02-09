@@ -34,7 +34,10 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 #include "ha_prototypes.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "os0file.h"
 #include "sql_const.h"
 #include "srv0srv.h"
@@ -64,6 +67,7 @@ Created 10/21/1995 Heikki Tuuri
 # include <linux/falloc.h>
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 
+#include <errno.h>
 #include <lz4.h>
 #include <my_aes.h>
 #include <my_rnd.h>

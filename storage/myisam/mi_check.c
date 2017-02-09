@@ -41,14 +41,21 @@
   only. And it is sufficient to calculate the checksum once only.
 */
 
+#include "my_config.h"
+
+#include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 
 #include "ftdefs.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"
 #ifdef HAVE_SYS_MMAN_H

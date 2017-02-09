@@ -28,7 +28,6 @@
 #               STOPS BEFORE TRANSACTION
 
 --source include/have_binlog_format_statement.inc
---source include/have_gtid.inc
 --source include/master-slave.inc
 
 # Stop the SQL thread

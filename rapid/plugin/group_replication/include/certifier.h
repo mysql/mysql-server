@@ -29,6 +29,7 @@
 #include "gcs_plugin_messages.h"
 #include "member_info.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pipeline_interfaces.h"
 #include "plugin_utils.h"
 

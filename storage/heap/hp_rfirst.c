@@ -15,6 +15,7 @@
 
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 /* Read first record with the current key */
 

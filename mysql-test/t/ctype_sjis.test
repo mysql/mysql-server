@@ -201,13 +201,11 @@ DROP TABLE t1;
 
 set names sjis;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 
 set collation_connection=sjis_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 --echo #

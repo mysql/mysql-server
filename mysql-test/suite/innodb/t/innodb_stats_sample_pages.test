@@ -3,7 +3,6 @@
 # used by InnoDB
 #
 
--- source include/have_innodb.inc
 # Page numbers printed by this test depend on the page size
 -- source include/have_innodb_16k.inc
 

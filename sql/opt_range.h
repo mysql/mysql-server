@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,12 @@
 #include "malloc_allocator.h"  // IWYU pragma: keep
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
@@ -1004,8 +1008,7 @@ public:
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
 {
 public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts, 
-                    bool *create_err);
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
   int get_next();
   bool reverse_sorted() const { return true; }
   bool reverse_sort_possible() const { return true; }
@@ -1048,7 +1051,7 @@ public:
     return file->ft_init();
   }
   int reset() { return 0; }
-  int get_next() { return file->ft_read(record); }
+  int get_next() { return file->ha_ft_read(record); }
   int get_type() const { return QS_TYPE_FULLTEXT; }
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }

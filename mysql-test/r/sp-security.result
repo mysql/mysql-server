@@ -159,15 +159,16 @@ alter procedure q modifies sql data;
 drop procedure q;
 use test;
 select routine_type, routine_schema, routine_name
-from information_schema.routines where routine_schema like 'db%';
-routine_type	routine_schema	routine_name
+from information_schema.routines where routine_schema like 'db%'
+order by routine_type, routine_name;
+ROUTINE_TYPE	ROUTINE_SCHEMA	ROUTINE_NAME
 FUNCTION	db1_secret	db
 PROCEDURE	db1_secret	stamp
 drop database db1_secret;
 drop database db2;
 select routine_type, routine_schema, routine_name
 from information_schema.routines where routine_schema like 'db%';
-routine_type	routine_schema	routine_name
+ROUTINE_TYPE	ROUTINE_SCHEMA	ROUTINE_NAME
 delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';
 delete from mysql.procs_priv where user='user1' or user='user2';
@@ -667,10 +668,10 @@ connect  conn1, localhost, user,,;
 # user@localhost as user does not have any privileges.
 SELECT routine_schema, routine_name, routine_type
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-routine_schema	routine_name	routine_type
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
-specific_schema	specific_name	parameter_name
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
 # Grant procedure execute privilege to user@localhost.
 connection default;
 GRANT EXECUTE ON PROCEDURE mysqltest_db.p1 TO user@localhost;
@@ -679,11 +680,11 @@ GRANT EXECUTE ON PROCEDURE mysqltest_db.p1 TO user@localhost;
 connection conn1;
 SELECT routine_schema, routine_name, routine_type
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-routine_schema	routine_name	routine_type
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
 mysqltest_db	p1	PROCEDURE
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
-specific_schema	specific_name	parameter_name
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
 mysqltest_db	p1	f1
 # Revoke procedure execute privilege from user@localhost.
 connection default;
@@ -693,10 +694,10 @@ REVOKE EXECUTE ON PROCEDURE mysqltest_db.p1 FROM user@localhost;
 connection conn1;
 SELECT routine_schema, routine_name, routine_type
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-routine_schema	routine_name	routine_type
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
-specific_schema	specific_name	parameter_name
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
 # Grant GLOBAL SELECT privilege to user@localhost.
 connection default;
 GRANT SELECT ON *.* TO user@localhost;
@@ -705,11 +706,11 @@ GRANT SELECT ON *.* TO user@localhost;
 connect  conn2, localhost, user,,;
 SELECT routine_schema, routine_name, routine_type
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-routine_schema	routine_name	routine_type
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
 mysqltest_db	p1	PROCEDURE
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
-specific_schema	specific_name	parameter_name
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
 mysqltest_db	p1	f1
 connection default;
 disconnect conn1;

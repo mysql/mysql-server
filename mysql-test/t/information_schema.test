@@ -174,11 +174,7 @@ show procedure status where db='test';
 show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8) AND b.SCHEMA_NAME='test';
---replace_column 3 # 10 # 11 #
-explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
-information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
 
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 
@@ -189,19 +185,19 @@ drop view v1;
 
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 --error ER_SP_DOES_NOT_EXIST
 show create function sub1;
 connection user3;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 connection default;
 grant all privileges on test.* to mysqltest_1@localhost;
 connect (user2,localhost,mysqltest_1,,);
 connection user2;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 create function sub2(i int) returns int
   return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 show create procedure sel2;
 show create function sub1;
 show create function sub2;
@@ -1532,9 +1528,6 @@ EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
 --replace_result referential_constraints REFERENTIAL_CONSTRAINTS
 EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
   WHERE CONSTRAINT_SCHEMA='test';
---replace_result triggers TRIGGERS
-EXPLAIN SELECT * FROM information_schema.TRIGGERS
-  WHERE EVENT_OBJECT_SCHEMA='test';
 
 #
 # Bug#24062 Incorrect error msg after execute DROP TABLE IF EXISTS on information_schema
@@ -1659,6 +1652,11 @@ drop view v1;
 --echo # performance problems in cases when big number of tables (.FRMs
 --echo # or .TRG files) were scanned as cost of new lock acquisition has
 --echo # increased linearly.
+--echo #
+--echo # With WL#9494, queries using I_S.TRIGGERS will not open the under
+--echo # lying tables. The I_S query will not take metadata locks on
+--echo # table owning the triggers and hence the query will not be blocked.
+--echo #
 --disable_warnings
 drop database if exists mysqltest;
 --enable_warnings
@@ -1698,8 +1696,10 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 SET SESSION information_schema_stats=latest;
---echo # Issue query to I_S which will open 't0' and get
---echo # blocked on 't1' because of RENAME.
+--echo # Without WL9494, issuing a query to I_S will open 't0' and get
+--echo # blocked on 't1' because of RENAME. With WL9494, I_S query is just
+--echo # a scan over dictionary tables and do not really open the table,
+--echo # so the below query does not block.
 --send select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'
 
 --echo #
@@ -1708,7 +1708,7 @@ SET SESSION information_schema_stats=latest;
 connect (con12828477_3, localhost, root,,mysqltest);
 --echo # Wait while the above SELECT is blocked.
 let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
+  select count(*) = 0 from information_schema.processlist
   where state = "Waiting for table metadata lock" and
         info = "select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'";
 --source include/wait_condition.inc
@@ -2054,6 +2054,15 @@ SELECT CAN_ACCESS_COLUMN(NULL, NULL, NULL);
 --error ER_NO_ACCESS_TO_NATIVE_FCT
 SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
 
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_TRIGGER(NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_ROUTINE(NULL, NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_EVENT(NULL);
+
 CREATE TABLE t1(f1 INT);
 --error ER_NO_ACCESS_TO_NATIVE_FCT
 CREATE TABLE t3 AS SELECT CAN_ACCESS_TABLE("test", "t1");
@@ -2118,3 +2127,57 @@ SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
   WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'
   ORDER BY COLUMN_NAME;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#24751177: ASSERTION `STRLEN(DB_NAME) <= (64*3) &&
+--echo #               STRLEN(TABLE_NAME) <= (64*3)' FAILED
+--echo #
+
+--echo # Without patch, the below queries triggers an assertion.
+--error ER_WRONG_TABLE_NAME
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`;
+
+--error ER_WRONG_TABLE_NAME
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+
+--error ER_TOO_LONG_IDENT
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+
+--error ER_TOO_LONG_IDENT
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`;
+
+--error ER_WRONG_DB_NAME
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`.`t1`;
+
+--error ER_WRONG_DB_NAME
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+
+--error ER_TOO_LONG_IDENT
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+
+--error ER_TOO_LONG_IDENT
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`.`t1`;

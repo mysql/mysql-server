@@ -25,6 +25,7 @@
 
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rewriter_plugin.h"
 
 extern "C" {

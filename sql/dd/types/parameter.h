@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__PARAMETER_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 
 #include "dd/types/column.h"         // dd::Column::enum_column_types
 #include "dd/types/entity_object.h"  // dd::Entity_object
@@ -90,6 +91,13 @@ public:
 
   virtual enum_column_types data_type() const = 0;
   virtual void set_data_type(enum_column_types type) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // display type
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &data_type_utf8() const = 0;
+  virtual void set_data_type_utf8(const String_type &data_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // is_zerofill.

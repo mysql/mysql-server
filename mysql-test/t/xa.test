@@ -1,7 +1,6 @@
 #
 # WL#1756
 #
--- source include/have_innodb.inc
 
 --source include/not_embedded.inc
 

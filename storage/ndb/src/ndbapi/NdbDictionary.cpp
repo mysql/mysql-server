@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -833,6 +833,20 @@ NdbDictionary::Table::getPartitionBalanceString(PartitionBalance partition_balan
 int
 NdbDictionary::Table::setFrm(const void* data, Uint32 len){
   return m_impl.setFrm(data, len);
+}
+
+int
+NdbDictionary::Table::setExtraMetadata(Uint32 version,
+                                       const void* data, Uint32 data_length)
+{
+  return m_impl.setExtraMetadata(version, data, data_length);
+}
+
+int
+NdbDictionary::Table::getExtraMetadata(Uint32& version,
+                                       void** data, Uint32* data_length) const
+{
+  return m_impl.getExtraMetadata(version, data, data_length);
 }
 
 const Uint32*

@@ -1,6 +1,5 @@
 # Embedded mode doesn't support restarting
 --source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/big_test.inc
 
 --disable_query_log

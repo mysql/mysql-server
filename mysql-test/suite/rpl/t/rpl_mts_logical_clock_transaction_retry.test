@@ -9,7 +9,7 @@
 --source include/master-slave.inc
 
 # It makes all statements can be executed parallel.
-SET DEBUG = "d,set_commit_parent_100";
+--let $set_commit_parent_100= 1
 
 --let $mts_parallel_type= "LOGICAL_CLOCK"
 --source extra/rpl_tests/rpl_mts_transaction_retry.inc

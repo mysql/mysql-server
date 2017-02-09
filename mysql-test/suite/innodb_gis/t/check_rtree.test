@@ -3,7 +3,6 @@
 # Not supported in embedded
 --source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 
 # Create table with R-tree index.
 create table t1 (i int, g geometry not null, spatial index (g))engine=innodb;

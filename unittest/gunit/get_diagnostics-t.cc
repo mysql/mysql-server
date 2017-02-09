@@ -17,9 +17,8 @@
 
 #include "item.h"
 #include "item_func.h"
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sql_get_diagnostics.h"
 #include "test_utils.h"
 

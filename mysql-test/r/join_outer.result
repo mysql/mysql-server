@@ -2618,6 +2618,7 @@ DROP TABLE ta, tb;
 CREATE TABLE m (
 machineid VARCHAR(32) NOT NULL,
 orderid bigint unsigned DEFAULT NULL,
+extra bigint unsigned DEFAULT NULL,
 PRIMARY KEY (machineid)
 );
 INSERT INTO m (machineid, orderid)
@@ -2633,9 +2634,9 @@ SELECT o.*,'|' as sep, m.*
 FROM o LEFT JOIN m
 ON m.machineid = o.machineid AND
 m.orderid = o.orderid;
-orderid	machineid	sep	machineid	orderid
-1	m2	|	NULL	NULL
-2	m2	|	m2	2
+orderid	machineid	sep	machineid	orderid	extra
+1	m2	|	NULL	NULL	NULL
+2	m2	|	m2	2	NULL
 DROP TABLE m, o;
 # Bug#23086825: Incorrect query results using left join against derived
 CREATE TABLE t1 (

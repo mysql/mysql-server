@@ -29,6 +29,7 @@ Created 2/2/1994 Heikki Tuuri
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0cur.h"
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP

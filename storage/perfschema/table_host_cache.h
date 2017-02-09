@@ -21,6 +21,7 @@
   Table HOST_CACHE (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"

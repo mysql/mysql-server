@@ -1,5 +1,4 @@
 # Applies BINLOG statements equivalent to a binlog generated with GTID_MODE=OFF
---source include/not_gtid_enabled.inc
 source include/have_binlog_format_mixed_or_row.inc;
 source include/master-slave.inc;
 

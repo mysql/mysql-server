@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
   to include sql_profile.h and table.h.
 */
 #include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
-#define MYSQL_SERVER 1
 #include <conn_handler/channel_info.h>
 #include <conn_handler/connection_handler_manager.h>
 #include <debug_sync.h>

@@ -1102,3 +1102,73 @@ EXECUTE st1;
 DEALLOCATE PREPARE st1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo # Bug#25424289: Assert '!table->has_null_row()' failed in join_read_key
+
+CREATE TABLE t1
+(pk INT,
+ col_int_key INT DEFAULT NULL,
+ col_varchar_10_latin1_key VARCHAR(10) DEFAULT NULL,
+ col_varchar_255_utf8 VARCHAR(255) CHARACTER SET utf8 DEFAULT NULL,
+ col_int INT DEFAULT NULL,
+ col_datetime_key datetime DEFAULT NULL,
+ col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+ col_date_key date DEFAULT NULL,
+ col_datetime datetime DEFAULT NULL,
+ PRIMARY KEY (pk),
+ KEY col_date_key (col_date_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+(8,9,'h','FDUMQ',-1356726272,'2007-09-02 05:48:23','she','2002-04-02','2002-12-20 17:54:07');
+
+CREATE TABLE t2
+(pk INT,
+ col_int INT DEFAULT NULL,
+ col_int_key INT DEFAULT NULL,
+ PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t3
+(col_int INT DEFAULT NULL,
+ col_int_key INT DEFAULT NULL,
+ pk INT,
+ PRIMARY KEY (pk),
+ KEY test_idx (col_int_key,pk,col_int)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES
+ (NULL,9, 41), (NULL,-1596719104, 48), (-1068105728,9, 49);
+
+CREATE TABLE t4
+(col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+ pk INT,
+ PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t4 VALUES ('RUXDY',8);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query=
+SELECT alias1.pk AS field5
+FROM t3 AS alias1
+     LEFT JOIN t4 AS alias2
+       LEFT JOIN t4 AS alias3
+         LEFT JOIN t1 AS alias4
+           LEFT JOIN t2 AS alias5
+           ON alias4.pk = alias5.col_int_key
+         ON alias3.pk = alias5.col_int
+       ON alias2.col_varchar_255_latin1_key = alias4.col_varchar_10_latin1_key
+       RIGHT JOIN t1 AS alias6
+       ON alias4.pk = alias6.pk
+       RIGHT JOIN t4 AS alias7
+       ON alias6.pk = alias7.pk
+     ON alias1.col_int_key = alias6.col_int_key
+WHERE alias1.col_int > 5 OR
+      alias5.col_int > 5; 
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;

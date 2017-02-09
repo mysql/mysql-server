@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <BlockNumbers.h>
 #include <mgmapi.h>
 #include "trp_buffer.hpp"
+#include <my_thread.h>
 
 class ClusterMgr;
 class ArbitMgr;
@@ -53,6 +54,7 @@ public:
    * (Ndb objects should not be shared by different threads.)
    */
   STATIC_CONST( MAX_NO_THREADS = 4711 );
+  STATIC_CONST( MAX_LOCKED_CLIENTS = 256 );
   TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
 
@@ -80,8 +82,8 @@ public:
   /** 
    * Get/Set wait time in the send thread.
    */
- void setSendThreadInterval(Uint32 ms);
- Uint32 getSendThreadInterval(void);
+  void setSendThreadInterval(Uint32 ms);
+  Uint32 getSendThreadInterval(void) const;
 
   Uint32 mapRefToIdx(Uint32 blockReference) const;
 
@@ -149,7 +151,7 @@ public:
   When a thread has sent its signals and is ready to wait for reception
   of these it does normally always wait on a conditional mutex and
   the actual reception is handled by the receiver thread in the NDB API.
-  With the below new methods and variables each thread has the possibility
+  With the below methods and variables each thread has the possibility
   of becoming owner of the "right" to poll for signals. Effectually this
   means that the thread acts temporarily as a receiver thread.
   There is also a dedicated receiver thread (threadMainReceive) which will
@@ -157,23 +159,24 @@ public:
   For the thread that succeeds in grabbing this "ownership" it will avoid
   a number of expensive calls to conditional mutex and even more expensive
   context switches to wake up.
+
   When an owner of the poll "right" has completed its own task it is likely
-  that there are others still waiting. In this case we pick one of the
-  threads as new owner of the poll "right". Since we want to switch owner
-  as seldom as possible we always pick the last thread which is likely to
-  be the last to complete its reception.
+  that there are others still waiting. In this case we signal one of the
+  waiting threads to give it the chance to grab the poll "right".
+
+  Since we want to switch owner as seldom as possible we always
+  pick the last thread which is likely to be the last to complete
+  its reception.
 */
-  void start_poll(trp_client*);
   void do_poll(trp_client* clnt,
                Uint32 wait_time,
                bool stay_poll_owner = false);
-  void complete_poll(trp_client*);
   void wakeup(trp_client*);
 
   void external_poll(Uint32 wait_time);
 
-  void remove_from_poll_queue(trp_client* const *, Uint32 cnt);
-  void unlock_and_signal(trp_client* const *, Uint32 cnt);
+  void remove_from_poll_queue(trp_client* const arr[], Uint32 cnt);
+  static void unlock_and_signal(trp_client* const arr[], Uint32 cnt);
 
   trp_client* get_poll_owner(bool) const { return m_poll_owner;}
   void add_to_poll_queue(trp_client* clnt);
@@ -205,10 +208,12 @@ public:
   int lock_recv_thread_cpu();
   int unlock_recv_thread_cpu();
 
-  /* All 3 poll_owner and poll_queue members below need thePollMutex */
+  /* All 5 poll_owner and poll_queue members below need thePollMutex */
+  my_thread_t  m_poll_owner_tid;  // poll_owner thread id
   trp_client * m_poll_owner;
   trp_client * m_poll_queue_head; // First in queue
   trp_client * m_poll_queue_tail; // Last in queue
+  Uint32 m_poll_waiters;          // Number of clients in queue 
   /* End poll owner stuff */
 
   // heart beat received from a node (e.g. a signal came)
@@ -259,10 +264,34 @@ private:
 
   void propose_poll_owner(); 
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
-  static void finish_poll(trp_client* clnt,
-                          Uint32 cnt,
-                          Uint32& cnt_woken,
-                          trp_client** arr);
+
+  /* Used in debug asserts to enforce sendSignal rules: */
+  bool is_poll_owner_thread() const;
+
+  /**
+   * When poll owner is assigned:
+   *  - ::external_poll() let m_poll_owner act as receiver thread
+   *    actually the transporter.
+   *  - ::start_poll() - ::finish_poll() has to enclose ::external_poll()
+   */
+  void start_poll();
+  int  finish_poll(trp_client* arr[]);
+
+  /**
+   * The m_poll_owner manage a list of clients
+   * waiting for the poll right or to be waked up when something
+   * was delivered to it by the poll_owner.
+   */ 
+  void lock_client(trp_client*);
+  bool check_if_locked(const trp_client*,
+                       const Uint32 start) const;
+
+  /**
+   * List if trp_clients locked by the *m_poll_owner.
+   * m_locked_clients[0] is always the m_poll_owner itself. 
+   */
+  Uint32 m_locked_cnt;
+  trp_client *m_locked_clients[MAX_LOCKED_CLIENTS];
 
   Uint32 m_num_active_clients;
   volatile bool m_check_connections;
@@ -383,7 +412,6 @@ public:
    * Add a send buffer to out-buffer
    */
   void flush_send_buffer(Uint32 node, const TFBuffer* buffer);
-  void flush_and_send_buffer(Uint32 node, const TFBuffer* buffer);
 
   /**
    * Allocate a send buffer
@@ -420,7 +448,8 @@ private:
         m_node_active(false),
         m_current_send_buffer_size(0),
         m_buffer(),
-        m_out_buffer()
+        m_out_buffer(),
+        m_flushed_cnt(0)
     {}
 
     /**
@@ -460,13 +489,29 @@ private:
     TFBuffer m_out_buffer;
 
     /**
+     * Number of buffer flushed since last send.
+     * Used as metric for adaptive send algorithm
+     */
+    Uint32 m_flushed_cnt;
+
+    /**
      *  Implements the 'm_out_buffer' locking as described above.
      */
     bool try_lock_send();
     void unlock_send();
   } m_send_buffers[MAX_NODES];
 
+  /**
+   * The set of nodes having a 'm_send_buffer[]::m_node_active '== true'
+   * This is the set of all nodes we have been configured to send to.
+   */
+  NodeBitmask m_active_nodes;
+
   void do_send_buffer(Uint32 node, TFSendBuffer *b);
+
+  void try_send_buffer(Uint32 node, TFSendBuffer* b);
+  void try_send_all(const NodeBitmask& nodes);
+  void do_send_adaptive(const NodeBitmask& nodes);
 
   Uint32 get_current_send_buffer_size(NodeId node) const
   {
@@ -475,7 +520,18 @@ private:
   void wakeup_send_thread(void);
   NdbMutex * m_send_thread_mutex;
   NdbCondition * m_send_thread_cond;
-  NodeBitmask m_send_thread_nodes;
+
+  // Members below protected with m_send_thread_mutex
+  NodeBitmask m_send_thread_nodes;  //Future use: multiple send threads
+
+  /**
+   * The set of nodes having unsent buffered data. Either after
+   * previous do_send_buffer() not being able to send everything,
+   * or the adaptive send decided to defer the send.
+   * In both cases the send thread will be activated to take care
+   * of sending to these nodes.
+   */
+  NodeBitmask m_has_data_nodes;
 };
 
 inline

@@ -43,35 +43,35 @@ create event event2 on schedule every 2 second starts now() ends date_add(now(),
 drop event event2;
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 10 SECOND COMMENT "" DO SELECT 1;
 SELECT interval_field, interval_value, event_definition FROM information_schema.events WHERE event_name='event_starts_test';
-interval_field	interval_value	event_definition
+INTERVAL_FIELD	INTERVAL_VALUE	EVENT_DEFINITION
 SECOND	10	SELECT 1
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 1	0	1	
 ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 0	1	1	
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 0	1	1	non-empty comment
 ALTER EVENT event_starts_test COMMENT "";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 0	1	1	
 DROP EVENT event_starts_test;
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 1	0	0	
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 1	0	0	non-empty comment
 ALTER EVENT event_starts_test COMMENT "";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-execute_at IS NULL	starts IS NULL	ends IS NULL	event_comment
+execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 1	0	0	
 DROP EVENT event_starts_test;
 create table test_nested(a int);
@@ -85,7 +85,7 @@ insert into test_nested values(1);
 end|
 set global event_scheduler = on;
 select event_name, event_definition, status, interval_field, interval_value from information_schema.events;
-event_name	event_definition	status	interval_field	interval_value
+EVENT_NAME	EVENT_DEFINITION	STATUS	INTERVAL_FIELD	INTERVAL_VALUE
 e_43	begin
 alter event e_43 on schedule every 5 minute;
 insert into test_nested values(1);

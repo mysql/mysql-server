@@ -21,7 +21,6 @@
 #   generate row events but CREATE TABLE without SELECT does not generate
 #   an error.
 ################################################################################
---source include/have_innodb.inc
 --source include/have_example_plugin.inc
 --source include/have_log_bin.inc
 --source include/no_ps_protocol.inc

@@ -68,8 +68,11 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -950,11 +953,9 @@ static int check_signed_flag(partition_info *part_info)
     stack for resolving of fields from a single table.
 */
 
-static int
+static bool
 init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
 {
-  TABLE_LIST *table_list;
-  Table_ident *table_ident;
   SELECT_LEX *select_lex= lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
   /*
@@ -966,14 +967,17 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     we're working with to the Name_resolution_context.
   */
   thd->lex= lex;
-  if ((!(table_ident= new Table_ident(thd->get_protocol(),
-                                      to_lex_cstring(table->s->table_name),
-                                      to_lex_cstring(table->s->db), TRUE))) ||
-      (!(table_list= select_lex->add_table_to_list(thd,
-                                                   table_ident,
-                                                   NULL,
-                                                   0))))
-    return TRUE;
+  auto table_ident= new Table_ident(thd->get_protocol(),
+                                    to_lex_cstring(table->s->table_name),
+                                    to_lex_cstring(table->s->db), true);
+  if (table_ident == nullptr)
+    return true;
+
+  TABLE_LIST *table_list=
+    select_lex->add_table_to_list(thd, table_ident, nullptr, 0);
+  if (table_list == nullptr)
+    return true;
+
   context->resolve_in_table_list_only(table_list);
   lex->use_only_table_context= TRUE;
   table->get_fields_in_item_tree= TRUE;

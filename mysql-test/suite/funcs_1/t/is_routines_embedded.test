@@ -14,7 +14,6 @@
 #
 
 let $other_engine_type = InnoDB;
---source include/have_innodb.inc
 --source include/is_embedded.inc
 
 --source suite/funcs_1/datadict/is_routines.inc

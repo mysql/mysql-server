@@ -19,6 +19,7 @@
 */
 
 #include "field.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_thread.h"

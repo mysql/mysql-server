@@ -7,6 +7,7 @@
 #
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
+--source include/not_valgrind.inc
 # We need the Debug Sync Facility.
 --source include/have_debug_sync.inc
 # Some of tests below also use binlog to check that statements are

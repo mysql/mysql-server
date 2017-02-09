@@ -26,7 +26,6 @@ if (!$require_case_insensitive_file_system)
 # privileges.
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
 let $engine_type       = InnoDB;
 
 let $is_table = TABLE_CONSTRAINTS;

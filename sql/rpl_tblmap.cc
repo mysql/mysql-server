@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifdef HAVE_REPLICATION
 #include "rpl_tblmap.h"
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 #include "table.h"       // TABLE
 #endif
 #include "m_ctype.h"
@@ -25,7 +24,7 @@
 #include "psi_memory_key.h"
 #include "sql_plugin_ref.h"
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #define MAYBE_TABLE_NAME(T) ("")
 #else
 #define MAYBE_TABLE_NAME(T) ((T) ? (T)->s->table_name.str : "<>")
@@ -38,7 +37,7 @@ table_mapping::table_mapping()
 {
   PSI_memory_key psi_key;
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   psi_key= PSI_NOT_INSTRUMENTED;
 #else
   psi_key= key_memory_table_mapping_root;
@@ -60,7 +59,7 @@ table_mapping::table_mapping()
 
 table_mapping::~table_mapping()
 {
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   clear_tables();
 #endif
   my_hash_free(&m_table_ids);
@@ -126,7 +125,7 @@ int table_mapping::set_table(ulonglong table_id, TABLE* table)
   }
   else
   {
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
     free_table_map_log_event(e->table);
 #endif
     my_hash_delete(&m_table_ids,(uchar *)e);
@@ -171,7 +170,7 @@ void table_mapping::clear_tables()
   for (uint i= 0; i < m_table_ids.records; i++)
   {
     entry *e= (entry *)my_hash_element(&m_table_ids, i);
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
     free_table_map_log_event(e->table);
 #endif
     e->next= m_free;
@@ -180,5 +179,3 @@ void table_mapping::clear_tables()
   my_hash_reset(&m_table_ids);
   DBUG_VOID_RETURN;
 }
-
-#endif

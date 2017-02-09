@@ -5,9 +5,7 @@
 source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
 connection master;
-source include/have_innodb.inc;
 connection slave;
-source include/have_innodb.inc;
 
 # Add suppression for expected warning(s) in slaves error log
 call mtr.add_suppression("Can.t find record in .t[12].* Error_code: 1032");

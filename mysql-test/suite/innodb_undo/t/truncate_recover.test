@@ -2,7 +2,6 @@
 # WL#6965: Truncate UNDO logs.
 #
 
---source include/have_innodb.inc
 # this is must to ensure that trx_purge_truncate is called with increased
 # frequency so that undo logs are cleared.
 --source include/have_debug.inc

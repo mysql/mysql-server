@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,17 +66,6 @@ public:
   static u_long build_xcom_group_id(Gcs_group_identifier &group_id);
 
   /**
-    Creates an XCom member identifier. It shall be on the format
-    node_number:address:port.
-
-    @param address peer address
-
-    @return member id
-  */
-
-  static std::string *build_xcom_member_id(const std::string &address);
-
-  /**
     Processes a list of comma separated peer nodes.
 
     @param peer_nodes input string of comma separated peer nodes
@@ -85,6 +74,18 @@ public:
   static
   void process_peer_nodes(const std::string *peer_nodes,
                           std::vector<std::string> &processed_peers);
+
+  /**
+    Validates peer nodes according with IP/Address rules enforced by
+    is_valid_hostname function
+
+    @param [in,out] peers input list of peer nodes. It will be cleansed of
+                    invalid peers
+    @param [in,out] invalid_peers This list will contain all invalid peers.
+   */
+  static
+  void validate_peer_nodes(std::vector<std::string> &peers,
+                           std::vector<std::string> &invalid_peers);
 
   /**
    Simple multiplicative hash.
@@ -124,16 +125,19 @@ public:
 
   /**
     This is an utility member function that is used to call into XCom for
-    creating the node_address list.
+    creating list with node's addresses and their associated UUIDs. Note
+    that callers must provide the UUID.
 
     @param n The number of elements in the list
     @param names The names to be put on the list
+    @param uuids The UUIDs to be put on the list
     @return a pointer to the list containing all the elements needed. The
     caller is responsible to reclaim memory once he is done with this data
     @c delete_node_address
   */
 
-  virtual node_address *new_node_address(unsigned int n, char *names[])= 0;
+  virtual node_address *new_node_address_uuid(unsigned int n, char *names[], blob uuids[])= 0;
+
 
   /**
     This function is responsible to delete the list of nodes that had been
@@ -607,7 +611,7 @@ public:
   Gcs_xcom_proxy_impl(unsigned int wt);
   virtual ~Gcs_xcom_proxy_impl();
 
-  node_address *new_node_address(unsigned int n, char *names[]);
+  node_address *new_node_address_uuid(unsigned int n, char *names[], blob uuids[]);
   void delete_node_address(unsigned int n, node_address *na);
   int xcom_client_add_node(connection_descriptor* fd, node_list *nl, uint32_t group_id);
   int xcom_client_remove_node(connection_descriptor* fd, node_list* nl, uint32_t group_id);
@@ -778,6 +782,10 @@ public:
 
   const std::vector<std::string> &get_addresses() const;
 
+  /**
+    Return a reference to the member uuids' vector.
+  */
+  const std::vector<Gcs_uuid> &get_uuids() const;
 
   /**
     Return a reference to the statuses' vector.
@@ -819,6 +827,11 @@ private:
     List of addresses.
   */
   std::vector<std::string> m_addresses;
+
+  /*
+    List of uuids.
+  */
+  std::vector<Gcs_uuid> m_uuids;
 
   /*
     List that defines whether a node is alive or dead.

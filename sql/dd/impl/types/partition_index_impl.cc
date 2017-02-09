@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include <sstream>
 
-#include "dd/string_type.h"                   // dd::String_type
 #include "dd/impl/properties_impl.h"          // Properties_impl
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/sdi_impl.h"                 // sdi read/write functions
@@ -26,11 +25,13 @@
 #include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/partition_impl.h"     // Partition_impl
 #include "dd/impl/types/table_impl.h"         // Table_impl
+#include "dd/string_type.h"                   // dd::String_type
 #include "dd/types/index.h"
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
 #include "m_string.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                     // ER_*
 #include "rapidjson/document.h"

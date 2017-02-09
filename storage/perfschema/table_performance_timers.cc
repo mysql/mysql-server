@@ -25,6 +25,7 @@
 #include "pfs_global.h"
 #include "pfs_timer.h"
 #include "table_performance_timers.h"
+#include "table_helper.h"
 
 THR_LOCK table_performance_timers::m_table_lock;
 

@@ -15,7 +15,6 @@
 # Bug #23748432 MYSQLPUMP FULL LOGICAL BACKUPS UNUSABLE WITH GTID REPLICATION
 #
 --let $rpl_skip_start_slave= 1
---source include/have_gtid.inc
 # test is agnostic to binlog_format
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc

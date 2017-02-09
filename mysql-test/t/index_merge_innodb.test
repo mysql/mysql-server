@@ -15,7 +15,6 @@
 #               include/index_merge*.inc files
 #
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 # According to Oracle: "InnoDB's estimate for the index cardinality
 # depends on a pseudo random number generator (it picks up random

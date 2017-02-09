@@ -32,7 +32,6 @@
 # Implemented in WL#3584: Global Transaction Identifiers
 # Bug#20343644  ASSERTION AT BINLOG.CC:1120 WHEN GTID_MODE=ON, GTID_NEXT='UUID:NUMBER'
 
---source include/have_innodb.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
 

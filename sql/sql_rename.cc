@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/*
+/**
+  @file sql/sql_rename.cc
   Atomic rename of table;  RENAME TABLE t1 to t2, tmp to t1 [,...]
 */
 
@@ -28,6 +29,7 @@
 #include "log.h"              // query_logger
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names
 #include "mysqld_error.h"
@@ -47,11 +49,11 @@
 #include "transaction.h"      // trans_commit_stmt
 
 
-struct handlerton;
+typedef std::set<handlerton*> post_ddl_htons_t;
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
                                  bool skip_error, bool *int_commit_done,
-                                 std::set<handlerton*> *post_ddl_htons);
+                                 post_ddl_htons_t *post_ddl_htons);
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
@@ -393,8 +395,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
-                             new_alias, (NO_TARGET_CHECK |
-                                         (do_commit ? 0 : NO_DD_COMMIT))))
+                             new_alias, (do_commit ? 0 : NO_DD_COMMIT)))
         DBUG_RETURN(!skip_error);
 
       *int_commit_done|= do_commit;
@@ -465,7 +466,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
 static TABLE_LIST *
 rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error,
-              bool *int_commit_done, std::set<handlerton*> *post_ddl_htons)
+              bool *int_commit_done, post_ddl_htons_t *post_ddl_htons)
 {
   TABLE_LIST *ren_table, *new_table;
 

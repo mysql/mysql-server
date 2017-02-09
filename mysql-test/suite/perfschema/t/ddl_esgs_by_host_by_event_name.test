@@ -1,7 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.events_stages_summary_by_host_by_event_name

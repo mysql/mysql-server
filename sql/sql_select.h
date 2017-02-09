@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,17 +35,19 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "opt_costmodel.h"
+#include "opt_explain_format.h"       // Explain_sort_clause
 #include "set_var.h"
 #include "sql_alloc.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                // THD
-#include "sql_opt_exec_shared.h"      // join_type
-#include "opt_explain_format.h"       // Explain_sort_clause
 #include "sql_cmd_dml.h"              // Sql_cmd_dml
 #include "sql_const.h"
 #include "sql_lex.h"
+#include "sql_opt_exec_shared.h"      // join_type
 #include "sql_opt_exec_shared.h"      // join_type
 #include "system_variables.h"
 #include "table.h"
@@ -947,15 +949,16 @@ public:
   {
     enum store_key_result result;
     THD *thd= to_field->table->in_use;
-    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
+    enum_check_fields saved_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
     sql_mode_t sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
     result= copy_inner();
 
-    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->check_for_truncated_fields= saved_check_for_truncated_fields;
     thd->variables.sql_mode= sql_mode;
 
     return result;

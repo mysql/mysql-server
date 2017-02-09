@@ -618,9 +618,11 @@ public:
     Uint8 lcpOngoingFlag;
   };
   typedef Ptr<ReplicaRecord> ReplicaRecordPtr;
+  typedef ArrayPool<ReplicaRecord> ReplicaRecord_pool;
+  typedef DLFifoList<ReplicaRecord, ReplicaRecord_pool> ReplicaRecord_fifo;
 
-  ArrayPool<ReplicaRecord> c_replicaRecordPool;
-  DLFifoList<ReplicaRecord> c_queued_lcp_frag_rep;
+  ReplicaRecord_pool c_replicaRecordPool;
+  ReplicaRecord_fifo c_queued_lcp_frag_rep;
 
   /*************************************************************************
    * TAB_DESCRIPTOR IS A DESCRIPTOR OF THE LOCATION OF THE FRAGMENTS BELONGING
@@ -906,6 +908,10 @@ public:
     };
   };
   typedef Ptr<TakeOverRecord> TakeOverRecordPtr;
+  typedef ArrayPool<TakeOverRecord> TakeOverRecord_pool;
+  typedef DLList<TakeOverRecord, TakeOverRecord_pool> TakeOverRecord_list;
+  typedef SLFifoList<TakeOverRecord, TakeOverRecord_pool> TakeOverRecord_fifo;
+
 
   virtual bool getParam(const char * param, Uint32 * retVal) { 
     if (param && strcmp(param, "ActiveMutexes") == 0)
@@ -1706,6 +1712,9 @@ private:
   void allocFragments(Uint32 noOfFragments, TabRecordPtr regTabPtr);
   void releaseFragments(TabRecordPtr regTabPtr);
   void getFragstore(const TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
+  void getFragstoreCanFail(const TabRecord *,
+                           Uint32 fragNo,
+                           FragmentstorePtr & ptr);
   void initialiseFragstore();
 
   void wait_old_scan(Signal*);
@@ -2006,17 +2015,17 @@ private:
 #define ZMAX_TAKE_OVER_THREADS 64
   Uint32 c_max_takeover_copy_threads;
 
-  ArrayPool<TakeOverRecord> c_takeOverPool;
-  DLList<TakeOverRecord> c_activeTakeOverList;
-  SLFifoList<TakeOverRecord> c_queued_for_start_takeover_list;
-  SLFifoList<TakeOverRecord> c_queued_for_commit_takeover_list;
-  DLList<TakeOverRecord> c_active_copy_threads_list;
-  DLList<TakeOverRecord> c_completed_copy_threads_list;
+  TakeOverRecord_pool c_takeOverPool;
+  TakeOverRecord_list c_activeTakeOverList;
+  TakeOverRecord_fifo c_queued_for_start_takeover_list;
+  TakeOverRecord_fifo c_queued_for_commit_takeover_list;
+  TakeOverRecord_list c_active_copy_threads_list;
+  TakeOverRecord_list c_completed_copy_threads_list;
   TakeOverRecordPtr c_mainTakeOverPtr;
   TakeOverRecordPtr c_activeThreadTakeOverPtr;
 
   /* List used in takeover handling in master part. */
-  DLList<TakeOverRecord> c_masterActiveTakeOverList;
+  TakeOverRecord_list c_masterActiveTakeOverList;
 
 
 //-----------------------------------------------------
@@ -2532,7 +2541,8 @@ private:
     Uint32 prevList;
   };
   typedef Ptr<WaitGCPProxyRecord> WaitGCPProxyPtr;
-
+  typedef ArrayPool<WaitGCPProxyRecord> WaitGCPProxyRecord_pool;
+  typedef DLList<WaitGCPProxyRecord, WaitGCPProxyRecord_pool> WaitGCPProxyRecord_list;
   /**
    * Wait GCP (master)
    */
@@ -2545,18 +2555,19 @@ private:
     Uint32 prevList;
   };
   typedef Ptr<WaitGCPMasterRecord> WaitGCPMasterPtr;
+  typedef ArrayPool<WaitGCPMasterRecord> WaitGCPMasterRecord_pool;
 
   /**
    * Pool/list of WaitGCPProxyRecord record
    */
-  ArrayPool<WaitGCPProxyRecord> waitGCPProxyPool;
-  DLList<WaitGCPProxyRecord> c_waitGCPProxyList;
+  WaitGCPProxyRecord_pool waitGCPProxyPool;
+  WaitGCPProxyRecord_list c_waitGCPProxyList;
 
   /**
    * Pool/list of WaitGCPMasterRecord record
    */
-  ArrayPool<WaitGCPMasterRecord> waitGCPMasterPool;
-  typedef DLList<WaitGCPMasterRecord> WaitGCPList;
+  WaitGCPMasterRecord_pool waitGCPMasterPool;
+  typedef DLList<WaitGCPMasterRecord, WaitGCPMasterRecord_pool> WaitGCPList;
   WaitGCPList c_waitGCPMasterList;
   WaitGCPList c_waitEpochMasterList;
 
@@ -2621,7 +2632,8 @@ private:
   };
 
   typedef Ptr<DictLockSlaveRecord> DictLockSlavePtr;
-  ArrayPool<DictLockSlaveRecord> c_dictLockSlavePool;
+  typedef ArrayPool<DictLockSlaveRecord> DictLockSlaveRecord_pool;
+  DictLockSlaveRecord_pool c_dictLockSlavePool;
 
   // slave
   void sendDictLockReq(Signal* signal, Uint32 lockType, Callback c);
@@ -2708,6 +2720,7 @@ private:
     return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
+  Uint32 dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
 
   /**
    * Get minimum version of nodes in alive-list

@@ -47,6 +47,7 @@
 
 #ifdef _WIN32
 
+#include <errno.h>
 #include <share.h>
 #include <sys/stat.h>
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,20 +25,21 @@ Created 9/7/2013 Jimmy Yang
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "lock0lock.h"
-#include "lock0priv.h"
-#include "lock0prdt.h"
-#include "ha_prototypes.h"
-#include "usr0sess.h"
-#include "trx0purge.h"
-#include "dict0mem.h"
-#include "dict0boot.h"
-#include "trx0sys.h"
-#include "srv0mon.h"
-#include "ut0vec.h"
+#include <set>
+
 #include "btr0btr.h"
 #include "dict0boot.h"
-#include <set>
+#include "dict0mem.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "lock0prdt.h"
+#include "lock0priv.h"
+#include "my_inttypes.h"
+#include "srv0mon.h"
+#include "trx0purge.h"
+#include "trx0sys.h"
+#include "usr0sess.h"
+#include "ut0vec.h"
 
 /*********************************************************************//**
 Get a minimum bounding box from a Predicate

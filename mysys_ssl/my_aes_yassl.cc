@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,12 +17,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys_ssl/my_aes_yassl.cc
 */
 
-#include <my_global.h>
 #include <m_string.h>
 #include <my_aes.h>
-#include "my_aes_impl.h"
+#include <my_global.h>
 
 #include "aes.hpp"
+#include "my_aes_impl.h"
+#include "my_inttypes.h"
 #include "openssl/ssl.h"
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */

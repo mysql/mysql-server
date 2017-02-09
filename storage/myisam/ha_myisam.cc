@@ -29,7 +29,9 @@
 #include "ha_myisam.h"
 #include "key.h"                                // key_copy
 #include "log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisamdef.h"
@@ -1758,7 +1760,6 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1770,7 +1771,6 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1782,7 +1782,6 @@ int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map,
                     HA_READ_PREFIX_LAST);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
 
@@ -1791,7 +1790,6 @@ int ha_myisam::index_next(uchar *buf)
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error=mi_rnext(file,buf,active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1800,7 +1798,6 @@ int ha_myisam::index_prev(uchar *buf)
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error=mi_rprev(file,buf, active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1809,7 +1806,6 @@ int ha_myisam::index_first(uchar *buf)
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error=mi_rfirst(file, buf, active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1818,7 +1814,6 @@ int ha_myisam::index_last(uchar *buf)
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error=mi_rlast(file, buf, active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1833,7 +1828,6 @@ int ha_myisam::index_next_same(uchar *buf,
   {
     error= mi_rnext_same(file,buf);
   } while (error == HA_ERR_RECORD_DELETED);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1849,7 +1843,6 @@ int ha_myisam::rnd_next(uchar *buf)
 {
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error=mi_scan(file, buf);
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -1857,7 +1850,6 @@ int ha_myisam::rnd_pos(uchar *buf, uchar *pos)
 {
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
@@ -2193,7 +2185,6 @@ int ha_myisam::ft_read(uchar *buf)
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 
-  table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 

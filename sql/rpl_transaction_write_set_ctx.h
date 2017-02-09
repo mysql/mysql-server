@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 #ifndef RPL_TRANSACTION_WRITE_SET_CTX_H
 #define RPL_TRANSACTION_WRITE_SET_CTX_H
 
-#include "my_global.h"
 #include <vector>
+
+#include "my_global.h"
+#include "my_inttypes.h"
 
 /**
   Server side support to provide a service to plugins to report if

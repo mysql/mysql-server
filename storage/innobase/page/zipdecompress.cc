@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -28,17 +28,20 @@ Created June 2005 by Marko Makela
 other files in library. The code in this file is used to make a library for
 external tools. */
 
-#include "zlib.h"
+#include "btr0btr.h"
 #include "mem0mem.h"
-#include "rem0rec.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "page/zipdecompress.h"
 #include "page0page.h"
-#include "btr0btr.h"
+#include "rem0rec.h"
+#include "zlib.h"
 
 /* Enable some extra debugging output.  This code can be enabled
 independently of any UNIV_ debugging conditions. */
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 # include <stdarg.h>
+
 MY_ATTRIBUTE((format (printf, 1, 2)))
 /**********************************************************************//**
 Report a failure to decompress or compress.

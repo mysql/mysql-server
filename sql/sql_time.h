@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "binary_log_types.h"
 #include "my_dbug.h"
 #include "my_global.h"                          /* ulong */
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
 #include "sql_error.h"                          /* Sql_condition */
@@ -38,8 +39,6 @@ class my_decimal;
 struct Date_time_format
 {
   uchar positions[8];
-  char  time_separator;			/* Separator between hour and minute */
-  uint flag;				/* For future */
   LEX_STRING format;
 };
 

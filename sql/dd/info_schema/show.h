@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,15 +29,15 @@ namespace dd {
 
 
 /**
-  Build a substitue query for SHOW CHARSETS.
+  Build a substitute query for SHOW CHARSETS.
 
   For command like,
-  <code>
+  @code
     SHOW CHARACTER SET [ LIKE 'pattern' | WHERE expr ]
-  </code>
+  @endcode
 
   We build following,
-  <code>
+  @code
     SELECT * FROM
              (SELECT CHARACTER_SET_NAME as `Charset`,
                      DESCRIPTION as `Description`,
@@ -46,12 +46,12 @@ namespace dd {
               FROM information_schema.character_sets) character_sets
       [ WHERE Charset LIKE "<value>" | WHERE @<where_clause@> ]
       ORDER BY `Charset`;
-  </code>
+  @endcode
 
   @param pos  - YYLTYPE position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
-  @param where_cond - @<where_clause>@ clause provided by user.
+  @param where_cond - @<where_clause@> clause provided by user.
 
   @returns pointer to SELECT_LEX on success, NULL otherwise.
 */
@@ -60,15 +60,15 @@ build_show_character_set_query(const POS &pos, THD *thd,
                                const String *wild, Item *where_cond);
 
 /**
-  Build a substitue query for SHOW COLLATION.
+  Build a substitute query for SHOW COLLATION.
 
   For command like,
-  <code>
+  @code
     SHOW COLLATION [ LIKE 'pattern' | WHERE expr ]
-  </code>
+  @endcode
 
   We build following,
-  <code>
+  @code
     SELECT * FROM
              (SELECT COLLATION_NAME as `Collation`,
                      CHARACTER_SET_NAME as `Charset`,
@@ -78,12 +78,12 @@ build_show_character_set_query(const POS &pos, THD *thd,
               FROM information_schema.collations) collations
       [ WHERE Collation LIKE "<value>" | WHERE @<where_clause@> ]
       ORDER BY `Collation`;
-  </code>
+  @endcode
 
   @param pos  - YYLTYPE position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
-  @param where_cond - @<where_clause>@ clause provided by user.
+  @param where_cond - @<where_clause@> clause provided by user.
 
   @returns pointer to SELECT_LEX on success, NULL otherwise.
 */
@@ -92,26 +92,26 @@ build_show_collation_query(const POS &pos, THD *thd,
                            const String *wild, Item *where_cond);
 
 /**
-  Build a substitue query for SHOW DATABASES.
+  Build a substitute query for SHOW DATABASES.
 
   For command like,
-  <code>
+  @code
     SHOW DATABASES [ LIKE 'pattern' | WHERE expr ]
-  </code>
+  @endcode
 
   We build following,
-  <code>
+  @code
     SELECT Database FROM
              (SELECT SCHEMA_NAME as `Database`,
               FROM information_schema.schemata) schemata
       [ WHERE Database LIKE "<value>" | WHERE @<where_clause@> ]
       ORDER BY `Database`;
-  </code>
+  @endcode
 
   @param pos  - YYLTYPE position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
-  @param where_cond - @<where_clause>@ clause provided by user.
+  @param where_cond - @<where_clause@> clause provided by user.
 
   @returns pointer to SELECT_LEX on success, NULL otherwise.
 */
@@ -122,19 +122,19 @@ build_show_databases_query(const POS &pos,
                            Item *where_cond);
 
 /**
-  Build a substitue query for SHOW TABLES / TABLE STATUS.
+  Build a substitute query for SHOW TABLES / TABLE STATUS.
 
   For command like,
-  <code>
+  @code
     SHOW [FULL] TABLES [{FROM | IN} db_name]
                        [LIKE 'pattern' | WHERE expr]
              OR
     SHOW TABLE STATUS [{FROM | IN} db_name]
                       [LIKE 'pattern' | WHERE expr]
-  </code>
+  @endcode
 
   We build following,
-  <code>
+  @code
     SELECT `Table`,
            `Table_type`, <-- only with 'FULL'
 
@@ -184,7 +184,7 @@ build_show_databases_query(const POS &pos,
           AND
           [ Table LIKE "<value>" | @<where_clause@> ]
     ORDER BY `Table`;
-  </code>
+  @endcode
 
   Note that the thd->lex->verbose == true would mean user has
   provide keyword 'FULL'.
@@ -192,7 +192,7 @@ build_show_databases_query(const POS &pos,
   @param pos  - YYLTYPE position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
-  @param where_cond - @<where_clause>@ clause provided by user.
+  @param where_cond - @<where_clause@> clause provided by user.
   @param include_status_fields - If we are handling SHOW TABLE STATUS
 
   @returns pointer to SELECT_LEX on success, NULL otherwise.
@@ -205,20 +205,20 @@ build_show_tables_query(const POS &pos,
                         bool include_status_fields);
 
 /**
-  Build a substitue query for SHOW COLUMNS/FIELDS OR DESCRIBE.
+  Build a substitute query for SHOW COLUMNS/FIELDS OR DESCRIBE.
 
   For command like,
-  <code>
+  @code
     SHOW [FULL] COLUMNS
         {FROM | IN} tbl_name
            [{FROM | IN} db_name]
                [LIKE 'pattern' | WHERE expr]
        OR
     DESCRIBE tbl_name
-  </code>
+  @endcode
 
   We build following,
-  <code>
+  @code
     SELECT Field,
            Type,
            Collation,  <-- only with 'FULL'
@@ -248,7 +248,7 @@ build_show_tables_query(const POS &pos,
           AND
           [ Field LIKE "<value>" | @<where_clause@> ]
     ORDER BY `Ordinal_position`;
-  </code>
+  @endcode
 
   Note that the thd->lex->verbose == true would mean user has
   provide keyword 'FULL'.
@@ -257,7 +257,7 @@ build_show_tables_query(const POS &pos,
   @param thd  - Current thread.
   @param table_ident  - Database and Table name of table being used.
   @param wild - The value of LIKE clause.
-  @param where_cond - @<where_clause>@ clause provided by user.
+  @param where_cond - @<where_clause@> clause provided by user.
 
   @returns pointer to SELECT_LEX on success, NULL otherwise.
 */
@@ -269,18 +269,18 @@ build_show_columns_query(const POS &pos,
                          Item *where_cond);
 
 /**
-  Build a substitue query for SHOW INDEX|KEYS|INDEXES
+  Build a substitute query for SHOW INDEX|KEYS|INDEXES
 
   For command like,
-  <code>
+  @code
     SHOW {INDEX | INDEXES | KEYS}
         {FROM | IN} tbl_name
             [{FROM | IN} db_name]
                 [WHERE expr]
-  </code>
+  @endcode
 
   We build following,
-  <code>
+  @code
     SELECT Table,
            Non_unique,
            Key_name,
@@ -320,13 +320,13 @@ build_show_columns_query(const POS &pos,
           AND
           [ @<where_clause@> ]
     ORDER BY INDEX_ORDINAL_POSITION, COLUMN_ORDINAL_POSITION
-  </code>
+  @endcode
 
 
   @param pos  - YYLTYPE position of parsing context.
   @param thd  - Current thread.
   @param table_ident  - Database and Table name of table being used.
-  @param where_cond - @<where_clause>@ clause provided by user.
+  @param where_cond - @<where_clause@> clause provided by user.
 
   @returns pointer to SELECT_LEX on success, NULL otherwise.
 */
@@ -335,6 +335,190 @@ build_show_keys_query(const POS &pos,
                       THD *thd,
                       Table_ident *table_ident,
                       Item *where_cond);
+
+
+/**
+  Build a substitute query for SHOW TRIGGERS
+
+  For command like,
+  @code
+    SHOW TRIGGERS [{FROM | IN} db_name]
+        [LIKE 'pattern' | WHERE expr]
+  @endcode
+
+  We build following,
+  @code
+    SELECT
+      Trigger,
+      Event,
+      Table,
+      Statement,
+      Timing,
+      Created,
+      sql_mode,
+      Definer,
+      character_set_client,
+      collation_connection,
+      Database_collation AS `Database Collation`
+    FROM
+      (SELECT
+          EVENT_OBJECT_SCHEMA AS `Database`
+          TRIGGER_NAME AS `Trigger`,
+          EVENT_MANIPULATION AS `Event`,
+          EVENT_OBJECT_TABLE AS `Table`,
+          ACTION_STATEMENT AS `Statement`,
+          ACTION_TIMING AS `Timing`,
+          CREATED AS `Created`,
+          SQL_MODE AS `sql_mode`,
+          DEFINER AS `Definer`,
+          CHARACTER_SET_CLIENT AS `character_set_client`,
+          COLLATION_CONNECTION AS `collation_connection`,
+          DATABASE_COLLATION AS `Database_collation`,
+          ACTION_ORDER AS `action_order`
+        FROM information_schema.triggers) triggers
+    WHERE Database == '<value>'           <-- Default DB or IN clause
+          AND
+          [ Table LIKE "<value>" | @<where_clause@> ]
+    ORDER BY `Table`, `Event`, `Timing`, `action_order`;
+
+  @endcode
+
+  @param pos  - YYLTYPE position of parsing context.
+  @param thd  - Current thread.
+  @param wild - The value of LIKE clause.
+  @param where_cond - @<where_clause@> clause provided by user.
+
+  @returns pointer to SELECT_LEX on success, NULL otherwise.
+*/
+SELECT_LEX*
+build_show_triggers_query(const POS &pos,
+                          THD *thd,
+                          String *wild,
+                          Item *where_cond);
+
+
+/**
+  Build a substitute query for SHOW PROCEDURE/FUNCTION STATUS
+
+  For command like,
+  @code
+    SHOW [PROCEDURE|FUNCTION] STATUS
+        [LIKE 'pattern' | WHERE expr]
+  @endcode
+
+  We build following,
+  @code
+    SELECT
+      Db,
+      Name,
+      Type,
+      Definer,
+      Modified,
+      Created,
+      Security_type,
+      Comment,
+      character_set_client,
+      collation_connection,
+      Database_collation AS `Database Collation`
+    FROM
+      (SELECT
+         ROUTINE_SCHEMA AS `Db`,
+         ROUTINE_NAME AS `Name`,
+         ROUTINE_TYPE AS `Type`,
+         DEFINER AS `Definer`,
+         LAST_ALTERED AS `Modified`,
+         CREATED AS `Created`,
+         SECURITY_TYPE AS `Security_type`,
+         ROUTINE_COMMENT AS `Comment`,
+         CHARACTER_SET_CLIENT AS `character_set_client,
+         COLLATION_CONNECTION AS `collation_connection,
+         DATABASE_COLLATION AS `Database Collation`
+        FROM information_schema.routines) routines
+    WHERE Db == '<value>'           <-- Default DB or IN clause
+          AND
+          [ Name LIKE "<value>" | @<where_clause@> ]
+    ORDER BY `Db`, `Name`;
+
+  @endcode
+
+  @param pos  - YYLTYPE position of parsing context.
+  @param thd  - Current thread.
+  @param wild - The value of LIKE clause.
+  @param where_cond - @<where_clause@> clause provided by user.
+
+  @returns pointer to SELECT_LEX on success, NULL otherwise.
+*/
+SELECT_LEX*
+build_show_procedures_query(const POS &pos,
+                            THD *thd,
+                            String *wild,
+                            Item *where_cond);
+
+
+/**
+  Build a substitute query for SHOW EVENTS
+
+  For command like,
+  @code
+    SHOW EVENTS [{FROM | IN} schema_name]
+        [LIKE 'pattern' | WHERE expr]
+  @endcode
+
+  We build following,
+  @code
+    SELECT
+      Db,
+      Name,
+      Definer,
+      Time zone,
+      Type,
+      Execute at,
+      Interval value,
+      Interval field,
+      Starts,
+      Ends,
+      Status,
+      Originator,
+      character_set_client,
+      collation_connection,
+      Database_collation AS Database Collation
+    FROM
+      (SELECT
+        EVENT_SCHEMA AS `Db`,
+        EVENT_NAME AS `Name`,
+        DEFINER AS `Definer`,
+        TIME_ZONE AS `Time zone`,
+        EVENT_TYPE AS `Type`,
+        EXECUTE_AT AS `Execute at`,
+        INTERVAL_VALUE AS `Interval value`,
+        INTERVAL_FIELD AS `Interval field`,
+        STARTS AS `Starts`,
+        ENDS AS `Ends`,
+        STATUS AS `Status`,
+        ORIGINATOR AS `Originator`,
+        CHARACTER_SET_CLIENT AS `character_set_client`,
+        COLLATION_CONNECTION AS `collation_connection`,
+        DATABASE_COLLATION AS `Database Collation`
+        FROM information_schema.events) as events
+    WHERE Db == '<value>'           <-- Default DB or IN clause
+          AND
+          [ Name LIKE "<value>" | @<where_clause@> ]
+    ORDER BY `Db`, `Name`;
+
+  @endcode
+
+  @param pos  - YYLTYPE position of parsing context.
+  @param thd  - Current thread.
+  @param wild - The value of LIKE clause.
+  @param where_cond - @<where_clause@> clause provided by user.
+
+  @returns pointer to SELECT_LEX on success, NULL otherwise.
+*/
+SELECT_LEX*
+build_show_events_query(const POS &pos,
+                        THD *thd,
+                        String *wild,
+                        Item *where_cond);
 
 } // namespace info_schema
 } // namespace dd

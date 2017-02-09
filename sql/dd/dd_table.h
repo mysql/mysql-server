@@ -18,12 +18,14 @@
 
 #include <memory>                    // std:unique_ptr
 #include <sys/types.h>
+#include <memory>                    // std:unique_ptr
 #include <string>
 
 #include "binary_log_types.h"        // enum_field_types
 #include "dd/types/column.h"         // dd::enum_column_types
 #include "handler.h"                 // legacy_db_type
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql_alter.h"               // Alter_info::enum_enable_or_disable
 #include "system_variables.h"
@@ -596,5 +598,63 @@ fill_dd_columns_from_create_fields(THD *thd,
                                    Abstract_table *tab_obj,
                                    const List<Create_field> &create_fields,
                                    handler *file);
+
+/**
+  @brief Function returns string representing column type by Create_field.
+         This is required for the IS implementation which uses views on DD
+         tables
+
+  @param[in]   table           TABLE object.
+  @param[in]   field           Column information.
+
+  @return dd::String_type representing column type.
+*/
+
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             Create_field *field);
+
+
+/**
+  Helper method to get numeric scale for types using Create_field type
+  object.
+
+  @param[in]  field      Field object.
+  @param[out] scale      numeric scale value for types.
+
+  @retval false  If numeric scale is calculated.
+  @retval true   If numeric scale is not calculated;
+*/
+
+bool get_field_numeric_scale(Create_field *field, uint *scale);
+
+
+/**
+  Helper method to get numeric precision for types using Create_field type
+  object.
+
+  @param[in]  field             Field object.
+  @param[out] numeric_precision numeric precision value for types.
+
+  @retval false  If numeric precision is calculated.
+  @retval true   If numeric precision is not calculated;
+*/
+
+bool get_field_numeric_precision(Create_field *field,
+                                 uint *numeric_precision);
+
+
+/**
+  Helper method to get datetime precision for types using Create_field type
+  object.
+
+  @param[in]  field              Field object.
+  @param[out] datetime_precision datetime precision value for types.
+
+  @retval false  If datetime precision is calculated.
+  @retval true   If datetime precision is not calculated;
+*/
+
+bool get_field_datetime_precision(Create_field *field,
+                                  uint *datetime_precision);
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

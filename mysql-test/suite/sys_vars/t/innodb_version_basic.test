@@ -3,7 +3,6 @@
 #  2010-01-27 OBN - Added 
 #
 
---source include/have_innodb.inc
 
 #
 # show the global and session values;

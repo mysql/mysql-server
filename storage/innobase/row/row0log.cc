@@ -25,6 +25,8 @@ Created 2011-05-26 Marko Makela
 
 #include "row0log.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <algorithm>
 #include <map>
@@ -33,6 +35,7 @@ Created 2011-05-26 Marko Makela
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"

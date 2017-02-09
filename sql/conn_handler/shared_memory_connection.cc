@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,14 @@
 
 #include "shared_memory_connection.h"
 
+#include <errno.h>
+
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
 #include "mysqld.h"                     // connection_events_loop_aborted
+#include "my_shm_defaults.h"
 #include "sql_class.h"                  // THD
 #include "psi_memory_key.h"
 

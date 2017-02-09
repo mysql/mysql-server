@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <algorithm>
@@ -35,6 +36,8 @@
 #include "base/show_variable_query_extractor.h"
 #include "check/mysqlcheck.h"
 #include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "mysqld_error.h"
 #include "sql_string.h"
 

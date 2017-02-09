@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 */
 #include "byteorder.h"
 #include "debug_vars.h"
+#include "my_io.h"
 #include "wrapper_functions.h"
 
 #if defined(_WIN32)
@@ -133,6 +134,14 @@
    Often carries meaning of the minimum value in the logical timestamp domain.
 */
 const int64_t SEQ_UNINIT= 0;
+
+/** We use 7 bytes, 1 bit being used as a flag. */
+#define MAX_COMMIT_TIMESTAMP_VALUE (1ULL << 55)
+/**
+  Used to determine whether the original_commit_timestamp is already known or if
+  it still needs to be determined when computing it.
+*/
+const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
 
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80

@@ -20,6 +20,8 @@
 #include "current_thd.h"
 #include "file_io.h"
 #include "mock_logger.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "test_utils.h"
 
 #if defined(HAVE_PSI_INTERFACE)

@@ -81,7 +81,7 @@ affected rows: 0
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
-routine_schema	routine_name	routine_type	routine_definition
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 test	myfuncsql_double	FUNCTION	RETURN d * 2.00
 test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
@@ -89,7 +89,7 @@ affected rows: 2
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
-routine_schema	routine_name	routine_type	routine_definition
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 test	myfuncsql_double	FUNCTION	RETURN d * 2.00
 test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
@@ -127,7 +127,7 @@ affected rows: 0
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
-routine_schema	routine_name	routine_type	routine_definition
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 test	myfuncsql_double	FUNCTION	RETURN d * 2.00
 test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
@@ -135,7 +135,7 @@ affected rows: 2
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
-routine_schema	routine_name	routine_type	routine_definition
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 test	myfuncsql_double	FUNCTION	RETURN d * 2.00
 test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
@@ -155,13 +155,13 @@ affected rows: 0
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
-routine_schema	routine_name	routine_type	routine_definition
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 affected rows: 0
 "Running on the slave"
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
-routine_schema	routine_name	routine_type	routine_definition
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 affected rows: 0
 "Running on the master"
 DROP TABLE t1;

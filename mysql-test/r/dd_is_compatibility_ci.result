@@ -16,9 +16,8 @@ USE test;
 SET @old_information_schema_stats= @@session.information_schema_stats;
 SET @@session.information_schema_stats= cached;
 # Getting cached statistics needs ANALYZE.
-CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t1 (i INTEGER, KEY cached_key(i));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-ALTER TABLE t1 ADD KEY cached_key(i);
 # Before ANALYZE, cardinality is NULL.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
@@ -33,9 +32,9 @@ t1	1	cached_key	1	i	A	10	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 SET @@session.information_schema_stats= latest;
 # Getting latest statistics does not need ANALYZE.
-CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t1 (i INTEGER, KEY latest_key(i));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-ALTER TABLE t1 ADD KEY latest_key(i);
+# Wait until InnoDB background thread updates the statistics.
 # Cardinality is correct even without ANALYZE.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible

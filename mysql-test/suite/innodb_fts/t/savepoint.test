@@ -1,6 +1,5 @@
 # This is the basic function tests for innodb FTS savepoint
 
--- source include/have_innodb.inc
 
 
 CREATE TABLE articles (

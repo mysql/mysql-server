@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
@@ -286,9 +287,7 @@ void mysql_client_binlog_statement(THD* thd)
         not used at all: the rli_fake instance is used only for error
         reporting.
       */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       err= ev->apply_event(rli);
-#endif
       /*
         Format_description_log_event should not be deleted because it
         will be used to read info about the relay log's format; it

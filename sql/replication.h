@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,6 +137,9 @@ typedef struct Trans_param {
    Context information about system variables in the transaction
    */
   Trans_context_info trans_ctx_info;
+
+  /// pointer to the status var original_commit_timestamp
+  uint64 *original_commit_timestamp;
 
 } Trans_param;
 

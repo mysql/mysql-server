@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 
 static const uchar ctype_latin1[] = {
     0,
@@ -455,7 +456,6 @@ CHARSET_INFO my_charset_latin1=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -681,7 +681,7 @@ my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
       nweights--;
     }
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 
@@ -766,7 +766,6 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
   1,                                    /* levels_for_compare */
-  1,                                    /* levels_for_order   */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -802,7 +801,6 @@ CHARSET_INFO my_charset_latin1_bin=
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
   1,                                    /* levels_for_compare */
-  1,                                    /* levels_for_order   */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };

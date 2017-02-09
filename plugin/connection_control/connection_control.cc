@@ -20,7 +20,9 @@
 #include "connection_control.h"
 #include "connection_control_coordinator.h" /* g_connection_event_coordinator */
 #include "connection_delay_api.h"       /* connection_delay apis */
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql_version.h"
 
 namespace connection_control

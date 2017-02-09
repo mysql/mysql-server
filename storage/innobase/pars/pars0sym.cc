@@ -25,14 +25,16 @@ Created 12/15/1997 Heikki Tuuri
 #include "current_thd.h"
 
 #include "pars0sym.h"
-#include "mem0mem.h"
-#include "data0type.h"
+
 #include "data0data.h"
 #include "dict0dd.h"
+#include "data0type.h"
+#include "eval0eval.h"
+#include "mem0mem.h"
+#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0pars.h"
 #include "que0que.h"
-#include "eval0eval.h"
 #include "row0sel.h"
 
 /******************************************************************//**

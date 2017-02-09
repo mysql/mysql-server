@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/sql/auth
-  ${CMAKE_SOURCE_DIR}/regex 
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
@@ -57,7 +57,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_lex_token
 )
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
+ADD_DEFINITIONS(-DMYSQL_SERVER)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
@@ -81,6 +81,7 @@ SET(DD_SOURCES
   dd/impl/transaction_impl.cc
   dd/impl/utils.cc
   dd/impl/sdi.cc
+  dd/impl/sdi_api.cc
   dd/impl/sdi_file.cc
   dd/impl/sdi_tablespace.cc
   dd/impl/string_type.cc
@@ -241,7 +242,6 @@ SET(SQL_SHARED_SOURCES
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
-  net_serv.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
   opt_costmodel.cc
@@ -319,6 +319,7 @@ SET(SQL_SHARED_SOURCES
   sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
+  sql_import.cc
   sql_insert.cc
   sql_join_buffer.cc
   sql_lex.cc 
@@ -392,6 +393,7 @@ SET(SQL_SOURCE
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/client_authentication.cc
+  ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc
   conn_handler/channel_info.cc
@@ -477,6 +479,15 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   IF(CMAKEBT MATCHES "^REL")
     ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
   ENDIF()
+ENDIF()
+
+# Assertion in Developer Studio 12.5 (fixed in 12.6 beta).
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  ADD_COMPILE_FLAGS(
+    gis/srs/srs.cc
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-DBOOST_NO_CXX11_VARIADIC_TEMPLATES"
+  )
 ENDIF()
 
 ADD_COMPILE_FLAGS(

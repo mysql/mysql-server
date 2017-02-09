@@ -1,6 +1,5 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 
 let $SERVER_VERSION=`select version()`;
@@ -64,6 +63,7 @@ DROP TABLE t1;
 
 --echo **** On Slave **** 
 connection slave;
+SET @save_query_cache_size=@@query_cache_size;
 SET GLOBAL QUERY_CACHE_SIZE=0;
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 
@@ -92,7 +92,7 @@ INSERT INTO t1 VALUES (7),(8),(9);
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
-SET GLOBAL QUERY_CACHE_SIZE=DEFAULT;
+SET GLOBAL QUERY_CACHE_SIZE=@save_query_cache_size;
 --connection master
 DROP TABLE t1;
 

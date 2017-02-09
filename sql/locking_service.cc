@@ -22,6 +22,8 @@
 #include "error_handler.h" // Internal_error_handler
 #include "mdl.h"           // MDL_request_list
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"

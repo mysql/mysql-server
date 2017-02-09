@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,10 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql_com.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"
@@ -496,12 +499,12 @@ int opt_sum_query(THD *thd,
                                      prefix_len);
 
           /*
-            Set TABLE::status to STATUS_GARBAGE since original and
+            Set table row status to "not started" since original and
             real read_set are different, i.e. some field values
             from original read set could be unread.
           */
           if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
-            table->status|= STATUS_GARBAGE;
+            table->set_not_started();
 
           table->read_set= &table->def_read_set;
           bitmap_clear_all(&table->tmp_set);

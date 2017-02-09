@@ -24,10 +24,11 @@
 #include "bounded_queue_std.h"
 #include "fake_costmodel.h"
 #include "filesort_utils.h"
-// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_compiler.h"
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"
 #include "test_utils.h"

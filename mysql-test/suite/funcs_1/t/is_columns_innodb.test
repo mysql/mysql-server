@@ -14,7 +14,6 @@
 # privileges.
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 --source suite/funcs_1/datadict/datadict_load.inc
 

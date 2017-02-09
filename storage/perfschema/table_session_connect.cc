@@ -21,7 +21,9 @@
 #include "table_session_connect.h"
 
 #include "field.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pfs_buffer_container.h"
 
 /* clang-format off */

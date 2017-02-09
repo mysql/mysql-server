@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -32,6 +32,7 @@ external tools. */
 
 #include "dict0dict.h"
 #include "lock0lock.h"
+#include "my_inttypes.h"
 
 /****************************************************************//**
 Append 'name' to 'col_names'.  @see dict_table_t::col_names

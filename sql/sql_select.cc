@@ -44,6 +44,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
@@ -1417,8 +1418,6 @@ static int clear_sj_tmp_tables(JOIN *join)
         */
         DBUG_ASSERT(join->zero_result_cause || tab->materialize_table);
         tab->table()->materialized= false;
-        // The materialized table must be re-read on next evaluation:
-        tab->table()->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
       }
     }
   }
@@ -1902,7 +1901,6 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   }
   j->ref().key_buff2=j->ref().key_buff+ALIGN_SIZE(length);
   j->ref().key_err=1;
-  j->ref().has_record= FALSE;
   j->ref().null_rejecting= 0;
   j->ref().use_count= 0;
   j->ref().disable_cache= FALSE;
@@ -2797,7 +2795,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->read_record.table= table;
     qep_tab->next_select=sub_select;		/* normal select */
     qep_tab->cache_idx_cond= NULL;
-    table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+
     DBUG_ASSERT(!qep_tab->read_first_record);
     qep_tab->read_record.read_record= NULL;
     qep_tab->read_record.unlock_row= rr_unlock_row;
@@ -3613,7 +3611,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
-        else if (group_item->field_type() == MYSQL_TYPE_BLOB)
+        else if (group_item->data_type() == MYSQL_TYPE_BLOB)
           key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
@@ -3928,7 +3926,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	      set to NULL in this level
 	    */
             Item_null_result *null_item=
-              new (thd->mem_root) Item_null_result(item->field_type(),
+              new (thd->mem_root) Item_null_result(item->data_type(),
                                                    item->result_type());
             if (!null_item)
               return 1;
@@ -3952,38 +3950,6 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   }
   sum_funcs_end[0]= *func;			// Point to last function
   return 0;
-}
-
-
-/**
-  clear results if there are not rows found for group
-  (end_send_group/end_write_group)
-  @retval
-    FALSE if OK
-  @retval
-    TRUE on error  
-*/
-
-MY_ATTRIBUTE((warn_unused_result))
-bool JOIN::clear()
-{
-  /* 
-    must clear only the non-const tables, as const tables
-    are not re-calculated.
-  */
-  for (uint tableno= const_tables; tableno < primary_tables; tableno++)
-    qep_tab[tableno].table()->set_null_row();  // All fields are NULL
-
-  if (copy_fields(&tmp_table_param, thd))
-    return true;
-
-  if (sum_funcs)
-  {
-    Item_sum *func, **func_ptr= sum_funcs;
-    while ((func= *(func_ptr++)))
-      func->clear();
-  }
-  return false;
 }
 
 

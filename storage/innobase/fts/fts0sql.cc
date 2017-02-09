@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,12 +23,13 @@ Full Text Search functionality.
 Created 2007-03-27 Sunny Bains
 *******************************************************/
 
+#include "dict0dict.h"
+#include "fts0priv.h"
+#include "fts0types.h"
+#include "my_inttypes.h"
+#include "pars0pars.h"
 #include "que0que.h"
 #include "trx0roll.h"
-#include "pars0pars.h"
-#include "dict0dict.h"
-#include "fts0types.h"
-#include "fts0priv.h"
 
 #include <algorithm>
 #include <string>

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include "my_alloc.h"
 #include "my_global.h"                  // uchar
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "sql_alloc.h"                  // Sql_alloc
 
@@ -71,8 +72,8 @@ class File_parser_dummy_hook: public Unknown_key_hook
 {
 public:
   File_parser_dummy_hook() {}                 /* Remove gcc warning */
-  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
-                                      MEM_ROOT *mem_root, const char *end);
+  virtual bool process_unknown_string(const char *&unknown_key, uchar*,
+                                      MEM_ROOT*, const char*);
 };
 
 extern File_parser_dummy_hook file_parser_dummy_hook;
@@ -83,19 +84,10 @@ bool get_file_options_ulllist(const char *&ptr, const char *end,
                               File_option *parameter,
                               MEM_ROOT *mem_root);
 
-const char *
-parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
-                     LEX_STRING *str);
-
 class File_parser;
 
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);
-
-my_bool
-sql_create_definition_file(const LEX_STRING *dir, const  LEX_STRING *file_name,
-			   const LEX_STRING *type,
-			   uchar* base, File_option *parameters);
 
 class File_parser: public Sql_alloc
 {

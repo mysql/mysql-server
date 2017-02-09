@@ -1,7 +1,6 @@
 #
 # Bug #56716 InnoDB locks a record gap without locking the table
 #
--- source include/have_innodb.inc
 
 CREATE TABLE bug56716 (a INT PRIMARY KEY,b INT,c INT,INDEX(b)) ENGINE=InnoDB;
 

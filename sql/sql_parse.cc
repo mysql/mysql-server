@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,11 @@
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
@@ -72,6 +76,7 @@
 #include "opt_trace.h"        // Opt_trace_start
 #include "parse_location.h"
 #include "parse_tree_node_base.h"
+#include "parse_tree_nodes.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"
@@ -133,7 +138,6 @@
 #include "table_cache.h"      // table_cache_manager
 #include "thr_lock.h"
 #include "transaction.h"      // trans_rollback_implicit
-#include "parse_tree_nodes.h"
 #include "transaction_info.h"
 #include "violite.h"
 
@@ -158,7 +162,6 @@ using std::max;
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
-static bool execute_show(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
 const LEX_STRING command_name[]={
@@ -197,7 +200,6 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
-#ifdef HAVE_REPLICATION
 /**
   Returns true if all tables should be ignored.
 */
@@ -242,7 +244,6 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
 
   DBUG_RETURN(db_ok);
 }
-#endif
 
 
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
@@ -413,6 +414,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE |
+                                            CF_HAS_RESULT_SET |
                                             CF_CAN_BE_EXPLAINED;
   // (1) so that subquery is traced when doing "SET @var = (subquery)"
   /*
@@ -433,18 +435,40 @@ void init_update_queries(void)
                                             CF_AUTO_COMMIT_TRANS |
                                             CF_DISALLOW_IN_RO_TRANS;
 
-  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
   sql_command_flags[SQLCOM_SHOW_PLUGINS]=     CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND |
+                                              CF_HAS_RESULT_SET |
+                                              CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_BINLOGS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
@@ -464,7 +488,9 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND |
+                                              CF_REEXECUTION_FRAGILE |
+                                              CF_HAS_RESULT_SET;
   sql_command_flags[SQLCOM_SHOW_PROC_CODE]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
@@ -475,9 +501,11 @@ void init_update_queries(void)
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
+                                                 CF_HAS_RESULT_SET |
                                                  CF_REEXECUTION_FRAGILE);
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                 CF_SHOW_TABLE_COMMAND |
+                                                CF_HAS_RESULT_SET |
                                                 CF_REEXECUTION_FRAGILE);
 
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
@@ -838,6 +866,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -1355,7 +1384,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     break;
   }
-#ifdef HAVE_REPLICATION
   case COM_REGISTER_SLAVE:
   {
     // TODO: access of protocol_classic should be removed
@@ -1365,7 +1393,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       my_ok(thd);
     break;
   }
-#endif
   case COM_RESET_CONNECTION:
   {
     thd->status_var.com_other++;
@@ -1997,24 +2024,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   DBUG_ENTER("prepare_schema_table");
 
   switch (schema_table_idx) {
-  case SCH_TRIGGERS:
-  case SCH_EVENTS:
-    {
-      LEX_STRING db;
-      size_t dummy;
-      if (lex->select_lex->db == NULL &&
-          lex->copy_db_to(&lex->select_lex->db, &dummy))
-        DBUG_RETURN(1);
-      if ((schema_select_lex= lex->new_empty_query_block()) == NULL)
-        DBUG_RETURN(1);      /* purecov: inspected */
-      db.str= schema_select_lex->db= lex->select_lex->db;
-      schema_select_lex->table_list.first= NULL;
-      db.length= strlen(db.str);
-
-      if (check_and_convert_db_name(&db, false) != Ident_name_check::OK)
-        DBUG_RETURN(1);
-      break;
-    }
   case SCH_TMP_TABLE_COLUMNS:
   case SCH_TMP_TABLE_KEYS:
   {
@@ -2039,7 +2048,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   case SCH_OPTIMIZER_TRACE:
   case SCH_OPEN_TABLES:
-  case SCH_PROCEDURES:
   case SCH_ENGINES:
   case SCH_USER_PRIVILEGES:
   case SCH_SCHEMA_PRIVILEGES:
@@ -2442,7 +2450,6 @@ mysql_execute_command(THD *thd, bool first_level)
     thd->get_stmt_da()->reset_condition_info(thd);
   }
 
-#ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
     // Database filters.
@@ -2555,7 +2562,6 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   else
   {
-#endif /* HAVE_REPLICATION */
     /*
       When option readonly is set deny operations which change non-temporary
       tables. Except for the replication thread and the 'super' users.
@@ -2565,9 +2571,7 @@ mysql_execute_command(THD *thd, bool first_level)
       err_readonly(thd);
       DBUG_RETURN(-1);
     }
-#ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
-#endif
 
   thd->status_var.com_stat[lex->sql_command]++;
 
@@ -2739,8 +2743,6 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_PLUGINS:
-  case SQLCOM_SHOW_FIELDS:
-  case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
@@ -2850,8 +2852,6 @@ mysql_execute_command(THD *thd, bool first_level)
 #endif
     break;
   }
-
-#ifdef HAVE_REPLICATION
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -2873,8 +2873,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = mysql_show_binlog_events(thd);
     break;
   }
-#endif
-
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -2897,7 +2895,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = mysql_preload_keys(thd, first_table);
     break;
   }
-#ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
 
@@ -2922,8 +2919,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = show_master_status(thd);
     break;
   }
-
-#endif /* HAVE_REPLICATION */
   case SQLCOM_SHOW_ENGINE_STATUS:
     {
       if (check_global_access(thd, PROCESS_ACL))
@@ -2983,7 +2978,6 @@ mysql_execute_command(THD *thd, bool first_level)
       thd->pop_internal_handler();
     break;
   }
-#ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -3099,8 +3093,6 @@ mysql_execute_command(THD *thd, bool first_level)
   res= stop_slave_cmd(thd);
   break;
   }
-#endif /* HAVE_REPLICATION */
-
   case SQLCOM_RENAME_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3474,6 +3466,10 @@ mysql_execute_command(THD *thd, bool first_level)
       my_ok(thd);
     }
     break;
+
+  case SQLCOM_IMPORT:
+    res= lex->m_sql_cmd->execute(thd);
+    break;
   case SQLCOM_CREATE_DB:
   {
     const char* alias;
@@ -3487,13 +3483,11 @@ mysql_execute_command(THD *thd, bool first_level)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
-#ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
-#endif
     if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     /*
@@ -3517,13 +3511,11 @@ mysql_execute_command(THD *thd, bool first_level)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
-#ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
-#endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
@@ -3540,13 +3532,11 @@ mysql_execute_command(THD *thd, bool first_level)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
-#ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
-#endif
     if (check_access(thd, ALTER_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     /*
@@ -4408,7 +4398,9 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_REVOKE_ROLE:
   case SQLCOM_ALTER_USER_DEFAULT_ROLE:
   case SQLCOM_SHOW_GRANTS:
-    DBUG_ASSERT(lex->m_sql_cmd != NULL);
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
+    DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;
 
@@ -4676,11 +4668,13 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
   {
     // For below show commands, perform check_show_access() call
     case SQLCOM_SHOW_DATABASES:
+    case SQLCOM_SHOW_EVENTS:
       new_dd_show= true;
       break;
 
     case SQLCOM_SHOW_TABLES:
     case SQLCOM_SHOW_TABLE_STATUS:
+    case SQLCOM_SHOW_TRIGGERS:
     {
       new_dd_show= true;
 
@@ -4691,9 +4685,6 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
       if (make_lex_string_root(thd->mem_root, &lex_str_db,
                                lex->select_lex->db,
                                strlen(lex->select_lex->db), false) == nullptr)
-        return true;
-
-      if (check_and_convert_db_name(&lex_str_db, false) != Ident_name_check::OK)
         return true;
 
       // Acquire IX MDL lock on schema name.
@@ -4805,7 +4796,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
 }
 
 
-static bool execute_show(THD *thd, TABLE_LIST *all_tables)
+bool execute_show(THD *thd, TABLE_LIST *all_tables)
 {
   DBUG_ENTER("execute_show");
   LEX	*lex= thd->lex;
@@ -5254,7 +5245,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 }
 
 
-#ifdef HAVE_REPLICATION
 /**
   Usable by the replication SQL thread only: just parse a query to know if it
   can be ignored because of replicate-*-table rules.
@@ -5302,8 +5292,6 @@ bool mysql_test_parse_for_slave(THD *thd)
   thd->cleanup_after_query();
   DBUG_RETURN(ignorable);
 }
-#endif
-
 
 
 /**

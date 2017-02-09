@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
   This file defines the NDB Cluster handler: the interface between MySQL and
   NDB Cluster
 */
+
+#include "sql_base.h"
 
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
@@ -145,7 +147,8 @@ class ha_ndbcluster: public handler, public Partition_handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
 
@@ -250,9 +253,12 @@ public:
   virtual char* get_foreign_key_create_info();
   virtual void free_foreign_key_create_info(char* str);
 
-  int rename_table(const char *from, const char *to);
-  int delete_table(const char *name);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
+  int rename_table(const char *from, const char *to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
+  int delete_table(const char *name, const dd::Table *table_def);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
+             dd::Table *table_def);
   virtual bool is_ignorable_error(int error)
   {
     if (handler::is_ignorable_error(error) ||
@@ -369,16 +375,21 @@ bool parse_comment_changes(NdbDictionary::Table *new_tab,
                            THD *thd,
                            bool & max_rows_changed) const;
 
-bool prepare_inplace_alter_table(TABLE *altered_table,
-                                 Alter_inplace_info *ha_alter_info,
-                                 dd::Table *new_dd_tab);
-
-bool inplace_alter_table(TABLE *altered_table,
-                            Alter_inplace_info *ha_alter_info);
-  
-bool commit_inplace_alter_table(TABLE *altered_table,
+  bool prepare_inplace_alter_table(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info,
-                                   bool commit);
+                                   const dd::Table *old_table_def,
+                                   dd::Table *new_table_def);
+
+  bool inplace_alter_table(TABLE *altered_table,
+                           Alter_inplace_info *ha_alter_info,
+                           const dd::Table *old_table_def,
+                           dd::Table *new_table_def);
+
+  bool commit_inplace_alter_table(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info,
+                                  bool commit,
+                                  const dd::Table *old_table_def,
+                                  dd::Table *new_table_def);
 
 void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
@@ -396,7 +407,6 @@ private:
   
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
-#ifdef HAVE_NDB_BINLOG
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
                                  const NdbRecord* key_rec,
                                  const NdbRecord* data_rec,
@@ -408,7 +418,6 @@ private:
                                  NdbOperation::OperationOptions* options,
                                  bool& conflict_handled,
                                  bool& avoid_ndbapi_write);
-#endif
   void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,
                                     const uchar *record,
@@ -494,7 +503,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-  int alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
+  int inplace_alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,

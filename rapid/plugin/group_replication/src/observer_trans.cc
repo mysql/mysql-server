@@ -20,6 +20,7 @@
 
 #include "base64.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "observer_trans.h"
 #include "plugin_log.h"
 #include "sql_command_test.h"
@@ -484,8 +485,21 @@ int group_replication_trans_before_commit(Trans_param *param)
   // Write transaction context to group replication cache.
   tcle->write(cache);
 
+  if (*(param->original_commit_timestamp) == UNDEFINED_COMMIT_TIMESTAMP)
+  {
+    /*
+     Assume that this transaction is original from this server and update status
+     variable so that it won't be re-defined when this GTID is written to the
+     binlog
+    */
+    *(param->original_commit_timestamp)= my_micro_time_ntp();
+  } // otherwise the transaction did not originate in this server
+
   // Write Gtid log event to group replication cache.
-  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1, gtid_specification);
+  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1,
+                          *(param->original_commit_timestamp),
+                          0,
+                          gtid_specification);
   gle->write(cache);
 
   // Reinit group replication cache to read.

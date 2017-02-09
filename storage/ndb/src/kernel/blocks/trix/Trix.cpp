@@ -151,7 +151,7 @@ Trix::execREAD_CONFIG_REQ(Signal* signal)
   c_theSubscriptionRecPool.setSize(100);
   c_statOpPool.setSize(5);
 
-  DLList<SubscriptionRecord> subscriptions(c_theSubscriptionRecPool);
+  SubscriptionRecord_list subscriptions(c_theSubscriptionRecPool);
   SubscriptionRecPtr subptr;
   while (subscriptions.seizeFirst(subptr) == true) {
     new (subptr.p) SubscriptionRecord(c_theAttrOrderBufferPool);
@@ -3454,5 +3454,3 @@ operator<<(NdbOut& out, const Trix::StatOp& stat)
 
 
 BLOCK_FUNCTIONS(Trix)
-
-template void append(DataBuffer<15>&,SegmentedSectionPtr,SectionSegmentPool&);

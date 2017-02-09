@@ -29,6 +29,7 @@
 #include "m_ctype.h"                       // my_strcasecmp
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*
 #include "wkt_parser.h"

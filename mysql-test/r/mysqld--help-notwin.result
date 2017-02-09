@@ -1443,7 +1443,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1074
+performance-schema-error-size 1080
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
@@ -1473,7 +1473,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 201
+performance-schema-max-statement-classes 202
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1492,7 +1492,7 @@ profiling-history-size 15
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
-query-cache-size 1048576
+query-cache-size 0
 query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192

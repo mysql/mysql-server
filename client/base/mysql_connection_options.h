@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,16 @@
 #ifndef MYSQL_CONNECTION_OPTIONS_INCLUDED
 #define MYSQL_CONNECTION_OPTIONS_INCLUDED
 
-#include "client_priv.h"
 #include <vector>
-#include "composite_options_provider.h"
+
 #include "abstract_program.h"
-#include "i_connection_factory.h"
-#include "nullable.h"
 #include "base/mutex.h"
+#include "client_priv.h"
+#include "composite_options_provider.h"
+#include "i_connection_factory.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "nullable.h"
 
 namespace Mysql{
 namespace Tools{
@@ -121,7 +124,7 @@ private:
   Nullable<std::string> m_host;
   uint32 m_mysql_port;
   Nullable<std::string> m_mysql_unix_port;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   Nullable<std::string> m_shared_memory_base_name;
 #endif
   Nullable<std::string> m_default_auth;

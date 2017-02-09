@@ -19,8 +19,16 @@
 
 #include "ngs_common/operations_factory.h"
 
-#include <fcntl.h>
+#include "my_config.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "ngs/memory.h"
 
 #ifdef HAVE_SYS_UN_H

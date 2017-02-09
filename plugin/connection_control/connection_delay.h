@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,15 +17,16 @@
 #define CONNECTION_DELAY_H
 
 #include <lf.h>                         /* LF Hash */
-#include <my_global.h>
 #include <my_atomic.h>                  /* my_atomic_* */
+#include <my_global.h>
 #include <mysql_com.h>                  /* USERNAME_LENGTH */
-#include "table.h"                      /* TABLE_LIST */
 
-#include "connection_control_interfaces.h" /* Observer interface */
-#include "connection_delay_api.h"       /* Constants */
 #include "connection_control_data.h"    /* variables and status */
+#include "connection_control_interfaces.h" /* Observer interface */
 #include "connection_control_memory.h"  /* Connection_control_alloc */
+#include "connection_delay_api.h"       /* Constants */
+#include "my_inttypes.h"
+#include "table.h"                      /* TABLE_LIST */
 
 namespace connection_control
 {

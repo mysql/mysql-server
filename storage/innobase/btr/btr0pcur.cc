@@ -26,6 +26,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "btr0pcur.h"
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rem0cmp.h"
 #include "trx0trx.h"
 #include "ut0byte.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,7 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
  */
 extern PSI_memory_key key_memory_DATE_TIME_FORMAT;
 extern PSI_memory_key key_memory_DD_default_values;
+extern PSI_memory_key key_memory_DD_import;
 extern PSI_memory_key key_memory_DD_String_type;
 extern PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 extern PSI_memory_key key_memory_Event_queue_element_for_exec_names;

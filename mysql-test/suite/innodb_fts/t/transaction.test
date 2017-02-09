@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # FTS index with transaction
 # Important Note:

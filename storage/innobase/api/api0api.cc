@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ InnoDB Native API
 
 #include <dd/properties.h>
 #include <dd/types/tablespace.h>
+#include <errno.h>
 #include <stdlib.h>
 
 #include "api0api.h"
@@ -40,6 +41,7 @@ InnoDB Native API
 #include "dict0dd.h"
 #include "lock0lock.h"
 #include "lock0types.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "rem0cmp.h"
 #include "row0ins.h"

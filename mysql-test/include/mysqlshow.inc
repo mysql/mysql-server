@@ -1,7 +1,6 @@
 # Can't run test of external client with embedded server
 -- source include/not_embedded.inc
 # Test lists tables in Information_schema, and InnoDB adds some
--- source include/have_innodb.inc
 # Don't test when thread_pool active
 --source include/not_threadpool.inc
 

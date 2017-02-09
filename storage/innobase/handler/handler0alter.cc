@@ -67,7 +67,10 @@ Smart ALTER TABLE
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "pars0pars.h"
 #include "partition_info.h"
 #include "rem0types.h"
@@ -6606,7 +6609,9 @@ of the table.
 table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement
 commit time.
-@retval true Failure */
+@retval true Failure
+@retval false Success
+*/
 template<typename Table>
 bool
 ha_innobase::inplace_alter_table_impl(
@@ -8617,7 +8622,9 @@ of the table.
 table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement
 commit time.
-@retval true Failure, false Success */
+@retval true Failure
+@retval false Success
+*/
 template<typename Table>
 bool
 ha_innobase::commit_inplace_alter_table_impl(
@@ -11757,6 +11764,7 @@ ha_innopart::prepare_inplace_alter_table(
 
 		res = prepare_inplace_alter_table_impl<dd::Partition>(
 			altered_table, ha_alter_info, old_part, new_part);
+
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -11905,7 +11913,6 @@ ha_innopart::commit_inplace_alter_table(
 							commit,
 							old_table_def,
 							new_table_def);
-
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}

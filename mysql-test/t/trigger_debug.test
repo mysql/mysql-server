@@ -35,18 +35,3 @@ INSERT INTO t1 VALUES(0);
 SET @@debug= "-d,create_trigger_fail";
 UNLOCK TABLES;
 DROP TABLE t1;
-
---echo #
---echo # Bug#24420809: ASSERT SELECT_LEX::PREPARE(THD*): ASSERTION `!THD->IS_ERROR()' FOR SHOW TRIGGER
---echo #
-CREATE TABLE t1 (a INT);
---echo # The bug hit assertion only when there was a view in current schema.
---echo # So create a view.
-CREATE VIEW t1_view AS SELECT * FROM t1;
-CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
-SET @@debug= "+d,simulate_try_acquire_high_prio_shared_mdl_lock_timeout_error";
---error ER_LOCK_WAIT_TIMEOUT
-SHOW TRIGGERS FROM test;
-SET @@debug= "-d,simulate_try_acquire_high_prio_shared_mdl_lock_timeout_error";
-DROP VIEW t1_view;
-DROP TABLE t1;

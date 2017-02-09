@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,11 +22,12 @@
   Performance schema account (declarations).
 */
 
-#include "pfs_lock.h"
 #include "lf.h"
+#include "my_inttypes.h"
+#include "mysql_com.h" /* USERNAME_LENGTH */
 #include "pfs_con_slice.h"
 #include "pfs_global.h"
-#include "mysql_com.h" /* USERNAME_LENGTH */
+#include "pfs_lock.h"
 
 struct PFS_global_param;
 struct PFS_user;

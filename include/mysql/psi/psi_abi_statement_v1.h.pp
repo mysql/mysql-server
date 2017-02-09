@@ -1,6 +1,27 @@
 #include "mysql/psi/psi_statement.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef char my_bool;
+typedef int myf;
+#include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
@@ -15,7 +36,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_statement_bootstrap
 {
   void *(*get_interface)(int version);
@@ -203,5 +223,4 @@ typedef struct PSI_statement_service_v1 PSI_statement_service_t;
 typedef struct PSI_statement_info_v1 PSI_statement_info;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
-extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
-C_MODE_END
+extern PSI_statement_service_t *psi_statement_service;

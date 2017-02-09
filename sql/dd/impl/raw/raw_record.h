@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define DD__RAW_RECORD_INCLUDED
 
 #include "my_config.h"
+#include "my_inttypes.h"
+#include "my_io.h"  // Win32 needs winsock.h for timeval, so IWYU pragma: keep
 
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>

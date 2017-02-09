@@ -3,7 +3,6 @@
 # (User has case insensitive file system and wants to preserve case of
 # table names)
 #
---source include/have_innodb.inc
 --source include/have_lowercase2.inc
 
 --disable_warnings

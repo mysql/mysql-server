@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.session_account_connect_attrs

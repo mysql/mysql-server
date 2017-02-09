@@ -21,8 +21,9 @@
   Table PREPARED_STATEMENT_INSTANCE(declarations).
 */
 
-#include "table_helper.h"
+#include "my_inttypes.h"
 #include "pfs_prepared_stmt.h"
+#include "table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

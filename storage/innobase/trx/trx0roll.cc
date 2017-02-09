@@ -23,12 +23,13 @@ Transaction rollback
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "trx0roll.h"
 #include "fsp0fsp.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "mach0data.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "read0read.h"
@@ -37,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "trx0rec.h"
+#include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
 #include "trx0trx.h"

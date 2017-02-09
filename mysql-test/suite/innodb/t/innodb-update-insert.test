@@ -1,7 +1,6 @@
 # This file contains test cases for checking the functionality "update by
 # delete + insert".
 
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug#14668683 ASSERT REC_GET_DELETED_FLAG(REC, PAGE_IS_COMP(PAGE))

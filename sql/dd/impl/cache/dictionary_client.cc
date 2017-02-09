@@ -72,6 +72,7 @@
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld.h"
@@ -968,9 +969,7 @@ bool Dictionary_client::acquire_uncached(Object_id id, T** object)
 }
 
 
-// Retrieve an object by its object id without caching it. Use isolation
-// level ISO_READ_UNCOMMITTED for reading the object. Needed by WL#7743.
-/* purecov: begin deadcode */
+// Retrieve an object by its object id without caching it.
 template <typename T>
 bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
                                                      T** object)
@@ -1025,7 +1024,6 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
 
   return error;
 }
-/* purecov: end */
 
 
 // Retrieve an object by its name.
@@ -1895,7 +1893,8 @@ bool Dictionary_client::fetch_referencing_views_object_id(
 {
   /*
     Use READ UNCOMMITTED isolation, so this method works correctly when
-    called from the middle of atomic DROP TABLE/DATABASE statement.
+    called from the middle of atomic DROP TABLE/DATABASE or
+    RENAME TABLE statements.
   */
   dd::Transaction_ro trx(m_thd, ISO_READ_UNCOMMITTED);
 
@@ -2296,6 +2295,26 @@ void Dictionary_client::register_dropped_object(T* object)
 
   element->set_object(object);
   element->recreate_keys();
+
+  // Check if the object is already registered. This could happen if
+  // the object is dropped twice in the same statement. Currently
+  // this is possible when updating view metadata since alter view
+  // is implemented as drop+create. We have to look up on name since
+  // the ID has changed.
+  Cache_element<typename T::cache_partition_type> *dropped_ele= nullptr;
+  m_registry_dropped.get(*element->name_key(), &dropped_ele);
+  if (dropped_ele != nullptr)
+  {
+    // We have dropped an object with the same name earlier.
+    // Remove the old object so that we can insert the new
+    // object without getting key conflicts.
+    // Note: This means that the previously dropped object can
+    // now be retrieved again with the old ID!
+    m_registry_dropped.remove(dropped_ele);
+    delete dropped_ele->object();
+    delete dropped_ele;
+  }
+
   m_registry_dropped.put(element);
 }
 
@@ -2589,6 +2608,8 @@ template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Schema**);
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Schema**);
+template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
+                                                              Schema**);
 template bool Dictionary_client::acquire_for_modification(const String_type&,
                                                           Schema**);
 template void Dictionary_client::remove_uncommitted_objects<Schema>(bool);
@@ -2645,6 +2666,8 @@ template void Dictionary_client::dump<Tablespace>() const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   View**);
+template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
+                                                              View**);
 template bool Dictionary_client::acquire(Object_id,
                                          const View**);
 template bool Dictionary_client::acquire_for_modification(Object_id,
@@ -2659,9 +2682,6 @@ template void Dictionary_client::remove_uncommitted_objects<View>(bool);
 template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::store(View*);
 template bool Dictionary_client::update(View*);
-
-template bool Dictionary_client::store(Table_stat*);
-template bool Dictionary_client::store(Index_stat*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Event**);

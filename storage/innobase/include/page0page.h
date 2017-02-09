@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/page0page.h
 Index page routines
@@ -26,16 +28,15 @@ Created 2/2/1994 Heikki Tuuri
 #ifndef page0page_h
 #define page0page_h
 
-#include "univ.i"
-
-#include "page0types.h"
-#include "fil0fil.h"
 #include "buf0buf.h"
 #include "data0data.h"
 #include "dict0dict.h"
-#include "rem0rec.h"
+#include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "mtr0mtr.h"
+#include "page0types.h"
+#include "rem0rec.h"
+#include "univ.i"
 
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE

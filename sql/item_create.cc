@@ -22,16 +22,16 @@
 
 #include "item_create.h"
 
-#include <cctype>
 #include <errno.h>
-#include <functional>
-#include <iterator>
 #include <limits.h>
 #include <math.h>
-#include <new>
 #include <stdlib.h>
-#include <string>
 #include <sys/types.h>
+#include <cctype>
+#include <functional>
+#include <iterator>
+#include <new>
+#include <string>
 #include <unordered_map>
 
 #include "item.h"
@@ -47,6 +47,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"
@@ -1768,9 +1769,9 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_AREA", SQL_FN(Item_func_area, 1) },
   { "ST_ASBINARY", SQL_FN_V(Item_func_as_wkb, 1, 2) },
   { "ST_ASGEOJSON", SQL_FN_V_THD(Item_func_as_geojson, 1, 3) },
-  { "ST_ASTEXT", SQL_FN(Item_func_as_wkt, 1) },
+  { "ST_ASTEXT", SQL_FN_V(Item_func_as_wkt, 1, 2) },
   { "ST_ASWKB", SQL_FN_V(Item_func_as_wkb, 1, 2) },
-  { "ST_ASWKT", SQL_FN(Item_func_as_wkt, 1) },
+  { "ST_ASWKT", SQL_FN_V(Item_func_as_wkt, 1, 2) },
   { "ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5) },
   { "ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2) },
   { "ST_CENTROID", SQL_FN(Item_func_centroid, 1) },
@@ -1882,6 +1883,9 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 3) },
   { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 4) },
   { "CAN_ACCESS_VIEW", SQL_FN_INTERNAL(Item_func_can_access_view, 4) },
+  { "CAN_ACCESS_TRIGGER", SQL_FN_INTERNAL(Item_func_can_access_trigger, 2) },
+  { "CAN_ACCESS_ROUTINE", SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
+  { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
   { "INTERNAL_TABLE_ROWS", SQL_FN_INTERNAL(Item_func_internal_table_rows, 4) },
   { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_INTERNAL(Item_func_internal_avg_row_length, 4) },
   { "INTERNAL_DATA_LENGTH", SQL_FN_INTERNAL(Item_func_internal_data_length, 4) },

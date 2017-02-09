@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #include <time.h>
 
 #include "m_string.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
@@ -30,7 +32,6 @@ class Relay_log_info;
 class Rpl_info_handler;
 class Server_ids;
 class THD;
-#ifdef HAVE_REPLICATION
 
 #include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "log_event.h"               // Format_description_log_event
@@ -509,5 +510,4 @@ public:
   void wait_until_no_reference(THD *thd);
 };
 
-#endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

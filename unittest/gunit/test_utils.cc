@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql_com.h"
 #include "mysqld.h"                             // set_remaining_args
 #include "opt_costconstantcache.h"              // optimizer cost constant cache

@@ -42,6 +42,7 @@ Created 2014/01/16 Jimmy Yang
 #include "rem0cmp.h"
 #include "srv0mon.h"
 #include "trx0trx.h"
+#include "sync0sync.h"
 
 #endif /* UNIV_HOTBACKUP */
 

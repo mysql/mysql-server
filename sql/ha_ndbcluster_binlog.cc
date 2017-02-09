@@ -17,14 +17,12 @@
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "NdbSleep.h"
 #include "binlog.h"
 #include "dd/types/abstract_table.h"
 #include "dd_table_share.h"
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysqld_thd_manager.h"  // Global_THD_manager
@@ -35,11 +33,21 @@
 #include "ndb_table_guard.h"
 #include "ndb_tdc.h"
 #include "ndb_thd.h"
+#include "ndb_log.h"
 #include "ndbapi/NdbDictionary.hpp"
 #include "ndbapi/ndb_cluster_connection.hpp"
+#include "ndb_sleep.h"
+
 #include "rpl_filter.h"
 #include "rpl_injector.h"
 #include "rpl_slave.h"
+#include "log_event.h"      // my_strmov_quoted_identifier
+#include "transaction.h"
+#include "sql_table.h"      // build_table_filename,
+                            // tablename_to_filename
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
+#include "derror.h"         // ER_THD
+#include "log.h"            // sql_print_*
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
@@ -651,7 +659,7 @@ ndb_create_thd(char * stackptr)
   }
 
   thd->init_query_mem_roots();
-  thd_set_command(thd, COM_DAEMON);
+  thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->lex->start_transaction_opt= 0;
@@ -1312,7 +1320,7 @@ int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
         sql_print_warning("NDB: ndbcluster_find_all_databases retry: %u - %s",
                           ndb_error.code,
                           ndb_error.message);
-        do_retry_sleep(retry_sleep);
+        ndb_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -1395,20 +1403,16 @@ int find_all_files(THD *thd, Ndb* ndb)
       /* finalize construction of path */
       end+= tablename_to_filename(elmt.name, end,
                                   (uint)(sizeof(key)-(end-key)));
-      uchar *data= 0, *pack_data= 0;
-      size_t length, pack_length;
+      uchar* data = NULL;
+      size_t length;
       int discover= 0;
-      if (create_serialized_meta_data(elmt.database, elmt.name,
-                                      &data, &length) ||
-          compress_serialized_meta_data(data, length, &pack_data, &pack_length))
+      if (readfrm(key, &data, &length))
       {
         discover= 1;
         sql_print_information("NDB: missing frm for %s.%s, discovering...",
                               elmt.database, elmt.name);
       }
-      else if (different_serialized_meta_data(
-                         static_cast<const uchar *>(ndbtab->getFrmData()),
-                         ndbtab->getFrmLength(), pack_data, pack_length))
+      else if (cmp_unpacked_frm(ndbtab, data, length))
       {
         /* ndb_share reference temporary */
         NDB_SHARE *share= get_share(key, 0, FALSE);
@@ -1433,7 +1437,6 @@ int find_all_files(THD *thd, Ndb* ndb)
         }
       }
       my_free(data);
-      my_free(pack_data);
 
       if (discover)
       {
@@ -1480,7 +1483,7 @@ setup(void)
   DBUG_EXECUTE_IF("ndb_binlog_setup_slow",
   {
     sql_print_information("ndb_binlog_setup: 'ndb_binlog_setup_slow' -> sleep");
-    NdbSleep_SecSleep(10);
+    ndb_milli_sleep(10*1000); // seconds * 1000
     sql_print_information("ndb_binlog_setup <- sleep");
   });
 
@@ -1851,7 +1854,7 @@ int ndbcluster_log_schema_op(THD *thd,
        * coordinated by this node. Thus causing a mixup betweeen these,
        * and the schema distribution getting totally out of synch.
        */
-      NdbSleep_MilliSleep(50);
+      ndb_milli_sleep(50);
     });
   }
 
@@ -1966,7 +1969,7 @@ int ndbcluster_log_schema_op(THD *thd,
         /* Schema change originating from this MySQLD, check SQL_LOG_BIN
          * variable and pass 'setting' to all logging MySQLDs via AnyValue  
          */
-        if (thd_options(thd) & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
+        if (thd_test_options(thd, OPTION_BIN_LOG)) /* e.g. SQL_LOG_BIN == on */
         {
           DBUG_PRINT("info", ("Schema event for binlogging"));
           ndbcluster_anyvalue_set_normal(anyValue);
@@ -2031,7 +2034,7 @@ err:
       {
         if (trans)
           ndb->closeTransaction(trans);
-        do_retry_sleep(retry_sleep);
+        ndb_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -2558,7 +2561,20 @@ class Ndb_schema_event_handler {
                     "my_errno: %d",
                     schema->db, schema->name, schema->query,
                     schema->node_id, my_errno());
-    thd_print_warning_list(thd, "NDB Binlog");
+
+    // Print thd's list of warnings to error log
+    {
+      Diagnostics_area::Sql_condition_iterator
+          it(thd->get_stmt_da()->sql_conditions());
+
+      const Sql_condition *err;
+      while ((err= it++))
+      {
+        sql_print_warning("NDB Binlog: (%d)%s",
+                          err->mysql_errno(),
+                          err->message_text());
+      }
+    }
   }
 
 
@@ -2814,7 +2830,7 @@ class Ndb_schema_event_handler {
         {
           if (trans)
             ndb->closeTransaction(trans);
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue; // retry
         }
       }
@@ -2943,8 +2959,7 @@ class Ndb_schema_event_handler {
     if (!ndbtab)
     {
       /*
-        Bug#14773491 reports crash in 'cmp_frm' due to
-        ndbtab* being NULL -> bail out here
+        Bug#14773491 reports crash due to ndbtab* being NULL -> bail out here
       */
       sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
                       db_name, table_name);
@@ -2956,38 +2971,38 @@ class Ndb_schema_event_handler {
     build_table_filename(key, sizeof(key)-1,
                          db_name, table_name, NullS, 0);
 
-    uchar *data= 0, *pack_data= 0;
-    size_t length, pack_length;
-
-    if (create_serialized_meta_data(db_name, table_name, &data, &length) == 0 &&
-        compress_serialized_meta_data(data, length, &pack_data,
-                                      &pack_length) == 0 &&
-        different_serialized_meta_data(
-                        static_cast<const uchar *>(ndbtab->getFrmData()),
-                        ndbtab->getFrmLength(), pack_data, pack_length))
+    uchar *data = NULL;
+    size_t length;
+    if (readfrm(key, &data, &length) == 0 &&
+        cmp_unpacked_frm(ndbtab, data, length))
     {
-      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
-                          db_name, table_name));
-
-      DBUG_DUMP("frm", (uchar*) ndbtab->getFrmData(),
-                        ndbtab->getFrmLength());
-      my_free(data);
-      data= NULL;
-
-      int error;
-      uchar *sdi_data= const_cast<uchar *>(
-                         static_cast<const uchar *>(ndbtab->getFrmData()));
-      if ((error= uncompress_serialized_meta_data(sdi_data,
-                                                  ndbtab->getFrmLength(),
-                                                  &data, &length)) ||
-          (error= import_serialized_meta_data(data, length, true)))
+      // Table frm file changed, extract extra metadata for
+      // this table and write a new frm file for this table
+      Uint32 version;
+      void* unpacked_data;
+      Uint32 unpacked_len;
+      const int get_result =
+          ndbtab->getExtraMetadata(version,
+                                   &unpacked_data, &unpacked_len);
+      if (get_result != 0)
       {
-        sql_print_error("NDB: Failed write frm for %s.%s, error %d",
-                        db_name, table_name, error);
+        ndb_log_error("Failed to get extra metadata for %s.%s, error %d",
+                      db_name, table_name, get_result);
+      }
+      else
+      {
+        const int write_result =
+            writefrm(key,
+                     (const uchar*)unpacked_data, unpacked_len);
+        if (write_result != 0)
+        {
+          ndb_log_error("Failed to write frm for %s.%s, error %d",
+                        db_name, table_name, write_result);
+        }
+        free(unpacked_data);
       }
     }
     my_free(data);
-    my_free(pack_data);
     DBUG_VOID_RETURN;
   }
 
@@ -3058,7 +3073,7 @@ class Ndb_schema_event_handler {
       NDB_SCHEMA_OBJECT *p= ndb_get_schema_object(key, false);
       if (p == NULL)
       {
-        NdbSleep_MilliSleep(10);
+        ndb_milli_sleep(10);
       }
       else
       {
@@ -4293,7 +4308,7 @@ class Ndb_binlog_index_table_util
     new_thd->set_new_thread_id();
     new_thd->thread_stack = (char*)&new_thd;
     new_thd->store_globals();
-    thd_set_command(new_thd, COM_DAEMON);
+    new_thd->set_command(COM_DAEMON);
     new_thd->system_thread = SYSTEM_THREAD_NDBCLUSTER_BINLOG;
     new_thd->get_protocol_classic()->set_client_capabilities(0);
     new_thd->security_context()->skip_grants();
@@ -4461,7 +4476,6 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
   DBUG_PRINT("info", ("ndb_rep_event_name: %s", event_name->c_ptr()));
 }
 
-#ifdef HAVE_NDB_BINLOG
 static void 
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
@@ -4723,7 +4737,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
 
   DBUG_RETURN(0);
 }
-#endif /* HAVE_NDB_BINLOG */
+
 
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
@@ -4796,12 +4810,12 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
                               dict->getNdbError().code);
       break; // error
     }
-#ifdef HAVE_NDB_BINLOG
+
     /*
      */
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
                                        ::server_id);
-#endif
+
     /*
       check if logging turned off for this table
     */
@@ -5115,12 +5129,9 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   else if (!ndb_apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
     do_ndb_apply_status_share= 1;
-  else
-#ifdef HAVE_NDB_BINLOG
-    if (!binlog_filter->db_ok(share->db) ||
-        !ndb_binlog_running ||
-        is_exceptions_table(share->table_name))
-#endif
+  else if (!binlog_filter->db_ok(share->db) ||
+           !ndb_binlog_running ||
+           is_exceptions_table(share->table_name))
   {
     set_binlog_nologging(share);
     DBUG_RETURN(0);
@@ -5155,7 +5166,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   {
     if (retry_sleep > 0)
     {
-      do_retry_sleep(retry_sleep);
+      ndb_retry_sleep(retry_sleep);
     }
     Mutex_guard injector_mutex_g(injector_event_mutex);
     Ndb *ndb= injector_ndb;
@@ -6528,7 +6539,7 @@ Ndb_binlog_thread::do_run()
     DBUG_VOID_RETURN;
   }
 
-  thd_set_command(thd, COM_DAEMON);
+  thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
@@ -6711,7 +6722,7 @@ restart_cluster_failure:
                               "waiting for ndbcluster to start...");
         goto err;
       }
-      NdbSleep_MilliSleep(1000);
+      ndb_milli_sleep(1000);
     } //while (!ndb_binlog_setup())
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
@@ -6899,7 +6910,7 @@ restart_cluster_failure:
          * these two pollEvents, which can result in reading a
          * 'schema_gci > gci'. (Likely due to mutex locking)
          */
-        NdbSleep_MilliSleep(50);
+        ndb_milli_sleep(50);
       });
   
       Uint64 schema_epoch= 0;
@@ -7003,7 +7014,7 @@ restart_cluster_failure:
             if (!ndb_binlog_is_ready)
             {
 	      sql_print_information("NDB Binlog: Just lost schema connection, hanging around");
-              NdbSleep_SecSleep(10);
+              ndb_milli_sleep(10*1000); // seconds * 1000
               /* There could be a race where client side reconnect before we 
                * are able to detect 's_ndb->getEventOperation() == NULL'.
                * Thus, we never restart the binlog thread as supposed to.

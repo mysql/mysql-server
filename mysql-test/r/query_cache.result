@@ -1,3 +1,4 @@
+SET @query_cache_size.saved = @@query_cache_size;
 set GLOBAL query_cache_size=1355776;
 flush query cache;
 flush query cache;
@@ -1816,6 +1817,7 @@ SET SESSION query_cache_type=@qc_type;
 #
 # Bug#18383169: QUERIES WITH RANDOM_BYTES() ENTER QUERY CACHE
 #
+SET GLOBAL query_cache_size = 1048576;
 CREATE TABLE t1(a INT);
 FLUSH STATUS;
 # Test that RANDOM_BYTES queries are not cached
@@ -1831,11 +1833,11 @@ SHOW STATUS LIKE 'Qcache_not_cached';
 Variable_name	Value
 Qcache_not_cached	2
 DROP TABLE t1;
+SET GLOBAL query_cache_size = default;
 FLUSH STATUS;
 #
 #BUG 18710853: QUERY CACHE NOT INVALIDATED ON CASCADE DELETE IF DB NAME HAS
 #              SPECIAL SYMBOLS
-SET @query_cache_size.saved = @@query_cache_size;
 SET GLOBAL query_cache_size = 1024*1024;
 CREATE DATABASE `db-db`;
 CREATE TABLE `db-db`.`t$1` (fld1 INT PRIMARY KEY) ENGINE=InnoDB;

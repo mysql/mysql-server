@@ -17,7 +17,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 # Check if builtins are enabled
 if (`SELECT LOWER(VARIABLE_VALUE)='off' FROM performance_schema.global_status

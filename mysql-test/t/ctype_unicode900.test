@@ -71,7 +71,6 @@ SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
 # Test WEIGHT_STRING, LOWER, UPPER
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 --source include/ctype_unicode800.inc
 
 SELECT 'a' = 'a ';

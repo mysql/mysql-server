@@ -14,7 +14,6 @@
 # Avoid CrashReporter popup on Mac
 -- source include/not_crashrep.inc
 
--- source include/have_innodb.inc
 
 # Create Insert Procedure
 DELIMITER |;

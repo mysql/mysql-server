@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,17 @@
 #ifndef KEYS_CONTAINER_INCLUDED
 #define KEYS_CONTAINER_INCLUDED
 
-#include <my_global.h>
 #include <hash.h>
-#include "keyring_key.h"
-#include "i_keyring_io.h"
-#include "logger.h"
+#include <my_global.h>
 #include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
+
+#include "i_keyring_io.h"
 #include "i_keys_container.h"
+#include "keyring_key.h"
 #include "keyring_memory.h"
+#include "logger.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 namespace keyring {
 

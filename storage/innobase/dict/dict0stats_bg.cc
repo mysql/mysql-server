@@ -24,17 +24,17 @@ Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
 #include "sql_thd_internal_api.h"
+#include <vector>
 
 #include "dict0dict.h"
 #include "dict0dd.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "ut0new.h"
-#include "os0thread-create.h"
-
-#include <vector>
 
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
@@ -407,7 +407,8 @@ dict_stats_thread()
 	my_thread_init();
 
 	ut_a(!srv_read_only_mode);
-	THD*	thd = create_thd(false, true, true, dict_stats_thread_key);
+	THD*	thd = create_thd(false, true, true,
+				 dict_stats_thread_key.m_value);
 
 	srv_dict_stats_thread_active = true;
 

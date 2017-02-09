@@ -211,9 +211,9 @@ public:
 
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char* sqlstate,
+                                const char*,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*)
   {
     if (*level == Sql_condition::SL_ERROR)
     {
@@ -1485,8 +1485,7 @@ class TABLE_READ_PLAN;
 
 static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,
                                Item_func *cond_func,Field *field,
-                               Item_func::Functype type,Item *value,
-                               Item_result cmp_type);
+                               Item_func::Functype type,Item *value);
 static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
@@ -2776,11 +2775,11 @@ public:
 
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+        const std::nothrow_t &arg MY_ATTRIBUTE((unused))= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t &) throw ()
   { /* Never called */ }
   virtual ~TABLE_READ_PLAN() {}               /* Remove gcc warning */
 
@@ -2818,7 +2817,7 @@ public:
   {}
   virtual ~TRP_RANGE() {}                     /* Remove gcc warning */
 
-  QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(PARAM *param, bool,
                              MEM_ROOT *parent_alloc)
   {
     DBUG_ENTER("TRP_RANGE::make_quick");
@@ -6407,8 +6406,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
 
 QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(PARAM *param,
-                                            bool retrieve_full_rows,
-                                            MEM_ROOT *parent_alloc)
+                                            bool, MEM_ROOT*)
 {
   QUICK_INDEX_MERGE_SELECT *quick_imerge;
   QUICK_RANGE_SELECT *quick;
@@ -6488,8 +6486,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
 
 
 QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
-                                          bool retrieve_full_rows,
-                                          MEM_ROOT *parent_alloc)
+                                          bool, MEM_ROOT*)
 {
   QUICK_ROR_UNION_SELECT *quick_roru;
   TABLE_READ_PLAN **scan;
@@ -6551,7 +6548,6 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
       field       field in the predicate
       lt_value    constant that field should be smaller
       gt_value    constant that field should be greaterr
-      cmp_type    compare type for the field
 
   RETURN 
     #  Pointer to tree built tree
@@ -6559,8 +6555,7 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
 */
 static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func, 
                                 Field *field,
-                                Item *lt_value, Item *gt_value,
-                                Item_result cmp_type)
+                                Item *lt_value, Item *gt_value)
 {
   SEL_TREE *tree= NULL;
 
@@ -6568,12 +6563,12 @@ static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
     return NULL;
 
   tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-                     lt_value, cmp_type);
+                     lt_value);
   if (tree)
   {
     tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
 					    Item_func::GT_FUNC,
-					    gt_value, cmp_type));
+					    gt_value));
   }
   return tree;
 }
@@ -6586,15 +6581,11 @@ static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   @param predicand  The @<in predicate's@> predicand, i.e. the left-hand
                     side of the @<in predicate@> expression.
   @param op         The 'in' operator itself.
-  @param value      The right-hand side of the @<in predicate@> expression.
-  @param cmp_type   What types we should pretend that the arguments are.
   @param is_negated If true, the operator is NOT IN, otherwise IN.
 */
 static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
                                                     Item *predicand,
                                                     Item_func_in *op,
-                                                    Item *value,
-                                                    Item_result cmp_type,
                                                     bool is_negated)
 {
   if (param->has_errors())
@@ -6669,8 +6660,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
       do
       {
         op->array->value_to_item(i, value_item);
-        tree= get_mm_parts(param, op, field, Item_func::LT_FUNC, value_item,
-                           cmp_type);
+        tree= get_mm_parts(param, op, field, Item_func::LT_FUNC, value_item);
         if (!tree)
           break;
         i++;
@@ -6688,7 +6678,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
           /* Get a SEL_TREE for "-inf < X < c_i" interval */
           op->array->value_to_item(i, value_item);
           tree2= get_mm_parts(param, op, field, Item_func::LT_FUNC,
-                              value_item, cmp_type);
+                              value_item);
           if (!tree2)
           {
             tree= NULL;
@@ -6751,7 +6741,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
           (value_item cotains c_last already)
         */
         tree2= get_mm_parts(param, op, field, Item_func::GT_FUNC,
-                            value_item, cmp_type);
+                            value_item);
         tree= tree_or(param, tree, tree2);
       }
       return tree;
@@ -6759,7 +6749,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
     else
     {
       SEL_TREE *tree= get_ne_mm_tree(param, op, field, op->arguments()[1],
-                                     op->arguments()[1], cmp_type);
+                                     op->arguments()[1]);
       if (tree)
       {
         Item **arg, **end;
@@ -6767,8 +6757,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
              arg < end ; arg++)
         {
           tree= tree_and(param, tree,
-                         get_ne_mm_tree(param, op, field, *arg, *arg,
-                                        cmp_type));
+                         get_ne_mm_tree(param, op, field, *arg, *arg));
         }
       }
       return tree;
@@ -6782,7 +6771,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
     // The expression is (<column>) IN (...)
     Field *field= static_cast<Item_field*>(predicand)->field;
     SEL_TREE *tree= get_mm_parts(param, op, field, Item_func::EQ_FUNC,
-                                 op->arguments()[1], cmp_type);
+                                 op->arguments()[1]);
     if (tree)
     {
       Item **arg, **end;
@@ -6791,7 +6780,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
       {
         tree= tree_or(param, tree, get_mm_parts(param, op, field,
                                                 Item_func::EQ_FUNC,
-                                                *arg, cmp_type));
+                                                *arg));
       }
     }
     return tree;
@@ -6837,7 +6826,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
         Item *value= row->element_index(j);
 
         SEL_TREE *and_expr=
-          get_mm_parts(param, op, field, Item_func::EQ_FUNC, value, cmp_type);
+          get_mm_parts(param, op, field, Item_func::EQ_FUNC, value);
 
         and_tree= tree_and(param, and_tree, and_expr);
         /*
@@ -6863,7 +6852,6 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
   @param predicand field in the predicate
   @param cond_func item for the predicate
   @param value     constant in the predicate
-  @param cmp_type  compare type for the field
   @param inv       TRUE <> NOT cond_func is considered
                   (makes sense only when cond_func is BETWEEN or IN)
 
@@ -6876,7 +6864,6 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
                                   Item *predicand,
                                   Item_func *cond_func,
                                   Item *value,
-                                  Item_result cmp_type,
                                   bool inv)
 {
   SEL_TREE *tree= 0;
@@ -6895,7 +6882,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
     if (predicand->type() == Item::FIELD_ITEM)
     {
       Field *field= static_cast<Item_field*>(predicand)->field;
-      tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
+      tree= get_ne_mm_tree(param, cond_func, field, value, value);
     }
     break;
 
@@ -6910,18 +6897,17 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
         {
           tree= get_ne_mm_tree(param, cond_func, field,
                                cond_func->arguments()[1],
-                               cond_func->arguments()[2], cmp_type);
+                               cond_func->arguments()[2]);
         }
         else
         {
           tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
-                             cond_func->arguments()[1],cmp_type);
+                             cond_func->arguments()[1]);
           if (tree)
           {
             tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
                                                      Item_func::LE_FUNC,
-                                                     cond_func->arguments()[2],
-                                                     cmp_type));
+                                                     cond_func->arguments()[2]));
           }
         }
       }
@@ -6934,14 +6920,14 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
                             (value == reinterpret_cast<Item*>(1) ?
                              Item_func::LE_FUNC :
                              Item_func::GE_FUNC)),
-                           cond_func->arguments()[0], cmp_type);
+                           cond_func->arguments()[0]);
     }
     break;
   case Item_func::IN_FUNC:
   {
     Item_func_in *in_pred= static_cast<Item_func_in*>(cond_func);
-    tree= get_func_mm_tree_from_in_predicate(param, predicand, in_pred, value,
-                                             cmp_type, inv);
+    tree= get_func_mm_tree_from_in_predicate(param, predicand, in_pred,
+                                             inv);
   }
   break;
   default:
@@ -6959,7 +6945,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
       Item_func::Functype func_type=
         (value != cond_func->arguments()[0]) ? cond_func->functype() :
         ((Item_bool_func2*) cond_func)->rev_functype();
-      tree= get_mm_parts(param, cond_func, field, func_type, value, cmp_type);
+      tree= get_mm_parts(param, cond_func, field, func_type, value);
     }
   }
 
@@ -7067,10 +7053,9 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   {
     Item_field *item_field= static_cast<Item_field*>(predicand);
     Field *field= item_field->field;
-    Item_result cmp_type= field->cmp_type();
 
     if (!((ref_tables | item_field->table_ref->map()) & param_comp))
-      ftree= get_func_mm_tree(param, predicand, op, value, cmp_type, inv);
+      ftree= get_func_mm_tree(param, predicand, op, value, inv);
     Item_equal *item_equal= item_field->item_equal;
     if (item_equal != NULL)
     {
@@ -7082,7 +7067,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
         if (!field->eq(f) &&
             !((ref_tables | item->table_ref->map()) & param_comp))
         {
-          tree= get_func_mm_tree(param, item, op, value, cmp_type, inv);
+          tree= get_func_mm_tree(param, item, op, value, inv);
           ftree= !ftree ? tree : tree_and(param, ftree, tree);
         }
       }
@@ -7090,7 +7075,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   }
   else if (predicand->type() == Item::ROW_ITEM)
   {
-    ftree= get_func_mm_tree(param, predicand, op, value, ROW_RESULT, inv);
+    ftree= get_func_mm_tree(param, predicand, op, value, inv);
     DBUG_RETURN(ftree);
   }
   DBUG_RETURN(ftree);
@@ -7318,11 +7303,10 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     while ((field_item= it++))
     {
       Field *field= field_item->field;
-      Item_result cmp_type= field->cmp_type();
       if (!((ref_tables | field_item->table_ref->map()) & param_comp))
       {
         tree= get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC,
-		           value,cmp_type);
+		           value);
         ftree= !ftree ? tree : tree_and(param, ftree, tree);
       }
     }
@@ -7500,7 +7484,7 @@ static bool comparable_in_index(Item *cond_func,
     comparing '{}' and '"{}"', which don't compare equal.
   */
   if (value->result_type() == STRING_RESULT &&
-      value->field_type() == MYSQL_TYPE_JSON)
+      value->data_type() == MYSQL_TYPE_JSON)
     return false;
 
   return true;
@@ -7509,7 +7493,7 @@ static bool comparable_in_index(Item *cond_func,
 static SEL_TREE *
 get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 	     Item_func::Functype type,
-	     Item *value, Item_result cmp_type)
+	     Item *value)
 {
   DBUG_ENTER("get_mm_parts");
 
@@ -10268,15 +10252,12 @@ public:
   SYNOPSIS
     init()
       init_params  SEL_ARG tree traversal context
-      n_ranges     [ignored] The number of ranges obtained 
-      flags        [ignored] HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
 
   RETURN
     Value of init_param
 */
 
-static range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges,
-                                          uint flags)
+static range_seq_t sel_arg_range_seq_init(void *init_param, uint, uint)
 {
   Sel_arg_range_sequence *seq= 
     static_cast<Sel_arg_range_sequence*>(init_param);
@@ -11786,8 +11767,6 @@ int QUICK_RANGE_SELECT::reset()
   SYNOPSIS
     quick_range_seq_init()
       init_param  Caller-opaque paramenter: QUICK_RANGE_SELECT* pointer
-      n_ranges    Number of ranges in the sequence (ignored)
-      flags       MRR flags (currently not used)
 
   @note depending on the ASC/DESC order of the first keypart, list of ranges
   will be initialized to be scanned either forward or backward, appropriately,
@@ -11797,7 +11776,7 @@ int QUICK_RANGE_SELECT::reset()
     Opaque value to be passed to quick_range_seq_next
 */
 
-range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
+range_seq_t quick_range_seq_init(void *init_param, uint, uint)
 {
   QUICK_RANGE_SELECT *quick= static_cast<QUICK_RANGE_SELECT*>(init_param);
   QUICK_RANGE **first= quick->ranges.begin();
@@ -11917,7 +11896,7 @@ int QUICK_RANGE_SELECT::get_next()
     head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
   }
 
-  int result= file->multi_range_read_next(&dummy);
+  int result= file->ha_multi_range_read_next(&dummy);
 
   if (in_ror_merged_scan)
   {
@@ -11993,10 +11972,12 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     last_range->make_max_endpoint(&end_key, prefix_length, keypart_map);
 
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
-    result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
-				   last_range->max_keypart_map ? &end_key : 0,
-                                   MY_TEST(last_range->flag & EQ_RANGE),
-				   sorted);
+    result= file->ha_read_range_first(last_range->min_keypart_map ?
+                                        &start_key : NULL,
+				      last_range->max_keypart_map ?
+                                        &end_key : NULL,
+                                      last_range->flag & EQ_RANGE,
+				      sorted);
     if ((last_range->flag & (UNIQUE_RANGE | EQ_RANGE)) ==
         (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
@@ -12099,8 +12080,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 */
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
-                                     uint used_key_parts_arg,
-                                     bool *error)
+                                     uint used_key_parts_arg)
  :QUICK_RANGE_SELECT(*q), rev_it(rev_ranges),
   used_key_parts (used_key_parts_arg)
 {
@@ -12287,15 +12267,7 @@ int QUICK_SELECT_DESC::get_next()
 
 QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg)
 {
-  bool error= FALSE;
-  QUICK_SELECT_DESC *new_quick= new QUICK_SELECT_DESC(this, used_key_parts_arg,
-                                                      &error);
-  if (new_quick == NULL || error)
-  {
-    delete new_quick;
-    return NULL;
-  }
-  return new_quick;
+  return new QUICK_SELECT_DESC(this, used_key_parts_arg);
 }
 
 
@@ -12537,10 +12509,10 @@ static inline SEL_ROOT * get_index_range_tree(uint index, SEL_TREE* range_tree,
                                               PARAM *param);
 static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *index_range_tree,
                                      SEL_ROOT **cur_range);
-static bool get_constant_key_infix(KEY *index_info, SEL_ROOT *index_range_tree,
+static bool get_constant_key_infix(SEL_ROOT *index_range_tree,
                        KEY_PART_INFO *first_non_group_part,
                        KEY_PART_INFO *min_max_arg_part,
-                       KEY_PART_INFO *last_part, THD *thd,
+                       KEY_PART_INFO *last_part,
                        uchar *key_infix, uint *key_infix_len,
                        KEY_PART_INFO **first_non_infix_part);
 static bool
@@ -12550,7 +12522,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 static void
 cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
                    uint group_key_parts, SEL_TREE *range_tree,
-                   const SEL_ROOT *index_tree, ha_rows quick_prefix_records,
+                   ha_rows quick_prefix_records,
                    bool have_min, bool have_max,
                    Cost_estimate *cost_est, ha_rows *records);
 
@@ -13054,9 +13026,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
       if (tree)
       {
         SEL_ROOT *index_range_tree= get_index_range_tree(cur_index, tree, param);
-        if (!get_constant_key_infix(cur_index_info, index_range_tree,
+        if (!get_constant_key_infix(index_range_tree,
                                     first_non_group_part, min_max_arg_part,
-                                    last_part, thd, cur_key_infix, 
+                                    last_part, cur_key_infix,
                                     &cur_key_infix_len,
                                     &first_non_infix_part))
         {
@@ -13174,7 +13146,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
 #endif
     }
     cost_group_min_max(table, cur_index, cur_used_key_parts,
-                       cur_group_key_parts, tree, cur_index_tree,
+                       cur_group_key_parts, tree,
                        cur_quick_prefix_records, have_min, have_max,
                        &cur_read_cost, &cur_records);
     /*
@@ -13531,12 +13503,10 @@ get_sel_root_for_keypart(Field *field,
 
   SYNOPSIS
     get_constant_key_infix()
-    index_info             [in]  Descriptor of the chosen index.
     index_range_tree       [in]  Range tree for the chosen index
     first_non_group_part   [in]  First index part after group attribute parts
     min_max_arg_part       [in]  The keypart of the MIN/MAX argument if any
     last_part              [in]  Last keypart of the index
-    thd                    [in]  Current thread
     key_infix              [out] Infix of constants to be used for index lookup
     key_infix_len          [out] Lenghth of the infix
     first_non_infix_part   [out] The first keypart after the infix (if any)
@@ -13558,10 +13528,10 @@ get_sel_root_for_keypart(Field *field,
     FALSE o/w
 */
 static bool
-get_constant_key_infix(KEY *index_info, SEL_ROOT *index_range_tree,
+get_constant_key_infix(SEL_ROOT *index_range_tree,
                        KEY_PART_INFO *first_non_group_part,
                        KEY_PART_INFO *min_max_arg_part,
-                       KEY_PART_INFO *last_part, THD *thd,
+                       KEY_PART_INFO *last_part,
                        uchar *key_infix, uint *key_infix_len,
                        KEY_PART_INFO **first_non_infix_part)
 {
@@ -13719,7 +13689,6 @@ SEL_ROOT * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param)
     used_key_parts       [in] Number of key parts used to access the index
     group_key_parts      [in] Number of index key parts in the group prefix
     range_tree           [in] Tree of ranges for all indexes
-    index_tree           [in] The range tree for the current index
     quick_prefix_records [in] Number of records retrieved by the internally
 			      used quick range select if any
     have_min             [in] True if there is a MIN function
@@ -13769,9 +13738,10 @@ SEL_ROOT * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param)
     None
 */
 
+static
 void cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
                         uint group_key_parts, SEL_TREE *range_tree,
-                        const SEL_ROOT *index_tree, ha_rows quick_prefix_records,
+                        ha_rows quick_prefix_records,
                         bool have_min, bool have_max,
                         Cost_estimate *cost_est, ha_rows *records)
 {
@@ -13890,7 +13860,6 @@ void cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
   SYNOPSIS
     TRP_GROUP_MIN_MAX::make_quick()
     param              Parameter from test_quick_select
-    retrieve_full_rows ignored
     parent_alloc       Memory pool to use, if any.
 
   NOTES
@@ -13906,7 +13875,7 @@ void cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
 */
 
 QUICK_SELECT_I *
-TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
+TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
                               MEM_ROOT *parent_alloc)
 {
   QUICK_GROUP_MIN_MAX_SELECT *quick;

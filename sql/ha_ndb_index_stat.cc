@@ -22,8 +22,8 @@
 #include "ha_ndb_index_stat.h"
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
+#include "mysqld.h"         // LOCK_*, mysqld_server_started
 
 
 /* from other files */

@@ -615,18 +615,18 @@ select * from t1;
 drop table t1, t2, t3;
 
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 drop table t1;
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
+CREATE TABLE t1 charset utf8mb4 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 SHOW CREATE TABLE t1;
 drop table t1;
@@ -878,9 +878,14 @@ select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 6
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
+--replace_column 8 6
 explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
+--replace_column 8 6
 explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
+--replace_column 8 6
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 drop table t1,t2;
 
@@ -1864,7 +1869,7 @@ drop table t1;
 create table t1(a int, primary key (a));
 insert into t1 values (10);
 
-create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b));
+create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b)) charset utf8mb4;
 insert into t2(a, c, b) values (1,10,'359'), (2,10,'35988'), (3,10,'35989');
 
 explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
@@ -1946,12 +1951,12 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('1998-09-23'), ('2003-03-25');
 
-CREATE TABLE t2 AS SELECT
+CREATE TABLE t2 charset utf8mb4 AS SELECT
   (SELECT a FROM t1 WHERE a < '2000-01-01') AS sub_a
    FROM t1 WHERE a > '2000-01-01';
 SHOW CREATE TABLE t2;
 
-CREATE TABLE t3 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
+CREATE TABLE t3 charset utf8mb4 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
 SHOW CREATE TABLE t3;
 
 DROP TABLE t1,t2,t3;
@@ -2889,7 +2894,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (
-  a varchar(255) default NULL,
+  a varchar(200) default NULL,
   b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   INDEX idx(a,b)
 );
@@ -3510,7 +3515,7 @@ select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t
 drop table t1, t2;
 
 # Now test different column types:
-create table t1 (oref char(4), grp int, ie int);
+create table t1 (oref char(4), grp int, ie int) charset utf8mb4;
 insert into t1 (oref, grp, ie) values
  ('aa', 10, 2),
  ('aa', 10, 1),
@@ -3527,7 +3532,7 @@ insert into t1 (oref, grp, ie) values
  ('ff', 20, 2),
  ('ff', 20, 1);
 
-create table t2 (oref char(4), a int);
+create table t2 (oref char(4), a int) charset utf8mb4;
 insert into t2 values 
   ('ee', NULL),
   ('bb', 2),
@@ -5484,10 +5489,10 @@ DROP TABLE t1, t2;
 --echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
 --echo #
 
-CREATE TABLE t1 (f1 varchar(1));
+CREATE TABLE t1 (f1 varchar(1)) charset utf8mb4;
 INSERT INTO t1 VALUES ('v'),('s');
 
-CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key)) charset utf8mb4;
 INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
 ('d'),('y'),('t'),('d'),('s');
 
@@ -5513,7 +5518,7 @@ col_int_key int,
 col_varchar_key varchar(1),
 col_varchar_nokey varchar(1),
 KEY (col_int_key)
-);
+) charset latin1;
 INSERT INTO t1 VALUES (224,'p','p'),(9,'e','e');
 
 CREATE TABLE t3 (
@@ -5521,7 +5526,7 @@ col_int_key int,
 col_varchar_key varchar(1),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key))
-;
+charset latin1;
 INSERT INTO t3 VALUES (4,'p'),(8,'e'),(10,'a');
 
 # At jcl>=1, if join buffering is on t1 bug doesn't happen, so we
@@ -5575,7 +5580,7 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE ot (
   col_int_nokey int(11), 
   col_varchar_nokey varchar(1)
-) ;
+) charset latin1;
 
 INSERT INTO ot VALUES (1,'x');
 
@@ -5583,7 +5588,7 @@ CREATE TABLE it (
   col_int_key int(11), 
   col_varchar_key varchar(1), 
   KEY idx_cvk_cik (col_varchar_key,col_int_key)
-) ;
+) charset latin1 ;
 
 INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
 
@@ -5629,7 +5634,7 @@ CREATE TABLE it (
    col_varchar_key2 varchar(1),
    KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
    KEY idx_cvk_cik (col_varchar_key, col_int_key)
-);
+) charset latin1;
 
 INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
 
@@ -5682,7 +5687,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
 (3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
@@ -5920,7 +5925,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1) NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL,
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  ('v','v'), ('s','s'), ('l','l'), ('y','y'), ('c','c'),
@@ -5931,7 +5936,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   col_int_nokey INT NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES
  (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
@@ -6674,11 +6679,11 @@ CREATE TABLE t1 (
   a1 char(8) DEFAULT NULL,
   a2 char(8) DEFAULT NULL,
   KEY a1 (a1(2))
-);
+) charset latin1;
 CREATE TABLE t2 (
   b1 char(8) DEFAULT NULL,
   b2 char(8) DEFAULT NULL
-);
+) charset latin1;
 INSERT INTO t1 VALUES
  ('1 - 00', '2 - 00'),('1 - 01', '2 - 01'),('1 - 02', '2 - 02');
 INSERT INTO t2 VALUES

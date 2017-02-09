@@ -2976,19 +2976,42 @@ drop table t_varchar;
 --echo # IN TRUNCATED DATA
 --echo #
 
+set names latin1;
+
 SELECT JSON_QUOTE('table') AS field1;
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
-SHOW WARNINGS;
 SELECT * FROM t;
 DESCRIBE t;
-drop table t;
+DROP TABLE t;
 
-select json_unquote( '"table"' ) as field1;
-create table t1 select json_unquote( '"table"' ) as field1;
-SHOW WARNINGS;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
 SELECT * FROM t1;
 DESCRIBE t1;
-drop table t1;
+DROP TABLE t1;
+
+set names default;
+
+--echo #
+--echo # Bug#25455065 JSON_QUOTE AND JSON_UNQUOTE
+--echo #              ARE WRONG FOR MULTIBYTE CHARSETS
+--echo #
+
+set names utf8mb4;
+
+SELECT JSON_QUOTE('table') AS field1;
+CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+SELECT * FROM t;
+DESCRIBE t;
+DROP TABLE t;
+
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+SELECT * FROM t1;
+DESCRIBE t1;
+DROP TABLE t1;
+
+set names default;
 
 --echo #
 --echo # Bug#21230644 JSON_MERGE MEMORY USAGE
@@ -3465,6 +3488,25 @@ INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
 SELECT * FROM t1 ORDER BY f1, pk, fj;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25461627: VALGRIND WARNING WHEN UPDATING A JSON COLUMN
+--echo #
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES (NULL);
+UPDATE t SET j = JSON_ARRAY(REPEAT('a', 32)),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(CAST(REPEAT('b', 32) AS BINARY)),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(JSON_ARRAY(REPEAT('c', 32))),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(JSON_OBJECT(REPEAT('d', 16), REPEAT('e', 16))),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+DROP TABLE t;
 
 --echo #
 --echo # WL#9191: JSON_PRETTY function

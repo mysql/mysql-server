@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ using std::max;
 
    @return The number of bytes written at @c row_data.
  */
-#if !defined(MYSQL_CLIENT)
+
 size_t
 pack_row(TABLE *table, MY_BITMAP const* cols,
          uchar *row_data, const uchar *record)
@@ -169,10 +169,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
   DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
 }
-#endif
 
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 /**
    Unpack a row into @c table->record[0].
 
@@ -568,5 +566,3 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
 
   DBUG_RETURN(0);
 }
-
-#endif // HAVE_REPLICATION

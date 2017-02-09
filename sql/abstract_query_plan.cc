@@ -25,6 +25,7 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "opt_range.h"        // QUICK_SELECT_I
 #include "sql_const.h"
 #include "sql_executor.h"     // QEP_TAB

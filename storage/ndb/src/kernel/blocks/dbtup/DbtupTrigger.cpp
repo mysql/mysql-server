@@ -44,13 +44,13 @@
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
-DLList<Dbtup::TupTriggerData>*
+Dbtup::TupTriggerData_list*
 Dbtup::findTriggerList(Tablerec* table,
                        TriggerType::Value ttype,
                        TriggerActionTime::Value ttime,
                        TriggerEvent::Value tevent)
 {
-  DLList<TupTriggerData>* tlist = NULL;
+  TupTriggerData_list* tlist = NULL;
   switch (ttype) {
   case TriggerType::SUBSCRIPTION:
   case TriggerType::SUBSCRIPTION_BEFORE:
@@ -346,7 +346,7 @@ Dbtup::createTrigger(Tablerec* table,
   int cnt;
   struct {
     TriggerEvent::Value event;
-    DLList<TupTriggerData> * list;
+    TupTriggerData_list * list;
     TriggerPtr ptr;
   } tmp[3];
 
@@ -507,7 +507,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   int cnt;
   struct {
     TriggerEvent::Value event;
-    DLList<TupTriggerData> * list;
+    TupTriggerData_list * list;
     TriggerPtr ptr;
   } tmp[3];
 
@@ -796,7 +796,7 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
 
 void
 Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
-                                          DLList<TupTriggerData>& triggerList,
+                                          TupTriggerData_list& triggerList,
                                           Operationrec* const regOperPtr,
                                           bool disk)
 {
@@ -851,8 +851,8 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
   jam();
   Uint32 save_type = regOperPtr->op_type;
   Tuple_header *save_ptr = req_struct->m_tuple_ptr;
-  DLList<TupTriggerData> * deferred_list = 0;
-  DLList<TupTriggerData> * constraint_list = 0;
+  TupTriggerData_list * deferred_list = 0;
+  TupTriggerData_list * constraint_list = 0;
 
   switch (save_type) {
   case ZUPDATE:
@@ -1084,7 +1084,7 @@ is_constraint(const Dbtup::TupTriggerData * trigPtr)
 
 void 
 Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
-                             DLList<TupTriggerData>& triggerList, 
+                             TupTriggerData_list& triggerList,
                              Operationrec* const regOperPtr,
                              bool disk)
 {
@@ -1126,7 +1126,7 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
 
 void
 Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
-                               DLList<TupTriggerData>& triggerList,
+                               TupTriggerData_list& triggerList,
                                Operationrec* const regOperPtr,
                                bool disk)
 {
@@ -1174,7 +1174,7 @@ Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
 
 void
 Dbtup::fireDeferredTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList,
+                            TupTriggerData_list& triggerList,
                             Operationrec* const regOperPtr,
                             bool disk)
 {
@@ -1196,7 +1196,7 @@ Dbtup::fireDeferredTriggers(KeyReqStruct *req_struct,
 
 void 
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList, 
+                            TupTriggerData_list& triggerList,
                             Operationrec* const regOperPtr,
                             bool disk,
                             Uint32 diskPagePtrI)
@@ -2159,7 +2159,7 @@ Dbtup::addTuxEntries(Signal* signal,
     return -1;
   }
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
+  const TupTriggerData_list& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   Uint32 failPtrI;
   triggerList.first(triggerPtr);
@@ -2295,7 +2295,7 @@ Dbtup::removeTuxEntries(Signal* signal,
                         Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
+  const TupTriggerData_list& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {

@@ -8,7 +8,6 @@
 # times and so added with --big-test option
 # (Check for innodb_wl6501_crash_x.test)
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 

@@ -376,10 +376,10 @@ struct ContainerPageLinkMethods
   static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
 };
 
-typedef SLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+typedef SLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> LocalPage8List;
+typedef DLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> ContainerPageList;
+typedef LocalDLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */

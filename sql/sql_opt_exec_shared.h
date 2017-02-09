@@ -105,7 +105,6 @@ typedef struct st_table_ref : public Sql_alloc
 
   st_table_ref()
     : key_err(TRUE),
-      has_record(FALSE),
       key_parts(0),
       key_length(0),
       key(-1),

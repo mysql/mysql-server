@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -90,10 +90,6 @@ MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_index_stat ndbclient_static ndbNDBT)
-
-ADD_EXECUTABLE(ndb_dump_frm_data
-  ndb_dump_frm_data.cpp)
-TARGET_LINK_LIBRARIES(ndb_dump_frm_data ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
   ndbinfo_select_all.cpp

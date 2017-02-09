@@ -10,7 +10,6 @@
 #######################################################################
 
 --source include/not_windows.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/count_sessions.inc
 --source ../include/have_performance_schema_threads.inc

@@ -15,10 +15,12 @@
 
 /* Write a record to heap-databas */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #ifdef _WIN32
 #include <fcntl.h>
 #endif

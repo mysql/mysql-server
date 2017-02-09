@@ -3,7 +3,6 @@
 # in setup_objects table.
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop table if exists test.setup_objects;

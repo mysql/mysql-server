@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -152,6 +152,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_service_command.cc
 )
 
+ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 IF(WITH_SSL MATCHES "bundled")

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -30,6 +30,7 @@ Created 12/9/2009 Jimmy Yang
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "mach0data.h"
+#include "my_inttypes.h"
 #include "os0file.h"
 #include "srv0mon.h"
 #include "srv0srv.h"

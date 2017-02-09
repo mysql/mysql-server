@@ -13,7 +13,6 @@
 #    f. T1 & T2 Commit
 #    g. T3 Does a select - it should not see the changes of T1 & T2
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT , c2 CHAR(10), PRIMARY KEY (c1)) ENGINE = InnoDB;

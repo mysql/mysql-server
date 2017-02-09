@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -144,6 +145,9 @@ public:
 
   virtual const Column_collection &columns() const
   { return m_columns; }
+
+  virtual Column_collection *columns()
+  { return &m_columns; }
 
   const Column *get_column(Object_id column_id) const;
 

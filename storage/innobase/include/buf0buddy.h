@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -15,6 +15,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
+
+#include "my_compiler.h"
 
 /**************************************************//**
 @file include/buf0buddy.h
@@ -31,8 +33,8 @@ Created December 2006 by Marko Makela
 # define UNIV_INLINE
 #endif
 
-#include "univ.i"
 #include "buf0types.h"
+#include "univ.i"
 
 /** Allocate a block. This function should only be used for allocating
 compressed page frames. The thread calling this function must hold

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
 */
 
 #include "wkt_parser.h"
-
-#include <cctype>
 
 #include <boost/concept/usage.hpp>
 #include <boost/fusion/adapted/struct/adapt_struct.hpp>
@@ -36,10 +34,12 @@
 #include <boost/preprocessor/variadic/elem.hpp>
 #include <boost/proto/operators.hpp>
 #include <boost/spirit/include/qi.hpp>
+#include <cctype>
 
 #include "gis/srs/srs.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*
 

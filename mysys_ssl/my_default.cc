@@ -37,6 +37,8 @@
                                 the login file.
 */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <my_aes.h>
 #include <my_dir.h>
@@ -46,10 +48,14 @@
 #include "../mysys/mysys_priv.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_default_priv.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"

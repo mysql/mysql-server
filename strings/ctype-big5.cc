@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@
 
 #include "m_ctype.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 
 /* 
@@ -949,7 +951,7 @@ my_strnxfrm_big5(const CHARSET_INFO *cs,
     else
       *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 
@@ -6907,7 +6909,6 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
     &my_collation_big5_chinese_ci_handler
 };
@@ -6943,7 +6944,6 @@ CHARSET_INFO my_charset_big5_bin=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
     &my_collation_mb_bin_handler
 };

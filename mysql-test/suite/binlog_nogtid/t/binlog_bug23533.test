@@ -3,7 +3,6 @@
 #  case needed
 #############################################################
 
---source include/have_innodb.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
 

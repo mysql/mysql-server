@@ -8,7 +8,6 @@
 # Test Case [5] Test for lock: As mysqld is running, & then start the innochecksum which must fail.
 #************************************************************
 
---source include/have_innodb.inc
 --source include/not_windows.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.

@@ -66,6 +66,8 @@
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -3823,6 +3825,16 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #endif
     }
 
+    DBUG_EXECUTE_IF("rm_table_no_locks_abort_after_atomic_tables",
+                    {
+                      my_error(ER_UNKNOWN_ERROR, MYF(0));
+                      /* WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY */
+                      (void) trans_commit_stmt(thd);
+                      (void) trans_commit_implicit(thd);
+                      /* WORKAROUND_ENDS */
+                      goto err_with_rollback;
+                    });
+
     for (TABLE_LIST *table : drop_ctx.views)
     {
       /* Check that we have an exclusive lock on the view to be dropped. */
@@ -3848,6 +3860,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       query_cache.invalidate_single(thd, table, FALSE);
     }
 
+#ifndef DBUG_OFF
     for (TABLE_LIST *table : drop_ctx.nonexistent_tables)
     {
       /*
@@ -3858,6 +3871,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                      table->db, table->table_name,
                                      MDL_EXCLUSIVE));
     }
+#endif
 
     DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
 
@@ -5855,11 +5869,32 @@ static bool prepare_foreign_key(THD *thd,
   }
 
   fk_info->key_parts= fk_key->columns.size();
+
   if (fk_key->ref_db.str)
+  {
     fk_info->ref_db= fk_key->ref_db;
+    if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
+    {
+      char buff[NAME_CHAR_LEN + 1];
+      my_stpncpy(buff, fk_info->ref_db.str, NAME_CHAR_LEN);
+      my_casedn_str(system_charset_info, buff);
+      fk_info->ref_db.str= sql_strdup(buff);
+      fk_info->ref_db.length= strlen(fk_info->ref_db.str);
+    }
+  }
   else
     fk_info->ref_db= thd->db(); // No schema given, use current schema
+
   fk_info->ref_table= fk_key->ref_table;
+  if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
+  {
+    char buff[NAME_CHAR_LEN + 1];
+    my_stpncpy(buff, fk_info->ref_table.str, NAME_CHAR_LEN);
+    my_casedn_str(system_charset_info, buff);
+    fk_info->ref_table.str= sql_strdup(buff);
+    fk_info->ref_table.length= strlen(fk_info->ref_table.str);
+  }
+
   fk_info->delete_opt= fk_key->delete_opt;
   fk_info->update_opt= fk_key->update_opt;
   fk_info->match_opt= fk_key->match_opt;
@@ -7382,8 +7417,6 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
                    NO_FK_CHECKS   Don't check FK constraints during rename.
                    NO_DD_COMMIT   Don't commit transaction after updating
                                   data-dictionary.
-                   NO_TARGET_CHECK  Don't check that target name is not
-                                    occupied, rely on caller doing this.
 
   @note Use of NO_DD_COMMIT flag only allowed for SEs supporting atomic DDL.
 
@@ -7409,8 +7442,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   /*
     Only SEs which support atomic DDL are allowed not to commit
     changes to the data-dictionary.
-
-    QQ: Perhaps we should rename flag accordingly?
   */
   DBUG_ASSERT(!(flags & NO_DD_COMMIT) ||
               (base->flags & HTON_SUPPORTS_ATOMIC_DDL));
@@ -7448,30 +7479,18 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     DBUG_RETURN(true);
   }
 
+  // We did not find old_db, so stop here.
+  if (!from_sch)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), old_db);
+    DBUG_RETURN(true);
+  }
+
   // We did not find new_db, so stop here.
   if (!to_sch)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), new_db);
     DBUG_RETURN(true);
-  }
-
-  if (!(flags & NO_TARGET_CHECK))
-  {
-    // Check if target name is already occupied.
-    const dd::Abstract_table *conf_tab= NULL;
-    if (thd->dd_client()->acquire(new_db, new_name, &conf_tab))
-    {
-      // Error is reported by the dictionary subsystem.
-      DBUG_RETURN(true);
-    }
-
-    if (conf_tab)
-    {
-      /* purecov: begin tested */
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
-      DBUG_RETURN(true);
-      /* purecov: end */
-    }
   }
 
   // Check if we hit FN_REFLEN bytes along with file extension.
@@ -8107,11 +8126,12 @@ bool mysql_discard_or_import_tablespace(THD *thd,
                            (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
     /*
-      TODO/QQ: In theory since we have updated table definition in the
-               data-dictionary above we need to remove its TABLE/TABLE_SHARE
-               from TDC now. However this makes InnoDB to produce too many
-               warnings about discarded tablespace which are not always well
-               justified. What to do here?
+      TODO: In theory since we have updated table definition in the
+            data-dictionary above we need to remove its TABLE/TABLE_SHARE
+            from TDC now. However this makes InnoDB to produce too many
+            warnings about discarded tablespace which are not always well
+            justified. So this code should be enabled after InnoDB is
+            adjusted to be less verbose in these cases.
     */
 #ifdef NEEDS_SUPPORT_FROM_INNODB
     if (is_non_tmp_table)
@@ -8507,7 +8527,7 @@ static bool fill_alter_inplace_info(THD *thd,
   if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
   if (alter_info->flags & Alter_info::ALTER_REBUILD_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REBUILD_PARTITION;
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REBUILD_PARTITION; /* purecov: deadcode */
   /* Check for: ALTER TABLE FORCE, ALTER TABLE ENGINE and OPTIMIZE TABLE. */
   if (alter_info->flags & Alter_info::ALTER_RECREATE)
     ha_alter_info->handler_flags|= Alter_inplace_info::RECREATE_TABLE;
@@ -9558,8 +9578,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       We want warnings/errors about data truncation emitted when
       values of virtual columns are evaluated in INPLACE algorithm.
     */
-    thd->count_cuted_fields= CHECK_FIELD_WARN;
-    thd->cuted_fields= 0L;
+    thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+    thd->num_truncated_fields= 0L;
 
     if (table->file->ha_prepare_inplace_alter_table(altered_table,
                                                     ha_alter_info,
@@ -9619,7 +9639,7 @@ static bool mysql_inplace_alter_table(THD *thd,
                                                  old_table_def,
                                                  altered_table_def);
       my_error(ER_UNKNOWN_ERROR, MYF(0));
-      thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+      thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
       goto cleanup;
     });
 
@@ -9654,7 +9674,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto rollback;
     }
 
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
     close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
     table_list->table= table= NULL;
@@ -9675,11 +9695,6 @@ static bool mysql_inplace_alter_table(THD *thd,
       Rollback of statement which happens on error should revert changes to
       table in SE as well.
     */
-
-    //
-    // QQ: Perhaps move to separate helper function e.g. dd::replace_table()
-    //     after solving problem with system tables.
-    //
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
     altered_table_def->set_hidden(false);
@@ -9701,8 +9716,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       it with a new one.
     */
     if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
-        dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
-                                          alter_ctx->new_alias,
+        dd::add_foreign_keys_and_triggers(thd, alter_ctx->db,
+                                          alter_ctx->table_name,
                                           alter_ctx->fk_info,
                                           alter_ctx->fk_count,
                                           &alter_ctx->trg_info,
@@ -9773,7 +9788,6 @@ static bool mysql_inplace_alter_table(THD *thd,
   {
     if (mysql_rename_table(thd, db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias,
-                           NO_TARGET_CHECK |
                            ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
                             NO_DD_COMMIT : 0)))
     {
@@ -9887,7 +9901,7 @@ rollback:
                                                ha_alter_info,
                                                false, old_table_def,
                                                altered_table_def);
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   }
 
 cleanup:
@@ -11304,7 +11318,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (mysql_rename_table(thd, old_db_type,
                            alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias,
-                           NO_TARGET_CHECK | (atomic_ddl ? NO_DD_COMMIT: 0)))
+                           (atomic_ddl ? NO_DD_COMMIT: 0)))
       error= -1;
   }
 
@@ -11328,7 +11342,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       {
         uncommitted_tables.add_table(table_list);
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, alter_ctx->new_db,
-                         alter_ctx->new_alias, false);
+                         alter_ctx->new_name, false);
       }
     }
 
@@ -12576,8 +12590,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                      MDL_key::TABLE,
                      alter_ctx.db, backup_name,
                      MDL_EXCLUSIVE, MDL_STATEMENT);
+    bool backup_exists;
+
     if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
-                                    thd->variables.lock_wait_timeout))
+                                    thd->variables.lock_wait_timeout) ||
+        dd::table_exists<dd::Abstract_table>(thd->dd_client(),
+                                             alter_ctx.db, backup_name,
+                                             &backup_exists))
+
     {
       /* purecov: begin tested */
       /*
@@ -12590,6 +12610,27 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         trans_rollback_stmt(thd);
         trans_rollback(thd);
       }
+
+      if (!atomic_replace)
+      {
+        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                              alter_ctx.tmp_name, FN_IS_TMP);
+      }
+#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
+      else
+      {
+        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                              alter_ctx.tmp_name, FN_IS_TMP);
+      }
+#endif
+      goto err_with_mdl;
+      /* purecov: end */
+    }
+
+    if (backup_exists)
+    {
+      /* purecov: begin tested */
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), backup_name);
 
       if (!atomic_replace)
       {
@@ -12649,7 +12690,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
                          alter_ctx.new_db, alter_ctx.new_alias,
-                         (FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                         (FN_FROM_IS_TMP |
                           (atomic_replace ? NO_DD_COMMIT : 0))))
   {
     // Rename failed, delete the temporary table.
@@ -12675,8 +12716,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       while (retries-- &&
              mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
                                 alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
-                                NO_FK_CHECKS));
+                                FN_FROM_IS_TMP | NO_FK_CHECKS));
     }
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
     else
@@ -12694,8 +12734,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                               alter_ctx.tmp_name, FN_IS_TMP);
         (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
                                   alter_ctx.db, alter_ctx.alias,
-                                  FN_FROM_IS_TMP | NO_TARGET_CHECK |
-                                  NO_FK_CHECKS);
+                                  FN_FROM_IS_TMP | NO_FK_CHECKS);
       }
     }
 #endif
@@ -13028,8 +13067,8 @@ copy_data_between_tables(THD * thd,
     We want warnings/errors about data truncation emitted when we
     copy data to new version of table.
   */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields= 0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
@@ -13240,7 +13279,7 @@ copy_data_between_tables(THD * thd,
     error=1;
   if (error < 0 && to->file->extra(HA_EXTRA_PREPARE_FOR_RENAME))
     error= 1;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
 

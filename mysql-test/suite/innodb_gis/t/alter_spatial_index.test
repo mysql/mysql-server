@@ -18,7 +18,6 @@
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
 
---source include/have_innodb.inc
 
 let MYSQLD_DATADIR= `select @@datadir`;
 

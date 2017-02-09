@@ -37,6 +37,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0priv.h"
 #include "fts0types.h"
 #include "ha_prototypes.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "que0types.h"
 #include "row0sel.h"
@@ -2992,7 +2994,8 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	my_thread_init();
 	ut_ad(!srv_read_only_mode);
 
-	THD*    thd = create_thd(false, true, true, fts_optimize_thread_key);
+	THD*    thd = create_thd(false, true, true,
+				 fts_optimize_thread_key.m_value);
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);

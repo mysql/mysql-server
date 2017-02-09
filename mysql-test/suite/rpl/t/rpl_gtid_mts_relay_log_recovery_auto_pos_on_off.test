@@ -19,7 +19,6 @@
 --source include/force_restart.inc
 # Script is independent of binlog format hence considering mixed mode
 --source include/have_binlog_format_mixed.inc
---source include/have_gtid.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $rpl_gtid_utils= 1

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -31,16 +31,17 @@ Created 9/11/1995 Heikki Tuuri
 *******************************************************/
 
 #include "sync0rw.h"
-#include "ha_prototypes.h"
 
-#include "os0thread.h"
-#include "mem0mem.h"
-#include "srv0srv.h"
-#include "os0event.h"
-#include "srv0mon.h"
-#include "sync0debug.h"
-#include "ha_prototypes.h"
 #include <my_sys.h>
+
+#include "ha_prototypes.h"
+#include "mem0mem.h"
+#include "my_inttypes.h"
+#include "os0event.h"
+#include "os0thread.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
+#include "sync0debug.h"
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK

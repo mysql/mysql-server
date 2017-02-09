@@ -21,6 +21,7 @@
  */
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #include "rt_index.h"
 

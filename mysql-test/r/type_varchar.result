@@ -474,7 +474,7 @@ a	(a + 0)
 t	0
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1a'
-Warning	1292	Truncated incorrect DOUBLE value: 't '
+Warning	1292	Truncated incorrect DOUBLE value: 't'
 SELECT a,(a DIV 2) FROM t1 ORDER BY a;
 a	(a DIV 2)
 10	5
@@ -486,7 +486,7 @@ t	0
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '1a'
 Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: 't '
+Warning	1292	Truncated incorrect DECIMAL value: 't'
 SELECT a,CAST(a AS SIGNED) FROM t1 ORDER BY a;
 a	CAST(a AS SIGNED)
 10	10
@@ -517,5 +517,5 @@ SELECT 5 = a FROM t1;
 0
 0
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 's               '
+Warning	1292	Truncated incorrect DOUBLE value: 's'
 DROP TABLE t1;

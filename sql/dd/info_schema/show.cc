@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 namespace dd {
 namespace info_schema {
 
-//  Build a substitue query for SHOW CHARSETS.
+//  Build a substitute query for SHOW CHARSETS.
 
 SELECT_LEX*
 build_show_character_set_query(const POS &pos,
@@ -125,7 +125,7 @@ build_show_character_set_query(const POS &pos,
 }
 
 
-// Build a substitue query for SHOW COLLATION.
+// Build a substitute query for SHOW COLLATION.
 
 SELECT_LEX*
 build_show_collation_query(const POS &pos,
@@ -224,7 +224,7 @@ build_show_collation_query(const POS &pos,
 }
 
 
-// Build a substitue query for SHOW DATABASES.
+// Build a substitute query for SHOW DATABASES.
 
 SELECT_LEX*
 build_show_databases_query(const POS &pos,
@@ -458,7 +458,7 @@ static bool add_table_status_fields(Select_lex_builder *query,
 }
 
 
-// Build a substitue query for SHOW TABLES / TABLE STATUS.
+// Build a substitute query for SHOW TABLES / TABLE STATUS.
 
 SELECT_LEX*
 build_show_tables_query(const POS &pos,
@@ -498,6 +498,9 @@ build_show_tables_query(const POS &pos,
 
   LEX_STRING cur_db= { thd->lex->select_lex->db,
                        strlen(thd->lex->select_lex->db) };
+
+  if (check_and_convert_db_name(&cur_db, false) != Ident_name_check::OK)
+    return nullptr;
 
   /*
     Build the alias 'Tables_in_<dbname> %' we are building
@@ -597,7 +600,7 @@ build_show_tables_query(const POS &pos,
 }
 
 
-// Build a substitue query for SHOW COLUMNS/FIELDS OR DESCRIBE.
+// Build a substitute query for SHOW COLUMNS/FIELDS OR DESCRIBE.
 
 SELECT_LEX*
 build_show_columns_query(const POS &pos,
@@ -760,19 +763,6 @@ build_show_columns_query(const POS &pos,
   if (top_query.add_order_by(alias_ordinal_position))
     return nullptr;
 
-  /*
-    Add table_ident to schema_select_lex, this is used later to
-    validate if the given table exists in select_precheck()
-  */
-  TABLE_LIST **query_tables_last= thd->lex->query_tables_last;
-  SELECT_LEX *schema_select_lex= nullptr;
-  if ((schema_select_lex= thd->lex->new_empty_query_block()) == nullptr)
-    return nullptr;
-  if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
-                                            MDL_SHARED_READ))
-    return nullptr;
-  thd->lex->query_tables_last= query_tables_last;
-
   // Prepare the SELECT_LEX
   SELECT_LEX* sl= top_query.prepare_select_lex();
   if (sl == nullptr)
@@ -781,15 +771,11 @@ build_show_columns_query(const POS &pos,
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
-  // Hold the schema_select_lex in the first table_list.
-  TABLE_LIST *table_list= sl->table_list.first;
-  table_list->schema_select_lex= schema_select_lex;
-
   return sl;
 }
 
 
-// Build a substitue query for SHOW INDEX|KEYS|INDEXES
+// Build a substitute query for SHOW INDEX|KEYS|INDEXES
 
 SELECT_LEX*
 build_show_keys_query(const POS &pos,
@@ -941,19 +927,6 @@ build_show_keys_query(const POS &pos,
       top_query.add_order_by(alias_column_pos))
     return nullptr;
 
-  /*
-    Add table_ident to schema_select_lex, this is used later to
-    validate if the given table exists in select_precheck()
-  */
-  TABLE_LIST **query_tables_last= thd->lex->query_tables_last;
-  SELECT_LEX *schema_select_lex= nullptr;
-  if ((schema_select_lex= thd->lex->new_empty_query_block()) == nullptr)
-    return nullptr;
-  if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
-                                            MDL_SHARED_READ))
-    return nullptr;
-  thd->lex->query_tables_last= query_tables_last;
-
   // Prepare the SELECT_LEX
   SELECT_LEX* sl= top_query.prepare_select_lex();
   if (sl == nullptr)
@@ -962,12 +935,478 @@ build_show_keys_query(const POS &pos,
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command= SQLCOM_SHOW_KEYS;
 
-  // Hold the schema_select_lex in the first table_list.
-  TABLE_LIST *table_list= sl->table_list.first;
-  table_list->schema_select_lex= schema_select_lex;
+  return sl;
+}
+
+
+// Build a substitute query for SHOW TRIGGERS
+
+SELECT_LEX*
+build_show_triggers_query(const POS &pos,
+                          THD *thd,
+                          String *wild,
+                          Item *where_cond)
+{
+  static const LEX_STRING system_view_name= {
+    C_STRING_WITH_LEN("TRIGGERS") };
+
+  // Define field name literal used in query to be built.
+  static const LEX_STRING field_database= {
+    C_STRING_WITH_LEN("EVENT_OBJECT_SCHEMA") };
+  static const LEX_STRING alias_database= { C_STRING_WITH_LEN("Database") };
+
+  static const LEX_STRING field_trigger= {
+    C_STRING_WITH_LEN("TRIGGER_NAME") };
+  static const LEX_STRING alias_trigger= {
+    C_STRING_WITH_LEN("Trigger") };
+
+  static const LEX_STRING field_manipulation= {
+    C_STRING_WITH_LEN("EVENT_MANIPULATION") };
+  static const LEX_STRING alias_manipulation= {
+    C_STRING_WITH_LEN("Event") };
+
+  static const LEX_STRING field_table= {
+    C_STRING_WITH_LEN("EVENT_OBJECT_TABLE") };
+  static const LEX_STRING alias_table= { C_STRING_WITH_LEN("Table") };
+
+  static const LEX_STRING field_statement= {
+    C_STRING_WITH_LEN("ACTION_STATEMENT") };
+  static const LEX_STRING alias_statement= { C_STRING_WITH_LEN("Statement") };
+
+  static const LEX_STRING field_timing= {
+    C_STRING_WITH_LEN("ACTION_TIMING") };
+  static const LEX_STRING alias_timing= { C_STRING_WITH_LEN("Timing") };
+
+  static const LEX_STRING field_created= {
+    C_STRING_WITH_LEN("CREATED") };
+  static const LEX_STRING alias_created= { C_STRING_WITH_LEN("Created") };
+
+  static const LEX_STRING field_sql_mode= {
+    C_STRING_WITH_LEN("SQL_MODE") };
+  static const LEX_STRING alias_sql_mode= { C_STRING_WITH_LEN("sql_mode") };
+
+  static const LEX_STRING field_definer= {
+    C_STRING_WITH_LEN("DEFINER") };
+  static const LEX_STRING alias_definer= { C_STRING_WITH_LEN("Definer") };
+
+  static const LEX_STRING field_client_cs= {
+    C_STRING_WITH_LEN("CHARACTER_SET_CLIENT") };
+  static const LEX_STRING alias_client_cs= {
+    C_STRING_WITH_LEN("character_set_client") };
+
+  static const LEX_STRING field_conn_coll= {
+    C_STRING_WITH_LEN("COLLATION_CONNECTION") };
+  static const LEX_STRING alias_conn_coll= {
+    C_STRING_WITH_LEN("collation_connection") };
+
+  static const LEX_STRING field_db_coll= {
+    C_STRING_WITH_LEN("DATABASE_COLLATION") };
+  static const LEX_STRING alias_db_coll= {
+    C_STRING_WITH_LEN("Database Collation") };
+
+  static const LEX_STRING field_action_order= {
+    C_STRING_WITH_LEN("ACTION_ORDER") };
+  static const LEX_STRING alias_action_order= {
+    C_STRING_WITH_LEN("action_order") };
+
+  // Get the current logged in schema name
+  size_t dummy;
+  if (thd->lex->select_lex->db == nullptr &&
+      thd->lex->copy_db_to(&thd->lex->select_lex->db, &dummy))
+    return nullptr;
+
+  // Convert IS db and table name to desired form.
+  dd::info_schema::convert_table_name_case(
+    thd->lex->select_lex->db,
+    wild ? const_cast<char*>(wild->ptr()) : nullptr);
+
+  LEX_STRING cur_db= { thd->lex->select_lex->db,
+                       strlen(thd->lex->select_lex->db) };
+
+  if (check_and_convert_db_name(&cur_db, false) != Ident_name_check::OK)
+    return nullptr;
+
+  /*
+     Build sub query.
+     ...
+  */
+  Select_lex_builder sub_query(&pos, thd);
+  if (sub_query.add_select_item(field_database, alias_database) ||
+      sub_query.add_select_item(field_trigger, alias_trigger) ||
+      sub_query.add_select_item(field_manipulation, alias_manipulation) ||
+      sub_query.add_select_item(field_table, alias_table) ||
+      sub_query.add_select_item(field_statement, alias_statement) ||
+      sub_query.add_select_item(field_timing, alias_timing) ||
+      sub_query.add_select_item(field_created, alias_created) ||
+      sub_query.add_select_item(field_sql_mode, alias_sql_mode) ||
+      sub_query.add_select_item(field_definer, alias_definer) ||
+      sub_query.add_select_item(field_client_cs, alias_client_cs) ||
+      sub_query.add_select_item(field_conn_coll, alias_conn_coll) ||
+      sub_query.add_select_item(field_db_coll, alias_db_coll) ||
+      sub_query.add_select_item(field_action_order, alias_action_order))
+    return nullptr;
+
+  // ... FROM information_schema.tables ...
+  if (sub_query.add_from_item(INFORMATION_SCHEMA_NAME,
+                              system_view_name))
+      return nullptr;
+
+  /*
+    Build the top level query
+  */
+
+  Select_lex_builder top_query(&pos, thd);
+
+  // SELECT * FROM <sub_query> ...
+  if (top_query.add_select_item(alias_trigger, alias_trigger) ||
+      top_query.add_select_item(alias_manipulation, alias_manipulation) ||
+      top_query.add_select_item(alias_table, alias_table) ||
+      top_query.add_select_item(alias_statement, alias_statement) ||
+      top_query.add_select_item(alias_timing, alias_timing) ||
+      top_query.add_select_item(alias_created, alias_created) ||
+      top_query.add_select_item(alias_sql_mode, alias_sql_mode) ||
+      top_query.add_select_item(alias_definer, alias_definer) ||
+      top_query.add_select_item(alias_client_cs, alias_client_cs) ||
+      top_query.add_select_item(alias_conn_coll, alias_conn_coll) ||
+      top_query.add_select_item(alias_db_coll, alias_db_coll) ||
+      top_query.add_from_item(
+        sub_query.prepare_derived_table(system_view_name)))
+    return nullptr;
+
+  // ... WHERE 'Database' = <dbname> ...
+  Item *database_condition=
+    top_query.prepare_equal_item(alias_database, cur_db);
+  if (top_query.add_condition(database_condition))
+    return nullptr;
+
+  // ... [ AND ] Table LIKE <value> ...
+  if (wild)
+  {
+    Item *like= top_query.prepare_like_item(alias_table, wild);
+    if (!like || top_query.add_condition(like))
+      return nullptr;
+  }
+
+  // ... [ AND ] <user provided condition> ...
+  if (where_cond && top_query.add_condition(where_cond))
+    return nullptr;
+
+  // ... ORDER BY 'Table, Event, Timing, Action order' ...
+  if (top_query.add_order_by(alias_table) ||
+      top_query.add_order_by(alias_manipulation) ||
+      top_query.add_order_by(alias_timing) ||
+      top_query.add_order_by(alias_action_order))
+    return nullptr;
+
+  SELECT_LEX* sl= top_query.prepare_select_lex();
+
+  // sql_command is set to SQL_QUERY after above call, so.
+  thd->lex->sql_command= SQLCOM_SHOW_TRIGGERS;
 
   return sl;
 }
+
+
+// Build a substitute query for SHOW PROCEDURES / FUNCTIONS
+
+SELECT_LEX*
+build_show_procedures_query(const POS &pos,
+                            THD *thd,
+                            String *wild,
+                            Item *where_cond)
+{
+  enum_sql_command current_cmd= thd->lex->sql_command;
+
+  static const LEX_STRING system_view_name= {
+    C_STRING_WITH_LEN("ROUTINES") };
+
+  // Define field name literal used in query to be built.
+  static const LEX_STRING field_db= {
+    C_STRING_WITH_LEN("ROUTINE_SCHEMA") };
+  static const LEX_STRING alias_db= { C_STRING_WITH_LEN("Db") };
+
+  static const LEX_STRING field_name= {
+    C_STRING_WITH_LEN("ROUTINE_NAME") };
+  static const LEX_STRING alias_name= {
+    C_STRING_WITH_LEN("Name") };
+
+  static const LEX_STRING field_type= {
+    C_STRING_WITH_LEN("ROUTINE_TYPE") };
+  static const LEX_STRING alias_type= {
+    C_STRING_WITH_LEN("Type") };
+
+  static const LEX_STRING field_definer= {
+    C_STRING_WITH_LEN("DEFINER") };
+  static const LEX_STRING alias_definer= { C_STRING_WITH_LEN("Definer") };
+
+  static const LEX_STRING field_modified= {
+    C_STRING_WITH_LEN("LAST_ALTERED") };
+  static const LEX_STRING alias_modified= { C_STRING_WITH_LEN("Modified") };
+
+  static const LEX_STRING field_created= {
+    C_STRING_WITH_LEN("CREATED") };
+  static const LEX_STRING alias_created= { C_STRING_WITH_LEN("Created") };
+
+  static const LEX_STRING field_security_type= {
+    C_STRING_WITH_LEN("SECURITY_TYPE") };
+  static const LEX_STRING alias_security_type= {
+    C_STRING_WITH_LEN("Security_type") };
+
+  static const LEX_STRING field_comment= {
+    C_STRING_WITH_LEN("ROUTINE_COMMENT") };
+  static const LEX_STRING alias_comment= { C_STRING_WITH_LEN("Comment") };
+
+  static const LEX_STRING field_client_cs= {
+    C_STRING_WITH_LEN("CHARACTER_SET_CLIENT") };
+  static const LEX_STRING alias_client_cs= {
+    C_STRING_WITH_LEN("character_set_client") };
+
+  static const LEX_STRING field_conn_coll= {
+    C_STRING_WITH_LEN("COLLATION_CONNECTION") };
+  static const LEX_STRING alias_conn_coll= {
+    C_STRING_WITH_LEN("collation_connection") };
+
+  static const LEX_STRING field_db_coll= {
+    C_STRING_WITH_LEN("DATABASE_COLLATION") };
+  static const LEX_STRING alias_db_coll= {
+    C_STRING_WITH_LEN("Database Collation") };
+
+
+  /*
+     Build sub query.
+     ...
+  */
+  Select_lex_builder sub_query(&pos, thd);
+  if (sub_query.add_select_item(field_db, alias_db) ||
+      sub_query.add_select_item(field_name, alias_name) ||
+      sub_query.add_select_item(field_type, alias_type) ||
+      sub_query.add_select_item(field_definer, alias_definer) ||
+      sub_query.add_select_item(field_modified, alias_modified) ||
+      sub_query.add_select_item(field_created, alias_created) ||
+      sub_query.add_select_item(field_security_type, alias_security_type) ||
+      sub_query.add_select_item(field_comment, alias_comment) ||
+      sub_query.add_select_item(field_client_cs, alias_client_cs) ||
+      sub_query.add_select_item(field_conn_coll, alias_conn_coll) ||
+      sub_query.add_select_item(field_db_coll, alias_db_coll))
+    return nullptr;
+
+  // ... FROM information_schema.tables ...
+  if (sub_query.add_from_item(INFORMATION_SCHEMA_NAME,
+                              system_view_name))
+      return nullptr;
+
+  /*
+    Build the top level query
+  */
+
+  Select_lex_builder top_query(&pos, thd);
+
+  // SELECT * FROM <sub_query> ...
+  if (top_query.add_star_select_item() ||
+      top_query.add_from_item(
+        sub_query.prepare_derived_table(system_view_name)))
+    return nullptr;
+
+  // ... WHERE 'Type' = 'PROCEDURE | FUNCTION'
+  char *current_type=
+    thd->lex->sql_command == SQLCOM_SHOW_STATUS_PROC ?
+      const_cast<char*>("PROCEDURE") :
+      const_cast<char*>("FUNCTION");
+  LEX_STRING tmp_lex_string= { current_type, strlen(current_type) };
+  Item *type_condition=
+    top_query.prepare_equal_item(alias_type, tmp_lex_string);
+  if (top_query.add_condition(type_condition))
+    return nullptr;
+
+  // ... [ AND ] Name LIKE <value> ...
+  if (wild)
+  {
+    Item *like= top_query.prepare_like_item(alias_name, wild);
+    if (!like || top_query.add_condition(like))
+      return nullptr;
+  }
+
+  // ... [ AND ] <user provided condition> ...
+  if (where_cond && top_query.add_condition(where_cond))
+    return nullptr;
+
+  // ... ORDER BY 'Db, Name' ...
+  if (top_query.add_order_by(alias_db) ||
+      top_query.add_order_by(alias_name))
+    return nullptr;
+
+  SELECT_LEX* sl= top_query.prepare_select_lex();
+
+  // sql_command is set to SQL_QUERY after above call, so.
+  thd->lex->sql_command= current_cmd;
+
+  return sl;
+}
+
+// Build a substitute query for SHOW EVENTS
+
+SELECT_LEX*
+build_show_events_query(const POS &pos,
+                        THD *thd,
+                        String *wild,
+                        Item *where_cond)
+{
+  static const LEX_STRING system_view_name= {
+    C_STRING_WITH_LEN("EVENTS") };
+
+  // Define field name literal used in query to be built.
+  static const LEX_STRING field_db= {
+    C_STRING_WITH_LEN("EVENT_SCHEMA") };
+  static const LEX_STRING alias_db= { C_STRING_WITH_LEN("Db") };
+
+  static const LEX_STRING field_name= {
+    C_STRING_WITH_LEN("EVENT_NAME") };
+  static const LEX_STRING alias_name= {
+    C_STRING_WITH_LEN("Name") };
+
+  static const LEX_STRING field_definer= {
+    C_STRING_WITH_LEN("DEFINER") };
+  static const LEX_STRING alias_definer= { C_STRING_WITH_LEN("Definer") };
+
+  static const LEX_STRING field_zone= {
+    C_STRING_WITH_LEN("TIME_ZONE") };
+  static const LEX_STRING alias_zone= {
+    C_STRING_WITH_LEN("Time zone") };
+
+  static const LEX_STRING field_type= {
+    C_STRING_WITH_LEN("EVENT_TYPE") };
+  static const LEX_STRING alias_type= {
+    C_STRING_WITH_LEN("Type") };
+
+  static const LEX_STRING field_execute_at= {
+    C_STRING_WITH_LEN("EXECUTE_AT") };
+  static const LEX_STRING alias_execute_at= {
+    C_STRING_WITH_LEN("Execute at") };
+
+  static const LEX_STRING field_interval_value= {
+    C_STRING_WITH_LEN("INTERVAL_VALUE") };
+  static const LEX_STRING alias_interval_value= {
+    C_STRING_WITH_LEN("Interval value") };
+
+  static const LEX_STRING field_interval_field= {
+    C_STRING_WITH_LEN("INTERVAL_FIELD") };
+  static const LEX_STRING alias_interval_field= {
+    C_STRING_WITH_LEN("Interval field") };
+
+  static const LEX_STRING field_starts= { C_STRING_WITH_LEN("STARTS") };
+  static const LEX_STRING alias_starts= { C_STRING_WITH_LEN("Starts") };
+
+  static const LEX_STRING field_ends= { C_STRING_WITH_LEN("ENDS") };
+  static const LEX_STRING alias_ends= { C_STRING_WITH_LEN("Ends") };
+
+  static const LEX_STRING field_status= { C_STRING_WITH_LEN("STATUS") };
+  static const LEX_STRING alias_status= { C_STRING_WITH_LEN("Status") };
+
+  static const LEX_STRING field_originator= { C_STRING_WITH_LEN("ORIGINATOR") };
+  static const LEX_STRING alias_originator= { C_STRING_WITH_LEN("Originator") };
+
+  static const LEX_STRING field_client_cs= {
+    C_STRING_WITH_LEN("CHARACTER_SET_CLIENT") };
+  static const LEX_STRING alias_client_cs= {
+    C_STRING_WITH_LEN("character_set_client") };
+
+  static const LEX_STRING field_conn_coll= {
+    C_STRING_WITH_LEN("COLLATION_CONNECTION") };
+  static const LEX_STRING alias_conn_coll= {
+    C_STRING_WITH_LEN("collation_connection") };
+
+  static const LEX_STRING field_db_coll= {
+    C_STRING_WITH_LEN("DATABASE_COLLATION") };
+  static const LEX_STRING alias_db_coll= {
+    C_STRING_WITH_LEN("Database Collation") };
+
+  // Get the current logged in schema name
+  size_t dummy;
+  if (thd->lex->select_lex->db == nullptr &&
+      thd->lex->copy_db_to(&thd->lex->select_lex->db, &dummy))
+    return nullptr;
+
+  // Convert IS db and table name to desired form.
+  dd::info_schema::convert_table_name_case(
+    thd->lex->select_lex->db,
+    wild ? const_cast<char*>(wild->ptr()) : nullptr);
+
+  LEX_STRING cur_db= { thd->lex->select_lex->db,
+                       strlen(thd->lex->select_lex->db) };
+
+  if (check_and_convert_db_name(&cur_db, false) != Ident_name_check::OK)
+    return nullptr;
+
+  /*
+     Build sub query.
+     ...
+  */
+  Select_lex_builder sub_query(&pos, thd);
+  if (sub_query.add_select_item(field_db, alias_db) ||
+      sub_query.add_select_item(field_name, alias_name) ||
+      sub_query.add_select_item(field_definer, alias_definer) ||
+      sub_query.add_select_item(field_zone, alias_zone) ||
+      sub_query.add_select_item(field_type, alias_type) ||
+      sub_query.add_select_item(field_execute_at, alias_execute_at) ||
+      sub_query.add_select_item(field_interval_value, alias_interval_value) ||
+      sub_query.add_select_item(field_interval_field, alias_interval_field) ||
+      sub_query.add_select_item(field_starts, alias_starts) ||
+      sub_query.add_select_item(field_ends, alias_ends) ||
+      sub_query.add_select_item(field_status, alias_status) ||
+      sub_query.add_select_item(field_originator, alias_originator) ||
+      sub_query.add_select_item(field_client_cs, alias_client_cs) ||
+      sub_query.add_select_item(field_conn_coll, alias_conn_coll) ||
+      sub_query.add_select_item(field_db_coll, alias_db_coll))
+    return nullptr;
+
+  // ... FROM information_schema.tables ...
+  if (sub_query.add_from_item(INFORMATION_SCHEMA_NAME,
+                              system_view_name))
+      return nullptr;
+
+  /*
+    Build the top level query
+  */
+
+  Select_lex_builder top_query(&pos, thd);
+
+  // SELECT * FROM <sub_query> ...
+  if (top_query.add_star_select_item() ||
+      top_query.add_from_item(
+        sub_query.prepare_derived_table(system_view_name)))
+    return nullptr;
+
+  // ... WHERE 'Database' = <dbname> ...
+  Item *database_condition=
+    top_query.prepare_equal_item(alias_db, cur_db);
+  if (top_query.add_condition(database_condition))
+    return nullptr;
+
+  // ... [ AND ] Name LIKE <value> ...
+  if (wild)
+  {
+    Item *like= top_query.prepare_like_item(alias_name, wild);
+    if (!like || top_query.add_condition(like))
+      return nullptr;
+  }
+
+  // ... [ AND ] <user provided condition> ...
+  if (where_cond && top_query.add_condition(where_cond))
+    return nullptr;
+
+  // ... ORDER BY 'Db, Name' ...
+  if (top_query.add_order_by(alias_db) ||
+      top_query.add_order_by(alias_name))
+    return nullptr;
+
+  SELECT_LEX* sl= top_query.prepare_select_lex();
+
+  // sql_command is set to SQL_QUERY after above call, so.
+  thd->lex->sql_command= SQLCOM_SHOW_EVENTS;
+
+  return sl;
+}
+
 
 } // namespace info_schema
 } // namespace dd

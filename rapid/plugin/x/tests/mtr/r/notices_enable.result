@@ -505,55 +505,55 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'c         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'c\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
@@ -618,55 +618,55 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'a\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'b\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'c         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'c\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'E         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'E\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'C         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'C\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'D         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'D\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'d\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'D         \\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'D\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {

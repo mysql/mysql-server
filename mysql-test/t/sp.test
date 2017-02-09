@@ -9111,22 +9111,6 @@ SELECT f2();
 DROP DATABASE db1;
 DROP USER myuser@localhost;
 DROP FUNCTION f1;
---echo #
---echo # Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
---echo #               IN ::SET_ERROR_STATUS
---echo #
-
-CREATE DATABASE bug22222013;
-USE bug22222013;
-SET NAMES swe7;
-CREATE FUNCTION f1() RETURNS INT RETURN (1);
-CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
---error ER_PARSE_ERROR
-SELECT sql_data_access FROM information_schema.routines WHERE
-specific_name like 'p%' and routine_schema=0;
-DROP DATABASE bug22222013;
-SET NAMES default;
-USE test;
 
 --echo #
 --echo # WL#7897 -- Use DD API for Stored Routines.

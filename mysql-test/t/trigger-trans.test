@@ -1,6 +1,5 @@
 # Tests which involve triggers and transactions
 # (or just InnoDB storage engine)
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;

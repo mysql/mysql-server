@@ -6568,3 +6568,25 @@ CREATE VIEW t1_view_N4 AS SELECT * FROM ( SELECT * FROM t1_view_N3 ) AS A;
 UPDATE t1_view_N3 AS A JOIN t1_view_N4 B SET A. col_int = 1 , B. col_int = 2;
 DROP VIEW t1_view_N3, t1_view_N4;
 DROP TABLE t1_base_N3;
+#
+# WL#7743: New data dictionary: changes to DDL-related parts of SE API
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+RENAME TABLE t1 TO t2, v1 TO v2;
+SELECT * FROM information_schema.views WHERE table_schema='test';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+def	test	v2	select `test`.`t1`.`a` AS `a` from `test`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP VIEW v2;
+DROP TABLE t2;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(b INT);
+CREATE TABLE t3(a INT);
+CREATE TABLE t4(b INT);
+CREATE VIEW v1 AS SELECT * FROM t1, t2;
+DROP TABLE t1, t2;
+RENAME TABLE t3 TO t1, t4 TO t2;
+DROP VIEW v1;
+DROP TABLE t1, t2;

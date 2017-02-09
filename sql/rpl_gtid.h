@@ -45,7 +45,7 @@ struct TABLE_LIST;
   @param SERVER_ERROR arguments to my_error, including the function
   call parentheses.
 */
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) error MYSQLBINLOG_ERROR
 #else
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) my_error SERVER_ERROR
@@ -82,10 +82,10 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 */
 #undef NON_ERROR_GTID
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 class String;
 class THD;
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 
 
 /// Type of SIDNO (source ID number, first component of GTID)
@@ -889,11 +889,11 @@ public:
     mysql_mutex_assert_owner(&mutex_cond->mutex);
     DBUG_RETURN(is_timeout(error));
   }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /// Execute THD::enter_cond for the n'th condition variable.
   void enter_cond(THD *thd, int n, PSI_stage_info *stage,
                   PSI_stage_info *old_stage) const;
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
   /// Return the greatest addressable index in this Mutex_cond_array.
   inline int get_max_index() const
   {
@@ -2448,7 +2448,7 @@ public:
   */
   my_thread_id get_owner(const Gtid &gtid) const
   { return owned_gtids.get_owner(gtid); }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Acquires ownership of the given GTID, on behalf of the given thread.
 
@@ -2690,7 +2690,7 @@ public:
     return atomic_gtid_wait_count;
   }
 
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 private:
   /**
     Computes the next available GNO.
@@ -2768,7 +2768,7 @@ public:
   /// Assert that we own the given SIDNO.
   void assert_sidno_lock_owner(rpl_sidno sidno)
   { sid_locks.assert_owner(sidno); }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Wait for a signal on the given SIDNO.
 
@@ -2808,7 +2808,7 @@ public:
     thread was killed, the error has been generated.
    */
   bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -3508,7 +3508,7 @@ struct Gtid_specification
   */
   bool equals(const Gtid &other_gtid) const
   { return type == GTID_GROUP && gtid.equals(other_gtid); }
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Parses the given string and stores in this Gtid_specification.
 
@@ -3606,7 +3606,7 @@ enum enum_gtid_statement_status
 };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 /**
   Perform GTID-related checks before executing a statement:
 
@@ -3738,6 +3738,6 @@ inline void gtid_state_commit_or_rollback(THD *thd, bool needs_to,
   }
 }
 
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 
 #endif /* RPL_GTID_H_INCLUDED */

@@ -1,7 +1,7 @@
 #ifndef GEOFUNC_INTERNAL_INCLUDED
 #define GEOFUNC_INTERNAL_INCLUDED
 
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,19 +23,19 @@
   This file defines common build blocks of GIS functions.
 */
 
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/core/tags.hpp>
+#include <boost/geometry/index/rtree.hpp>
 #include <stddef.h>
 #include <cmath>
 #include <utility>
 #include <vector>
 
-#include <boost/concept/usage.hpp>
-#include <boost/geometry/core/cs.hpp>
-#include <boost/geometry/core/tags.hpp>
-#include <boost/geometry/index/rtree.hpp>
-
 #include "gis_bg_traits.h"
 #include "item_geofunc.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "spatial.h"
 
 class String;

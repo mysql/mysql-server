@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,18 +76,18 @@ public:
     release(p);
   }
 
-  T* getPtr(Uint32 i)
+  T* getPtr(Uint32 i) const
   {
     return P::getPtr(i);
   }
 
-  void getPtr(Ptr<T>& p, Uint32 i)
+  void getPtr(Ptr<T>& p, Uint32 i) const
   {
     p.i = i;
     p.p = getPtr(i);
   }
 
-  void getPtr(Ptr<T>& p)
+  void getPtr(Ptr<T>& p) const
   {
     p.p = getPtr(p.i);
   }

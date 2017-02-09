@@ -96,14 +96,16 @@ private:
   };
 
   typedef Ptr<ActiveCounter> ActiveCounterPtr;
+  typedef ArrayPool<ActiveCounter> ActiveCounter_pool;
+  typedef DLList<ActiveCounter, ActiveCounter_pool> ActiveCounter_list;
   
   bool seize(ActiveCounterPtr& ptr);
   void release(ActiveCounterPtr& ptr);
-  void getPtr(ActiveCounterPtr& ptr, Uint32 ptrI);
+  void getPtr(ActiveCounterPtr& ptr, Uint32 ptrI) const;
 
   SimulatedBlock & m_block;
-  ArrayPool<ActiveCounter> m_counterPool;
-  DLList<ActiveCounter> m_activeCounters;
+  ActiveCounter_pool m_counterPool;
+  ActiveCounter_list m_activeCounters;
 
   BlockReference reference() const;
   void progError(int line, int err_code, const char* extra = 0, const char* check="");

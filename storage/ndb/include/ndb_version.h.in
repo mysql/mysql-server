@@ -100,6 +100,7 @@ Uint32 ndbGetOwnVersion();
  */
 #define NDB_BACKUP_VERSION NDB_MAKE_VERSION(6,3,11)
 
+#define NDB_DISK_V2 NDB_MAKE_VERSION(7,6,0)
 /**
  * From which version do we support rowid
  */ 

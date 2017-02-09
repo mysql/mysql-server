@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__FUNCTION_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 
 #include "dd/types/column.h"              // dd::Column::enum_column_types
 #include "dd/types/routine.h"             // dd::Routine
@@ -53,6 +54,15 @@ public:
 
   virtual void set_result_data_type_null(bool is_null) = 0;
   virtual bool is_result_data_type_null() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Result display type
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &result_data_type_utf8() const = 0;
+
+  virtual void set_result_data_type_utf8(
+                 const String_type &result_data_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // result_is_zerofill.

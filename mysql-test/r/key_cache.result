@@ -376,11 +376,11 @@ SET @bug28478_key_cache_block_size= @@global.key_cache_block_size;
 SET GLOBAL key_cache_block_size= 1536;
 CREATE TABLE t1 (
 id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-c1 CHAR(150),
-c2 CHAR(150),
-c3 CHAR(150),
+c1 CHAR(83),
+c2 CHAR(83),
+c3 CHAR(83),
 KEY(c1, c2, c3)
-) ENGINE= MyISAM;
+) ENGINE= MyISAM DEFAULT CHARSET utf8mb4;
 INSERT INTO t1 (c1, c2, c3) VALUES
 ('a', 'b', 'c'), ('b', 'c', 'd'), ('c', 'd', 'e'), ('d', 'e', 'f'),
 ('e', 'f', 'g'), ('f', 'g', 'h'), ('g', 'h', 'i'), ('h', 'i', 'j'),

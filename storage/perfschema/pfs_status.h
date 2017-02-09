@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
   Status variables statistics (declarations).
 */
 
+#include "my_inttypes.h"
 #include "system_variables.h"  // COUNT_GLOBAL_STATUS_VARS
 
 struct PFS_status_stats

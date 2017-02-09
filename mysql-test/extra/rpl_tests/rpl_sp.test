@@ -5,7 +5,6 @@
 
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
-source include/not_gtid_enabled.inc;
 
 
 # we need a db != test, where we don't have automatic grants

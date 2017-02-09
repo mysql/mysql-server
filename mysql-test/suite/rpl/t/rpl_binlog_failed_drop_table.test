@@ -5,6 +5,10 @@
 # execution of DROP TABLE command with multiple tables fails the command
 # should be written into the binary log.
 #
+# The above also provides coverage for changes to binary logging of failed
+# DROP TABLES implemented as part of WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API".
+#
 # ==== Implementation ====
 # Create a database `db1` on master and ignore this database on the slave side
 # using --replicate-ignore-db=db1 --replicate-wild-ignore-table=db1.%. Now

@@ -6,7 +6,6 @@
 # Currently SQL_AFTER_GTIDS is not supportted.
 ################################################################################
 --source include/have_debug.inc
---source include/have_gtid.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 

@@ -109,6 +109,7 @@ SELECT count(*) >= 20 FROM blocks;
 
 # Test incompatible table definition between NDB and MySQL Server
 # using the ndb$test table which originally looks like
+show create table ndb$test;
 # CREATE TABLE `ndb$test` (
 #   `node_id` int unsigned DEFAULT NULL,
 #   `block_number` int unsigned DEFAULT NULL,
@@ -346,6 +347,66 @@ eval $q1;
 select table_schema, table_name, definer from information_schema.views
   where table_schema = 'ndbinfo' and
         definer != 'root@localhost';
+
+
+#
+# Test buffered joining
+#
+# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
+# - rnd_init() on an open scan is used to reposition the "cursor"
+#   back to first row
+#
+set @@optimizer_switch='block_nested_loop=off';
+
+
+--disable_result_log
+
+select @a:=0;
+
+select
+  @a:=@a+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+select @b:=0;
+
+select
+  @b:=@b+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+--enable_result_log
+
+--echo Expect both joins to give same row count
+--echo (0 diff)
+select @a - @b;
+
+
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
 
 # ################################
 # Test memory_per_fragment table.
@@ -719,6 +780,7 @@ drop table t1;
 drop table t2;
 
 
+
 #
 # WL#7575 Remove ndbinfo's usage of other engine
 # - the five lookup tables which resided in another engine
@@ -745,20 +807,6 @@ select type_name from ndb$dict_obj_types where type_id = 3;
 ## All tables in ndbinfo/ should now be using engine=NDBINFO
 select count(*) from information_schema.tables
   where table_schema = 'ndbinfo' and engine != 'ndbinfo';
-
-#
-# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
-# - rnd_init() on an open scan is used to reposition the "cursor"
-#   back to first row
-#
-set @@optimizer_switch='block_nested_loop=off';
-create temporary table old_count
-       select counter_name, sum(val) as val
-       from ndbinfo.counters
-       where block_name='DBSPJ'
-       group by counter_name;
-drop table old_count;
-set @@optimizer_switch=default;
 
 #
 # Bug#16731538 MYSQLD CRITICAL FAILURE DURING ORDERED SELECT FROM NDBINFO.CLUSTER_OPERATIONS

@@ -54,6 +54,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "myisampack.h"
@@ -1352,9 +1353,11 @@ static void copy_native_longlong(uchar *to, size_t to_length,
 
   @param[out]    to      Pointer into the buffer to which the sort key should
                          be written. It will point to where the data portion
-                         of the key should start. For nullable items, this
-                         means right after the NULL indicator byte. The NULL
-                         indicator byte (to[-1]) should be initialized by the
+                         of the key should start.
+
+  @param[out]    null_indicator
+                         For nullable items, the NULL indicator byte.
+                         (Ignored otherwise.) Should be initialized by the
                          caller to a value that indicates not NULL.
 
   @param[in]     length  The length of the sort key, not including the NULL
@@ -1367,16 +1370,17 @@ static void copy_native_longlong(uchar *to, size_t to_length,
     length of the key stored
 */
 static uint MY_ATTRIBUTE((noinline))
-make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
+make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
+                   size_t length, ulonglong *hash)
 {
-  DBUG_ASSERT(!item->maybe_null || to[-1] == 1);
+  DBUG_ASSERT(!item->maybe_null || *null_indicator == 1);
 
   Json_wrapper wr;
   if (item->val_json(&wr))
   {
     // An error occurred, no point to continue making key, set it to null.
     if (item->maybe_null)
-      to[-1]= 0;
+      *null_indicator= 0;
     return 0;
   }
 
@@ -1384,13 +1388,13 @@ make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
   {
     /*
       Got NULL. The sort key should be all zeros. The caller has
-      already tentatively set the NULL indicator byte at to[-1] to
+      already tentatively set the NULL indicator byte at *null_indicator to
       not-NULL, so we need to clear that byte too.
     */
     if (item->maybe_null)
     {
       // Don't store anything but null flag.
-      to[-1]= 0;
+      *null_indicator= 0;
       return 0;
     }
     /* purecov: begin inspected */
@@ -1401,9 +1405,9 @@ make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
     /* purecov: end */
   }
 
-  wr.make_sort_key(to, length);
+  size_t actual_length= wr.make_sort_key(to, length);
   *hash= wr.make_hash_key(hash);
-  return uint4korr(to);
+  return actual_length;
 }
 
 
@@ -1448,9 +1452,19 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 	else
 	  *to++=1;
       }
-      field->make_sort_key(to, sort_field->length);
       if (sort_field->is_varlen)
-        actual_length= uint4korr(to);
+      {
+        DBUG_ASSERT(sort_field->length >= VARLEN_PREFIX);
+        actual_length= field->make_sort_key(
+          to + VARLEN_PREFIX, sort_field->length - VARLEN_PREFIX);
+        DBUG_ASSERT(actual_length <= sort_field->length - VARLEN_PREFIX);
+        int4store(to, actual_length + VARLEN_PREFIX);
+      }
+      else
+      {
+        actual_length= field->make_sort_key(to, sort_field->length);
+        DBUG_ASSERT(actual_length == sort_field->length);
+      }
 
       if (sort_field->field_type == MYSQL_TYPE_JSON)
       {
@@ -1462,16 +1476,22 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     {						// Item
       Item *item=sort_field->item;
       maybe_null= item->maybe_null;
-      DBUG_ASSERT(sort_field->field_type == item->field_type());
+      DBUG_ASSERT(sort_field->field_type == item->data_type());
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
+        uchar* null_indicator= nullptr;
         if (maybe_null)
-          *to++= 1;
+        {
+          null_indicator= to++;
+          *null_indicator= 1;
+        }
 
         if (sort_field->field_type == MYSQL_TYPE_JSON)
         {
           DBUG_ASSERT(use_hash);
+          DBUG_ASSERT(sort_field->is_varlen);
+          DBUG_ASSERT(sort_field->length >= VARLEN_PREFIX);
           /*
             We don't want the code for creating JSON sort keys to be
             inlined here, as increasing the size of the surrounding
@@ -1479,8 +1499,10 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             performance tests, even if those tests never execute the
             "else" branch.
           */
-          actual_length=
-            make_json_sort_key(item, to, sort_field->length, &hash);
+          actual_length= make_json_sort_key(
+            item, to + VARLEN_PREFIX, null_indicator,
+            sort_field->length - VARLEN_PREFIX, &hash);
+          int4store(to, actual_length + VARLEN_PREFIX);
           break;
         }
 
@@ -1516,7 +1538,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           break;
         }
         uint length= static_cast<uint>(res->length());
-        if (sort_field->need_strxnfrm)
+        if (sort_field->need_strnxfrm)
         {
           char *from=(char*) res->ptr();
           size_t tmp_length MY_ATTRIBUTE((unused));
@@ -1561,7 +1583,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       }
       case INT_RESULT:
 	{
-          longlong value= item->field_type() == MYSQL_TYPE_TIME ?
+          longlong value= item->data_type() == MYSQL_TYPE_TIME ?
                           item->val_time_temporal_result() :
                           item->is_temporal_with_date() ?
                           item->val_date_temporal_result() :
@@ -1648,28 +1670,27 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       }
     }
     if (sort_field->reverse)
-    {							/* Revers key */
+    {							/* Reverse key */
       if (maybe_null)
         to[-1]= ~to[-1];
-      uint length= sort_field->length;
-      if (sort_field->is_varlen)
+      if (sort_field->is_varlen && actual_length)
       {
-        if (actual_length)
-        {
-          length= actual_length - VARLEN_PREFIX;
-          to+= VARLEN_PREFIX;
-        }
-        else
-          length= 0;
+        to+= VARLEN_PREFIX;
       }
-      while (length--)
+      while (actual_length--)
       {
 	*to = (uchar) (~ *to);
 	to++;
       }
     }
     else
+    {
+      if (sort_field->is_varlen && actual_length)
+      {
+        to+= VARLEN_PREFIX;
+      }
       to+= actual_length;
+    }
   }
 
   if (use_hash)
@@ -1680,6 +1701,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
   if (using_varlen_keys())
   {
+    // Store the length of the record as a whole.
     Sort_param::store_varlen_key_length(orig_to,
                                         static_cast<uint>(to - orig_to));
   }
@@ -2373,12 +2395,12 @@ static uint suffix_length(ulong string_length)
   @param sortorder		  Order of items to sort
   @param s_length	          Number of items to sort
   @param[out] multi_byte_charset Set to 1 if we are using multi-byte charset
-                                 (In which case we have to use strxnfrm())
+                                 (In which case we have to use strnxfrm())
 
   @note
     sortorder->length is updated for each sort item.
   @n
-    sortorder->need_strxnfrm is set 1 if we have to use strxnfrm
+    sortorder->need_strnxfrm is set 1 if we have to use strnxfrm
 
   @return
     Total length of sort buffer in bytes
@@ -2389,7 +2411,6 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
            bool *multi_byte_charset)
 {
   uint total_length= 0;
-  const CHARSET_INFO *cs;
   *multi_byte_charset= false;
 
   // Heed the contract that strnxfrm() needs an even number of bytes.
@@ -2398,51 +2419,60 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 
   for (; s_length-- ; sortorder++)
   {
-    DBUG_ASSERT(sortorder->need_strxnfrm == 0);
+    DBUG_ASSERT(!sortorder->need_strnxfrm);
     DBUG_ASSERT(sortorder->suffix_length == 0);
     if (sortorder->field)
     {
-      cs= sortorder->field->sort_charset();
-      sortorder->length= sortorder->field->sort_length();
+      const Field *field= sortorder->field;
+      const CHARSET_INFO *cs= field->sort_charset();
+      sortorder->length= field->sort_length();
+      sortorder->is_varlen= field->sort_key_is_varlen();
 
-      if (use_strnxfrm((cs=sortorder->field->sort_charset())))
+      if (use_strnxfrm(cs))
       {
-        sortorder->need_strxnfrm= 1;
-        *multi_byte_charset= 1;
         // How many bytes do we need (including sort weights) for strnxfrm()?
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
+        sortorder->need_strnxfrm= true;
+        *multi_byte_charset= 1;
       }
-      if (sortorder->field->maybe_null())
-      {
-        total_length++;                       // Place for NULL marker
-        sortorder->maybe_null= true;
-      }
-
-      if (sortorder->field->result_type() == STRING_RESULT &&
-          !sortorder->field->is_temporal())
+      /*
+        NOTE: The corresponding test below also has a check for
+        cs == &my_charset_bin to sort truncated blobs deterministically;
+        however, that part is dealt by in Field_blob/Field_varstring,
+        so we don't need it here.
+      */
+      if (sortorder->is_varlen)
+        sortorder->length+= VARLEN_PREFIX;
+      sortorder->maybe_null= field->maybe_null();
+      if (field->result_type() == STRING_RESULT &&
+          !field->is_temporal())
       {
         set_if_smaller(sortorder->length, max_sort_length_even);
       }
 
-      sortorder->field_type= sortorder->field->type();
-      if (sortorder->field_type == MYSQL_TYPE_JSON)
-        sortorder->is_varlen= true;
+      sortorder->field_type= field->type();
     }
     else
     {
-      sortorder->result_type= sortorder->item->result_type();
-      sortorder->field_type= sortorder->item->field_type();
-      if (sortorder->item->is_temporal())
+      const Item *item= sortorder->item;
+      sortorder->result_type= item->result_type();
+      sortorder->field_type= item->data_type();
+      if (sortorder->field_type == MYSQL_TYPE_JSON)
+        sortorder->is_varlen= true;
+      else
+        sortorder->is_varlen= false;
+      if (item->is_temporal())
         sortorder->result_type= INT_RESULT;
       switch (sortorder->result_type) {
-      case STRING_RESULT:
-	sortorder->length= sortorder->item->max_length;
+      case STRING_RESULT: {
+        const CHARSET_INFO *cs= item->collation.collation;
+	sortorder->length= item->max_length;
         set_if_smaller(sortorder->length, max_sort_length_even);
-	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
+	if (use_strnxfrm(cs))
 	{ 
           // How many bytes do we need (including sort weights) for strnxfrm()?
           sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
-	  sortorder->need_strxnfrm= 1;
+	  sortorder->need_strnxfrm= true;
 	  *multi_byte_charset= 1;
 	}
         else if (cs == &my_charset_bin)
@@ -2451,9 +2481,8 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
           sortorder->suffix_length= suffix_length(sortorder->length);
           sortorder->length+= sortorder->suffix_length;
         }
-        if (sortorder->field_type == MYSQL_TYPE_JSON)
-          sortorder->is_varlen= true;
 	break;
+      }
       case INT_RESULT:
 #if SIZEOF_LONG_LONG > 4
 	sortorder->length=8;			// Size of intern longlong
@@ -2463,9 +2492,9 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 	break;
       case DECIMAL_RESULT:
         sortorder->length=
-          my_decimal_get_binary_size(sortorder->item->max_length - 
-                                     (sortorder->item->decimals ? 1 : 0),
-                                     sortorder->item->decimals);
+          my_decimal_get_binary_size(item->max_length -
+                                     (item->decimals ? 1 : 0),
+                                     item->decimals);
         break;
       case REAL_RESULT:
 	sortorder->length=sizeof(double);
@@ -2476,12 +2505,10 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 	DBUG_ASSERT(0);
 	break;
       }
-      if (sortorder->item->maybe_null)
-      {
-        total_length++;                       // Place for NULL marker
-        sortorder->maybe_null= true;
-      }
+      sortorder->maybe_null= item->maybe_null;
     }
+    if (sortorder->maybe_null)
+      total_length++;                       // Place for NULL marker
     total_length+= sortorder->length;
   }
   sortorder->field= NULL;                       // end marker
@@ -2670,45 +2697,32 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
 ** The following should work for IEEE
 */
 
-#define DBL_EXP_DIG (sizeof(double)*8-DBL_MANT_DIG)
-
-void change_double_for_sort(double nr,uchar *to)
+void change_double_for_sort(double nr, uchar *to)
 {
-  uchar *tmp= to;
-  if (nr == 0.0)
-  {						/* Change to zero string */
-    tmp[0]=(uchar) 128;
-    memset(tmp+1, 0, sizeof(nr)-1);
-  }
-  else
-  {
-#ifdef WORDS_BIGENDIAN
-    memcpy(tmp, &nr, sizeof(nr));
-#else
-    {
-      uchar *ptr= (uchar*) &nr;
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-      tmp[0]= ptr[3]; tmp[1]=ptr[2]; tmp[2]= ptr[1]; tmp[3]=ptr[0];
-      tmp[4]= ptr[7]; tmp[5]=ptr[6]; tmp[6]= ptr[5]; tmp[7]=ptr[4];
-#else
-      tmp[0]= ptr[7]; tmp[1]=ptr[6]; tmp[2]= ptr[5]; tmp[3]=ptr[4];
-      tmp[4]= ptr[3]; tmp[5]=ptr[2]; tmp[6]= ptr[1]; tmp[7]=ptr[0];
+  /*
+    -0.0 and +0.0 compare identically, so make sure they use exactly the same
+    bit pattern.
+  */
+  if (nr == 0.0) nr= 0.0;
+
+  /*
+    Positive doubles sort exactly as ints; negative doubles need
+    bit flipping. The bit flipping sets the upper bit to 0
+    unconditionally, so put 1 in there for positive numbers
+    (so they sort later for our unsigned comparison).
+    NOTE: This does not sort infinities or NaN correctly.
+  */
+  int64 nr_int;
+  memcpy(&nr_int, &nr, sizeof(nr));
+  nr_int= (nr_int ^ (nr_int >> 63)) | ((~nr_int) & 0x8000000000000000ULL);
+
+  // TODO: Make store64be() or similar.
+  memcpy(to, &nr_int, sizeof(nr_int));
+#if !defined(WORDS_BIGENDIAN)
+  using std::swap;
+  swap(to[0], to[7]);
+  swap(to[1], to[6]);
+  swap(to[2], to[5]);
+  swap(to[3], to[4]);
 #endif
-    }
-#endif
-    if (tmp[0] & 128)				/* Negative */
-    {						/* make complement */
-      uint i;
-      for (i=0 ; i < sizeof(nr); i++)
-	tmp[i]=tmp[i] ^ (uchar) 255;
-    }
-    else
-    {					/* Set high and move exponent one up */
-      ushort exp_part=(((ushort) tmp[0] << 8) | (ushort) tmp[1] |
-		       (ushort) 32768);
-      exp_part+= (ushort) 1 << (16-1-DBL_EXP_DIG);
-      tmp[0]= (uchar) (exp_part >> 8);
-      tmp[1]= (uchar) exp_part;
-    }
-  }
 }

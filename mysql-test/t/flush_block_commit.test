@@ -4,7 +4,6 @@
 # This is intended to mimick how mysqldump and innobackup work.
 
 # And it requires InnoDB
---source include/have_innodb.inc
 
 --echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

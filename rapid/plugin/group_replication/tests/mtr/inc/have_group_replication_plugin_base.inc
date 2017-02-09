@@ -14,8 +14,6 @@
 --source include/not_embedded.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
---source include/have_innodb.inc
---source include/have_gtid.inc
 
 #
 # Check if server has support for loading plugins

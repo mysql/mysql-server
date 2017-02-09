@@ -471,8 +471,8 @@ dd_parse_tbl_name(
 UNIV_INLINE
 const dd::Column*
 dd_find_column(
-	dd::Table* dd_table,
-	const char* name);
+	const dd::Table*	dd_table,
+	const char*		name);
 
 /** Add a hidden column when creating a table.
 @param[in,out]  dd_table        table containing user columns and indexes

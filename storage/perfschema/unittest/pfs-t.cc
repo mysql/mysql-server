@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,21 +13,21 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <memory.h>
 #include <my_global.h>
 #include <my_thread.h>
-#include <pfs_server.h>
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
 #include <mysql/psi/psi_file.h>
-#include <pfs_global.h>
 #include <pfs_buffer_container.h>
+#include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <pfs_server.h>
+#include <string.h>
 #include <tap.h>
 
-#include <string.h>
-#include <memory.h>
-
-#include "stub_print_error.h"
+#include "my_io.h"
 #include "stub_pfs_defaults.h"
+#include "stub_print_error.h"
 
 /* test helpers, to simulate the setup */
 

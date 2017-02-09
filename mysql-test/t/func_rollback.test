@@ -43,7 +43,6 @@ let $fixed_bug_35877 = 0;
 
 let $from_select = SELECT 1 AS f1,1 AS f2 UNION ALL SELECT 1,NULL;
 
---source include/have_innodb.inc
 let $engine = InnoDB;
 
 --disable_warnings

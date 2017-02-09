@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <m_ctype.h>
 #include <m_string.h>
@@ -20,6 +22,9 @@
 #include <my_sys.h>
 #include <my_time.h>
 #include <mysys_err.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,8 +33,12 @@
 #include <violite.h>
 
 #include "errmsg.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_thread_local.h"
 #include "mysql.h"
@@ -157,10 +166,6 @@ int STDCALL mysql_server_init(int argc MY_ATTRIBUTE((unused)),
 #if defined(SIGPIPE) && !defined(_WIN32)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
-#ifdef EMBEDDED_LIBRARY
-    if (argc > -1)
-       result= init_embedded_server(argc, argv, groups);
-#endif
   }
   else
     result= (int)my_thread_init();         /* Init if new thread */
@@ -187,9 +192,6 @@ void STDCALL mysql_server_end()
 
   mysql_client_plugin_deinit();
 
-#ifdef EMBEDDED_LIBRARY
-  end_embedded_server();
-#endif
   finish_client_errs();
   vio_end();
 
@@ -1078,15 +1080,6 @@ uint STDCALL mysql_thread_safe(void)
   return 1;
 }
 
-
-my_bool STDCALL mysql_embedded(void)
-{
-#ifdef EMBEDDED_LIBRARY
-  return 1;
-#else
-  return 0;
-#endif
-}
 
 /****************************************************************************
   Some support functions

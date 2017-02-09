@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "mem_root_array.h"
 #include "my_base.h"        // ha_rows
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "table.h"
 
 class Create_field;

@@ -1,7 +1,6 @@
 #------------------------------------------------------------------------------
 # Misc FTS test on debug servers only
 #------------------------------------------------------------------------------
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
 # Must have debug code to use SET SESSION debug

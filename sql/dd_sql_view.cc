@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -223,13 +224,17 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     // Get schema name and view name from the object id of the view.
     {
       dd::View *view= nullptr;
-      if (thd->dd_client()->acquire_uncached(view_ids.at(idx), &view))
+      // We need to use READ_UNCOMMITTED here as the view could be changed
+      // by the same statement (e.g. RENAME TABLE).
+      if (thd->dd_client()->acquire_uncached_uncommitted(view_ids.at(idx),
+                                                         &view))
         DBUG_RETURN(true);
       if (!view)
         continue;
 
       dd::Schema *schema= nullptr;
-      if (thd->dd_client()->acquire_uncached(view->schema_id(), &schema))
+      if (thd->dd_client()->acquire_uncached_uncommitted(view->schema_id(),
+                                                         &schema))
         DBUG_RETURN(true);
       if (!schema)
         continue;
@@ -313,8 +318,6 @@ static bool open_views_and_update_metadata(
       function we need to keep locks on views to be updated until the
       statement end. Because of this we need to acquire them before
       View_metadata_updater_context takes effect.
-
-      QQ: Should we reuse similar code from sql_base.cc somehow?
     */
     for (auto view : *views)
     {

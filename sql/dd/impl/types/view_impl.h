@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "dd/types/view_routine.h"             // dd::View_routine
 #include "dd/types/view_table.h"               // dd::View_table
 #include "my_global.h"
+#include "my_inttypes.h"
 
 namespace dd {
 class Column;
@@ -68,6 +69,8 @@ public:
   virtual bool store_children(Open_dictionary_tables_ctx *otx);
 
   virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+
+  virtual void remove_children();
 
   virtual bool restore_attributes(const Raw_record &r);
 
@@ -248,6 +251,8 @@ public:
   virtual Column *add_column()
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
+  { return Abstract_table_impl::columns(); }
+  virtual Column_collection *columns()
   { return Abstract_table_impl::columns(); }
   const Column *get_column(const String_type name) const
   { return Abstract_table_impl::get_column(name); }

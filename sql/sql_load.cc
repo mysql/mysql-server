@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,12 +34,12 @@
 #include "derror.h"
 #include "field.h"
 #include "handler.h"
-#include "item_func.h"
 #include "item.h"
+#include "item_func.h"
 #include "item_timefunc.h"  // Item_func_now_local
 #include "load_data_events.h"
-#include "log_event.h"  // Delete_file_log_event,
 #include "log.h"
+#include "log_event.h"  // Delete_file_log_event,
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -47,15 +47,18 @@
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_global.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
-#include "mysqld.h"                             // mysql_real_data_home
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "my_sys.h"
-#include "my_thread_local.h"
+#include "mysql_com.h"
+#include "mysqld.h"                             // mysql_real_data_home
+#include "mysqld_error.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
 #include "query_result.h"
@@ -122,7 +125,7 @@ class READ_INFO {
   int level; /* for load xml */
 
 public:
-  bool error,line_cuted,found_null,enclosed;
+  bool error, line_truncated, found_null, enclosed;
   uchar	*row_start,			/* Found row starts here */
 	*row_end;			/* Found row ends here */
   const CHARSET_INFO *read_charset;
@@ -476,7 +479,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (thd->slave_thread & ((SYSTEM_THREAD_SLAVE_SQL |
                              (SYSTEM_THREAD_SLAVE_WORKER))!=0))
     {
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
       Relay_log_info* rli= thd->rli_slave->get_c_rli();
 
       if (strncmp(rli->slave_patternload_file, name,
@@ -492,12 +494,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         DBUG_RETURN(TRUE);
       }
-#else
-      /*
-        This is impossible and should never happen.
-      */
-      DBUG_ASSERT(FALSE); 
-#endif
     }
     else if (!is_secure_file_path(name))
     {
@@ -550,8 +546,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     read_info.set_io_cache_arg((void*) &lf_info);
   }
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
-  thd->cuted_fields=0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
   /* Skip lines if there is a line terminator */
   if (ex->line.line_term->length() && ex->filetype != FILETYPE_XML)
   {
@@ -603,7 +599,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     mysql_file_close(file, MYF(0));
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   /* 
      simulated killing in the middle of per-row loop
      must be effective for binlogging
@@ -860,7 +856,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       if (pos == read_info.row_end)
       {
-        thd->cuted_fields++;			/* Not enough fields */
+        thd->num_truncated_fields++;			/* Not enough fields */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
@@ -887,7 +883,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     if (pos != read_info.row_end)
     {
-      thd->cuted_fields++;			/* To long row */
+      thd->num_truncated_fields++;			/* Too long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
@@ -919,9 +915,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (read_info.next_line())			// Skip to next line
       break;
-    if (read_info.line_cuted)
+    if (read_info.line_truncated)
     {
-      thd->cuted_fields++;			/* To long row */
+      thd->num_truncated_fields++;			/* Too long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
@@ -1110,10 +1106,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
-            of warnings in THD::cuted_fields (and get rid of cuted_fields
-            in the end ?)
+            of warnings in THD::num_truncated_fields (and get rid of
+            num_truncated_fields in the end?)
           */
-          thd->cuted_fields++;
+          thd->num_truncated_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
@@ -1176,9 +1172,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (read_info.next_line())			// Skip to next line
       break;
-    if (read_info.line_cuted)
+    if (read_info.line_truncated)
     {
-      thd->cuted_fields++;			/* To long row */
+      thd->num_truncated_fields++;			/* Too long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
@@ -1326,10 +1322,10 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
-            of warnings in THD::cuted_fields (and get rid of cuted_fields
-            in the end ?)
+            of warnings in THD::num_truncated_fields (and get rid of
+            num_truncated_fields in the end?)
           */
-          thd->cuted_fields++;
+          thd->num_truncated_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
@@ -1406,7 +1402,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
                      int escape, bool get_it_from_net, bool is_fifo)
   :file(file_par), buff_length(tot_length), escape_char(escape),
    found_end_of_line(false), eof(false), need_end_io_cache(false),
-   error(false), line_cuted(false), found_null(false), read_charset(cs)
+   error(false), line_truncated(false), found_null(false), read_charset(cs)
 {
   /*
     Field and line terminators must be interpreted as sequence of unsigned char.
@@ -1581,6 +1577,7 @@ int READ_INFO::read_field()
 
   for (;;)
   {
+    bool escaped_mb= false;
     while ( to < end_of_buff)
     {
       chr = GET;
@@ -1602,7 +1599,23 @@ int READ_INFO::read_field()
          */
         if (escape_char != enclosed_char || chr == escape_char)
         {
-          *to++ = (uchar) unescape((char) chr);
+          uint ml;
+          GET_MBCHARLEN(read_charset, chr, ml);
+          /*
+            For escaped multibyte character, push back the first byte,
+            and will handle it below.
+            Because multibyte character's second byte is possible to be
+            0x5C, per Query_result_export::send_data, both head byte and
+            tail byte are escaped for such characters. So mark it if the
+            head byte is escaped and will handle it below.
+          */
+          if (ml == 1)
+            *to++= (uchar) unescape((char) chr);
+          else
+          {
+            escaped_mb= true;
+            PUSH(chr);
+          }
           continue;
         }
         PUSH(chr);
@@ -1694,8 +1707,16 @@ int READ_INFO::read_field()
             to-= i;
             goto found_eof;
           }
+          else if (chr == escape_char && escaped_mb)
+          {
+            // Unescape the second byte if it is escaped.
+            chr= GET;
+            chr= (uchar) unescape((char) chr);
+          }
           *to++ = chr;
         }
+        if (escaped_mb)
+          escaped_mb= false;
         if (my_ismbchar(read_charset,
                         (const char *)p,
                         (const char *)to))
@@ -1801,7 +1822,7 @@ found_eof:
 
 int READ_INFO::next_line()
 {
-  line_cuted=0;
+  line_truncated= 0;
   start_of_line= line_start_ptr != 0;
   if (found_end_of_line || eof)
   {
@@ -1837,14 +1858,14 @@ int READ_INFO::next_line()
     }
     if (chr == escape_char)
     {
-      line_cuted=1;
+      line_truncated= 1;
       if (GET == my_b_EOF)
 	return 1;
       continue;
     }
     if (chr == line_term_char && terminator(line_term_ptr,line_term_length))
       return 0;
-    line_cuted=1;
+    line_truncated= 1;
   }
 }
 

@@ -6,7 +6,6 @@
 # The RENAME should succeed and existent rows should be overwritten.
 #
 
--- source include/have_innodb.inc
 
 -- vertical_results
 

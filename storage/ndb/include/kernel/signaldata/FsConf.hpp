@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,6 +81,8 @@ private:
 
   // debug info for trace log
   Uint32 fileInfo;
+  Uint32 file_size_hi;
+  Uint32 file_size_lo;
 };
 
 

@@ -30,8 +30,6 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     ndbd_malloc_impl.cpp
     ndbd_malloc.cpp
     Pool.cpp
-    WOPool.cpp
-    RWPool.cpp
     DynArr256.cpp
     LockQueue.cpp
     GlobalData.cpp
@@ -41,6 +39,8 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     ArenaPool.cpp
     mt_thr_config.cpp
 )
+#    WOPool.cpp
+#    RWPool.cpp
 
 ADD_CONVENIENCE_LIBRARY(ndbsched
     TimeQueue.cpp

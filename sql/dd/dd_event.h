@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 #ifndef DD_EVENT_INCLUDED
 #define DD_EVENT_INCLUDED
 
-#include "my_global.h"
-
-#include "my_time.h"             // interval_type
 #include "dd/string_type.h"      // dd::String_type
 #include "dd/types/event.h"      // dd::Event::enum_event_status
+#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_time.h"             // interval_type
 
 class Event_parse_data;
 class sp_head;

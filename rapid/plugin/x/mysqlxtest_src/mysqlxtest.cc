@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,8 +17,9 @@
  * 02110-1301  USA
  */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include "my_config.h"
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -32,6 +33,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "common/utils_string_parsing.h"
 #include "dummy_stream.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
 #include "my_global.h"
@@ -41,26 +43,26 @@
 #include "mysqlx_resultset.h"
 #include "mysqlx_session.h"
 #include "mysqlx_version.h"
-#include "ngs_common/bind.h"
 #include "mysqlxtest_error_names.h"
-#include "common/utils_string_parsing.h"
+#include "ngs_common/bind.h"
 #include "ngs_common/chrono.h"
 #include "ngs_common/protocol_const.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/to_string.h"
+#include "print_version.h"
 #include "utils_mysql_parsing.h"
 #include "violite.h"
+#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
-const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
 
-#include <mysql/service_my_snprintf.h>
 #include <mysql.h>
+#include <mysql/service_my_snprintf.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")
@@ -3010,12 +3012,15 @@ public:
 
   void print_version()
   {
-    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, MYSQLXTEST_VERSION,
-        MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    ::print_version();
   }
 
   void print_help()
   {
+
+    print_version();
+    std::cout << (ORACLE_WELCOME_COPYRIGHT_NOTICE("2015")) << endl;
+
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
@@ -3179,11 +3184,7 @@ public:
 
   std::string get_socket_name()
   {
-#if defined(_WIN32)
-    return MYSQLX_NAMEDPIPE;
-#else
     return MYSQLX_UNIX_ADDR;
-#endif
   }
 
   My_command_line_options(int argc, char **argv)

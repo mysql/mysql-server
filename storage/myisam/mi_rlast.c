@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 	/* Read last row with the same key as the previous read. */

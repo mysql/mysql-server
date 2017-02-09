@@ -37,7 +37,6 @@
 #
 #  This test verify above two cases work well.
 ################################################################################
---source include/have_gtid.inc
 --source include/have_binlog_format_row.inc
 
 --echo #

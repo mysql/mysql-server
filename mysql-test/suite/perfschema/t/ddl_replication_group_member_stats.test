@@ -3,7 +3,6 @@
 # Usage of DDLs on the table replication_group_member_stats.
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_group_member_stats

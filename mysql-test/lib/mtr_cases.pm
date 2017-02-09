@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2016 Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -973,7 +973,11 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for replicaton tests
   # ----------------------------------------------------------------------
-  $tinfo->{'rpl_test'}= 1 if ($suitename =~ 'rpl');
+  $tinfo->{'rpl_test'}= 1 if ($suitename eq 'rpl' or $suitename eq 'i_rpl');
+  $tinfo->{'rpl_nogtid_test'}= 1 if
+  ($suitename eq 'rpl_nogtid' or $suitename eq 'i_rpl_nogtid');
+  $tinfo->{'rpl_gtid_test'}= 1 if
+  ($suitename eq 'rpl_gtid' or $suitename eq 'i_rpl_gtid');
   $tinfo->{'grp_rpl_test'}= 1 if ($suitename =~ 'group_replication');
 
   # ----------------------------------------------------------------------
@@ -985,7 +989,7 @@ sub collect_one_test_case {
     # Test was marked as disabled in suites disabled.def file
     $marked_as_disabled= 1;
     # Test name may have been disabled with or without suite name part
-    $tinfo->{'comment'}= $disabled->{$tname} || 
+    $tinfo->{'comment'}= $disabled->{$tname} ||
                          $disabled->{"$suitename.$tname"};
   }
 
@@ -1219,17 +1223,27 @@ sub collect_one_test_case {
       # assume default.cnf will be used
       $config= "include/default_my.cnf";
 
-      # Suite has no config, autodetect which one to use
-      if ( $tinfo->{rpl_test} ){
-	$config= "suite/rpl/my.cnf";
-      if ( $tinfo->{rpl_gtid_test} ){
+      # rpl_gtid and i_rpl_gtid tests must use the same cnf file.
+      if ( $tinfo->{rpl_gtid_test} )
+      {
         $config= "suite/rpl_gtid/my.cnf";
       }
-	if ( $tinfo->{ndb_test} ){
+      # rpl_nogtid,i_rpl_nogtid tests must use the same cnf file.
+      elsif ( $tinfo->{rpl_nogtid_test} )
+      {
+        $config= "suite/rpl_nogtid/my.cnf";
+      }
+      # rpl,i_rpl tests must use the same cnf file.
+      elsif ( $tinfo->{rpl_test} )
+      {
+	$config= "suite/rpl/my.cnf";
+	if ( $tinfo->{ndb_test} )
+        {
 	  $config= "suite/rpl_ndb/my.cnf";
 	}
       }
-      elsif ( $tinfo->{ndb_test} ){
+      elsif ( $tinfo->{ndb_test} )
+      {
 	$config= "suite/ndb/my.cnf";
       }
     }
@@ -1291,9 +1305,6 @@ my @tags=
  ["include/rpl_ip_mix.inc", "rpl_test", 1],
  ["include/rpl_ip_mix2.inc", "rpl_test", 1],
  ["include/rpl_ipv6.inc", "rpl_test", 1],
-
-#  The tests with below .inc file are considered to be rpl_gtid tests.
- ["include/have_gtid.inc", "rpl_gtid_test", 1],
 
 ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],

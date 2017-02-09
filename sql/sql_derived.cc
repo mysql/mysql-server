@@ -28,9 +28,13 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
+#include "mysqld.h"                        // internal_tmp_disk_storage_engine
 #include "opt_trace.h"                        // opt_trace_disable_etc
 #include "query_options.h"
+#include "sql_base.h"                         // EXTRA_RECORD
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_derived.h"
@@ -41,8 +45,6 @@
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_tmp_table.h"                    // Tmp tables
 #include "sql_union.h"                        // Query_result_union
-#include "sql_base.h"                         // EXTRA_RECORD
-#include "mysqld.h"                        // internal_tmp_disk_storage_engine
 #include "sql_view.h"                         // check_duplicate_names
 #include "system_variables.h"
 #include "table.h"
@@ -204,6 +206,8 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
 
   tl->table= t;
   t->pos_in_table_list= tl;
+
+  t->set_not_started();
 
   if (tmp_tables.push_back(tl))
     return nullptr;                             /* purecov: inspected */
@@ -546,7 +550,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   // Make table's name same as the underlying materialized table
   set_name_temporary();
 
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
   if (referencing_view)
     table->grant= grant;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,9 +47,11 @@
 #include "my_byteorder.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld.h"           // stage_executing
@@ -82,8 +84,6 @@ using std::max;
 using std::min;
 
 static void return_zero_rows(JOIN *join, List<Item> &fields);
-static void save_const_null_info(JOIN *join, table_map *save_nullinfo);
-static void restore_const_null_info(JOIN *join, table_map save_nullinfo);
 static int do_select(JOIN *join);
 
 static enum_nested_loop_state
@@ -120,7 +120,6 @@ static bool remove_dup_with_hash_index(THD *thd,TABLE *table,
 static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
-static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
 
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
@@ -931,8 +930,10 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab)
     If this is an index merge, the primary key columns may be required
     for positioning in a later stage, even though they are not in the
     read_set here. Allocate space for them in case they are needed.
+    Also allocate space for them for dynamic ranges, because they can
+    switch to index merge for a subsequent scan.
   */
-  if (qep_tab->type() == JT_INDEX_MERGE &&
+  if ((qep_tab->type() == JT_INDEX_MERGE || qep_tab->dynamic_range()) &&
       !table->s->is_missing_primary_key() &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
@@ -1112,15 +1113,6 @@ do_select(JOIN *join)
     else if (join->send_row_on_empty_set())
     {
       table_map save_nullinfo= 0;
-      /*
-        If this is a subquery, we need to save and later restore
-        the const table NULL info before clearing the tables
-        because the following executions of the subquery do not
-        reevaluate constant fields. @see save_const_null_info
-        and restore_const_null_info
-      */
-      if (join->select_lex->master_unit()->item && join->const_tables)
-        save_const_null_info(join, &save_nullinfo);
 
       // Calculate aggregate functions for no rows
       List_iterator_fast<Item> it(*join->fields);
@@ -1128,16 +1120,22 @@ do_select(JOIN *join)
       while ((item= it++))
         item->no_rows_in_result();
 
-      // Mark tables as containing only NULL values
-      if (join->clear())
+      /*
+        Mark tables as containing only NULL values for processing
+        the HAVING clause and for send_data().
+        Calculate a set of tables for which NULL values need to be restored
+        after sending data.
+      */
+      if (join->clear_fields(&save_nullinfo))
         error= NESTED_LOOP_ERROR;
       else
       {
         if (!join->having_cond || join->having_cond->val_int())
           rc= join->select_lex->query_result()->send_data(*join->fields);
 
+        // Restore NULL values if needed.
         if (save_nullinfo)
-          restore_const_null_info(join, save_nullinfo);
+          join->restore_fields(save_nullinfo);
       }
     }
     /*
@@ -1421,7 +1419,6 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
   DBUG_ENTER("sub_select");
 
   TABLE *const table= qep_tab->table();
-  table->reset_null_row();
 
   if (end_of_records)
   {
@@ -1560,6 +1557,8 @@ bool QEP_TAB::prepare_scan()
   // Bind to the rowid buffer managed by the TABLE object.
   if (copy_current_rowid)
     copy_current_rowid->bind_buffer(table()->file->ref);
+
+  table()->set_not_started();
 
   return false;
 }
@@ -1952,6 +1951,9 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
 
   DBUG_ENTER("evaluate_null_complemented_join_record");
 
+  bool matching= true;
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
+
   for ( ; qep_tab <= last_inner_tab ; qep_tab++)
   {
     // Make sure that the rowid buffer is bound, duplicates weedout needs it
@@ -1962,9 +1964,8 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     /* Change the the values of guard predicate variables. */
     qep_tab->found= true;
     qep_tab->not_null_compl= false;
-    /* The outer row is complemented by nulls for each inner tables */
-    restore_record(qep_tab->table(),s->default_values);  // Make empty record
-    qep_tab->table()->set_null_row();       // For group by without error
+    // Outer row is complemented by null values for each field from inner tables
+    qep_tab->table()->set_null_row();
     if (qep_tab->starts_weedout() && qep_tab > first_inner_tab)
     {
       // sub_select() has not performed a reset for this table.
@@ -1982,34 +1983,42 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
       /* check for errors */
       if (join->thd->is_error())
         DBUG_RETURN(NESTED_LOOP_ERROR);
-      else
-        DBUG_RETURN(NESTED_LOOP_OK);
+
+      matching= false;
+      break;
     }
   }
-  qep_tab= last_inner_tab;
-  /*
-    From the point of view of the rest of execution, this record matches
-    (it has been built and satisfies conditions, no need to do more evaluation
-    on it). See similar code in evaluate_join_record().
-  */
-  plan_idx f_u= QEP_AT(qep_tab, first_unmatched).first_upper();
-  if (f_u != NO_PLAN_IDX &&
-      join->qep_tab[f_u].last_inner() != qep_tab->idx())
-    f_u= NO_PLAN_IDX;
-  qep_tab->first_unmatched= f_u;
-  /*
-    The row complemented by nulls satisfies all conditions
-    attached to inner tables.
-    Finish evaluation of record and send it to be joined with
-    remaining tables.
-    Note that evaluate_join_record will re-evaluate the condition attached
-    to the last inner table of the current outer join. This is not deemed to
-    have a significant performance impact.
-  */
-  const enum_nested_loop_state rc= evaluate_join_record(join, qep_tab);
-
+  if (matching)
+  {
+    qep_tab= last_inner_tab;
+    /*
+      From the point of view of the rest of execution, this record matches
+      (it has been built and satisfies conditions, no need to do more evaluation
+      on it). See similar code in evaluate_join_record().
+    */
+    plan_idx f_u= QEP_AT(qep_tab, first_unmatched).first_upper();
+    if (f_u != NO_PLAN_IDX &&
+        join->qep_tab[f_u].last_inner() != qep_tab->idx())
+      f_u= NO_PLAN_IDX;
+    qep_tab->first_unmatched= f_u;
+    /*
+      The row complemented by nulls satisfies all conditions
+      attached to inner tables.
+      Finish evaluation of record and send it to be joined with
+      remaining tables.
+      Note that evaluate_join_record will re-evaluate the condition attached
+      to the last inner table of the current outer join. This is not deemed to
+      have a significant performance impact.
+    */
+    rc= evaluate_join_record(join, qep_tab);
+  }
   for (QEP_TAB *tab= first_inner_tab; tab <= last_inner_tab; tab++)
+  {
     tab->table()->reset_null_row();
+    // Restore NULL bits saved when reading row, @see join_read_key()
+    if (tab->type() == JT_EQ_REF)
+      tab->table()->restore_null_flags();
+  }
 
   DBUG_RETURN(rc);
 }
@@ -2026,7 +2035,7 @@ int report_handler_error(TABLE *table, int error)
 {
   if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
   {
-    table->status= STATUS_GARBAGE;
+    table->set_no_row();
     return -1;					// key not found; ok
   }
   /*
@@ -2078,7 +2087,8 @@ int safe_index_read(QEP_TAB *tab)
   TABLE *table= tab->table();
   if ((error=table->file->ha_index_read_map(table->record[0],
                                             tab->ref().key_buff,
-                                            make_prev_keypart_map(tab->ref().key_parts),
+                                            make_prev_keypart_map(
+                                              tab->ref().key_parts),
                                             HA_READ_KEY_EXACT)))
     return report_handler_error(table, error);
   return 0;
@@ -2100,9 +2110,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   int error;
   DBUG_ENTER("join_read_const_table");
   TABLE *table=tab->table();
-  table->const_table=1;
-  table->reset_null_row();
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  table->const_table= 1;
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
   {
@@ -2143,11 +2151,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	!table->no_keyread &&
         (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
     {
-      table->set_keyread(TRUE);
+      table->set_keyread(true);
       tab->set_index(tab->ref().key);
     }
     error= read_const(table, &tab->ref());
-    table->set_keyread(FALSE);
+    table->set_keyread(false);
   }
 
   if (error)
@@ -2209,23 +2217,32 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 static int read_system(TABLE *table)
 {
   int error;
-  if (table->status & STATUS_GARBAGE)		// If first read
+  if (!table->is_started())                     // If first read
   {
-    if ((error=table->file->read_first_row(table->record[0],
-					   table->s->primary_key)))
+    if ((error= table->file->ha_read_first_row(table->record[0],
+                                               table->s->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_handler_error(table, error);
       table->set_null_row();
-      empty_record(table);			// Make empty record
+      empty_record(table);                      // Make empty record
       return -1;
     }
     store_record(table,record[1]);
   }
-  else if (!table->status)			// Only happens with left join
-    restore_record(table,record[1]);			// restore old record
-  table->reset_null_row();
-  return table->status ? -1 : 0;
+  else if (table->has_row() && table->is_nullable())
+  {
+    /*
+      Row buffer contains a row, but it may have been partially overwritten
+      by a null-extended row. Restore the row from the saved copy.
+      @note this branch is currently unused.
+    */
+    DBUG_ASSERT(false);
+    table->set_found_row();
+    restore_record(table, record[1]);
+  }
+
+  return table->has_row() ? 0 : -1;
 }
 
 
@@ -2251,9 +2268,8 @@ static int read_const(TABLE *table, TABLE_REF *ref)
   int error;
   DBUG_ENTER("read_const");
 
-  if (table->status & STATUS_GARBAGE)		// If first read
+  if (!table->is_started())              // If first read
   {
-    table->status= 0;
     if (cp_buffer_from_ref(table->in_use, table, ref))
       error=HA_ERR_KEY_NOT_FOUND;
     else
@@ -2265,25 +2281,32 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     }
     if (error)
     {
-      table->status= STATUS_NOT_FOUND;
-      table->set_null_row();
-      empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
         const int ret= report_handler_error(table, error);
         DBUG_RETURN(ret);
       }
+      table->set_no_row();
+      table->set_null_row();
+      empty_record(table);
       DBUG_RETURN(-1);
     }
-    store_record(table,record[1]);
+    /*
+      read_const() may be called several times inside a nested loop join.
+      Save record in case it is needed when table is in "started" state.
+    */
+    store_record(table, record[1]);
   }
-  else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join
+  else if (table->has_row() && table->is_nullable())
   {
-    table->status=0;
-    restore_record(table,record[1]);			// restore old record
+    /*
+      Row buffer contains a row, but it may have been partially overwritten
+      by a null-extended row. Restore the row from the saved copy.
+    */
+    table->set_found_row();
+    restore_record(table, record[1]);
   }
-  table->reset_null_row();
-  DBUG_RETURN(table->status ? -1 : 0);
+  DBUG_RETURN(table->has_row() ? 0 : -1);
 }
 
 
@@ -2293,7 +2316,11 @@ static int read_const(TABLE *table, TABLE_REF *ref)
   @details
     This is the "read_first" function for the eq_ref access method.
     The difference from ref access function is that it has a one-element
-    lookup cache (see cmp_buffer_with_ref)
+    lookup cache, maintained in record[0]. Since the eq_ref access method
+    will always return the same row, it is not necessary to read the row
+    more than once, regardless of how many times it is needed in execution.
+    This cache element is used when a row is needed after it has been read once,
+    unless a key conversion error has occurred, or the cache has been disabled.
 
   @param tab   JOIN_TAB of the accessed table
 
@@ -2311,13 +2338,6 @@ join_read_key(QEP_TAB *tab)
 
   if (!table->file->inited)
   {
-    /*
-      Disable caching for inner table of outer join, since setting the NULL
-      property on the table will overwrite NULL bits and hence destroy the
-      current row for later use as a cached row.
-    */
-    if (tab->table_ref->is_inner_table_of_outer_join())
-      table_ref->disable_cache= true;
     DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
     if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {
@@ -2330,43 +2350,60 @@ join_read_key(QEP_TAB *tab)
     We needn't do "Late NULLs Filtering" because eq_ref is restricted to
     indices on NOT NULL columns (see create_ref_for_key()).
   */
-  if (cmp_buffer_with_ref(tab->join()->thd, table, table_ref) ||
-      (table->status & (STATUS_GARBAGE | STATUS_NULL_ROW)))
+
+  /*
+    Calculate if needed to read row. Always needed if
+    - no rows read yet, or
+    - cache is disabled, or
+    - previous lookup caused error when calculating key.
+  */
+  bool read_row= !table->is_started() ||
+                 table_ref->disable_cache ||
+                 table_ref->key_err;
+  if (!read_row)
+    // Last lookup found a row, copy its key to secondary buffer
+    memcpy(table_ref->key_buff2, table_ref->key_buff, table_ref->key_length);
+
+  // Create new key for lookup
+  table_ref->key_err= cp_buffer_from_ref(table->in_use, table, table_ref);
+  if (table_ref->key_err)
   {
-    if (table_ref->key_err)
-    {
-      table->status=STATUS_NOT_FOUND;
-      return -1;
-    }
-    /*
+    table->set_no_row();
+    return -1;
+  }
+
+  // Re-use current row if keys are equal
+  if (!read_row &&
+    memcmp(table_ref->key_buff2, table_ref->key_buff,
+           table_ref->key_length) != 0)
+    read_row= true;
+
+  if (read_row)
+  {
+   /*
       Moving away from the current record. Unlock the row
       in the handler if it did not match the partial WHERE.
     */
-    if (table_ref->has_record && table_ref->use_count == 0)
-    {
+    if (table->has_row() && table_ref->use_count == 0)
       table->file->unlock_row();
-      table_ref->has_record= FALSE;
-    }
+
     error= table->file->ha_index_read_map(table->record[0],
                                           table_ref->key_buff,
                                           make_prev_keypart_map(table_ref->key_parts),
                                           HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    if (error)
       return report_handler_error(table, error);
 
-    if (! error)
-    {
-      table_ref->has_record= TRUE;
-      table_ref->use_count= 1;
-    }
+    table_ref->use_count= 1;
+    table->save_null_flags();
   }
-  else if (table->status == 0)
+  else if (table->has_row())
   {
-    DBUG_ASSERT(table_ref->has_record);
+    DBUG_ASSERT(!table->has_null_row());
     table_ref->use_count++;
   }
-  table->reset_null_row();
-  return table->status ? -1 : 0;
+
+  return table->has_row() ? 0 : -1;
 }
 
 /**
@@ -2394,11 +2431,11 @@ join_read_key_unlock_row(QEP_TAB *tab)
   When the table access is performed as part of the pushed join,
   all 'linked' child colums are prefetched together with the parent row.
   The handler will then only format the row as required by MySQL and set
-  'table->status' accordingly.
+  table status accordingly.
 
   However, there may be situations where the prepared pushed join was not
   executed as assumed. It is the responsibility of the handler to handle
-  these situation by letting @c index_read_pushed() then effectively do a 
+  these situation by letting @c ha_index_read_pushed() then effectively do a
   plain old' index_read_map(..., HA_READ_KEY_EXACT);
   
   @param tab			Table to read
@@ -2418,6 +2455,7 @@ join_read_linked_first(QEP_TAB *tab)
   DBUG_ENTER("join_read_linked_first");
 
   DBUG_ASSERT(!tab->use_order()); // Pushed child can't be sorted
+
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref().key, tab->use_order())))
   {
@@ -2428,27 +2466,30 @@ join_read_linked_first(QEP_TAB *tab)
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   if (tab->ref().impossible_null_ref())
   {
+    table->set_no_row();
     DBUG_PRINT("info", ("join_read_linked_first null_rejected"));
     DBUG_RETURN(-1);
   }
 
   if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref()))
   {
-    table->status=STATUS_NOT_FOUND;
+    table->set_no_row();
     DBUG_RETURN(-1);
   }
 
   // 'read' itself is a NOOP: 
-  //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-  error=table->file->index_read_pushed(table->record[0],
-                                       tab->ref().key_buff,
-                                       make_prev_keypart_map(tab->ref().key_parts));
-  if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
-    DBUG_RETURN(report_handler_error(table, error));
-
-  table->reset_null_row();
-  int rc= table->status ? -1 : 0;
-  DBUG_RETURN(rc);
+  //  handler::ha_index_read_pushed() only unpack the prefetched row and
+  //  set 'status'
+  error=table->file->ha_index_read_pushed(table->record[0],
+                                          tab->ref().key_buff,
+                                          make_prev_keypart_map(
+                                            tab->ref().key_parts));
+  if (error)
+  {
+    const int ret= report_handler_error(table, error);
+    DBUG_RETURN(ret);
+  }
+  DBUG_RETURN(0);
 }
 
 static int
@@ -2457,13 +2498,11 @@ join_read_linked_next(READ_RECORD *info)
   TABLE *table= info->table;
   DBUG_ENTER("join_read_linked_next");
 
-  int error=table->file->index_next_pushed(table->record[0]);
+  int error=table->file->ha_index_next_pushed(table->record[0]);
   if (error)
   {
-    if (unlikely(error != HA_ERR_END_OF_FILE))
-      DBUG_RETURN(report_handler_error(table, error));
-    table->status= STATUS_GARBAGE;
-    DBUG_RETURN(-1);
+    const int ret= report_handler_error(table, error);
+    DBUG_RETURN(ret);
   }
   DBUG_RETURN(error);
 }
@@ -2476,9 +2515,9 @@ join_read_linked_next(READ_RECORD *info)
       tab  JOIN_TAB of the accessed table
 
   DESCRIPTION
-    This is "read_fist" function for the "ref" access method.
+    This is "read_first" function for the "ref" access method.
    
-    The functon must leave the index initialized when it returns.
+    The function must leave the index initialized when it returns.
     ref_or_null access implementation depends on that.
 
   RETURN
@@ -2503,20 +2542,22 @@ join_read_always_key(QEP_TAB *tab)
   if (ref->impossible_null_ref())
   {
     DBUG_PRINT("info", ("join_read_always_key null_rejected"));
+    table->set_no_row();
     return -1;
   }
 
   if (cp_buffer_from_ref(tab->join()->thd, table, ref))
+  {
+    table->set_no_row();
     return -1;
+  }
   if ((error= table->file->ha_index_read_map(table->record[0],
                                              tab->ref().key_buff,
-                                             make_prev_keypart_map(tab->ref().key_parts),
+                                             make_prev_keypart_map(
+                                               tab->ref().key_parts),
                                              HA_READ_KEY_EXACT)))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_handler_error(table, error);
-    return -1; /* purecov: inspected */
-  }
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2536,15 +2577,16 @@ join_read_last_key(QEP_TAB *tab)
                                    tab->ref().key, tab->use_order()))
     return 1;                                   /* purecov: inspected */
   if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref()))
+  {
+    table->set_no_row();
     return -1;
+  }
   if ((error=table->file->ha_index_read_last_map(table->record[0],
                                                  tab->ref().key_buff,
-                                                 make_prev_keypart_map(tab->ref().key_parts))))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_handler_error(table, error);
-    return -1; /* purecov: inspected */
-  }
+                                                 make_prev_keypart_map(
+                                                   tab->ref().key_parts))))
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2567,12 +2609,8 @@ join_read_next_same(READ_RECORD *info)
   if ((error= table->file->ha_index_next_same(table->record[0],
                                               tab->ref().key_buff,
                                               tab->ref().key_length)))
-  {
-    if (error != HA_ERR_END_OF_FILE)
-      return report_handler_error(table, error);
-    table->status= STATUS_GARBAGE;
-    return -1;
-  }
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2599,7 +2637,7 @@ join_read_prev_same(READ_RECORD *info)
   if (key_cmp_if_same(table, tab->ref().key_buff, tab->ref().key,
                       tab->ref().key_length))
   {
-    table->status=STATUS_NOT_FOUND;
+    table->set_no_row();
     error= -1;
   }
   return error;
@@ -2725,7 +2763,7 @@ int join_init_read_record(QEP_TAB *tab)
   if (tab->quick() && (error= tab->quick()->reset()))
   {
     /* Ensures error status is propageted back to client */
-    report_handler_error(tab->table(), error);
+    (void) report_handler_error(tab->table(), error);
     return 1;
   }
   if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab,
@@ -2882,8 +2920,7 @@ join_read_first(QEP_TAB *tab)
   int error;
   TABLE *table=tab->table();
   if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
-    table->set_keyread(TRUE);
-  table->status=0;
+    table->set_keyread(true);
   tab->read_record.table=table;
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
@@ -2892,11 +2929,8 @@ join_read_first(QEP_TAB *tab)
                                    tab->index(), tab->use_order()))
     return 1;
   if ((error= table->file->ha_index_first(tab->table()->record[0])))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      report_handler_error(table, error);
-    return -1;
-  }
+    return report_handler_error(table, error);
+
   return 0;
 }
 
@@ -2918,7 +2952,6 @@ join_read_last(QEP_TAB *tab)
   int error;
   if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
     table->set_keyread(TRUE);
-  table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
   tab->read_record.record=table->record[0];
@@ -2955,7 +2988,7 @@ join_ft_read_first(QEP_TAB *tab)
   }
   table->file->ft_init();
 
-  if ((error= table->file->ft_read(table->record[0])))
+  if ((error= table->file->ha_ft_read(table->record[0])))
     return report_handler_error(table, error);
   return 0;
 }
@@ -2964,7 +2997,7 @@ static int
 join_ft_read_next(READ_RECORD *info)
 {
   int error;
-  if ((error= info->table->file->ft_read(info->table->record[0])))
+  if ((error= info->table->file->ha_ft_read(info->table->record[0])))
     return report_handler_error(info->table, error);
   return 0;
 }
@@ -3265,16 +3298,6 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
           table_map save_nullinfo= 0;
           if (!join->first_record)
           {
-            /*
-              If this is a subquery, we need to save and later restore
-              the const table NULL info before clearing the tables
-              because the following executions of the subquery do not
-              reevaluate constant fields. @see save_const_null_info
-              and restore_const_null_info
-            */
-            if (join->select_lex->master_unit()->item && join->const_tables)
-              save_const_null_info(join, &save_nullinfo);
-
             // Calculate aggregate functions for no rows
             List_iterator_fast<Item> it(*fields);
             Item *item;
@@ -3282,8 +3305,13 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
             while ((item= it++))
               item->no_rows_in_result();
 
-            // Mark tables as containing only NULL values
-            if (join->clear())
+            /*
+              Mark tables as containing only NULL values for processing
+              the HAVING clause and for send_data().
+              Calculate a set of tables for which NULL values need to
+              be restored after sending data.
+            */
+            if (join->clear_fields(&save_nullinfo))
               DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
 	  }
 	  if (join->having_cond && join->having_cond->val_int() == 0)
@@ -3300,9 +3328,9 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 	    if (join->rollup_send_data((uint) (idx+1)))
 	      error= 1;
 	  }
+          // Restore NULL values if needed.
           if (save_nullinfo)
-            restore_const_null_info(join, save_nullinfo);
-
+            join->restore_fields(save_nullinfo);
 	}
 	if (error > 0)
           DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
@@ -3730,8 +3758,10 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
          group;
          group= group->next, key_part++)
     {
+      // Field null indicator is located one byte ahead of field value.
+      // @todo - check if this NULL byte is really necessary for grouping
       if (key_part->null_bit)
-        memcpy(table->record[0] + key_part->offset, group->buff, 1);
+        memcpy(table->record[0] + key_part->offset - 1, group->buff - 1, 1);
     }
     /* See comment on copy_funcs above. */
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
@@ -3784,15 +3814,6 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
         {
           // Dead code or we need a test case for this branch
           DBUG_ASSERT(false);
-          /*
-            If this is a subquery, we need to save and later restore
-            the const table NULL info before clearing the tables
-            because the following executions of the subquery do not
-            reevaluate constant fields. @see save_const_null_info
-            and restore_const_null_info
-          */
-          if (join->select_lex->master_unit()->item && join->const_tables)
-            save_const_null_info(join, &save_nullinfo);
 
           // Calculate aggregate functions for no rows
           List_iterator_fast<Item> it(*(qep_tab-1)->fields);
@@ -3800,8 +3821,12 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
           while ((item= it++))
             item->no_rows_in_result();
 
-          // Mark tables as containing only NULL values
-          if (join->clear())
+          /*
+            Mark tables as containing only NULL values for ha_write_row().
+            Calculate a set of tables for which NULL values need to
+            be restored after sending data.
+          */
+          if (join->clear_fields(&save_nullinfo))
             DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         copy_sum_funcs(join->sum_funcs,
@@ -3821,8 +3846,9 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 	  if (join->rollup_write_data((uint) (idx+1), table))
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
 	}
+        // Restore NULL values if needed.
         if (save_nullinfo)
-          restore_const_null_info(join, save_nullinfo);
+          join->restore_fields(save_nullinfo);
 
 	if (end_of_records)
 	  DBUG_RETURN(NESTED_LOOP_OK);
@@ -3894,7 +3920,6 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                              sizeof(IO_CACHE),
                                              MYF(MY_WME | MY_ZEROFILL));
-  table->status=0;				// May be wrong if quick_select
 
   // If table has a range, move it to select
   if (tab->quick() && tab->ref().key >= 0)
@@ -4239,58 +4264,12 @@ err:
 }
 
 
-/*
-  eq_ref: Create the lookup key and check if it is the same as saved key
-
-  SYNOPSIS
-    cmp_buffer_with_ref()
-      tab      Join tab of the accessed table
-      table    The table to read.  This is usually tab->table(), except for 
-               semi-join when we might need to make a lookup in a temptable
-               instead.
-      tab_ref  The structure with methods to collect index lookup tuple. 
-               This is usually table->ref, except for the case of when we're 
-               doing lookup into semi-join materialization table.
-
-  DESCRIPTION 
-    Used by eq_ref access method: create the index lookup key and check if 
-    we've used this key at previous lookup (If yes, we don't need to repeat
-    the lookup - the record has been already fetched)
-
-  RETURN 
-    TRUE   No cached record for the key, or failed to create the key (due to
-           out-of-domain error)
-    FALSE  The created key is the same as the previous one (and the record 
-           is already in table->record)
-*/
-
-static bool
-cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref)
-{
-  bool no_prev_key;
-  if (!tab_ref->disable_cache)
-  {
-    if (!(no_prev_key= tab_ref->key_err))
-    {
-      /* Previous access found a row. Copy its key */
-      memcpy(tab_ref->key_buff2, tab_ref->key_buff, tab_ref->key_length);
-    }
-  }
-  else 
-    no_prev_key= TRUE;
-  if ((tab_ref->key_err= cp_buffer_from_ref(thd, table, tab_ref)) ||
-      no_prev_key)
-    return 1;
-  return memcmp(tab_ref->key_buff2, tab_ref->key_buff, tab_ref->key_length)
-    != 0;
-}
-
-
 bool
 cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 {
-  enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  enum enum_check_fields save_check_for_truncated_fields=
+    thd->check_for_truncated_fields;
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   bool result= false;
 
@@ -4312,7 +4291,7 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       break;
     }
   }
-  thd->count_cuted_fields= save_count_cuted_fields;
+  thd->check_for_truncated_fields= save_check_for_truncated_fields;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   return result;
 }
@@ -4739,77 +4718,81 @@ change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 
 
 /**
-  Save NULL-row info for constant tables. Used in conjunction with
-  restore_const_null_info() to restore constant table null_row and
-  status values after temporarily marking rows as NULL. This is only
-  done for const tables in subqueries because these values are not
-  recalculated on next execution of the subquery.
+  Clear all result fields. Non-aggregated fields are set to NULL,
+  aggregated fields are set to their special "clear" value.
 
-  @param join               The join for which const tables are about to be
-                            marked as containing only NULL values
-  @param[out] save_nullinfo Const tables that have null_row=false and
-                            STATUS_NULL_ROW set are tagged in this
-                            table_map so that the value can be
-                            restored by restore_const_null_info()
+  Result fields can be fields from input tables, field values generated
+  by sum functions and literal values.
 
-  @see TABLE::set_null_row
-  @see restore_const_null_info
+  This is used when no rows are found during grouping and a result row
+  of all NULL values will be output.
+
+  @note Setting field values for input tables is a destructive operation,
+        since it overwrite the NULL value flags with 1 bits. Rows from
+        const tables are never re-read, hence their NULL value flags must
+        be saved by this function and later restored by JOIN::restore_fields().
+        This is generally not necessary for non-const tables, since field
+        values are overwritten when new rows are read.
+
+  @param[out] save_nullinfo Map of tables whose fields were set to NULL,
+                            and for which NULL values must be restored.
+                            Should be set to all zeroes on entry to function.
+
+  @returns false if success, true if error
 */
-static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
+
+bool JOIN::clear_fields(table_map *save_nullinfo)
 {
-  DBUG_ASSERT(join->const_tables);
-
-  for (uint tableno= 0; tableno < join->const_tables; tableno++)
+  // Set all column values from all input tables to NULL.
+  for (uint tableno= 0; tableno < primary_tables; tableno++)
   {
-    QEP_TAB *const tab= join->qep_tab + tableno;
-    TABLE *const table= tab->table();
-    /*
-      table->status and table->null_row must be in sync: either both set
-      or none set. Otherwise, an additional table_map parameter is
-      needed to save/restore_const_null_info() these separately
-    */
-    DBUG_ASSERT(table->has_null_row() ? (table->status & STATUS_NULL_ROW) :
-                                        !(table->status & STATUS_NULL_ROW));
-
+    QEP_TAB *const tab= qep_tab + tableno;
+    TABLE *const table= tab->table_ref->table;
     if (!table->has_null_row())
+    {
       *save_nullinfo|= tab->table_ref->map();
+      if (table->const_table)
+        table->save_null_flags();
+      table->set_null_row();  // All fields are NULL
+    }
   }
+  if (copy_fields(&tmp_table_param, thd))
+    return true;
+
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->clear();
+  }
+  return false;
 }
 
+
 /**
-  Restore NULL-row info for constant tables. Used in conjunction with
-  save_const_null_info() to restore constant table null_row and status
-  values after temporarily marking rows as NULL. This is only done for
-  const tables in subqueries because these values are not recalculated
-  on next execution of the subquery.
+  Restore all result fields for all tables specified in save_nullinfo.
 
-  @param join            The join for which const tables have been
-                         marked as containing only NULL values
-  @param save_nullinfo   Const tables that had null_row=false and
-                         STATUS_NULL_ROW set when
-                         save_const_null_info() was called
+  @param save_nullinfo Set of tables for which restore is necessary.
 
-  @see TABLE::set_null_row
-  @see save_const_null_info
+  @note Const tables must have their NULL value flags restored,
+        @see JOIN::clear_fields().
 */
-static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
+void JOIN::restore_fields(table_map save_nullinfo)
 {
-  DBUG_ASSERT(join->const_tables && save_nullinfo);
+  DBUG_ASSERT(save_nullinfo);
 
-  for (uint tableno= 0; tableno < join->const_tables; tableno++)
+  for (uint tableno= 0; tableno < primary_tables; tableno++)
   {
-    QEP_TAB *const tab= join->qep_tab + tableno;
-    if ((save_nullinfo & tab->table_ref->map()))
+    QEP_TAB *const tab= qep_tab + tableno;
+    if (save_nullinfo & tab->table_ref->map())
     {
-      /*
-        The table had null_row=false and STATUS_NULL_ROW set when
-        save_const_null_info was called
-      */
-      tab->table()->reset_null_row();
+      TABLE *const table= tab->table_ref->table;
+      if (table->const_table)
+        table->restore_null_flags();
+      table->reset_null_row();
     }
   }
 }
-
 
 /****************************************************************************
   QEP_tmp_table implementation

@@ -1797,7 +1797,6 @@ void log_slow_statement(THD *thd)
 }
 
 
-#ifdef MYSQL_SERVER
 void Log_throttle::new_window(ulonglong now)
 {
   count= 0;
@@ -2007,7 +2006,7 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                                    slow_log_write,
                                    "throttle: %10lu 'index "
                                    "not used' warning(s) suppressed.");
-#endif // MYSQL_SERVER
+
 
 ////////////////////////////////////////////////////////////
 //

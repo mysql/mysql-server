@@ -17,12 +17,14 @@
 
 #include <string.h>
 
+#include "dd/info_schema/show.h"             // build_show_...
 #include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
 #include "derror.h"         // ER_THD
 #include "key_spec.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "mysqld.h"         // global_system_variables
 #include "parse_tree_column_attrs.h" // PT_field_def_base
 #include "parse_tree_hints.h"
@@ -33,6 +35,7 @@
 #include "sp.h"             // sp_add_used_routine
 #include "sp_instr.h"       // sp_instr_set
 #include "sp_pcontext.h"
+#include "sql_base.h"                        // find_temporary_table
 #include "sql_call.h"       // Sql_cmd_call...
 #include "sql_data_change.h"
 #include "sql_delete.h"     // Sql_cmd_delete...
@@ -1828,4 +1831,90 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc)
   }
 
   return false;
+}
+
+
+Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  return &m_sql_cmd;
+}
+
+
+bool PT_show_fields_and_keys::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+
+  // Create empty query block and add user specfied table.
+  TABLE_LIST **query_tables_last= lex->query_tables_last;
+  SELECT_LEX *schema_select_lex= lex->new_empty_query_block();
+  if (schema_select_lex == nullptr)
+    return true;
+  TABLE_LIST *tbl= schema_select_lex->add_table_to_list(thd, m_table_ident,
+                                                        0, 0, TL_READ,
+                                                        MDL_SHARED_READ);
+  if (tbl == nullptr)
+    return true;
+  lex->query_tables_last= query_tables_last;
+
+  if (m_wild.str && lex->set_wild(m_wild))
+    return true; // OOM
+
+  // If its a temporary table then use schema_table implementation.
+  if (find_temporary_table(thd, tbl) != nullptr)
+  {
+    SELECT_LEX *select_lex= lex->current_select();
+
+    if (m_where_condition != nullptr)
+    {
+      m_where_condition->itemize(pc, &m_where_condition);
+      select_lex->set_where_cond(m_where_condition);
+    }
+
+    enum enum_schema_tables schema_table=
+      (m_type == SHOW_FIELDS) ? SCH_TMP_TABLE_COLUMNS :
+                                SCH_TMP_TABLE_KEYS;
+    if (make_schema_select(thd, select_lex, schema_table))
+      return true;
+
+    TABLE_LIST *table_list= select_lex->table_list.first;
+    table_list->schema_select_lex= schema_select_lex;
+    table_list->schema_table_reformed= 1;
+  }
+  else // Use implementation of I_S as system views.
+  {
+    SELECT_LEX *sel= nullptr;
+    switch(m_type) {
+    case SHOW_FIELDS:
+      sel= dd::info_schema::build_show_columns_query(m_pos, thd, m_table_ident,
+                                                     thd->lex->wild,
+                                                     m_where_condition);
+      break;
+    case SHOW_KEYS:
+      sel= dd::info_schema::build_show_keys_query(m_pos, thd, m_table_ident,
+                                                  m_where_condition);
+      break;
+    }
+
+    if (sel == nullptr)
+      return true;
+
+    TABLE_LIST *table_list= sel->table_list.first;
+    table_list->schema_select_lex= schema_select_lex;
+  }
+
+  return false;
+}
+
+
+bool PT_show_fields::contextualize(Parse_context *pc)
+{
+  pc->thd->lex->verbose= m_verbose;
+  return super::contextualize(pc);
 }

@@ -4,7 +4,6 @@ source include/not_valgrind.inc;
 # Test of master and both with slave with memcached access and binlog-format=raw.
 #
 source include/not_windows.inc;
-source include/have_innodb.inc;
 --disable_warnings
 source include/master-slave.inc;
 --enable_warnings

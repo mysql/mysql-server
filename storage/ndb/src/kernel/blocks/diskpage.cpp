@@ -86,6 +86,25 @@ operator<<(NdbOut& out, const File_formats::Datafile::Zero_page& obj)
 }
 
 NdbOut&
+operator<<(NdbOut& out, const File_formats::Datafile::Zero_page_v2& obj)
+{
+  out << obj.m_page_header << endl;
+  out << "m_file_no: " << obj.m_file_no << endl;
+  out << "m_tablespace_id: " << obj.m_tablespace_id << endl;
+  out << "m_tablespace_version: " << obj.m_tablespace_version << endl;
+  out << "m_data_pages: " << obj.m_data_pages << endl;
+  out << "m_extent_pages: " << obj.m_extent_pages << endl;
+  out << "m_extent_size: " << obj.m_extent_size << endl;
+  out << "m_extent_count: " << obj.m_extent_count << endl;
+  out << "m_extent_headers_per_page: " << obj.m_extent_headers_per_page << endl;
+  out << "m_extent_header_words: " << obj.m_extent_header_words << endl;
+  out << "m_extent_header_bits_per_page: " << obj.m_extent_header_bits_per_page << endl;
+  out << "m_checksum: " << obj.m_checksum << endl;
+
+  return out;
+}
+
+NdbOut&
 operator<<(NdbOut& out, const File_formats::Undofile::Zero_page& obj)
 {
   out << obj.m_page_header << endl;
@@ -97,3 +116,15 @@ operator<<(NdbOut& out, const File_formats::Undofile::Zero_page& obj)
   return out;
 }
 
+NdbOut&
+operator<<(NdbOut& out, const File_formats::Undofile::Zero_page_v2& obj)
+{
+  out << obj.m_page_header << endl;
+  out << "m_file_id: " << obj.m_file_id << endl;
+  out << "m_logfile_group_id: " << obj.m_logfile_group_id << endl;
+  out << "m_logfile_group_version: " << obj.m_logfile_group_version << endl;
+  out << "m_undo_pages: " << obj.m_undo_pages << endl;
+  out << "m_checksum: " << obj.m_checksum << endl;
+  
+  return out;
+}

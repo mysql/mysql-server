@@ -21,6 +21,7 @@
 #include "query_string_builder.h"
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h" // escape_string_for_mysql
 #include "mysql/plugin.h"
 

@@ -626,6 +626,7 @@ Handler_read_next	5
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 VARIABLE_NAME	VARIABLE_VALUE
+<<<<<<< HEAD
 Handler_commit	10
 Handler_delete	8
 Handler_external_lock	88
@@ -633,6 +634,12 @@ Handler_read_key	65
 Handler_read_next	8
 Handler_update	45
 Handler_write	8
+=======
+Handler_commit	2
+Handler_external_lock	24
+Handler_read_key	40
+Handler_update	40
+>>>>>>> mysql-trunk
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
 FLUSH STATUS;
@@ -978,6 +985,7 @@ Handler_write	5
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
 VARIABLE_NAME	VARIABLE_VALUE
+<<<<<<< HEAD
 Handler_commit	14
 Handler_delete	12
 Handler_external_lock	120
@@ -985,6 +993,12 @@ Handler_read_key	75
 Handler_read_next	12
 Handler_update	45
 Handler_write	12
+=======
+Handler_commit	2
+Handler_external_lock	24
+Handler_read_key	40
+Handler_update	40
+>>>>>>> mysql-trunk
 # Warm-up data-dictionary cache
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
@@ -1181,6 +1195,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
 VARIABLE_NAME	VARIABLE_VALUE
+<<<<<<< HEAD
 Handler_commit	6
 Handler_delete	4
 Handler_external_lock	56
@@ -1188,6 +1203,12 @@ Handler_read_key	55
 Handler_read_next	4
 Handler_update	45
 Handler_write	4
+=======
+Handler_commit	2
+Handler_external_lock	24
+Handler_read_key	40
+Handler_update	40
+>>>>>>> mysql-trunk
 # Lots of extra lock acquisitions, reads and etc due to
 # data-dictionary update.
 # Test on non partitioned table

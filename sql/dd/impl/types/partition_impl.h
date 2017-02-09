@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,8 +210,10 @@ public:
   virtual const Partition_indexes &indexes() const
   { return m_indexes; }
 
+  /* purecov: begin deadcode */
   virtual Partition_indexes *indexes()
   { return &m_indexes; }
+  /* purecov: end */
 
   virtual const Partition *parent() const
   { return m_parent; }

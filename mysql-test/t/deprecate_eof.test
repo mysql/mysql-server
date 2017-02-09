@@ -6,6 +6,8 @@
 --echo # as part of OK packet is displayed as part of SELECT sql statement.
 --echo #
 
+SET @save_query_cache_size=@@query_cache_size;
+
 CREATE DATABASE wl7766;
 USE wl7766;
 CREATE TABLE t1 (a int);
@@ -288,7 +290,7 @@ SHOW STATUS LIKE 'Qcache_queries_in_cache';
 CALL sel_with_session();
 --echo #expect 1 as query is not cached
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
-SET GLOBAL query_cache_size= default;
+SET GLOBAL query_cache_size= @save_query_cache_size;
 
 --echo #cleanup
 DROP DATABASE bug19550875;

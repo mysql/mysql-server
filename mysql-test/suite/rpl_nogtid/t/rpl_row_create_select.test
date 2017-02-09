@@ -1,7 +1,6 @@
 # Testing table creations for row-based replication.
 
 --source include/have_binlog_format_row.inc
---source include/not_gtid_enabled.inc 
 --source include/master-slave.inc
 
 --echo #

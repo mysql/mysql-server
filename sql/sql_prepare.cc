@@ -359,6 +359,7 @@ public:
 };
 
 
+static
 bool send_statement(THD *thd, const Prepared_statement *stmt, uint no_columns,
                     Query_result *result, List<Item> *types);
 
@@ -639,7 +640,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       param->item_result_type= STRING_RESULT;
     }
   }
-  param->param_type= param_type;
+  param->set_data_type(param_type);
 }
 
 
@@ -650,8 +651,8 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 */
 inline bool is_param_long_data_type(Item_param *param)
 {
-  return ((param->param_type >= MYSQL_TYPE_TINY_BLOB) &&
-          (param->param_type <= MYSQL_TYPE_STRING));
+  return ((param->data_type() >= MYSQL_TYPE_TINY_BLOB) &&
+          (param->data_type() <= MYSQL_TYPE_STRING));
 }
 
 /**
@@ -883,7 +884,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
         the parameter's members that might be needed further
         (e.g. value.cs_info.character_set_client is used in the query_val_str()).
       */
-      setup_one_conversion_function(thd, param, param->param_type);
+      setup_one_conversion_function(thd, param, param->data_type());
       if (param->set_from_user_var(thd, entry))
         goto error;
       val= param->query_val_str(thd, &buf);
@@ -934,15 +935,10 @@ error:
   @param stmt               prepared statement
   @param tables             list of tables used in the query
 
-  @retval
-    0                 success
-  @retval
-    1                 error, error message is set in THD
-  @retval
-    2                 success, and statement metadata has been sent
+  @return false on succes and true on error
 */
 
-static int mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
+bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
@@ -958,6 +954,8 @@ static int mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 
   DBUG_ASSERT(lex->result == NULL);
   DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
+  DBUG_ASSERT(!lex->proc_analyse);
+  DBUG_ASSERT(!lex->describe);
 
   if (!lex->result)
   {
@@ -977,31 +975,10 @@ static int mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
   */
   if (unit->prepare(thd, 0, 0, 0))
     goto error;
-  if (!lex->describe && !stmt->is_sql_prepare())
-  {
-    Query_result *result= lex->result;
-    Query_result *analyse_result= NULL;
-    if (lex->proc_analyse)
-    {
-      /*
-        We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
-      */
-      if ((result= analyse_result=
-           new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
-        goto error; // OOM
-    }
 
-    uint no_columns= lex->sql_command == SQLCOM_DO ? 0 :
-                     result->field_count(unit->types);
-    bool rc= send_statement(thd, stmt, no_columns, result, &unit->types);
-    delete analyse_result;
-    if (rc)
-      goto error;
-    DBUG_RETURN(2);
-  }
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 error:
-  DBUG_RETURN(1);
+  DBUG_RETURN(true);
 }
 
 
@@ -1304,8 +1281,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
   case SQLCOM_SHOW_OPEN_TABLES:
-  case SQLCOM_SHOW_FIELDS:
-  case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_VARIABLES:
@@ -1313,12 +1288,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-    res= mysql_test_show(stmt, tables);
-    if (res == 2)
-    {
-      /* Statement and field info has already been sent */
-      DBUG_RETURN(false);
-    }
+    if (mysql_test_show(stmt, tables))
+      DBUG_RETURN(true);
     break;
   case SQLCOM_CREATE_TABLE:
     res= mysql_test_create_table(stmt);
@@ -1391,6 +1362,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_CALL:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
     res= lex->m_sql_cmd->prepare(thd);
     // @todo Temporary solution: Unprepare after preparation to preserve
     //       old behaviour
@@ -1427,12 +1400,15 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   Query_result *result= nullptr;
   uint no_columns= 0;
 
-  if (lex->sql_command == SQLCOM_SELECT && !lex->describe)
+  if ((sql_command_flags[lex->sql_command] & CF_HAS_RESULT_SET) &&
+      !lex->describe)
   {
     SELECT_LEX_UNIT *unit = lex->unit;
     result= unit->query_result();
     if (result == nullptr)
       result= unit->first_select()->query_result();
+    if (result == nullptr)
+      result= lex->result;
     types= unit->get_unit_column_types();
     no_columns= result->field_count(*types);
   }
@@ -2719,6 +2695,10 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     invoke_post_parse_rewrite_plugins(thd, true);
     error = init_param_array(this);
   }
+
+  // Bind Sql command object with this prepared statement
+  if (lex->m_sql_cmd)
+    lex->m_sql_cmd->set_owner(this);
 
   lex->set_trg_event_type_for_tables();
 

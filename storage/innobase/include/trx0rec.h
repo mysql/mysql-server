@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/trx0rec.h
 Transaction undo log record
@@ -26,15 +28,15 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0rec_h
 #define trx0rec_h
 
-#include "univ.i"
-#include "trx0types.h"
-#include "row0types.h"
-#include "mtr0mtr.h"
-#include "dict0types.h"
 #include "data0data.h"
-#include "rem0types.h"
+#include "dict0types.h"
+#include "mtr0mtr.h"
 #include "page0types.h"
+#include "rem0types.h"
 #include "row0log.h"
+#include "row0types.h"
+#include "trx0types.h"
+#include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
 # include "que0types.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,24 +23,24 @@ Row undo
 Created 1/8/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0undo.h"
 #include "fsp0fsp.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
+#include "my_compiler.h"
 #include "que0que.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0uins.h"
 #include "row0umod.h"
+#include "row0undo.h"
 #include "row0upd.h"
-#include "row0mysql.h"
 #include "srv0srv.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /* How to undo row operations?
 (1) For an insert, we have stored a prefix of the clustered index record

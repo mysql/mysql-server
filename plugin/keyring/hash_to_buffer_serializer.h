@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 #ifndef MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 #define MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 
-#include "i_serializer.h"
-#include "i_keyring_key.h"
 #include "buffer.h"
+#include "i_keyring_key.h"
+#include "i_serializer.h"
+#include "my_inttypes.h"
 
 namespace keyring
 {

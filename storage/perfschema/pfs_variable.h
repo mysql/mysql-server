@@ -122,6 +122,7 @@
       LOCK_thd_data                 (block THD delete)
 */
 
+#include "my_inttypes.h"
 /* Iteration on THD from the sql layer. */
 #include "mysqld_thd_manager.h"
 

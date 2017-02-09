@@ -431,7 +431,7 @@ REVOKE ALL ON *.* FROM 'no_rights'@'localhost';
 FLUSH PRIVILEGES;
 SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE trigger_schema = 'db1';
-trigger_name
+TRIGGER_NAME
 SHOW CREATE TRIGGER db1.trg;
 ERROR 42000: Access denied; you need (at least one of) the TRIGGER privilege(s) for this operation
 DROP USER 'no_rights'@'localhost';

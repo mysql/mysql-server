@@ -17,12 +17,14 @@
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "derror.h"
+#include "my_compiler.h"
 /**
   @file storage/perfschema/pfs_variable.cc
   Performance schema system variable and status variable (implementation).
 */
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld.h"
 #include "pfs.h"
@@ -670,7 +672,6 @@ System_variable::init(THD *target_thd,
     mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (show_var_type != SHOW_FUNC && query_scope == OPT_GLOBAL &&
       mysql_audit_notify(current_thread,
                          AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
@@ -680,7 +681,6 @@ System_variable::init(THD *target_thd,
   {
     return;
   }
-#endif
 
   m_initialized = true;
 }

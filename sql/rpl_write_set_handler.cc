@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 #include "field.h"         // Field
 #include "handler.h"
 #include "key.h"
@@ -30,6 +31,7 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_murmur3.h"    // murmur3_32
 #include "my_stacktrace.h" // my_safe_itoa
 #include "mysql/service_mysql_alloc.h"
@@ -43,7 +45,6 @@
 #include "system_variables.h"
 #include "table.h"         // TABLE
 #include "transaction_info.h"
-#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"

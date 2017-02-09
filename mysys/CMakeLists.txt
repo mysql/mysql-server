@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -95,6 +95,7 @@ SET(MYSYS_SOURCES
   my_user.cc
   my_write.cc
   pack.cc
+  print_version.cc
   psi_noop.cc
   ptr_cmp.cc
   sql_chars.cc

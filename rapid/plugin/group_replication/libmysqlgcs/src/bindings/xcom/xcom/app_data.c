@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,6 @@ static char *dbg_app_data_single(app_data_ptr a)
     PTREXP(a);
     SYCEXP(a->unique_id);
     NDBG(a->group_id,x);
-    SYCEXP(a->app_key);
     NDBG(a->consensus,d);
     NDBG(a->log_it,d);
     NDBG(a->chosen,d);
@@ -237,7 +236,7 @@ size_t synode_no_array_size(synode_no_array sa)
 /**
    Return size of an app_data.
  */
-size_t app_data_size(app_data_ptr const a)
+size_t app_data_size(app_data const *a)
 {
 	size_t size = sizeof(*a);
 	if (a == 0)
@@ -288,8 +287,16 @@ size_t app_data_size(app_data_ptr const a)
 	return size;
 }
 
-
-
+/* app_data structs may be linked. This function returns the size of the whole list */
+size_t app_data_list_size(app_data const *a)
+{
+	size_t size = 0;
+	while (a) {
+		size += app_data_size(a);
+		a = a->next;
+	}
+	return(size);
+}
 
 
 /**

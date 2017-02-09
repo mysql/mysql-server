@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,8 +18,10 @@
 #ifndef STORED_PROCEDURE_INCLUDED
 #define STORED_PROCEDURE_INCLUDED
 
-#include "abstract_plain_sql_object_dump_task.h"
 #include <string>
+
+#include "abstract_plain_sql_object_dump_task.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{

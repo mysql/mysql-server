@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,18 +23,18 @@ Data dictionary creation and booting
 Created 4/18/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
+#include "btr0btr.h"
+#include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include "btr0btr.h"
 #include "dict0load.h"
-#include "trx0trx.h"
-#include "srv0srv.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "buf0flu.h"
 #include "log0recv.h"
+#include "my_inttypes.h"
 #include "os0file.h"
+#include "srv0srv.h"
+#include "trx0trx.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.

@@ -214,10 +214,18 @@ CREATE DEFINER=`root`@`localhost` TRIGGER tr14 AFTER DELETE ON t1 FOR EACH ROW S
 CREATE DEFINER=`root`@`localhost` TRIGGER tr15 BEFORE UPDATE ON t1 FOR EACH ROW SET @a=1;
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
-UPDATE mysql.triggers SET action_statement = 'DELETE FROM t1 a USING t1 a' WHERE name = 'tr13';
-UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table'  WHERE name = 'tr14';
-UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table a USING non_existing_table a' WHERE name = 'tr15';
+UPDATE mysql.triggers SET action_statement = 'DELETE FROM t1 a USING t1 a',
+  action_statement_utf8 = 'DELETE FROM t1 a USING t1 a'
+  WHERE name = 'tr13';
+UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table',
+  action_statement_utf8 = 'DELETE FROM non_existing_table'
+  WHERE name = 'tr14';
+UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table a USING non_existing_table a',
+  action_statement_utf8= 'DELETE FROM non_existing_table a USING non_existing_table a'
+  WHERE name = 'tr15';
 COMMIT;
+--replace_column 6 #
+SHOW TRIGGERS;
 SET SESSION debug= '-d,skip_dd_table_access_check';
 --echo "Now we restart the server"
 --source include/restart_mysqld.inc

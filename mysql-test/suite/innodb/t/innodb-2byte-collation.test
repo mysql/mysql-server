@@ -1,7 +1,6 @@
 # Test for InnoDB support of 2 bytes (15 bits) collation ID
 # Some of the example and test setup are adopted from ctype_ldml.test
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR

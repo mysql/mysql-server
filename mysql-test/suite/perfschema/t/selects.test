@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 #
 # WL#4814, 4.1.2 STORAGE ENGINE, FSE8: Selects

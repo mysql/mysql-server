@@ -3,7 +3,7 @@ create database events_test;
 use events_test;
 create event e_26 on schedule at '2037-01-01 00:00:00' disable do set @a = 5;
 select  event_definition, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from information_schema.events;
-event_definition	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
+EVENT_DEFINITION	DEFINER	convert_tz(execute_at, 'UTC', 'SYSTEM')	ON_COMPLETION
 set @a = 5	root@localhost	2037-01-01 03:00:00	NOT PRESERVE
 drop event e_26;
 create event e_26 on schedule at NULL disable do set @a = 5;
@@ -16,14 +16,14 @@ drop event задачка;
 "DISABLE the scheduler. Testing that it does not work when the variable is 0"
 set global event_scheduler=off;
 select definer, event_name from information_schema.events;
-definer	event_name
+DEFINER	EVENT_NAME
 select get_lock("test_lock1", 20);
 get_lock("test_lock1", 20)
 1
 create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
 "Should return 1 row"
 select definer, event_name from information_schema.events;
-definer	event_name
+DEFINER	EVENT_NAME
 root@localhost	закачка
 "Should be only 0 process"
 select /*1*/ user, host, db, command, state, info
@@ -94,18 +94,18 @@ disable
 do
 select 1;
 select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_definition
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_DEFINITION
 events_test	white_space	root@localhost	select 1
 drop event white_space;
 create event white_space on schedule every 10 hour disable do
 select 2;
 select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_definition
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_DEFINITION
 events_test	white_space	root@localhost	select 2
 drop event white_space;
 create event white_space on schedule every 10 hour disable do	select 3;
 select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_definition
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_DEFINITION
 events_test	white_space	root@localhost	select 3
 drop event white_space;
 create event e1 on schedule every 1 year do set @a = 5;
@@ -130,7 +130,7 @@ show create event e1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 select event_name from information_schema.events;
-event_name
+EVENT_NAME
 e1
 create event e2 on schedule every 10 hour do select 1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
@@ -146,7 +146,7 @@ unlock tables;
 drop event e1;
 Make sure we have left no events
 select event_name from information_schema.events;
-event_name
+EVENT_NAME
 
 Events in sub-statements, events and prelocking
 
@@ -216,7 +216,7 @@ end|
 expected to work, since we redirect the output into a tmp table
 insert into t1 (a) values (1)|
 select * from tmp|
-event_name
+EVENT_NAME
 e1
 drop temporary table tmp|
 drop procedure p1|

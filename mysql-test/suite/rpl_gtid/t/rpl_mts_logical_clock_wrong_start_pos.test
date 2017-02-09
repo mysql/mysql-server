@@ -8,7 +8,6 @@
 # as well.
 #
 # GTIDs are expected in binlog when events are indexed by query_get_value below
---source include/have_gtid.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 

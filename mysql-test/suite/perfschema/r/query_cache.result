@@ -1,6 +1,7 @@
 drop table if exists t1;
 create table t1 (a int not null);
 insert into t1 values (1), (2), (3);
+SET @save_query_cache_size = @@query_cache_size;
 SET GLOBAL query_cache_size=1355776;
 flush query cache;
 reset query cache;
@@ -63,6 +64,6 @@ Qcache_inserts	1
 show global status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
-SET GLOBAL query_cache_size= default;
+SET GLOBAL query_cache_size= @save_query_cache_size;
 drop table t1;
 flush status;

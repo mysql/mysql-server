@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #define NDB_NDBAPI_UTIL_H
 
 #include "my_global.h"
-#include "my_byteorder.h"
 
 #include "ndbapi/NdbRecAttr.hpp"
 #include "ndbapi/NdbBlob.hpp"
@@ -36,17 +35,14 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);
 
 /**
-  Check that frm-file blob in pack_data is equal
-  to frm-file of the NdbDictionary::Table.
-
-  TODO: This function is not used anymore, it is replaced by
-  different_serialized_meta_data() in sdi_utils.{h,cc}. May be
-  removed?
+  Compare the extra metadata in the table with the data provided
+  by the arguments
 
   @retval
     0    ok
 */
-int cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
-            size_t pack_length);
+
+int cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
+                     size_t data_length);
 
 #endif

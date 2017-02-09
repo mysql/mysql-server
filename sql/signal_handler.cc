@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,9 @@
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "current_thd.h"                 // my_thread_get_THR_THD
 #include "keycache.h"
-#include "my_config.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
 #include "mysqld.h"

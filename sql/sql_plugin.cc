@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@
 #include "my_list.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
@@ -264,14 +265,14 @@
     st_service_ref
 */
 
-#include "srv_session.h"       // Srv_session::check_for_stale_threads()
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
 
 #include <algorithm>
 #include <new>
 
-#ifdef HAVE_DLFCN_H
-#include <dlfcn.h>
-#endif
+#include "srv_session.h"       // Srv_session::check_for_stale_threads()
 
 using std::min;
 using std::max;
@@ -2417,7 +2418,6 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     goto err;
   }
 
-#ifdef HAVE_REPLICATION
   /* Block Uninstallation of semi_sync plugins (Master/Slave)
      when they are busy
    */
@@ -2459,7 +2459,6 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
              "Stop any active semisynchronous I/O threads on this slave first.");
     goto err;
   }
-#endif
 
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)

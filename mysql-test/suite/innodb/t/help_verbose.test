@@ -2,7 +2,6 @@
 # BUG#20856397 MYSQLD --HELP --VERBOSE TAKES 50 SECONDS ON UNLOADED SYSTEM
 #
 
---source include/have_innodb.inc
 
 let bugdir= $MYSQL_TMP_DIR/help_verbose;
 let datadir= $MYSQL_TMP_DIR/help_verbose/data;

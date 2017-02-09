@@ -386,6 +386,9 @@ disconnect con1;
 --echo # 10. Test Query cache behavior with max_execution_time.
 --echo #
 SET SESSION query_cache_type= 1;
+#Set query_cache_size to 1MB
+SET @save_query_cache_size = @@query_cache_size;
+SET GLOBAL query_cache_size= 1048576;
 SET @@SESSION.max_execution_time= 0;
 
 CREATE TABLE t1 (fld1 int);
@@ -467,7 +470,7 @@ FLUSH QUERY CACHE;
 DROP TABLE t1;
 
 SET @@SESSION.max_execution_time= 0;
-
+SET GLOBAL query_cache_size= @save_query_cache_size;
 # Check that all connections opened by test cases in this file are really gone
 # so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

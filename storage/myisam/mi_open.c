@@ -26,11 +26,18 @@
   environment. MEMORY internal temporary tables are optimized similarly.
 */
 
+#include "my_config.h"
+
+#include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>
 
 #include "fulltext.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"
 #include "rt_index.h"

@@ -31,16 +31,22 @@ include/rpl_sync.inc
 # db10, db11: not a database, but the directory and the entry exist.
 # db12 is not a database, but the empty directory exists on master.
 include/rpl_sync.inc
-# db16, db17, db18: one MyISAM and one InnoDB table.
+# db16, db17, db18, db19, db20: one MyISAM and one InnoDB table.
 CREATE DATABASE db16;
 CREATE DATABASE db17;
 CREATE DATABASE db18;
+CREATE DATABASE db19;
+CREATE DATABASE db20;
 CREATE TABLE db16.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db17.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db18.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db19.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db20.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db16.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db17.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db18.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db19.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db20.t2 (a INT) ENGINE=MyISAM;
 include/rpl_sync.inc
 ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
 # db1: no table.
@@ -87,6 +93,11 @@ DROP DATABASE db16;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
+# db19: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
+include/save_binlog_position.inc
+SET GTID_NEXT = 'AUTOMATIC';
+DROP DATABASE db19;
+include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)]
 ---- DROP DATABASE is split on master; GTID_NEXT=non-automatic ----
 # db2: no table.
 include/save_binlog_position.inc
@@ -138,6 +149,14 @@ ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
 SET GTID_NEXT = 'AUTOMATIC';
+# db20: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
+#       No splitting if GTID is assigned.
+include/save_binlog_position.inc
+SET GTID_NEXT = '#';
+DROP DATABASE db20;
+include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)]
+SET GTID_NEXT = 'AUTOMATIC';
+include/rpl_sync.inc
 ---- DROP DATABASE is split on slave ----
 SET GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL DEBUG= '+d, rm_db_fail_after_dropping_tables';

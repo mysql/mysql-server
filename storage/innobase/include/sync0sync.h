@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -37,6 +37,37 @@ Created 9/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0counter.h"
 
+#ifdef HAVE_PSI_INTERFACE
+
+/** Define for performance schema registration key */
+struct mysql_pfs_key_t {
+public:
+
+        /** Default Constructor */
+        mysql_pfs_key_t() {
+                s_count++;
+        }
+
+        /** Constructor */
+        mysql_pfs_key_t(unsigned int    val) : m_value(val) {}
+
+        /** Retreive the count.
+        @return number of keys defined */
+        static int get_count() {
+                return s_count;
+        }
+
+        /* Key value. */
+        unsigned int            m_value;
+
+private:
+
+        /** To keep count of number of PS keys defined. */
+        static unsigned int     s_count;
+};
+
+#endif /* HAVE_PFS_INTERFACE */
+
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 
 /* By default, buffer mutexes and rwlocks will be excluded from
@@ -52,7 +83,9 @@ instrumentation due to their large number of instances. */
 /* Key defines to register InnoDB mutexes with performance schema */
 extern mysql_pfs_key_t	autoinc_mutex_key;
 extern mysql_pfs_key_t	autoinc_persisted_mutex_key;
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern mysql_pfs_key_t	buffer_block_mutex_key;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 extern mysql_pfs_key_t	buf_pool_flush_state_mutex_key;
 extern mysql_pfs_key_t	buf_pool_LRU_list_mutex_key;
 extern mysql_pfs_key_t	buf_pool_free_list_mutex_key;
@@ -114,8 +147,10 @@ extern mysql_pfs_key_t	lock_wait_mutex_key;
 extern mysql_pfs_key_t	trx_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_threads_mutex_key;
+#ifndef PFS_SKIP_EVENT_MUTEX
 extern mysql_pfs_key_t	event_mutex_key;
 extern mysql_pfs_key_t	event_manager_mutex_key;
+#endif /* !PFS_SKIP_EVENT_MUTEX */
 extern mysql_pfs_key_t	sync_array_mutex_key;
 extern mysql_pfs_key_t	thread_mutex_key;
 extern mysql_pfs_key_t  zip_pad_mutex_key;
@@ -127,7 +162,9 @@ extern mysql_pfs_key_t	master_key_id_mutex_key;
 /* Following are rwlock keys used to register with MySQL
 performance schema */
 extern	mysql_pfs_key_t btr_search_latch_key;
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern	mysql_pfs_key_t	buf_block_lock_key;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 # ifdef UNIV_DEBUG
 extern	mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_DEBUG */
@@ -145,6 +182,12 @@ extern	mysql_pfs_key_t	dict_table_stats_key;
 extern  mysql_pfs_key_t trx_sys_rw_lock_key;
 extern  mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
+
+/* There are mutexes/rwlocks that we want to exclude from instrumentation
+even if their corresponding performance schema define is set. And this
+PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
+would be excluded from instrumentation.*/
+extern mysql_pfs_key_t	PFS_NOT_INSTRUMENTED;
 
 /** Prints info of the sync system.
 @param[in]	file	where to print */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include "binary_log_types.h" // enum_field_types
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"

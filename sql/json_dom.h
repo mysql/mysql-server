@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,9 +27,11 @@
 #include "binary_log_types.h"   // enum_field_types
 #include "json_binary.h"        // json_binary::Value
 #include "malloc_allocator.h"   // Malloc_allocator
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
@@ -1221,6 +1223,24 @@ public:
   bool to_binary(const THD *thd, String *str) const;
 
   /**
+    Check if the wrapped JSON document is a binary value (a
+    json_binary::Value), and if that binary is pointing to data stored in the
+    given string.
+
+    This function can be used to check if overwriting the data in the string
+    might overwrite and corrupt the document contained in this wrapper.
+
+    @param str    a string which contains JSON binary data
+    @retval true  if the string contains data that the wrapped document
+                  points to from its json_binary::Value representation
+    @retval false otherwise
+  */
+  bool is_binary_backed_by(const String *str) const
+  {
+    return !m_is_dom && m_value.is_backed_by(str);
+  }
+
+  /**
     Format the JSON value to an external JSON string in buffer in
     the format of ISO/IEC 10646.
 
@@ -1533,8 +1553,8 @@ public:
 
     @details Key storage format is following:
     @verbatim
-      |<key len><json type><   sort key    >|
-      / 4 bytes/   1 byte /key len bytes - 5/
+      |<json type><   sort key    >|
+       1 byte    / variable length /
     @endverbatim
 
     JSON is assumed to be non-sql-null and valid (checked by caller).
@@ -1548,7 +1568,7 @@ public:
     For JSON objects and arrays only their length (number of elements) is
     stored, this is a limitation of current implementation.
   */
-  void make_sort_key(uchar *to, size_t length) const;
+  size_t make_sort_key(uchar *to, size_t length) const;
 
   /**
     Make a hash key that can be used by sql_executor.cc/unique_hash

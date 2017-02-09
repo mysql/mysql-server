@@ -1,5 +1,5 @@
 drop table if exists t1,t2,t3;
-CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text indexes', 'are called collections'),
 ('Only MyISAM tables','support collections'),
@@ -11,7 +11,7 @@ test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES
-t1	1	a	2	b	NULL	5	1	NULL	YES	FULLTEXT			YES
+t1	1	a	2	b	NULL	5	0	NULL	YES	FULLTEXT			YES
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections
@@ -242,14 +242,14 @@ id int(11),
 ticket int(11),
 KEY ti (id),
 KEY tit (ticket)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (2,3),(1,2);
 CREATE TABLE t2 (
 ticket int(11),
 inhalt text,
 KEY tig (ticket),
 fulltext index tix (inhalt)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 select t1.id FROM t2 as ttxt,t1,t1 as ticket2
 WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and
@@ -269,7 +269,7 @@ id
 show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t2	1	tig	1	ticket	A	NULL	NULL	NULL	YES	BTREE			YES
-t2	1	tix	1	inhalt	NULL	NULL	1	NULL	YES	FULLTEXT			YES
+t2	1	tix	1	inhalt	NULL	NULL	0	NULL	YES	FULLTEXT			YES
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -277,7 +277,7 @@ t2	CREATE TABLE `t2` (
   `inhalt` text,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 select * from t2 where MATCH inhalt AGAINST (NULL);
 ticket	inhalt
 select * from t2 where  MATCH inhalt AGAINST ('foobar');
@@ -479,13 +479,13 @@ SELECT a FROM t1 WHERE MATCH a AGAINST('test' IN BOOLEAN MODE);
 a
 test's
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a));
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) charset utf8mb4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10000) DEFAULT NULL,
   FULLTEXT KEY `a` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a));
 INSERT INTO t1 VALUES('test'),('test1'),('test');
