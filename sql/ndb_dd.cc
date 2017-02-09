@@ -181,21 +181,17 @@ ndb_dd_install_table(class THD *thd,
     // Acquired MDL on the schema and table involved
   }
 
-  {
-    /*
-       Implementation details from which storage the DD uses leaks out
-       and the user of these functions magically need to turn auto commit
-       off.
-       I.e as in sql_table.cc, execute_ddl_log_recovery()
-           'Prevent InnoDB from automatically committing InnoDB transaction
-            each time data-dictionary tables are closed after being updated.'
+  /*
+     Implementation details from which storage the DD uses leaks out
+     and the user of these functions magically need to turn auto commit
+     off by fiddeling with bits in the THD.
+     I.e as in sql_table.cc, execute_ddl_log_recovery()
+         'Prevent InnoDB from automatically committing InnoDB transaction
+          each time data-dictionary tables are closed after being updated.'
 
-      Need to check how it can be hidden or if the THD settings need to be
-      restored
-    */
-    thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-    thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
-  }
+     Turn off autocommit
+  */
+  Disable_autocommit_guard autocommit_guard(thd);
 
   {
     dd::cache::Dictionary_client* client= thd->dd_client();
