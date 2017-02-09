@@ -978,7 +978,7 @@ public:
 		dd::Object_id&			dd_space_id);
 
 	static void set_table_options(
-		dd::Table&	dd_table,
+		dd::Table*	dd_table,
 		dict_table_t*	table);
 
 private:

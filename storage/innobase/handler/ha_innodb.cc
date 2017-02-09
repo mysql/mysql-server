@@ -13498,15 +13498,12 @@ innobase_create_implicit_dd_tablespace(
 
 void
 create_table_info_t::set_table_options(
-	dd::Table&	dd_table,
+	dd::Table*	dd_table,
 	dict_table_t*	table)
 {
         enum row_type   type;
         dd::Table::enum_row_format      rf;
-        dd::Properties& options = dd_table.options();
-
-	dd::String_type	datadir;
-	options.get(data_file_name_key, datadir);
+        dd::Properties& options = dd_table->options();
 
         if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
                 uint32  old_size;
@@ -13517,6 +13514,15 @@ create_table_info_t::set_table_options(
                 }
         } else {
                 options.set_uint32("key_block_size", 0);
+		/* It's possible that InnoDB ignores the specified
+		key_block_size, so check the block_size for every index.
+		Server assumes if block_size = 0, there should be no
+		option found, so remove it when found */
+		for (auto dd_index : *dd_table->indexes()) {
+			if (dd_index->options().exists("block_size")) {
+				dd_index->options().remove("block_size");
+			}
+		}
         }
 
         switch (dict_tf_get_rec_format(table->flags)) {
@@ -13540,7 +13546,7 @@ create_table_info_t::set_table_options(
                 ut_ad(0);
         }
 
-        dd_table.set_row_format(rf);
+        dd_table->set_row_format(rf);
         if (options.exists("row_type")) {
                 options.set_uint32("row_type", type);
         }
@@ -13714,7 +13720,7 @@ create_table_info_t::create_table_update_global_dd(
 			true);
 	}
 
-	set_table_options(dd_table->table(), table);
+	set_table_options(&(dd_table->table()), table);
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
 

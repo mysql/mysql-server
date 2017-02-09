@@ -75,7 +75,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `user_num` char(10) DEFAULT NULL,
-  PRIMARY KEY (`id`) KEY_BLOCK_SIZE=4
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (id)
 PARTITIONS 3 */

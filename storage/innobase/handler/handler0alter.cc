@@ -4554,7 +4554,7 @@ prepare_inplace_alter_table_global_dd(
 		}
 
 		create_table_info_t::set_table_options(
-			new_dd_tab->table(), new_table);
+			&(new_dd_tab->table()), new_table);
 
 		innobase_write_dd_table(dd_space_id, new_dd_tab, new_table);
 
