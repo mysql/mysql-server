@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,8 @@ Single_primary_message::Single_primary_message(const uchar* buf, uint64 len)
   decode(buf, len);
 }
 
-void Single_primary_message::decode_payload(const unsigned char* buffer, uint64 length)
+void Single_primary_message::decode_payload(const unsigned char* buffer,
+                                            const unsigned char* end)
 {
   DBUG_ENTER("Single_primary_message::decode_payload");
   const unsigned char *slider= buffer;

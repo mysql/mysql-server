@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ Plugin_gcs_events_handler::on_message_received(const Gcs_message& message) const
     break;
 
   default:
-    DBUG_ASSERT(0); /* purecov: inspected */
+    break; /* purecov: inspected */
   }
 }
 
@@ -331,6 +331,15 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
 
   //update the Group Manager with all the received states
   this->update_group_info_manager(new_view, exchanged_data, is_leaving);
+
+  //enable conflict detection if someone on group have it enabled
+  if (local_member_info->in_primary_mode() &&
+      group_member_mgr->is_conflict_detection_enabled())
+  {
+    Certifier_interface *certifier=
+        this->applier_module->get_certification_handler()->get_certifier();
+    certifier->enable_conflict_detection();
+  }
 
   //Inform any interested handler that the view changed
   View_change_pipeline_action *vc_action=

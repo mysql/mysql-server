@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,9 +151,9 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
-    @param[in] length the received data size
+    @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, uint64 length);
+  void decode_payload(const unsigned char *buffer, const unsigned char* end);
 
 private:
   int32 m_transactions_waiting_certification;
