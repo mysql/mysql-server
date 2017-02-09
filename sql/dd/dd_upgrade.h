@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,17 +72,6 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   @retval true   ON FAILURE
 */
 bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name);
-
-/**
-  Get collation id for database collation from db.opt file.
-
-  @param[out] collation_id  Store collation id.
-  @param[in]  db_opt_path   Path of db.opt file.
-
-  @retval false  ON SUCCESS
-  @retval true   ON FAILURE
-*/
-bool load_db_schema_collation(uint *collation_id, const LEX_STRING *db_opt_path);
 
 /**
   Create entry in mysql.schemata for all the folders found in data directory.
