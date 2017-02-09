@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -814,7 +814,8 @@ Transaction_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Transaction_Message::decode_payload(const unsigned char* buffer, uint64 length)
+Transaction_Message::decode_payload(const unsigned char* buffer,
+                                    const unsigned char* end)
 {
   DBUG_ENTER("Transaction_Message::decode_payload");
   const unsigned char *slider= buffer;

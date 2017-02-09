@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1666,6 +1666,7 @@ void Certifier::enable_conflict_detection()
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable= true;
+  local_member_info->enable_conflict_detection();
   mysql_mutex_unlock(&LOCK_certification_info);
 
   log_message(MY_INFORMATION_LEVEL,
@@ -1682,6 +1683,7 @@ void Certifier::disable_conflict_detection()
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable= false;
+  local_member_info->disable_conflict_detection();
   mysql_mutex_unlock(&LOCK_certification_info);
 
   log_message(MY_INFORMATION_LEVEL,
@@ -1733,7 +1735,8 @@ Gtid_Executed_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Gtid_Executed_Message::decode_payload(const unsigned char* buffer, uint64 length)
+Gtid_Executed_Message::decode_payload(const unsigned char* buffer,
+                                      const unsigned char* length)
 {
   DBUG_ENTER("Gtid_Executed_Message::decode_payload");
   const unsigned char *slider= buffer;
