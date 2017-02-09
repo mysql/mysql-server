@@ -315,6 +315,20 @@ TEST(StrXfrmTest, UTF8MB4PadCorrectness_2)
   }
 }
 
+TEST(StrXfrmTest, NullPointer)
+{
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+  unsigned char buf[256];
+
+  memset(buf, 0x33, sizeof(buf));
+  cs->coll->strnxfrm(
+    cs, buf, sizeof(buf), sizeof(buf), nullptr, 0, MY_STRXFRM_PAD_TO_MAXLEN);
+
+  for (size_t i= 0; i < sizeof(buf); ++i) {
+    EXPECT_EQ(0, buf[i]);
+  }
+}
+
 // Benchmark based on reduced test case in Bug #83247 / #24788778.
 //
 // Note: This benchmark does not exercise any real multibyte characters;
@@ -1232,6 +1246,23 @@ TEST(PadCollationTest, HashSort)
   // Verify that space in the middle of the string isn't stripped.
   EXPECT_NE(hash(ai_ci, "ab  c"), hash(ai_ci, "abc"));
   EXPECT_NE(hash(as_cs, "ab  c"), hash(as_cs, "abc"));
+}
+
+TEST(HashTest, NullPointer)
+{
+  CHARSET_INFO *cs= init_collation("utf8mb4_0900_ai_ci");
+  ulong nr1= 1, nr2= 4;
+
+  /*
+    We should get the same hash from the empty string no matter what
+    the pointer is.
+  */
+  cs->coll->hash_sort(cs, nullptr, 0, &nr1, &nr2);
+  EXPECT_EQ(nr1, hash(cs, ""));
+
+  cs->coll->hash_sort(
+    cs, pointer_cast<const uchar *>("        "), 8, &nr1, &nr2);
+  // Don't care what the values are, just that we don't crash.
 }
 
 }  // namespace strnxfrm_unittest

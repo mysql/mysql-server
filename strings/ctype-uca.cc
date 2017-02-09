@@ -1633,6 +1633,13 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
   const uint16 *ascii_wpage= UCA900_WEIGHT_ADDR(
     cs->uca->weights[0], /*level=*/weight_lv, /*subcode=*/0);
 
+  /*
+    Precalculate the limit for the fast path below, taking care not to form
+    pointers that are before sbeg, as those cannot be legally compared.
+    (In particular, this catches the case of sbeg == send == nullptr.)
+  */
+  const uchar *send_local= (send - sbeg > 3) ? (send - 3) : sbeg;
+
   for ( ;; )
   {
     /*
@@ -1652,7 +1659,6 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
       we'd otherwise have to do.
     */
     const uchar *sbeg_local= sbeg;
-    const uchar *send_local= send - (sizeof(uint32) - 1);
     while (sbeg_local < send_local && preaccept_data(sizeof(uint32)))
     {
       /*
