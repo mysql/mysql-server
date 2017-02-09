@@ -142,3 +142,27 @@ cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
   free(unpacked_data);
   DBUG_RETURN(0);
 }
+
+
+Uint32
+ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab)
+{
+  DBUG_ENTER("ndb_get_extra_metadata_version");
+
+  Uint32 version;
+  void* unpacked_data;
+  Uint32 unpacked_length;
+  const int get_result =
+      ndbtab->getExtraMetadata(version,
+                               &unpacked_data, &unpacked_length);
+  if (get_result != 0)
+  {
+    // Could not get extra metadata, return 0
+    DBUG_RETURN(0);
+  }
+
+  free(unpacked_data);
+
+  DBUG_RETURN(version);
+
+}

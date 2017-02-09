@@ -45,4 +45,12 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
 int cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
                      size_t data_length);
 
+/**
+   @brief ndb_get_extra_metadata_version, returns the version of the
+          extra metadaa attached to the table in NDB.
+   @param ndbtab
+   @return version of extra metadat or 0 if none
+ */
+Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table* ndbtab);
+
 #endif

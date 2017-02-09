@@ -1336,6 +1336,14 @@ int find_all_files(THD *thd, Ndb* ndb)
       if (ndbtab->getFrmLength() == 0)
         continue;
 
+      if (ndb_get_extra_metadata_version(ndbtab) != 2)
+      {
+        // Skip install of table which have unsupported extra metadata versions
+        ndb_log_info("Skipping install of table %s.%s which have unsupported "
+                     "extra metadata version.", elmt.database, elmt.name);
+        continue;
+      }
+
       /* check if database exists */
       char *end= key +
         build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
