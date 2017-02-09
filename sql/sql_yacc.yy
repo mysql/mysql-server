@@ -11787,7 +11787,7 @@ show_param:
           }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info->db_type= NULL; }
-        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
+        | opt_extended_and_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
 
@@ -11799,8 +11799,8 @@ show_param:
             LEX_STRING wild= $6.wild;
             DBUG_ASSERT((wild.str == nullptr) || (where == nullptr));
 
-            auto *p= where ? NEW_PTN PT_show_fields(@$, $1, $4, where)
-                           : NEW_PTN PT_show_fields(@$, $1, $4, wild);
+            auto *p= where ? NEW_PTN PT_show_fields(@$, $4, where)
+                           : NEW_PTN PT_show_fields(@$, $4, wild);
 
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);
@@ -12196,8 +12196,9 @@ describe:
             LEX *lex= Lex;
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->select_lex->db= NULL;
+            lex->verbose= 0;
 
-            auto *p= NEW_PTN PT_show_fields(@$, false, $2);
+            auto *p= NEW_PTN PT_show_fields(@$, $2);
 
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);

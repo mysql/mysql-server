@@ -1911,10 +1911,3 @@ bool PT_show_fields_and_keys::contextualize(Parse_context *pc)
 
   return false;
 }
-
-
-bool PT_show_fields::contextualize(Parse_context *pc)
-{
-  pc->thd->lex->verbose= m_verbose;
-  return super::contextualize(pc);
-}

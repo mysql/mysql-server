@@ -3699,29 +3699,17 @@ class PT_show_fields : public PT_show_fields_and_keys
 {
 public:
   PT_show_fields(const POS &pos,
-                 bool verbose,
                  Table_ident *table,
                  const LEX_STRING &wild)
-    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr),
-      m_verbose(verbose)
+    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr)
   {}
 
   PT_show_fields(const POS &pos,
-                 bool verbose,
                  Table_ident *table_ident,
                  Item *where_condition= nullptr)
     : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
-                              where_condition),
-      m_verbose(verbose)
+                              where_condition)
   {}
-
-  virtual bool contextualize(Parse_context *pc);
-
-private:
-  typedef PT_show_fields_and_keys super;
-
-  // Flag to indicate FULL keyword usage in the statement.
-  bool m_verbose;
 };
 
 
