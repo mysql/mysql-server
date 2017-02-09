@@ -17864,7 +17864,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
     DBUG_ASSERT(FALSE);
     abort();
   }
-  DBUG_RETURN(hash_value);
+  DBUG_RETURN(m_table->getPartitionId(hash_value));
 }
 
 
