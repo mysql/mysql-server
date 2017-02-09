@@ -5987,6 +5987,9 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                ER_THD(thd, dictionary->table_type_error_code(ptr->db,
                                                              ptr->table_name)),
                ptr->db, ptr->table_name);
+      // Take error handler into account to see if we should return.
+      if (thd->is_error())
+        DBUG_RETURN(nullptr);
     }
   }
 
