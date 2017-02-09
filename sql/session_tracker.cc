@@ -235,7 +235,7 @@ public:
 
   bool enable(THD *thd)
   { return update(thd); }
-  bool check(THD *thd, set_var *var)
+  bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
@@ -387,7 +387,7 @@ public:
 
   bool enable(THD *thd)
   { return update(thd); }
-  bool check(THD *thd, set_var *var)
+  bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
@@ -1243,9 +1243,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
   Mark the tracker as changed.
 */
 
-void Transaction_state_tracker::mark_as_changed(THD *thd,
-                                                LEX_CSTRING *tracked_item_name
-                                                MY_ATTRIBUTE((unused)))
+void Transaction_state_tracker::mark_as_changed(THD*, LEX_CSTRING*)
 {
   m_changed                    = true;
 }
@@ -1269,14 +1267,12 @@ void Transaction_state_tracker::reset()
           non-transactional), and returns the corresponding access flag
           out of TX_READ_TRX, TX_READ_UNSAFE, TX_WRITE_TRX, TX_WRITE_UNSAFE.
 
-  @param thd                The thd handle
   @param l                  The table's access/lock type
   @param has_trx            Whether the table's engine is transactional
 
   @return                   The table access flag
 */
-enum_tx_state Transaction_state_tracker::calc_trx_state(THD *thd,
-                                                        thr_lock_type l,
+enum_tx_state Transaction_state_tracker::calc_trx_state(thr_lock_type l,
                                                         bool has_trx)
 {
   enum_tx_state      s;
@@ -1463,7 +1459,6 @@ bool Session_state_change_tracker::update(THD *thd)
          1byte flag value is 1 then there is a session state change else
          there is no state change information.
 
-  @param thd                The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
@@ -1471,7 +1466,7 @@ bool Session_state_change_tracker::update(THD *thd)
     true                    Error
 **/
 
-bool Session_state_change_tracker::store(THD *thd, String &buf)
+bool Session_state_change_tracker::store(THD*, String &buf)
 {
   /* since its a boolean tracker length is always 1 */
   const ulonglong length= 1;
@@ -1488,7 +1483,7 @@ bool Session_state_change_tracker::store(THD *thd, String &buf)
   to= net_store_length(to, length);
 
   /* boolean tracker will go here */
-  *to= (is_state_changed(thd) ? '1' : '0');
+  *to= (is_state_changed() ? '1' : '0');
 
   reset();
 
@@ -1532,7 +1527,7 @@ void Session_state_change_tracker::reset()
   @retval false There is no session state change
 **/
 
-bool Session_state_change_tracker::is_state_changed(THD* thd)
+bool Session_state_change_tracker::is_state_changed()
 {
   return m_changed;
 }

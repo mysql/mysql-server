@@ -1118,7 +1118,7 @@ void sp_instr_jump::print(String *str)
 }
 
 
-uint sp_instr_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
+uint sp_instr_jump::opt_mark(sp_head *sp, List<sp_instr>*)
 {
   m_dest= opt_shortcut_jump(sp, this);
   if (m_dest != get_ip() + 1)   /* Jumping to following instruction? */
@@ -1544,7 +1544,7 @@ void sp_instr_hreturn::print(String *str)
 }
 
 
-uint sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
+uint sp_instr_hreturn::opt_mark(sp_head*, List<sp_instr>*)
 {
   m_marked= true;
 
@@ -1583,7 +1583,7 @@ bool sp_instr_cpush::execute(THD *thd, uint *nextp)
 }
 
 
-bool sp_instr_cpush::exec_core(THD *thd, uint *nextp)
+bool sp_instr_cpush::exec_core(THD *thd, uint*)
 {
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
 
@@ -1738,7 +1738,7 @@ bool sp_instr_cclose::execute(THD *thd, uint *nextp)
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
 
-  return c ? c->close(thd) : true;
+  return c ? c->close() : true;
 }
 
 

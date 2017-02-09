@@ -1098,7 +1098,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array)
 }
 
 
-bool Partition_helper::print_partition_error(int error, myf errflag)
+bool Partition_helper::print_partition_error(int error)
 {
   THD *thd= get_thd();
   DBUG_ENTER("Partition_helper::print_partition_error");
@@ -1248,8 +1248,6 @@ void Partition_helper::prepare_change_partitions()
   @param[in]  create_info       HA_CREATE_INFO object describing all
                                 fields and indexes in table
   @param[in]  path              Complete path of db and table name
-  @param[out] copied            Output parameter where number of copied
-                                records are added
   @param[out] deleted           Output parameter where number of deleted
                                 records are added
 
@@ -1260,7 +1258,6 @@ void Partition_helper::prepare_change_partitions()
 
 int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
                                         const char *path,
-                                        ulonglong * const copied,
                                         ulonglong * const deleted)
 {
   List_iterator<partition_element> part_it(m_part_info->partitions);
@@ -1478,7 +1475,7 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
     DBUG_ASSERT(part_elem->part_state == PART_TO_BE_REORGED);
     part_elem->part_state= PART_TO_BE_DROPPED;
   }
-  error= copy_partitions(copied, deleted);
+  error= copy_partitions(deleted);
 err:
   if (error)
   {
@@ -1500,7 +1497,6 @@ err:
   actually copy the data from the reorganized partitions to the new
   partitions.
 
-  @param[out] copied   Number of records copied.
   @param[out] deleted  Number of records deleted.
 
   @return Operation status
@@ -1508,8 +1504,7 @@ err:
     @retval >0  Error code
 */
 
-int Partition_helper::copy_partitions(ulonglong * const copied,
-                                      ulonglong * const deleted)
+int Partition_helper::copy_partitions(ulonglong * const deleted)
 {
   uint new_part= 0;
   int result= 0;
@@ -2827,7 +2822,6 @@ int Partition_helper::ph_index_next(uchar *buf)
   as supplied in the call.
 
   @param[out] buf     Read row in MySQL Row Format.
-  @param[in]  key     Key.
   @param[in]  keylen  Length of key.
 
   @return Operation status.
@@ -2835,7 +2829,7 @@ int Partition_helper::ph_index_next(uchar *buf)
     @retval != 0  Error code
 */
 
-int Partition_helper::ph_index_next_same(uchar *buf, const uchar *key, uint keylen)
+int Partition_helper::ph_index_next_same(uchar *buf, uint keylen)
 {
   DBUG_ENTER("Partition_helper::ph_index_next_same");
 

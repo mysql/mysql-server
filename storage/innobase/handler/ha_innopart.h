@@ -1201,7 +1201,6 @@ private:
 		return(Partition_helper::change_partitions(
 						create_info,
 						path,
-						copied,
 						deleted));
 	}
 
@@ -1281,10 +1280,10 @@ protected:
 	int
 	index_next_same(
 		uchar*		record,
-		const uchar*	key,
+		const uchar*	,
 		uint		keylen)
 	{
-		return(Partition_helper::ph_index_next_same(record, key, keylen));
+		return(Partition_helper::ph_index_next_same(record, keylen));
 	}
 
 	int

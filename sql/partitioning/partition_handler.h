@@ -627,7 +627,7 @@ public:
   int ph_index_first(uchar *buf);
   int ph_index_last(uchar *buf);
   int ph_index_next(uchar *buf);
-  int ph_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  int ph_index_next_same(uchar *buf, uint keylen);
   int ph_index_prev(uchar *buf);
   int ph_index_read_map(uchar *buf,
                         const uchar *key,
@@ -688,8 +688,6 @@ public:
     @param[in]  create_info       HA_CREATE_INFO object describing all
                                   fields and indexes in table
     @param[in]  path              Complete path of db and table name
-    @param[out] copied            Output parameter where number of copied
-                                  records are added
     @param[out] deleted           Output parameter where number of deleted
                                   records are added
 
@@ -699,7 +697,6 @@ public:
   */
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
-                                ulonglong * const copied,
                                 ulonglong * const deleted);
   /** @} */
 
@@ -779,10 +776,9 @@ protected:
 
   /** Print partitioning specific error.
     @param error   Error code.
-    @param errflag Error flag.
     @return false if error is printed else true.
   */
-  bool print_partition_error(int error, myf errflag);
+  bool print_partition_error(int error);
   /**
     Print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE.
 
@@ -832,15 +828,13 @@ protected:
     actually copy the data from the reorganized partitions to the new
     partitions.
 
-    @param[out] copied   Number of records copied.
     @param[out] deleted  Number of records deleted.
 
     @return Operation status
       @retval  0  Success
       @retval >0  Error code
   */
-  virtual int copy_partitions(ulonglong * const copied,
-                              ulonglong * const deleted);
+  virtual int copy_partitions(ulonglong * const deleted);
 
 private:
   enum partition_index_scan_type

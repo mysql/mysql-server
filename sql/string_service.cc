@@ -39,10 +39,12 @@ PSI_memory_key key_memory_string_iterator;
 /*  
   This service function converts the mysql_string to the character set
   specified by charset_name parameter.
+
+  TODO: Marking charset_name as unused for now, see Bug#25533463.
 */
 extern "C"
 int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
-                                     const char *charset_name,
+                                     const char *charset_name MY_ATTRIBUTE((unused)),
                                      char *buffer,
                                      unsigned int buffer_size,
                                      int *error)

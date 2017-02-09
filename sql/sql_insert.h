@@ -265,7 +265,7 @@ public:
     duplicates(duplicates_arg)
   {}
 
-  virtual void cleanup(THD *thd)
+  virtual void cleanup(THD*)
   {
     if (empty_field_list_on_rset)
     {

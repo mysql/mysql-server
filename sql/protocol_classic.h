@@ -232,8 +232,7 @@ public:
   virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(Proto_field *field);
   virtual void start_row();
-  virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare);
+  virtual bool send_parameters(List<Item_param> *parameters, bool);
 
   virtual enum enum_protocol_type type() { return PROTOCOL_TEXT; };
 protected:

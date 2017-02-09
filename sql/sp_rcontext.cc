@@ -534,7 +534,7 @@ bool sp_cursor::open(THD *thd)
 }
 
 
-bool sp_cursor::close(THD *thd)
+bool sp_cursor::close()
 {
   if (! m_server_side_cursor)
   {

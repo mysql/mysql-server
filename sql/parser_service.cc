@@ -122,7 +122,7 @@ public:
       thd->push_internal_handler(this);
   }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno_u,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *,

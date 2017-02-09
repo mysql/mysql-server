@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -250,12 +250,12 @@ bool sys_var::update(THD *thd, set_var *var)
   }
 }
 
-uchar *sys_var::session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
+uchar *sys_var::session_value_ptr(THD*, THD *target_thd, LEX_STRING*)
 {
   return session_var_ptr(target_thd);
 }
 
-uchar *sys_var::global_value_ptr(THD *thd, LEX_STRING *base)
+uchar *sys_var::global_value_ptr(THD*, LEX_STRING*)
 {
   return global_var_ptr();
 }
@@ -324,7 +324,7 @@ bool sys_var::set_default(THD *thd, set_var* var)
   DBUG_RETURN(ret);
 }
 
-bool sys_var::is_default(THD *thd, set_var *var)
+bool sys_var::is_default(THD*, set_var *var)
 {
   DBUG_ENTER("sys_var::is_default");
   bool ret= false;
@@ -591,14 +591,13 @@ ulonglong get_system_variable_hash_version(void)
 /**
   Constructs an array of system variables for display to the user.
 
-  @param thd            Current thread
   @param show_var_array Prealloced_array of SHOW_VAR elements for display 
   @param sort           If TRUE, the system variables should be sorted
   @param query_scope    OPT_GLOBAL or OPT_SESSION for SHOW GLOBAL|SESSION VARIABLES
   @param strict         Use strict scope checking
   @retval               True on error, false otherwise
 */
-bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
+bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort,
                         enum enum_var_type query_scope,
                         bool strict)
@@ -957,10 +956,9 @@ int set_var::update(THD *thd)
 /**
   Self-print assignment
 
-  @param thd Current session.
   @param str String buffer to append the partial assignment to.
 */
-void set_var::print(THD *thd, String *str)
+void set_var::print(THD*, String *str)
 {
   if (type == OPT_PERSIST)
     str->append("PERSIST ");
@@ -995,7 +993,7 @@ int set_var_user::resolve(THD *thd)
   return user_var_item->fix_fields(thd, NULL) ? -1 : 0;
 }
 
-int set_var_user::check(THD *thd)
+int set_var_user::check(THD*)
 {
   /*
     Item_func_set_user_var can't substitute something else on its place =>
@@ -1041,7 +1039,7 @@ int set_var_user::update(THD *thd)
 }
 
 
-void set_var_user::print(THD *thd, String *str)
+void set_var_user::print(THD*, String *str)
 {
   user_var_item->print_assignment(str, QT_ORDINARY);
 }
@@ -1095,7 +1093,7 @@ void set_var_password::print(THD *thd, String *str)
   Functions to handle SET NAMES and SET CHARACTER SET
 *****************************************************************************/
 
-int set_var_collation_client::check(THD *thd)
+int set_var_collation_client::check(THD*)
 {
   /* Currently, UCS-2 cannot be used as a client character set */
   if (!is_supported_parser_charset(character_set_client))
@@ -1134,7 +1132,7 @@ int set_var_collation_client::update(THD *thd)
   return 0;
 }
 
-void set_var_collation_client::print(THD *thd, String *str)
+void set_var_collation_client::print(THD*, String *str)
 {
   str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
   if (set_cs_flags & SET_CS_DEFAULT)

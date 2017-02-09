@@ -440,7 +440,7 @@ public:
 
   bool open(THD *thd);
 
-  bool close(THD *thd);
+  bool close();
 
   bool is_open() const
   { return MY_TEST(m_server_side_cursor); }

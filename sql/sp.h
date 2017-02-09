@@ -146,7 +146,7 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
 {
 public:
   static Stored_routine_creation_ctx *
-  create_routine_creation_ctx(THD *thd, const dd::Routine *routine);
+  create_routine_creation_ctx(const dd::Routine *routine);
 
   static Stored_routine_creation_ctx *
   load_from_db(THD *thd, const sp_name *name, TABLE *proc_tbl);

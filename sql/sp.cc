@@ -162,7 +162,6 @@ bool load_collation(MEM_ROOT *mem_root,
 
 Stored_routine_creation_ctx*
 Stored_routine_creation_ctx::create_routine_creation_ctx(
-  THD *thd,
   const dd::Routine *routine)
 {
   /* Load character set/collation attributes. */
@@ -398,8 +397,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
 
   // Create stored routine creation context from the dd::Routine object.
   Stored_program_creation_ctx *creation_ctx=
-    Stored_routine_creation_ctx::create_routine_creation_ctx(thd,
-                                                             routine);
+    Stored_routine_creation_ctx::create_routine_creation_ctx(routine);
   if (creation_ctx == NULL)
     DBUG_RETURN(SP_INTERNAL_ERROR);
 
@@ -428,11 +426,11 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
 class Silence_deprecated_warning : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
+                                const char*,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*)
   {
     if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
         (*level) == Sql_condition::SL_WARNING)
@@ -517,11 +515,11 @@ public:
     :m_error_caught(false)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* message)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_BAD_DB_ERROR)
     {
@@ -2084,7 +2082,7 @@ sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
 
   // Create stored program creation context from routine object.
   Stored_program_creation_ctx *creation_ctx=
-    Stored_routine_creation_ctx::create_routine_creation_ctx(thd, routine);
+    Stored_routine_creation_ctx::create_routine_creation_ctx(routine);
   if (creation_ctx == NULL)
     return NULL;
 

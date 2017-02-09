@@ -6835,7 +6835,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 /**
   Only for default channel. For details, refer to show_slave_running()
 */
-static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
+static int show_heartbeat_period(THD*, SHOW_VAR *var, char *buff)
 {
   channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();

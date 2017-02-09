@@ -1906,7 +1906,7 @@ ha_innopart::print_error(
 	myf	errflag)
 {
 	DBUG_ENTER("ha_innopart::print_error");
-	if (print_partition_error(error, errflag)) {
+	if (print_partition_error(error)) {
 		ha_innobase::print_error(error, errflag);
 	}
 

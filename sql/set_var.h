@@ -296,7 +296,7 @@ public:
   int update(THD *thd);
   void update_source();
   int light_check(THD *thd);
-  void print(THD *thd, String *str);	/* To self-print */
+  void print(THD*, String *str);	/* To self-print */
 #ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
@@ -381,7 +381,7 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
 
-bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
+bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
 void lock_plugin_mutex();
 void unlock_plugin_mutex();

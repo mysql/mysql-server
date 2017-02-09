@@ -6370,7 +6370,7 @@ static bool check_lock_and_start_stmt(THD *thd,
       thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
     enum enum_tx_state       s;
 
-    s= tst->calc_trx_state(thd, lock_type,
+    s= tst->calc_trx_state(lock_type,
                            table_list->table->file->has_transactions());
     tst->add_trx_state(thd, s);
   }

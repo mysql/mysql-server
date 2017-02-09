@@ -97,8 +97,7 @@ PFS_system_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
   m_version = get_system_variable_hash_version();
 
   /* Build the SHOW_VAR array from the system variable hash. */
-  enumerate_sys_vars(
-    m_current_thd, &m_show_var_array, true, m_query_scope, strict);
+  enumerate_sys_vars(&m_show_var_array, true, m_query_scope, strict);
 
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 

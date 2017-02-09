@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class Query_result_do final : public Query_result
 {
 public:
   Query_result_do(THD *thd): Query_result(thd) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags) override
+  bool send_result_set_metadata(List<Item>&, uint) override
   { return false; }
   bool send_data(List<Item> &items) override;
   bool send_eof() override;

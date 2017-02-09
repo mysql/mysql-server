@@ -1833,7 +1833,7 @@ SSL_handle Protocol_classic::get_ssl()
 }
 
 
-int Protocol_classic::shutdown(bool server_shutdown)
+int Protocol_classic::shutdown(bool)
 {
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }
@@ -2096,14 +2096,12 @@ bool Protocol_binary::send_parameters(List<Item_param> *parameters,
   Sets OUT-parameters to user variables.
 
   @param parameters  List of PS/SP parameters (both input and output).
-  @param is_sql_prepare  not used.
 
   @return Error status.
     @retval false Success.
     @retval true  Error.
 */
-bool Protocol_text::send_parameters(List<Item_param> *parameters,
-                                    bool is_sql_prepare)
+bool Protocol_text::send_parameters(List<Item_param> *parameters, bool)
 {
   List_iterator_fast<Item_param> item_param_it(*parameters);
   List_iterator_fast<LEX_STRING> user_var_name_it(
