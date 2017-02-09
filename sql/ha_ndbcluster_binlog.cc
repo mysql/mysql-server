@@ -1051,355 +1051,359 @@ class Ndb_binlog_setup {
   THD* const m_thd;
   Thd_ndb* const m_thd_ndb;
 
-/*
-  Clean-up any stray files for non-existing NDB tables
-  - "stray" means that there is a .frm + .ndb file on disk
-    but there exists no such table in NDB. The two files
-    can then be deleted from disk to get in synch with
-    what's in NDB.
-*/
-static
-void clean_away_stray_files(THD *thd, Thd_ndb* thd_ndb)
-{
-  DBUG_ENTER("Ndb_binlog_setup::clean_away_stray_files");
-
-  // Populate list of databases
-  Ndb_find_files_list db_names(thd);
-  if (!db_names.find_databases(mysql_data_home))
+  /*
+    Clean-up any stray files for non-existing NDB tables
+    - "stray" means that there is a .frm + .ndb file on disk
+       but there exists no such table in NDB. The two files
+       can then be deleted from disk to get in synch with
+       what's in NDB.
+    NOTE! All the lof this function is in ndbcluster_find_files()
+    which will do the removal of "stray" files
+  */
+  static
+  void clean_away_stray_files(THD *thd, Thd_ndb* thd_ndb)
   {
-    thd->clear_error();
-    DBUG_PRINT("info", ("Failed to find databases"));
+    DBUG_ENTER("Ndb_binlog_setup::clean_away_stray_files");
+
+    // Populate list of databases
+    Ndb_find_files_list db_names(thd);
+    if (!db_names.find_databases(mysql_data_home))
+    {
+      thd->clear_error();
+      DBUG_PRINT("info", ("Failed to find databases"));
+      DBUG_VOID_RETURN;
+    }
+
+    LEX_STRING *db_name;
+    while ((db_name= db_names.next()))
+    {
+      DBUG_PRINT("info", ("Found database %s", db_name->str));
+      if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
+      {
+
+        ndb_log_info("Cleaning stray tables from database '%s'",
+                     db_name->str);
+
+        char path[FN_REFLEN + 1];
+        build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
+
+        /* Require that no binlog setup is attempted yet, that will come later
+         * right now we just want to get rid of stray frms et al
+         */
+        Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+        thd_ndb_options.set(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES);
+
+        Ndb_find_files_list tab_names(thd);
+        if (!tab_names.find_tables(db_name->str, path))
+        {
+          thd->clear_error();
+          DBUG_PRINT("info", ("Failed to find tables"));
+        }
+      }
+    }
     DBUG_VOID_RETURN;
   }
 
-  LEX_STRING *db_name;
-  while ((db_name= db_names.next()))
-  {
-    DBUG_PRINT("info", ("Found database %s", db_name->str));
-    if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
-    {
-
-      sql_print_information("NDB: Cleaning stray tables from database '%s'",
-                            db_name->str);
-
-      char path[FN_REFLEN + 1];
-      build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
-      
-      /* Require that no binlog setup is attempted yet, that will come later
-       * right now we just want to get rid of stray frms et al
-       */
-      Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
-      thd_ndb_options.set(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES);
-
-      Ndb_find_files_list tab_names(thd);
-      if (!tab_names.find_tables(db_name->str, path))
-      {
-        thd->clear_error();
-        DBUG_PRINT("info", ("Failed to find tables"));
-      }
-    }
-  }
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Ndb has no representation of the database schema objects.
-  The mysql.ndb_schema table contains the latest schema operations
-  done via a mysqld, and thus reflects databases created/dropped/altered
-  while a mysqld was disconnected.  This function tries to recover
-  the correct state w.r.t created databases using the information in
-  that table.
-*/
-static
-int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
-{
-  Ndb *ndb= thd_ndb->ndb;
-  NDBDICT *dict= ndb->getDictionary();
-  NdbTransaction *trans= NULL;
-  NdbError ndb_error;
-  int retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
-  DBUG_ENTER("Ndb_binlog_setup::find_all_databases");
 
   /*
-    Function should only be called while ndbcluster_global_schema_lock
-    is held, to ensure that ndb_schema table is not being updated while
-    scanning.
+    Ndb has no representation of the database schema objects.
+    The mysql.ndb_schema table contains the latest schema operations
+    done via a mysqld, and thus reflects databases created/dropped/altered
+    while a mysqld was disconnected.  This function tries to recover
+    the correct state w.r.t created databases using the information in
+    that table.
   */
-  if (!thd_ndb->has_required_global_schema_lock("Ndb_binlog_setup::find_all_databases"))
-    DBUG_RETURN(1);
-
-  ndb->setDatabaseName(NDB_REP_DB);
-
-  Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
-  thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
-  while (1)
+  static
+  int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
   {
-    char db_buffer[FN_REFLEN];
-    char *db= db_buffer+1;
-    char name[FN_REFLEN];
-    char query[64000];
-    Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
-    const NDBTAB *ndbtab= ndbtab_g.get_table();
-    NdbScanOperation *op;
-    NdbBlob *query_blob_handle;
-    int r= 0;
-    if (ndbtab == NULL)
-    {
-      ndb_error= dict->getNdbError();
-      goto error;
-    }
-    trans= ndb->startTransaction();
-    if (trans == NULL)
-    {
-      ndb_error= ndb->getNdbError();
-      goto error;
-    }
-    op= trans->getNdbScanOperation(ndbtab);
-    if (op == NULL)
-    {
-      ndb_error= trans->getNdbError();
-      goto error;
-    }
+    Ndb *ndb= thd_ndb->ndb;
+    NDBDICT *dict= ndb->getDictionary();
+    NdbTransaction *trans= NULL;
+    NdbError ndb_error;
+    int retries= 100;
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    DBUG_ENTER("Ndb_binlog_setup::find_all_databases");
 
-    op->readTuples(NdbScanOperation::LM_Read,
-                   NdbScanOperation::SF_TupScan, 1);
-    
-    r|= op->getValue("db", db_buffer) == NULL;
-    r|= op->getValue("name", name) == NULL;
-    r|= (query_blob_handle= op->getBlobHandle("query")) == NULL;
-    r|= query_blob_handle->getValue(query, sizeof(query));
+    /*
+      Function should only be called while ndbcluster_global_schema_lock
+      is held, to ensure that ndb_schema table is not being updated while
+      scanning.
+    */
+    if (!thd_ndb->has_required_global_schema_lock("Ndb_binlog_setup::find_all_databases"))
+      DBUG_RETURN(1);
 
-    if (r)
-    {
-      ndb_error= op->getNdbError();
-      goto error;
-    }
+    ndb->setDatabaseName(NDB_REP_DB);
 
-    if (trans->execute(NdbTransaction::NoCommit))
+    Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+    thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
+    while (1)
     {
-      ndb_error= trans->getNdbError();
-      goto error;
-    }
-
-    while ((r= op->nextResult()) == 0)
-    {
-      unsigned db_len= db_buffer[0];
-      unsigned name_len= name[0];
-      /*
-        name_len == 0 means no table name, hence the row
-        is for a database
-      */
-      if (db_len > 0 && name_len == 0)
+      char db_buffer[FN_REFLEN];
+      char *db= db_buffer+1;
+      char name[FN_REFLEN];
+      char query[64000];
+      Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
+      const NDBTAB *ndbtab= ndbtab_g.get_table();
+      NdbScanOperation *op;
+      NdbBlob *query_blob_handle;
+      int r= 0;
+      if (ndbtab == NULL)
       {
-        /* database found */
-        db[db_len]= 0;
+        ndb_error= dict->getNdbError();
+        goto error;
+      }
+      trans= ndb->startTransaction();
+      if (trans == NULL)
+      {
+        ndb_error= ndb->getNdbError();
+        goto error;
+      }
+      op= trans->getNdbScanOperation(ndbtab);
+      if (op == NULL)
+      {
+        ndb_error= trans->getNdbError();
+        goto error;
+      }
 
-	/* find query */
-        Uint64 query_length= 0;
-        if (query_blob_handle->getLength(query_length))
+      op->readTuples(NdbScanOperation::LM_Read,
+                     NdbScanOperation::SF_TupScan, 1);
+
+      r|= op->getValue("db", db_buffer) == NULL;
+      r|= op->getValue("name", name) == NULL;
+      r|= (query_blob_handle= op->getBlobHandle("query")) == NULL;
+      r|= query_blob_handle->getValue(query, sizeof(query));
+
+      if (r)
+      {
+        ndb_error= op->getNdbError();
+        goto error;
+      }
+
+      if (trans->execute(NdbTransaction::NoCommit))
+      {
+        ndb_error= trans->getNdbError();
+        goto error;
+      }
+
+      while ((r= op->nextResult()) == 0)
+      {
+        unsigned db_len= db_buffer[0];
+        unsigned name_len= name[0];
+        /*
+          name_len == 0 means no table name, hence the row
+          is for a database
+        */
+        if (db_len > 0 && name_len == 0)
         {
-          ndb_error= query_blob_handle->getNdbError();
-          goto error;
-        }
-        query[query_length]= 0;
-        build_table_filename(name, sizeof(name), db, "", "", 0);
-        int database_exists= !my_access(name, F_OK);
-        if (native_strncasecmp("CREATE", query, 6) == 0)
-        {
-          /* Database should exist */
-          if (!database_exists)
+          /* database found */
+          db[db_len]= 0;
+
+          /* find query */
+          Uint64 query_length= 0;
+          if (query_blob_handle->getLength(query_length))
           {
-            /* create missing database */
-            sql_print_information("NDB: Discovered missing database '%s'", db);
-            const int no_print_error[1]= {0};
-            run_query(thd, query, query + query_length,
-                      no_print_error);
+            ndb_error= query_blob_handle->getNdbError();
+            goto error;
           }
-        }
-        else if (native_strncasecmp("ALTER", query, 5) == 0)
-        {
-          /* Database should exist */
-          if (!database_exists)
+          query[query_length]= 0;
+          build_table_filename(name, sizeof(name), db, "", "", 0);
+          int database_exists= !my_access(name, F_OK);
+          if (native_strncasecmp("CREATE", query, 6) == 0)
           {
-            /* create missing database */
-            sql_print_information("NDB: Discovered missing database '%s'", db);
-            const int no_print_error[1]= {0};
-            name_len= (unsigned)my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
-            run_query(thd, name, name + name_len,
-                      no_print_error);
-            run_query(thd, query, query + query_length,
-                      no_print_error);
+            /* Database should exist */
+            if (!database_exists)
+            {
+              /* create missing database */
+              ndb_log_info("Discovered missing database '%s'", db);
+              const int no_print_error[1]= {0};
+              run_query(thd, query, query + query_length,
+                        no_print_error);
+            }
           }
-        }
-        else if (native_strncasecmp("DROP", query, 4) == 0)
-        {
-          /* Database should not exist */
-          if (database_exists)
+          else if (native_strncasecmp("ALTER", query, 5) == 0)
           {
-            /* drop missing database */
-            sql_print_information("NDB: Discovered remaining database '%s'", db);
+            /* Database should exist */
+            if (!database_exists)
+            {
+              /* create missing database */
+              ndb_log_info("Discovered missing database '%s'", db);
+              const int no_print_error[1]= {0};
+              name_len= (unsigned)my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
+              run_query(thd, name, name + name_len,
+                        no_print_error);
+              run_query(thd, query, query + query_length,
+                        no_print_error);
+            }
+          }
+          else if (native_strncasecmp("DROP", query, 4) == 0)
+          {
+            /* Database should not exist */
+            if (database_exists)
+            {
+              /* drop missing database */
+              ndb_log_info("Discovered remaining database '%s'", db);
+            }
           }
         }
       }
-    }
-    if (r == -1)
-    {
-      ndb_error= op->getNdbError();
-      goto error;
-    }
-    ndb->closeTransaction(trans);
-    trans= NULL;
-    DBUG_RETURN(0); // success
-  error:
-    if (trans)
-    {
+      if (r == -1)
+      {
+        ndb_error= op->getNdbError();
+        goto error;
+      }
       ndb->closeTransaction(trans);
       trans= NULL;
-    }
-    if (ndb_error.status == NdbError::TemporaryError && !thd->killed)
-    {
-      if (retries--)
+      DBUG_RETURN(0); // success
+
+    error:
+      if (trans)
       {
-        sql_print_warning("NDB: ndbcluster_find_all_databases retry: %u - %s",
+        ndb->closeTransaction(trans);
+        trans= NULL;
+      }
+      if (ndb_error.status == NdbError::TemporaryError && !thd->killed)
+      {
+        if (retries--)
+        {
+          ndb_log_warning("ndbcluster_find_all_databases retry: %u - %s",
                           ndb_error.code,
                           ndb_error.message);
-        ndb_retry_sleep(retry_sleep);
-        continue; // retry
+          ndb_retry_sleep(retry_sleep);
+          continue; // retry
+        }
       }
-    }
-    if (!thd->killed)
-    {
-      sql_print_error("NDB: ndbcluster_find_all_databases fail: %u - %s",
+      if (!thd->killed)
+      {
+        ndb_log_error("ndbcluster_find_all_databases fail: %u - %s",
                       ndb_error.code,
                       ndb_error.message);
+      }
+
+      DBUG_RETURN(1); // not temp error or too many retries
     }
-
-    DBUG_RETURN(1); // not temp error or too many retries
   }
-}
 
 
-/*
-  find all tables in ndb and discover those needed
-*/
-static
-int find_all_files(THD *thd, Ndb* ndb)
-{
-  char key[FN_REFLEN + 1];
-  int unhandled= 0, retries= 5, skipped= 0;
-  DBUG_ENTER("Ndb_binlog_setup::find_all_files");
-
-  NDBDICT* dict= ndb->getDictionary();
-
-  do
+  /*
+    find all tables in ndb and discover those needed
+  */
+  static
+  int find_all_files(THD *thd, Ndb* ndb)
   {
-    NdbDictionary::Dictionary::List list;
-    if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-      DBUG_RETURN(1);
-    unhandled= 0;
-    skipped= 0;
-    retries--;
-    for (uint i= 0 ; i < list.count ; i++)
-    {
-      NDBDICT::List::Element& elmt= list.elements[i];
-      if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
-      {
-        DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
-        continue;
-      }
-      DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
-      if (elmt.state != NDBOBJ::StateOnline &&
-          elmt.state != NDBOBJ::StateBackup &&
-          elmt.state != NDBOBJ::StateBuilding)
-      {
-        sql_print_information("NDB: skipping setup table %s.%s, in state %d",
-                              elmt.database, elmt.name, elmt.state);
-        skipped++;
-        continue;
-      }
+    char key[FN_REFLEN + 1];
+    int unhandled= 0, retries= 5, skipped= 0;
+    DBUG_ENTER("Ndb_binlog_setup::find_all_files");
 
-      ndb->setDatabaseName(elmt.database);
-      Ndb_table_guard ndbtab_g(dict, elmt.name);
-      const NDBTAB *ndbtab= ndbtab_g.get_table();
-      if (!ndbtab)
+    NDBDICT* dict= ndb->getDictionary();
+
+    do
+    {
+      NdbDictionary::Dictionary::List list;
+      if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+        DBUG_RETURN(1);
+      unhandled= 0;
+      skipped= 0;
+      retries--;
+      for (uint i= 0 ; i < list.count ; i++)
       {
-        if (retries == 0)
-          sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
+        NDBDICT::List::Element& elmt= list.elements[i];
+        if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
+        {
+          DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
+          continue;
+        }
+        DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
+        if (elmt.state != NDBOBJ::StateOnline &&
+            elmt.state != NDBOBJ::StateBackup &&
+            elmt.state != NDBOBJ::StateBuilding)
+        {
+          ndb_log_info("skipping setup table %s.%s, in state %d",
+                        elmt.database, elmt.name, elmt.state);
+          skipped++;
+          continue;
+        }
+
+        ndb->setDatabaseName(elmt.database);
+        Ndb_table_guard ndbtab_g(dict, elmt.name);
+        const NDBTAB *ndbtab= ndbtab_g.get_table();
+        if (!ndbtab)
+        {
+          if (retries == 0)
+            ndb_log_error("failed to setup table %s.%s, error: %d, %s",
                           elmt.database, elmt.name,
                           dict->getNdbError().code,
                           dict->getNdbError().message);
-        unhandled++;
-        continue;
-      }
-
-      if (ndbtab->getFrmLength() == 0)
-        continue;
-
-      if (ndb_get_extra_metadata_version(ndbtab) != 2)
-      {
-        // Skip install of table which have unsupported extra metadata versions
-        ndb_log_info("Skipping install of table %s.%s which have unsupported "
-                     "extra metadata version.", elmt.database, elmt.name);
-        continue;
-      }
-
-      /* check if database exists */
-      char *end= key +
-        build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
-      if (my_access(key, F_OK))
-      {
-        /* no such database defined, skip table */
-        continue;
-      }
-      /* finalize construction of path */
-      end+= tablename_to_filename(elmt.name, end,
-                                  (uint)(sizeof(key)-(end-key)));
-      dd::sdi_t sdi;
-      bool need_install = false;
-      bool need_overwrite = false;
-      if (!ndb_dd_serialize_table(thd,
-                                  elmt.database, elmt.name,
-                                  sdi))
-      {
-        need_install = true;
-        ndb_log_info("Table %s.%s does not exist in DD, installing...",
-                     elmt.database, elmt.name);
-      }
-      else if (cmp_unpacked_frm(ndbtab, sdi.c_str(), sdi.length()))
-      {
-        need_install = true;
-        need_overwrite = true;
-        ndb_log_info("Table %s.%s have different defintion in DD, installing",
-                     elmt.database, elmt.name);
-      }
-
-      if (need_install)
-      {
-        if (ndb_create_table_from_engine(thd, elmt.database, elmt.name,
-                                         need_overwrite))
-        {
-          // Failed to create table from NDB
-          ndb_log_error("Failed to install table %s.%s from NDB",
-                        elmt.database, elmt.name);
-        }
-      }
-      else
-      {
-        /* set up replication for this table */
-        if (ndbcluster_create_binlog_setup(thd, ndb, key,
-                                           elmt.database, elmt.name, NULL))
-        {
           unhandled++;
           continue;
         }
+
+        if (ndbtab->getFrmLength() == 0)
+          continue;
+
+        if (ndb_get_extra_metadata_version(ndbtab) != 2)
+        {
+          // Skip install of table which have unsupported extra metadata versions
+          ndb_log_info("Skipping install of table %s.%s which have unsupported "
+                       "extra metadata version.", elmt.database, elmt.name);
+          continue;
+        }
+
+        /* check if database exists */
+        char *end= key +
+                   build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
+        if (my_access(key, F_OK))
+        {
+          /* no such database defined, skip table */
+          continue;
+        }
+        /* finalize construction of path */
+        end+= tablename_to_filename(elmt.name, end,
+                                    (uint)(sizeof(key)-(end-key)));
+        dd::sdi_t sdi;
+        bool need_install = false;
+        bool need_overwrite = false;
+        if (!ndb_dd_serialize_table(thd,
+                                    elmt.database, elmt.name,
+                                    sdi))
+        {
+          need_install = true;
+          ndb_log_info("Table %s.%s does not exist in DD, installing...",
+                       elmt.database, elmt.name);
+        }
+        else if (cmp_unpacked_frm(ndbtab, sdi.c_str(), sdi.length()))
+        {
+          need_install = true;
+          need_overwrite = true;
+          ndb_log_info("Table %s.%s have different defintion in DD, installing",
+                       elmt.database, elmt.name);
+        }
+
+        if (need_install)
+        {
+          if (ndb_create_table_from_engine(thd, elmt.database, elmt.name,
+                                           need_overwrite))
+          {
+            // Failed to create table from NDB
+            ndb_log_error("Failed to install table %s.%s from NDB",
+                          elmt.database, elmt.name);
+          }
+        }
+        else
+        {
+          /* set up replication for this table */
+          if (ndbcluster_create_binlog_setup(thd, ndb, key,
+                                             elmt.database, elmt.name, NULL))
+          {
+            unhandled++;
+            continue;
+          }
+        }
       }
     }
-  }
-  while (unhandled && retries);
+    while (unhandled && retries);
 
-  DBUG_RETURN(-(skipped + unhandled));
-}
+    DBUG_RETURN(-(skipped + unhandled));
+  }
 
   static bool
   create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
