@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+--source include/have_innodb_16k.inc
 
 --echo #
 --echo # Test the syntax for ALTER TABLE ... PARTITION operations,
