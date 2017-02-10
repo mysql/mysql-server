@@ -100,7 +100,7 @@ DROP TABLE t1;
 --echo # Bug#32533: SELECT INTO OUTFILE never escapes multibyte character
 --echo #
 
-CREATE TABLE t1 (c1 VARCHAR(256));
+CREATE TABLE t1 (c1 VARCHAR(256) charset latin1);
 INSERT INTO t1 VALUES (0xC3);
 SELECT HEX(c1) FROM t1;
 
@@ -119,7 +119,7 @@ TRUNCATE t1;
 # Disabled by WL#5094
 --disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$file' INTO TABLE t1 FIELDS ENCLOSED BY 0xC3
+--eval LOAD DATA INFILE '$file' INTO TABLE t1 CHARACTER SET latin1 FIELDS ENCLOSED BY 0xC3
 --enable_warnings
 SELECT HEX(c1) FROM t1;
 

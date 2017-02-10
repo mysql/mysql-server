@@ -25,14 +25,14 @@ hex(weight_string('aa' as binary(3)))
 select hex(weight_string(cast('aa' as binary(3))));
 hex(weight_string(cast('aa' as binary(3))))
 616100
-create table t1 select weight_string('test') as w;
+create table t1 charset latin1 select weight_string('test') as w;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `w` varbinary(4) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 select weight_string(repeat('t',66000)) as w;
+create table t1 charset latin1 select weight_string(repeat('t',66000)) as w;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -51,7 +51,7 @@ coercibility(weight_string('test'))
 select coercibility(weight_string('test' collate latin1_swedish_ci));
 coercibility(weight_string('test' collate latin1_swedish_ci))
 0
-create table t1 (s1 varchar(5));
+create table t1 (s1 varchar(5)) charset latin1;
 insert into t1 values ('a'),(null);
 select hex(weight_string(s1)) from t1 order by s1;
 hex(weight_string(s1))
@@ -96,7 +96,7 @@ DROP VIEW v1;
 DROP VIEW v5;
 DROP VIEW v6;
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(10));
+CREATE TABLE t1 (a VARCHAR(10)) charset latin1;
 INSERT INTO t1 VALUES ('abcd');
 INSERT INTO t1 VALUES ('dcba');
 CREATE VIEW v1 AS SELECT WEIGHT_STRING(_latin1 'ab') AS b;
