@@ -1409,7 +1409,9 @@ TransporterFacade::connected()
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
     if (clnt != 0)
     {
+      NdbMutex_Lock(clnt->m_mutex);
       clnt->trp_deliver_signal(&signal, 0);
+      NdbMutex_Unlock(clnt->m_mutex);
     }
   }
   DBUG_VOID_RETURN;
