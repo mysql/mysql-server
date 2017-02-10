@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,7 +168,7 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
 
   m_eventId = m_eventImpl->m_eventId;
 
-  m_oid= m_ndb->theImpl->theNdbObjectIdMap.map(this);
+  m_oid= m_ndb->theImpl->mapRecipient(this);
 
   m_state= EO_CREATED;
 
@@ -211,7 +211,7 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
     }
   }
 
-  m_ndb->theImpl->theNdbObjectIdMap.unmap(m_oid, this);
+  m_ndb->theImpl->unmapRecipient(m_oid, this);
   DBUG_PRINT("exit",("this: %p/%p oid: %u main: %p",
              this, m_facade, m_oid, theMainOp));
 
