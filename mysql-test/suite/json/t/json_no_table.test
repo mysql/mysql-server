@@ -2334,3 +2334,17 @@ SELECT JSON_SEARCH('["a", "a"]', CAST('one' AS CHAR CHARSET utf16), 'a') AS c1,
 --echo # Bug#25530204: THE RESULT OF SUM ON JSON_EXTRACT LOST THE DECIMAL PART
 --echo #
 SELECT SUM(CAST('5.45' AS JSON));
+
+--echo #
+--echo # Bug#25518504: SOME BIG NUMBERS IN JSON DOCUMENTS BECOME ZERO
+--echo #
+# These statements returned zero instead of raising an error.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('2e308' AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('-2e308' AS JSON);
+# These statements correctly returned an error even before the fix.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('2e309' AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('-2e309' AS JSON);

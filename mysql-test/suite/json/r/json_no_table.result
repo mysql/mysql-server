@@ -3338,3 +3338,14 @@ c1	c2	c3	c4
 SELECT SUM(CAST('5.45' AS JSON));
 SUM(CAST('5.45' AS JSON))
 5.45
+#
+# Bug#25518504: SOME BIG NUMBERS IN JSON DOCUMENTS BECOME ZERO
+#
+SELECT CAST('2e308' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Terminate parsing due to Handler error." at position 0.
+SELECT CAST('-2e308' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Terminate parsing due to Handler error." at position 0.
+SELECT CAST('2e309' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Number too big to be stored in double." at position 0.
+SELECT CAST('-2e309' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Number too big to be stored in double." at position 0.

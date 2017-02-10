@@ -15,6 +15,7 @@
 
 #include "json_dom.h"
 
+#include <cmath>                // std::isfinite
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -574,6 +575,12 @@ public:
   bool Double(double d)
   {
     DUMP_CALLBACK("double", state);
+    /*
+      We only accept finite values. RapidJSON normally stops non-finite values
+      from getting here, but sometimes +/-inf values could end up here anyway.
+    */
+    if (!std::isfinite(d))
+      return false;
     return seeing_value(new (std::nothrow) Json_double(d));
   }
 
