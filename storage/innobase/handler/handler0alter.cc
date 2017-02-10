@@ -4488,8 +4488,7 @@ prepare_inplace_alter_table_global_dd(
 
 		if (dict_table_is_file_per_table(old_table)) {
 			dd::Object_id	old_space_id =
-				(*old_dd_tab->indexes().begin())
-				->tablespace_id();
+				dd_first_index(old_dd_tab)->tablespace_id();
 
 			dd::Tablespace*	old_dd_space = NULL;
 			if (client->acquire_uncached_uncommitted(
@@ -4539,7 +4538,8 @@ prepare_inplace_alter_table_global_dd(
 			tablespace id should still be used for new partition */
 			if (new_dd_tab->table().partition_type()
 			    != dd::Table::PT_NONE) {
-				dd_space_id = dd_get_space_id(*old_dd_tab);
+				dd_space_id = dd_first_index(old_dd_tab)
+					->tablespace_id();
 			} else {
 				dd_space_id = dd_get_space_id(*new_dd_tab);
 			}

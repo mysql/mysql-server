@@ -10,13 +10,16 @@ CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 # to general tablespace
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_file_per_table PARTITION BY KEY(col1) PARTITIONS 3;
 
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
-ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
-
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
@@ -28,13 +31,16 @@ DROP TABLE t1;
 # to general tablespace
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_system PARTITION BY KEY(col1) PARTITIONS 3;
 
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
-ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
-
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
@@ -46,13 +52,16 @@ DROP TABLE t1;
 # to innodb_file_per_table
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
 
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
-ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
-
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
@@ -64,13 +73,16 @@ DROP TABLE t1;
 # to innodb_system
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
 
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
-ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
-
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
