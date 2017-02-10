@@ -93,6 +93,16 @@ public:
   virtual void set_sort_length(uint sort_length)
   { m_sort_length= sort_length; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // pad_attribute
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &pad_attribute() const
+  { return m_pad_attribute; }
+
+  virtual void set_pad_attribute(const String_type &pad_attribute)
+  { m_pad_attribute= pad_attribute; }
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -122,6 +132,7 @@ private:
   // Fields
   bool m_is_compiled;
   uint m_sort_length;
+  String_type m_pad_attribute;
 
   // References to other objects
   Object_id m_charset_id;

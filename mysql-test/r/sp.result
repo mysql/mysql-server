@@ -2358,7 +2358,7 @@ show warnings;
 end|
 call bug4902()|
 Charset	Description	Default collation	Maxlen
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
@@ -2379,7 +2379,7 @@ Variable_name	Value
 Level	Code	Message
 call bug4902()|
 Charset	Description	Default collation	Maxlen
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',

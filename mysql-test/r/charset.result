@@ -5,7 +5,7 @@
 SHOW CHARACTER SET LIKE '%filename%';
 Charset	Description	Default collation	Maxlen
 SHOW COLLATION LIKE '%filename%';
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 SELECT _filename'abcd';
 ERROR 42S22: Unknown column '_filename' in 'field list'
 SELECT CONVERT(_latin1'abcd' USING filename);

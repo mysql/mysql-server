@@ -239,35 +239,35 @@ Charset	Description	Default collation	Maxlen
 latin1	cp1252 West European	latin1_swedish_ci	1
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%' order by collation_name;
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-latin1_bin	latin1	47		#	1
-latin1_danish_ci	latin1	15		#	1
-latin1_general_ci	latin1	48		#	1
-latin1_general_cs	latin1	49		#	1
-latin1_german1_ci	latin1	5		#	1
-latin1_german2_ci	latin1	31		#	2
-latin1_spanish_ci	latin1	94		#	1
-latin1_swedish_ci	latin1	8	Yes	#	1
+COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
+latin1_bin	latin1	47		#	1	PAD SPACE
+latin1_danish_ci	latin1	15		#	1	PAD SPACE
+latin1_general_ci	latin1	48		#	1	PAD SPACE
+latin1_general_cs	latin1	49		#	1	PAD SPACE
+latin1_german1_ci	latin1	5		#	1	PAD SPACE
+latin1_german2_ci	latin1	31		#	2	PAD SPACE
+latin1_spanish_ci	latin1	94		#	1	PAD SPACE
+latin1_swedish_ci	latin1	8	Yes	#	1	PAD SPACE
 SHOW COLLATION LIKE 'latin1%';
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_bin	latin1	47		#	1
-latin1_danish_ci	latin1	15		#	1
-latin1_general_ci	latin1	48		#	1
-latin1_general_cs	latin1	49		#	1
-latin1_german1_ci	latin1	5		#	1
-latin1_german2_ci	latin1	31		#	2
-latin1_spanish_ci	latin1	94		#	1
-latin1_swedish_ci	latin1	8	Yes	#	1
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_bin	latin1	47		#	1	PAD SPACE
+latin1_danish_ci	latin1	15		#	1	PAD SPACE
+latin1_general_ci	latin1	48		#	1	PAD SPACE
+latin1_general_cs	latin1	49		#	1	PAD SPACE
+latin1_german1_ci	latin1	5		#	1	PAD SPACE
+latin1_german2_ci	latin1	31		#	2	PAD SPACE
+latin1_spanish_ci	latin1	94		#	1	PAD SPACE
+latin1_swedish_ci	latin1	8	Yes	#	1	PAD SPACE
 SHOW COLLATION WHERE collation like 'latin1%';
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_bin	latin1	47		#	1
-latin1_danish_ci	latin1	15		#	1
-latin1_general_ci	latin1	48		#	1
-latin1_general_cs	latin1	49		#	1
-latin1_german1_ci	latin1	5		#	1
-latin1_german2_ci	latin1	31		#	2
-latin1_spanish_ci	latin1	94		#	1
-latin1_swedish_ci	latin1	8	Yes	#	1
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_bin	latin1	47		#	1	PAD SPACE
+latin1_danish_ci	latin1	15		#	1	PAD SPACE
+latin1_general_ci	latin1	48		#	1	PAD SPACE
+latin1_general_cs	latin1	49		#	1	PAD SPACE
+latin1_german1_ci	latin1	5		#	1	PAD SPACE
+latin1_german2_ci	latin1	31		#	2	PAD SPACE
+latin1_spanish_ci	latin1	94		#	1	PAD SPACE
+latin1_swedish_ci	latin1	8	Yes	#	1	PAD SPACE
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
 where COLLATION_NAME like 'latin1%' ORDER BY COLLATION_NAME;
 COLLATION_NAME	CHARACTER_SET_NAME
@@ -1422,7 +1422,7 @@ SELECT *
 FROM tables ta
 JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8))
 JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8));
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT	COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT	COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE	CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 DROP TABLE test.t1;
 SET max_heap_table_size = DEFAULT;
 USE test;

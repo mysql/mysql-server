@@ -6,7 +6,7 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 15	SYS_VIRTUAL	0	6	0	Redundant	0	System
 16	mysql/version	33	4	2	Dynamic	0	Single
 17	mysql/character_sets	33	8	3	Dynamic	0	Single
-18	mysql/collations	33	8	4	Dynamic	0	Single
+18	mysql/collations	33	9	4	Dynamic	0	Single
 19	mysql/tablespaces	33	9	5	Dynamic	0	Single
 20	mysql/tablespace_files	33	7	6	Dynamic	0	Single
 21	mysql/catalogs	33	7	7	Dynamic	0	Single
@@ -81,6 +81,7 @@ table_id	pos	mtype	prtype	len	name
 18	2	6	1800	8	character_set_id
 18	3	6	1281	1	is_compiled
 18	4	6	1795	4	sort_length
+18	5	12	5439759	27	pad_attribute
 19	0	6	1800	8	id
 19	1	12	5443855	765	name
 19	2	5	5439740	11	options
@@ -1006,7 +1007,7 @@ SYS_TABLESPACES	0	6
 SYS_VIRTUAL	0	6
 mysql/catalogs	33	7
 mysql/character_sets	33	8
-mysql/collations	33	8
+mysql/collations	33	9
 mysql/column_stats	33	7
 mysql/column_type_elements	33	6
 mysql/columns	33	31
