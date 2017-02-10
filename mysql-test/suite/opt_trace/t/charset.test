@@ -45,7 +45,7 @@ drop view v1;
 # test non-ASCII chars in a range
 
 set names latin1;
-create table t1(c char(4) primary key);
+create table t1(c char(4) primary key) charset latin1;
 insert into t1 values ('aaa'), ('ÁÂÃÄ');
 select * from t1 where c < 'ÁÂÃÄÅ';
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;

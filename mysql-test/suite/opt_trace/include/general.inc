@@ -136,7 +136,7 @@ set optimizer_switch=@old_opt_switch;
 
 # 5.1-style subquery transformations
 CREATE TABLE t1 (s1 CHAR(5),
-                 s2 CHAR(5));
+                 s2 CHAR(5)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('z','?'),('y','!');
 # > ANY -> > MIN...
 explain extended select * from t1 where s1 > any (select s2 from t1);
@@ -389,12 +389,12 @@ select * from information_schema.OPTIMIZER_TRACE;
 create table t1 (
 	id   char(16) not null default '',
         data int not null
-);
+) charset utf8mb4;
 create table t2 (
 	s   char(16),
         i   int,
 	d   double
-);
+) charset utf8mb4;
 delimiter |;
 insert into t1 values ("a", 1), ("b", 2) |
 insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0), ("d", 4, 4.0) |
@@ -444,7 +444,7 @@ select * from information_schema.OPTIMIZER_TRACE|
 set @@optimizer_switch=@old_opt_switch;
 
 # Stored procedures
-create procedure p1(arg char(1))
+create procedure p1(arg char(1) charset utf8mb4)
 begin
   declare res int;
   select d into res from t6 where d in (select f1() from t2 where s=arg);
@@ -492,7 +492,7 @@ select @trace=@trace2;
 drop procedure p1;
 create temporary table optt like information_schema.OPTIMIZER_TRACE;
 delimiter |;
-create procedure p1(arg char(1))
+create procedure p1(arg char(1) charset utf8mb4)
 begin
   declare res int;
   set optimizer_trace="enabled=off";

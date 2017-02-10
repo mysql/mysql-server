@@ -423,7 +423,7 @@ select * from v1 where v1.col = 'ÃÃ‚ÃƒÃ„Ã…'	{
 drop table t1;
 drop view v1;
 set names latin1;
-create table t1(c char(4) primary key);
+create table t1(c char(4) primary key) charset latin1;
 insert into t1 values ('aaa'), ('ÁÂÃÄ');
 select * from t1 where c < 'ÁÂÃÄÅ';
 c

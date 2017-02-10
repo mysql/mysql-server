@@ -41,27 +41,27 @@ pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE TABLE t2 (  
 pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 col_varchar_nokey VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE TABLE t3 (  
 pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 col_varchar_nokey VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE TABLE t4 (
 pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE VIEW view_t4 AS SELECT * FROM t4;
 CREATE TABLE where_subselect_19379 SELECT
 (
@@ -2615,12 +2615,12 @@ CREATE TABLE t1 (
 a TINYTEXT NOT NULL,
 b TINYINT(3) UNSIGNED NOT NULL,
 PRIMARY KEY (a(32),b)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM, CHARSET utf8mb4;
 CREATE TABLE t2 (
 a TINYTEXT NOT NULL,
 b TINYINT(3) UNSIGNED NOT NULL,
 PRIMARY KEY (a(32),b)
-) ENGINE=INNODB;
+) ENGINE=INNODB, CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('a',1),('a',2);
 INSERT INTO t2 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
 ANALYZE TABLE t1;
@@ -2631,7 +2631,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	35	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	131	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 'a') and (`test`.`t1`.`b` in (1,2)))
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -2640,7 +2640,7 @@ SELECT @trace RLIKE "access_type_changed";
 1
 EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	35	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	131	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = 'a') and (`test`.`t2`.`b` in (1,2)))
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -2799,7 +2799,7 @@ vc2 VARCHAR(10),
 PRIMARY KEY (pk), 
 KEY i1 (i1),
 KEY vc (vc)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 INSERT INTO t1 VALUES (1, -1281753088,'p','r');
 INSERT INTO t1 VALUES (4, NULL,'a','i');
 INSERT INTO t1 VALUES (5, NULL,'lhtrovamzq','t');
@@ -2822,7 +2822,7 @@ ON t1.i1 < t2.vc
 WHERE t1.vc IN ( 'AVZPQ' )
 OR t1.i1 IS NULL AND t1.pk >= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,i1,vc	vc,i1,PRIMARY	13,9,4	NULL	2	100.00	Using union(vc,intersect(i1,PRIMARY)); Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,i1,vc	vc,i1,PRIMARY	43,9,4	NULL	2	100.00	Using union(vc,intersect(i1,PRIMARY)); Using where
 1	SIMPLE	t2	NULL	ALL	vc2	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1739	Cannot use range access on index 'vc2' due to type or collation conversion on field 'vc'
