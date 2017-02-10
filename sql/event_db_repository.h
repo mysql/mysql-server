@@ -29,6 +29,10 @@ struct TABLE_LIST;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef long my_time_t;
 
+namespace dd {
+  class Schema;
+}
+
 /*
   Fields in mysql.event table in 5.7. This enum is used to
   read and update mysql.events dictionary table during upgrade
@@ -92,7 +96,7 @@ public:
   bool drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                   bool drop_if_exists);
 
-  bool drop_schema_events(THD *thd, LEX_STRING schema);
+  bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
   bool load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                         Event_basic *et);

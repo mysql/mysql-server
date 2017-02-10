@@ -649,6 +649,42 @@ public:
 
 
   /**
+    Retrieve an object by its schema- and object name.
+
+    This function returns a cloned object that can be modified.
+
+    @note We will acquire an IX-lock on the schema name unless we already
+          have one. This is needed for proper synchronization with schema
+          DDL in cases where the table does not exist, and where the
+          indirect synchronization based on table names therefore will not
+          apply.
+
+    @note This is a variant of the method above asking for an object of type
+          T, and hence using T's functions for updating name keys etc.
+          This function, however, returns the instance pointed to as type
+          T::cache_partition_type to ease handling of various subtypes
+          of the same base type.
+
+    @todo TODO: We should change the MDL acquisition (see above) for a more
+          long term solution.
+
+    @tparam       T             Dictionary object type.
+    @param        schema_name   Name of the schema containing the object.
+    @param        object_name   Name of the object.
+    @param [out]  object        Dictionary object, if present; otherwise NULL.
+
+    @retval       false   No error.
+    @retval       true    Error (from handling a cache miss, or from
+                                 failing to get an MDL lock).
+  */
+
+  template <typename T>
+  bool acquire_for_modification(const String_type &schema_name,
+                                const String_type &object_name,
+                                typename T::cache_partition_type** object);
+
+
+  /**
     Retrieve a table object by its se private id.
 
     @param       engine        Name of the engine storing the table.

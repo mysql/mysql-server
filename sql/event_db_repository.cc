@@ -75,9 +75,21 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   DBUG_ASSERT(sp);
 
-  if (dd::event_exists(thd->dd_client(), parse_data->dbname.str,
-                       parse_data->name.str, event_already_exists))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema= nullptr;
+  const dd::Event *event= nullptr;
+  if (thd->dd_client()->acquire(parse_data->dbname.str, &schema) ||
+      thd->dd_client()->acquire(parse_data->dbname.str,
+                                parse_data->name.str, &event))
     DBUG_RETURN(true);
+
+  if (schema == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), parse_data->dbname.str);
+    DBUG_RETURN(true);
+  }
+
+  *event_already_exists= (event != nullptr);
 
   if (*event_already_exists)
   {
@@ -93,11 +105,19 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(dd::create_event(thd, parse_data->dbname.str,
-                               parse_data->name.str,
-                               sp->m_body.str, sp->m_body_utf8.str,
-                               thd->lex->definer,
-                               parse_data));
+  if (dd::create_event(thd, *schema,
+                       parse_data->name.str,
+                       sp->m_body.str, sp->m_body_utf8.str,
+                       thd->lex->definer,
+                       parse_data))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -140,21 +160,33 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   {
     DBUG_PRINT("info", ("rename to: %s@%s", new_dbname->str, new_name->str));
 
-    bool exists= false;
-    if (dd::event_exists(thd->dd_client(), new_dbname->str,
-                         new_name->str, &exists))
+    const dd::Event *new_event= nullptr;
+    if (thd->dd_client()->acquire(new_dbname->str, new_name->str, &new_event))
       DBUG_RETURN(true);
 
-    if (exists)
+    if (new_event != nullptr)
     {
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->str);
       DBUG_RETURN(true);
     }
   }
 
-  const dd::Event *event= nullptr;
-  if (thd->dd_client()->acquire(parse_data->dbname.str,
-                                parse_data->name.str, &event))
+  const dd::Schema *new_schema= nullptr;
+  if (new_dbname != nullptr)
+  {
+    if (thd->dd_client()->acquire(new_dbname->str, &new_schema))
+      DBUG_RETURN(true);
+
+    if (new_schema == nullptr)
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), new_dbname->str);
+      DBUG_RETURN(true);
+    }
+  }
+
+  dd::Event *event= nullptr;
+  if (thd->dd_client()->acquire_for_modification(parse_data->dbname.str,
+                                                 parse_data->name.str, &event))
     DBUG_RETURN(true);
 
   if (event == nullptr)
@@ -164,16 +196,19 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   }
 
   // Update Event in the data dictionary with altered event object attributes.
-  if (dd::update_event(thd, event, new_dbname != nullptr ? new_dbname->str : "",
+  if (dd::update_event(thd, event, new_schema,
                        new_name != nullptr ? new_name->str : "",
                        (parse_data->body_changed) ? sp->m_body.str : event->definition(),
                        (parse_data->body_changed) ? sp->m_body_utf8.str :
                                                     event->definition_utf8(),
                        thd->lex->definer, parse_data))
   {
+    trans_rollback_stmt(thd);
+    // Full rollback we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     DBUG_RETURN(true);
   }
-  DBUG_RETURN(false);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -216,20 +251,32 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
     DBUG_RETURN(true);
   }
 
-  if (event_ptr != nullptr)
-    DBUG_RETURN(dd::drop_event(thd, event_ptr));
-
-  // Event not found
-  if (!drop_if_exists)
+  if (event_ptr == nullptr)
   {
-    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    // Event not found
+    if (!drop_if_exists)
+    {
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+      DBUG_RETURN(true);
+    }
+
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_SP_DOES_NOT_EXIST, ER_THD(thd, ER_SP_DOES_NOT_EXIST),
+                        "Event", name.str);
+    DBUG_RETURN(false);
+  }
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  if (thd->dd_client()->drop(event_ptr))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-  push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_SP_DOES_NOT_EXIST, ER_THD(thd, ER_SP_DOES_NOT_EXIST),
-                      "Event", name.str);
-  DBUG_RETURN(false);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -243,24 +290,14 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 */
 
 bool
-Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
+Event_db_repository::drop_schema_events(THD *thd, const dd::Schema &schema)
 {
   DBUG_ENTER("Event_db_repository::drop_schema_events");
-  DBUG_PRINT("enter", ("schema=%s", schema.str));
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj= nullptr;
-
-  if (thd->dd_client()->acquire(schema.str, &sch_obj))
-    DBUG_RETURN(true);
-  if (sch_obj == nullptr)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema.str);
-    DBUG_RETURN(true);
-  }
 
   std::vector<const dd::Event*> events;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &events))
+  if (thd->dd_client()->fetch_schema_components(&schema, &events))
     DBUG_RETURN(true);
 
   for (const dd::Event *event_obj : events)
@@ -345,17 +382,23 @@ update_timing_fields_for_event(THD *thd, LEX_STRING event_db_name,
 
   DBUG_ASSERT(thd->security_context()->check_access(SUPER_ACL));
 
-  const dd::Event *event_ptr= nullptr;
+  dd::Event *event= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(event_db_name.str, event_name.str, &event_ptr))
+  if (thd->dd_client()->acquire_for_modification(event_db_name.str, event_name.str,
+                                                 &event))
     DBUG_RETURN(true);
-  if (event_ptr == nullptr)
+  if (event == nullptr)
     DBUG_RETURN(true);
 
-  bool res= dd::update_event_time_and_status(thd, event_ptr, last_executed,
-                                        status);
+  if (dd::update_event_time_and_status(thd, event, last_executed, status))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    DBUG_RETURN(true);
+  }
 
-  DBUG_RETURN(res);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 /**

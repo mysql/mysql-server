@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #include "sql_lex.h"
 #include "sql_string.h"
 #include "system_variables.h"
-#include "transaction.h"        // trans_commit
 #include "tztime.h"             // Time_zone
 
 
@@ -258,29 +257,6 @@ static Event::enum_interval_field get_enum_interval_field(
 }
 
 
-bool
-event_exists(dd::cache::Dictionary_client *dd_client,
-             const String_type &schema_name,
-             const String_type &event_name,
-             bool *exists)
-{
-  DBUG_ENTER("dd::event_exists");
-  DBUG_ASSERT(exists);
-
-  const dd::Event *event_ptr= nullptr;
-  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  if (dd_client->acquire(schema_name, event_name, &event_ptr))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-
-  *exists= event_ptr != nullptr;
-
-  DBUG_RETURN(false);
-}
-
-
 /**
   Set Event attributes.
 
@@ -387,7 +363,7 @@ static void set_event_attributes(THD *thd, Event *event,
 
 
 bool create_event(THD *thd,
-                  const String_type &schema_name,
+                  const Schema &schema,
                   const String_type &event_name,
                   const String_type &event_body,
                   const String_type &event_body_utf8,
@@ -396,42 +372,18 @@ bool create_event(THD *thd,
 {
   DBUG_ENTER("dd::create_event");
 
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Schema *sch_obj= nullptr;
-
-  // Acquire schema object.
-  if (client->acquire(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-  if (sch_obj == nullptr)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
-    DBUG_RETURN(true);
-  }
-
-  std::unique_ptr<dd::Event> event(sch_obj->create_event(thd));
+  std::unique_ptr<dd::Event> event(schema.create_event(thd));
 
   // Set Event attributes.
   set_event_attributes(thd, event.get(), event_name, event_body,
                        event_body_utf8, definer, event_data, false);
 
-  if (client->store(event.get()))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  DBUG_RETURN(thd->dd_client()->store(event.get()));
 }
 
 
-bool update_event(THD *thd, const Event *event,
-                  const String_type &new_db_name,
+bool update_event(THD *thd, Event *event,
+                  const dd::Schema *new_schema,
                   const String_type &new_event_name,
                   const String_type &new_event_body,
                   const String_type &new_event_body_utf8,
@@ -439,100 +391,36 @@ bool update_event(THD *thd, const Event *event,
                   Event_parse_data *event_data)
 {
   DBUG_ENTER("dd::update_event");
-  DBUG_ASSERT(event != nullptr);
-
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-  Event *new_event= nullptr;
-  if (client->acquire_for_modification(event->id(), &new_event))
-    DBUG_RETURN(true);
 
   // Check whether alter event was given dates that are in the past.
-  if (event_data->check_dates(thd, static_cast<int>(new_event->on_completion())))
+  if (event_data->check_dates(thd, static_cast<int>(event->on_completion())))
     DBUG_RETURN(true);
 
   // Update Schema Id if there is a dbname change.
-  if (new_db_name != "")
-  {
-    const dd::Schema *to_sch_ptr;
-    if (client->acquire(new_db_name, &to_sch_ptr))
-      DBUG_RETURN(true);
-
-    if (to_sch_ptr == nullptr)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), new_db_name.c_str());
-      DBUG_RETURN(true);
-    }
-
-    new_event->set_schema_id(to_sch_ptr->id());
-  }
+  if (new_schema != nullptr)
+    event->set_schema_id(new_schema->id());
 
   // Set the altered event attributes.
-  set_event_attributes(thd, new_event,
+  set_event_attributes(thd, event,
                        new_event_name != "" ? new_event_name : event->name(),
                        new_event_body, new_event_body_utf8, definer,
                        event_data, true);
 
-  if (client->update(new_event))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  DBUG_RETURN(thd->dd_client()->update(event));
 }
 
-bool update_event_time_and_status(THD *thd, const Event *event,
+
+bool update_event_time_and_status(THD *thd, Event *event,
                                   my_time_t last_executed, ulonglong status)
 {
-  DBUG_ENTER("dd::update_event_time_fields");
+  DBUG_ENTER("dd::update_event_time_and_status");
 
-  DBUG_ASSERT(event != nullptr);
+  event->set_event_status_null(false);
+  event->set_event_status(get_enum_event_status(status));
+  event->set_last_executed_null(false);
+  event->set_last_executed(last_executed);
 
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-  Event *new_event= nullptr;
-  if (client->acquire_for_modification(event->id(), &new_event))
-    DBUG_RETURN(true);
-
-  new_event->set_event_status_null(false);
-  new_event->set_event_status(get_enum_event_status(status));
-  new_event->set_last_executed_null(false);
-  new_event->set_last_executed(last_executed);
-
-  if (client->update(new_event))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
-}
-
-
-bool drop_event(THD *thd, const Event *event)
-{
-  DBUG_ENTER("dd::drop_event");
-
-  DBUG_ASSERT(event != nullptr);
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  if (thd->dd_client()->drop(event))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  DBUG_RETURN(thd->dd_client()->update(event));
 }
 
 } // namespace dd

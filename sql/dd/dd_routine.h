@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #define DD_ROUTINE_INCLUDED
 
 #include "my_global.h"
-#include "sp.h"               // enum_sp_return_code
 #include "sql_lex.h"
 
 class THD;
@@ -28,29 +27,7 @@ class sp_name;
 
 namespace dd {
   class Schema;
-class Routine;
-
-namespace cache
-{
-  class Dictionary_client;
-}
-
-/**
-  Find routine in DD tables.
-
-  @param[in]  dd_client   Dictionary_client object.
-  @param[in]  name        Name of the routine.
-  @param[in]  type        SP_TYPE_FUNCTION or SP_TYPE_PROCEDURE.
-  @param[out] routine     dd::Routine object of the routine.
-
-  @retval SP_OK      ON SUCCESS
-  @retval non-SP_OK  ON FAILURE
-*/
-
-enum_sp_return_code find_routine(cache::Dictionary_client *dd_client,
-                                 sp_name *name,
-                                 enum_sp_type type,
-                                 const Routine **routine);
+  class Routine;
 
 
 /**
@@ -62,25 +39,12 @@ enum_sp_return_code find_routine(cache::Dictionary_client *dd_client,
   @param[in]  sp       Stored routine object to store.
   @param[in]  definer  Stored routine definer.
 
-  @retval SP_OK      ON SUCCESS
-  @retval non-SP_OK  ON FAILURE
+  @retval false      ON SUCCESS
+  @retval true       ON FAILURE
 */
 
-enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
-                                   const LEX_USER *definer);
-
-
-/**
-  Removes routine from the DD tables.
-
-  @param[in]  thd     Thread handle.
-  @param[in]  routine Procedure or Function to drop.
-
-  @retval SP_OK      ON SUCCESS
-  @retval non-SP_OK  ON FAILURE
-*/
-
-enum_sp_return_code remove_routine(THD *thd, const Routine *routine);
+bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
+                    const LEX_USER *definer);
 
 
 /**
@@ -90,11 +54,10 @@ enum_sp_return_code remove_routine(THD *thd, const Routine *routine);
   @param[in]  routine   Procedure or Function to alter.
   @param[in]  chistics  New values of stored routine attributes to write.
 
-  @retval SP_OK      ON SUCCESS
-  @retval non-SP_OK  ON FAILURE
+  @retval false      ON SUCCESS
+  @retval true       ON FAILURE
 */
 
-enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
-                                  st_sp_chistics *chistics);
+bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics);
 } //namespace dd
 #endif //DD_ROUTINE_INCLUDED

@@ -42,44 +42,17 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "session_tracker.h"
+#include "sp.h"
 #include "sp_head.h"                           // sp_head
 #include "sp_pcontext.h"                       // sp_variable
 #include "sql_admin.h"
 #include "sql_class.h"
 #include "sql_db.h"                            // get_default_db_collation
 #include "system_variables.h"
-#include "transaction.h"                       // trans_commit
 #include "typelib.h"
 #include "tztime.h"                            // Time_zone
 
 namespace dd {
-
-////////////////////////////////////////////////////////////////////////////////
-
-enum_sp_return_code find_routine(cache::Dictionary_client *dd_client,
-                                 sp_name *name, enum_sp_type type,
-                                 const Routine **routine)
-{
-  DBUG_ENTER("dd::find_routine");
-
-  if (type == enum_sp_type::FUNCTION)
-  {
-    if (dd_client->acquire<dd::Function>(name->m_db.str, name->m_name.str,
-                                         routine))
-      DBUG_RETURN(SP_INTERNAL_ERROR);
-  }
-  else
-  {
-    if (dd_client->acquire<dd::Procedure>(name->m_db.str, name->m_name.str,
-                                          routine))
-      DBUG_RETURN(SP_INTERNAL_ERROR);
-  }
-
-  if (*routine == NULL)
-    DBUG_RETURN(SP_DOES_NOT_EXISTS);
-
-  DBUG_RETURN(SP_OK);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -91,12 +64,9 @@ enum_sp_return_code find_routine(cache::Dictionary_client *dd_client,
   @param[in]  thd        Thread handle.
   @param[in]  sp         Stored routine object.
   @param[out] sf         dd::Function object.
-
-  @retval false  ON SUCCESS
-  @retval true   ON FAILURE
 */
 
-static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
+static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
 {
   DBUG_ENTER("fill_dd_function_return_type");
 
@@ -149,7 +119,7 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   // Set result collation id.
   sf->set_result_collation_id(return_field->charset->number);
 
-  DBUG_RETURN(false);
+  DBUG_VOID_RETURN;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,12 +133,9 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   @param[in]  field    Object of type Create_field.
   @param[out] param    Parameter object to be filled using the state of field
                        object.
-
-  @retval false  ON SUCCESS
-  @retval true   ON FAILURE
 */
 
-static bool fill_parameter_info_from_field(THD *thd,
+static void fill_parameter_info_from_field(THD *thd,
                                            Create_field *field,
                                            dd::Parameter *param)
 {
@@ -243,7 +210,7 @@ static bool fill_parameter_info_from_field(THD *thd,
   // Set collation id.
   param->set_collation_id(field->charset->number);
 
-  DBUG_RETURN(false);
+  DBUG_VOID_RETURN;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -435,8 +402,8 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
-                                   const LEX_USER *definer)
+bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
+                    const LEX_USER *definer)
 {
   DBUG_ENTER("dd::create_routine");
 
@@ -444,15 +411,14 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
   // Create Function or Procedure object.
   if (sp->m_type == enum_sp_type::FUNCTION)
   {
-    std::unique_ptr<Function> func(schema->create_function(thd));
+    std::unique_ptr<Function> func(schema.create_function(thd));
 
     // Fill stored function return type.
-    if (fill_dd_function_return_type(thd, sp, func.get()))
-      DBUG_RETURN(SP_STORE_FAILED);
+    fill_dd_function_return_type(thd, sp, func.get());
 
     // Fill routine object.
     if (fill_dd_routine_info(thd, sp, func.get(), definer))
-      DBUG_RETURN(SP_STORE_FAILED);
+      DBUG_RETURN(true);
 
     // Store routine metadata in DD table.
     enum_check_fields saved_check_for_truncated_fields=
@@ -463,11 +429,11 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
   }
   else
   {
-    std::unique_ptr<Procedure> proc(schema->create_procedure(thd));
+    std::unique_ptr<Procedure> proc(schema.create_procedure(thd));
 
     // Fill routine object.
     if (fill_dd_routine_info(thd, sp, proc.get(), definer))
-      DBUG_RETURN(SP_STORE_FAILED);
+      DBUG_RETURN(true);
 
     // Store routine metadata in DD table.
     enum_check_fields saved_check_for_truncated_fields=
@@ -477,57 +443,21 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
     thd->check_for_truncated_fields= saved_check_for_truncated_fields;
   }
 
-  if (error)
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(SP_STORE_FAILED);
-  }
-
-  error= (trans_commit_stmt(thd) || trans_commit(thd));
-  DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
+  DBUG_RETURN(error);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum_sp_return_code remove_routine(THD *thd, const Routine *routine)
-{
-  DBUG_ENTER("dd::remove_routine");
-
-  // Drop routine.
-  if(thd->dd_client()->drop(routine))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(SP_DROP_FAILED);
-  }
-
-  bool error= (trans_commit_stmt(thd) || trans_commit(thd));
-  DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
-                                  st_sp_chistics *chistics)
+bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics)
 {
   DBUG_ENTER("dd::alter_routine");
-
-  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  Routine *new_routine= nullptr;
-  if (thd->dd_client()->acquire_for_modification(routine->id(),
-                                                 &new_routine))
-    DBUG_RETURN(SP_ALTER_FAILED);
 
   // Set last altered time.
   MYSQL_TIME curtime;
   thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
                                             thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
-  new_routine->set_last_altered(ull_curtime);
+  routine->set_last_altered(ull_curtime);
 
   // Set security type.
   if (chistics->suid != SP_IS_DEFAULT_SUID)
@@ -544,10 +474,10 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
       break;
     default:
       DBUG_ASSERT(false);            /* purecov: deadcode */
-      DBUG_RETURN(SP_ALTER_FAILED);  /* purecov: deadcode */
+      DBUG_RETURN(true);             /* purecov: deadcode */
     }
 
-    new_routine->set_security_type(sec_type);
+    routine->set_security_type(sec_type);
   }
 
   // Set sql data access.
@@ -570,26 +500,17 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
       break;
     default:
       DBUG_ASSERT(false);           /* purecov: deadcode */
-      DBUG_RETURN(SP_ALTER_FAILED); /* purecov: deadcode */
+      DBUG_RETURN(true);            /* purecov: deadcode */
     }
-    new_routine->set_sql_data_access(daccess);
+    routine->set_sql_data_access(daccess);
   }
 
   // Set comment.
   if (chistics->comment.str)
-    new_routine->set_comment(chistics->comment.str);
+    routine->set_comment(chistics->comment.str);
 
   // Update routine.
-  if (thd->dd_client()->update(new_routine))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(SP_ALTER_FAILED);
-  }
-
-  bool error= (trans_commit_stmt(thd) || trans_commit(thd));
-  DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
+  DBUG_RETURN(thd->dd_client()->update(routine));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

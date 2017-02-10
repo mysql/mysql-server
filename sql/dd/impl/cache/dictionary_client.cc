@@ -1289,6 +1289,62 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 }
 
 
+template <typename T>
+bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
+                                                 const String_type &object_name,
+                                                 typename T::cache_partition_type** object)
+{
+  // We must make sure the schema is released and unlocked in the right order.
+  Schema_MDL_locker mdl_locker(m_thd);
+  Auto_releaser releaser(this);
+
+  DBUG_ASSERT(object);
+  *object= NULL;
+
+  // Get the schema object by name.
+  const Schema *schema= NULL;
+  bool error= mdl_locker.ensure_locked(schema_name.c_str()) ||
+              acquire(schema_name, &schema);
+
+  // If there was an error, or if we found no valid schema, return here.
+  if (error)
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    return true;
+  }
+
+  // A non existing schema is not reported as an error.
+  if (!schema)
+    return false;
+
+  // Create the name key for the object.
+  typename T::name_key_type key;
+  T::update_name_key(&key, schema->id(), object_name);
+
+  // Acquire the dictionary object.
+  const typename T::cache_partition_type *cached_object= NULL;
+
+  bool local_committed= false;
+  bool local_uncommitted= false;
+  error= acquire(key, &cached_object,
+                 &local_committed, &local_uncommitted);
+
+  if (!error)
+  {
+    // Cast not necessary here since we return the T::cache_partition_type.
+    if (cached_object != nullptr)
+    {
+      *object= cached_object->clone();
+      auto_delete<T>(*object);
+    }
+  }
+  else
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+
+  return error;
+}
+
+
 // Retrieve a table object by its se private id.
 bool Dictionary_client::acquire_uncached_table_by_se_private_id(
                                       const String_type &engine,
@@ -2653,6 +2709,14 @@ template bool Dictionary_client::acquire<Procedure>(
   const String_type&,
   const String_type&,
   const Procedure::cache_partition_type**);
+template bool Dictionary_client::acquire_for_modification<Function>(
+  const String_type&,
+  const String_type&,
+  Function::cache_partition_type**);
+template bool Dictionary_client::acquire_for_modification<Procedure>(
+  const String_type&,
+  const String_type&,
+  Procedure::cache_partition_type**);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Routine**);

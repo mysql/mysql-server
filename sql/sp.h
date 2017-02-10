@@ -40,6 +40,7 @@ class Object_creation_ctx;
 
 namespace dd {
   class Routine;
+  class Schema;
 }
 
 class Field;
@@ -179,19 +180,19 @@ private:
 
 
 /* Drop all routines in database 'db' */
-enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db);
+enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
    given database.
 
-   @param  thd  Thread handler
-   @param  db   Database name
+   @param  thd     Thread handler
+   @param  schema  Schema object
 
    @retval  false  Success
    @retval  true   Failure
  */
-bool lock_db_routines(THD *thd, const char *db);
+bool lock_db_routines(THD *thd, const dd::Schema &schema);
 
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);

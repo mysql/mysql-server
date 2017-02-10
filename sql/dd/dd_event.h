@@ -31,6 +31,7 @@ using sql_mode_t= ulonglong;
 
 namespace dd
 {
+  class Schema;
 namespace cache
 {
   class Dictionary_client;
@@ -68,26 +69,10 @@ int get_old_on_completion(Event::enum_on_completion on_completion);
 interval_type get_old_interval_type(Event::enum_interval_field interval_field);
 
 /**
-   Check if an event exists under a schema.
-
-   @param       dd_client   Dictionary client
-   @param       schema_name Schema name of the event object name.
-   @param       name        The event name to search for.
-   @param [out] exists      Value set to true if the object is found else false.
-
-   @retval      true         Failure (error has been reported).
-   @retval      false        Success.
-*/
-bool event_exists(dd::cache::Dictionary_client *dd_client,
-                  const String_type &schema_name,
-                  const String_type &name,
-                  bool *exists);
-
-/**
    Create an event object and commit it to DD Table Events.
 
    @param thd              Thread handle
-   @param schema_name      Database name
+   @param schema           Schema object.
    @param event_name       Event name
    @param event_body       Event body.
    @param event_body_utf8  Event body in utf8 format.
@@ -97,7 +82,7 @@ bool event_exists(dd::cache::Dictionary_client *dd_client,
    @retval true  Event creation failed.
    @retval false Event creation succeeded.
 */
-bool create_event(THD *thd, const String_type &schema_name,
+bool create_event(THD *thd, const Schema &schema,
                   const String_type &event_name, const String_type &event_body,
                   const String_type &event_body_utf8, const LEX_USER *definer,
                   Event_parse_data *event_data);
@@ -108,7 +93,7 @@ bool create_event(THD *thd, const String_type &schema_name,
 
   @param thd                 Thread handle
   @param event               Event to update.
-  @param new_db_name         Updated db name.
+  @param new_schema          New Schema or nullptr if the schema does not change.
   @param new_event_name      Updated Event name.
   @param new_event_body      Updated Event body.
   @param new_event_body_utf8 Updated Event body in utf8 format.
@@ -118,8 +103,8 @@ bool create_event(THD *thd, const String_type &schema_name,
   @retval true  Event updation failed.
   @retval false Event updation succeeded.
 */
-bool update_event(THD *thd, const Event *event,
-                  const String_type &new_db_name,
+bool update_event(THD *thd, Event *event,
+                  const dd::Schema *new_schema,
                   const String_type &new_event_name,
                   const String_type &new_event_body,
                   const String_type &new_event_body_utf8,
@@ -137,19 +122,9 @@ bool update_event(THD *thd, const Event *event,
   @retval true  true if update failed.
   @retval false false if update succeeded.
 */
-bool update_event_time_and_status(THD *thd, const Event *event,
+bool update_event_time_and_status(THD *thd, Event *event,
                                   my_time_t last_executed,
                                   ulonglong status);
 
-/**
-  Drop an Event from event metadata table.
-
-  @param thd            Thread handle.
-  @param event          Event to be droppped.
-
-  @retval true if event drop failed.
-  @retval false if event drop succeeded.
-*/
-bool drop_event(THD *thd, const Event *event);
 } // namespace dd
 #endif // DD_EVENT_INCLUDED

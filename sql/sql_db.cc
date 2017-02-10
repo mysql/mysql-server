@@ -414,13 +414,24 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     create_info->default_table_charset= thd->variables.collation_server;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire_for_modification(db, &schema))
+    DBUG_RETURN(true);
 
-  // We rely on the caller to rollback transaction in case of error.
-  if (dd::alter_schema(thd, db, create_info->default_table_charset))
+  if (schema == nullptr)
   {
-    // The error has been reported already.
+    my_error(ER_NO_SUCH_DB, MYF(0), db);
     DBUG_RETURN(true);
   }
+
+  // Set new collation ID.
+  schema->set_default_collation_id(create_info->default_table_charset->number);
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  // Update schema.
+  if (thd->dd_client()->update(schema))
+    DBUG_RETURN(true);
 
   ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
                       thd->query().str, thd->query().length,
@@ -542,13 +553,19 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
 
-  /* See if the directory exists */
-  bool sch_exists;
-  if (dd::schema_exists(thd, db.str, &sch_exists))
+  DEBUG_SYNC(thd, "before_acquire_in_drop_schema");
+  const dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire(db.str, &schema))
     DBUG_RETURN(true);
 
+  DBUG_EXECUTE_IF("pretend_no_schema_in_drop_schema",
+  {
+    schema= nullptr;
+  });
+
+  /* See if the directory exists */
   if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))) ||
-      !sch_exists)
+      schema == nullptr)
   {
     my_dirend(dirp);
     if (!if_exists)
@@ -588,8 +605,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
     /* Lock all tables and stored routines about to be dropped. */
     if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
-        || Events::lock_schema_events(thd, db.str)
-        || lock_db_routines(thd, db.str)
+        || Events::lock_schema_events(thd, *schema)
+        || lock_db_routines(thd, *schema)
         || lock_trigger_names(thd, tables))
       DBUG_RETURN(true);
 
@@ -642,8 +659,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       thd->clear_error(); /* @todo Do not ignore errors */
       tmp_disable_binlog(thd);
       query_cache.invalidate(thd, db.str);
-      error= Events::drop_schema_events(thd, db.str);
-      error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
+      error= Events::drop_schema_events(thd, *schema);
+      error= (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
       reenable_binlog(thd);
 
     }
@@ -657,7 +674,10 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       error= write_db_cmd_to_binlog(thd, db.str);
 
     if (!error)
-      error= dd::drop_schema(thd, db.str);
+    {
+      Disable_gtid_state_update_guard disabler(thd);
+      error= thd->dd_client()->drop(schema);
+    }
 
     if (!error)
       error= trans_commit_stmt(thd) || trans_commit(thd);

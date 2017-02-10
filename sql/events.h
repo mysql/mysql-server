@@ -46,6 +46,10 @@ class String;
 class THD;
 struct TABLE_LIST;
 
+namespace dd {
+  class Schema;
+}
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 
@@ -130,9 +134,9 @@ public:
   static bool drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                          bool if_exists);
 
-  static bool lock_schema_events(THD *thd, const char *db);
+  static bool lock_schema_events(THD *thd, const dd::Schema &schema);
 
-  static bool drop_schema_events(THD *thd, const char *db);
+  static bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
   static bool show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 

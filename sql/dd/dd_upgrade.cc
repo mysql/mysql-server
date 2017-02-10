@@ -2961,9 +2961,23 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table)
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  if (dd::create_event(thd, et_parse_data.dbname.str, et_parse_data.name.str,
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire(et_parse_data.dbname.str, &schema))
+    return true;
+  DBUG_ASSERT(schema != nullptr);
+
+  if (dd::create_event(thd, *schema, et_parse_data.name.str,
                        event_body.str, event_body_utf8.str, &user_info,
                        &et_parse_data))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd))
     return true;
 
   return (update_event_timing_fields(thd, event_table, et_parse_data.dbname.str,

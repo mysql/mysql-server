@@ -605,28 +605,16 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 /**
   Take exclusive metadata lock on all events in a schema.
 
-  @param   thd   Thread handle.
-  @param   db    Schema name.
+  @param   thd     Thread handle.
+  @param   schema  Schema object.
 */
 
-bool Events::lock_schema_events(THD *thd, const char *db)
+bool Events::lock_schema_events(THD *thd, const dd::Schema &schema)
 {
   DBUG_ENTER("Events::lock_schema_events");
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  // Acquire Schema object
-  const dd::Schema *sch_obj= nullptr;
-  if (thd->dd_client()->acquire(db, &sch_obj))
-    DBUG_RETURN(true);
-  if (sch_obj == nullptr)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), db);
-    DBUG_RETURN(true);
-  }
-
   std::vector<dd::String_type> event_names;
-  if (thd->dd_client()->fetch_schema_component_names<dd::Event>(sch_obj, &event_names))
+  if (thd->dd_client()->fetch_schema_component_names<dd::Event>(&schema, &event_names))
     DBUG_RETURN(true);
 
   MDL_request_list mdl_requests;
@@ -639,20 +627,14 @@ bool Events::lock_schema_events(THD *thd, const char *db)
 
     // Add MDL_request for routine to mdl_requests list.
     MDL_request *mdl_request= new (thd->mem_root) MDL_request;
-    MDL_REQUEST_INIT(mdl_request, MDL_key::EVENT, db, lc_event_name,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+    MDL_REQUEST_INIT(mdl_request, MDL_key::EVENT, schema.name().c_str(),
+                     lc_event_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
     mdl_requests.push_front(mdl_request);
   }
 
-  /* We should already hold a global IX lock and a schema X lock. */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                 "", "", MDL_INTENTION_EXCLUSIVE) &&
-              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
-                                 db, "", MDL_EXCLUSIVE));
   DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
                                              thd->variables.lock_wait_timeout));
 
-  DBUG_RETURN(false);
 }
 
 
@@ -663,24 +645,24 @@ bool Events::lock_schema_events(THD *thd, const char *db)
   scheduler is disabled. This is to not produce any warnings
   in case of DROP DATABASE and a disabled scheduler.
 
-  @param[in]      thd  THD handle.
-  @param[in]      db   ASCIIZ schema name
+  @param[in]      thd     THD handle.
+  @param[in]      schema  Schema object.
 
   @returns true   drop events from database failed.
   @returns false  drop events from database succeeded.
 */
 bool
-Events::drop_schema_events(THD *thd, const char *db)
+Events::drop_schema_events(THD *thd, const dd::Schema &schema)
 {
-  LEX_STRING db_lex= { const_cast<char*>(db), strlen(db) };
+  LEX_STRING db_lex= { const_cast<char*>(schema.name().c_str()),
+                       schema.name().length() };
 
   DBUG_ENTER("Events::drop_schema_events");
-  DBUG_PRINT("enter", ("dropping events from %s", db));
 
   if (event_queue)
     event_queue->drop_schema_events(thd, db_lex);
 
-  DBUG_RETURN(db_repository->drop_schema_events(thd, db_lex));
+  DBUG_RETURN(db_repository->drop_schema_events(thd, schema));
 }
 
 
@@ -1104,7 +1086,6 @@ bool Events::stop()
 
 static bool load_events_from_db(THD *thd, Event_queue *event_queue)
 {
-  bool res= false;
   DBUG_ENTER("Events::load_events_from_db");
   DBUG_PRINT("enter", ("thd: %p", thd));
 
@@ -1139,8 +1120,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
                         "Error while loading events from mysql.events."
                         "The table probably contains bad data or is corrupted");
         delete et;
-        res= true;
-        break;
+        DBUG_RETURN(true);
       }
       bool drop_event= et->m_dropped; // create_event may free et.
       bool created; // Not used
@@ -1166,6 +1146,8 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
     }
   }
 
+  Disable_gtid_state_update_guard disabler(thd);
+  bool error= false;
   for (auto event_info : drop_events_vector)
   {
     if (lock_object_name(thd, MDL_key::EVENT, event_info.first->name().c_str(),
@@ -1177,13 +1159,27 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
                         event_info.first->name().c_str());
       continue;
     }
-    if (dd::drop_event(thd, event_info.second))
+
+    if (thd->dd_client()->drop(event_info.second))
+    {
+      error= true;
       sql_print_warning("Unable to drop event %s from schema %s",
                         event_info.second->name().c_str(),
                         event_info.first->name().c_str());
+      break;
+    }
   }
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
+  else
+    error= trans_commit_stmt(thd) || trans_commit(thd);
+
   thd->mdl_context.release_transactional_locks();
-  DBUG_RETURN(res);
+  DBUG_RETURN(error);
 }
 
 /**

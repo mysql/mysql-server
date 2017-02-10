@@ -93,7 +93,7 @@ SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
 --echo # 1.3b No schema found during drop.
 
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
---error ER_BAD_DB_ERROR
+--error ER_DB_DROP_EXISTS
 DROP SCHEMA s1;
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
 
