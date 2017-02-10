@@ -2318,3 +2318,14 @@ SELECT JSON_UNQUOTE(CAST('ABCD' AS BINARY));
 # JSON_UNQUOTE should return utf8mb4 encoded results, but used to return utf16.
 SELECT HEX(JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16))),
        HEX(JSON_UNQUOTE(CAST('abc' AS CHAR CHARSET utf16)));
+
+--echo #
+--echo # Bug#25516960: JSON_SEARCH AND JSON_CONTAINS_PATH REJECT ONE-OR-ALL
+--echo #               ARGUMENT IF IT IS UTF-16
+--echo #
+SELECT JSON_SEARCH('["a", "a"]', CAST('one' AS CHAR CHARSET utf16), 'a') AS c1,
+       JSON_SEARCH('["a", "a"]', CAST('all' AS CHAR CHARSET utf16), 'a') AS c2,
+       JSON_CONTAINS_PATH('{"a":"x"}', CAST('one' AS CHAR CHARSET utf16),
+                          '$.a', '$.b') AS c3,
+       JSON_CONTAINS_PATH('{"a":"x"}', CAST('all' AS CHAR CHARSET utf16),
+                          '$.a', '$.b') AS c4;

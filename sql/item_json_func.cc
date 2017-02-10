@@ -391,13 +391,31 @@ static bool parse_path(Item * path_expression, String *value,
 
   @returns ooa_one, ooa_all, or ooa_error, based on the match
 */
-static enum_one_or_all_type parse_one_or_all(const char *candidate,
+static enum_one_or_all_type parse_one_or_all(const String *candidate,
                                              const char *func_name)
 {
-  if (!my_strcasecmp(&my_charset_utf8mb4_general_ci, candidate, "all"))
+  /*
+    First convert the candidate to utf8mb4.
+
+    A buffer of four bytes is enough to hold the candidate in the common
+    case ("one" or "all" + terminating NUL character).
+
+    We can ignore conversion errors here. If a conversion error should
+    happen, the converted string will contain a question mark, and we will
+    correctly raise an error later because no string with a question mark
+    will match "one" or "all".
+  */
+  StringBuffer<4> utf8str;
+  uint errors;
+  if (utf8str.copy(candidate->ptr(), candidate->length(), candidate->charset(),
+                   &my_charset_utf8mb4_bin, &errors))
+    return ooa_error;                           /* purecov: inspected */
+
+  const char *str= utf8str.c_ptr_safe();
+  if (!my_strcasecmp(&my_charset_utf8mb4_general_ci, str, "all"))
     return ooa_all;
 
-  if (!my_strcasecmp(&my_charset_utf8mb4_general_ci, candidate, "one"))
+  if (!my_strcasecmp(&my_charset_utf8mb4_general_ci, str, "one"))
     return ooa_one;
 
   my_error(ER_JSON_BAD_ONE_OR_ALL_ARG, MYF(0), func_name);
@@ -436,7 +454,7 @@ static enum_one_or_all_type parse_and_cache_ooa(Item *arg,
   }
   else
   {
-    *cached_ooa= parse_one_or_all(one_or_all->c_ptr_safe(), func_name);
+    *cached_ooa= parse_one_or_all(one_or_all, func_name);
   }
 
   return *cached_ooa;
