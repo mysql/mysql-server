@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,7 +286,7 @@ NdbReceiver::~NdbReceiver()
 {
   DBUG_ENTER("NdbReceiver::~NdbReceiver");
   if (m_id != NdbObjectIdMap::InvalidId) {
-    m_ndb->theImpl->theNdbObjectIdMap.unmap(m_id, this);
+    m_ndb->theImpl->unmapRecipient(m_id, this);
   }
   DBUG_VOID_RETURN;
 }
@@ -322,7 +322,7 @@ NdbReceiver::init(ReceiverType type, void* owner)
   {
     if (m_ndb)
     {
-      m_id = m_ndb->theImpl->theNdbObjectIdMap.map(this);
+      m_id = m_ndb->theImpl->mapRecipient(this);
       if (m_id == NdbObjectIdMap::InvalidId)
       {
         setErrorCode(4000);
