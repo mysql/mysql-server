@@ -303,6 +303,9 @@ dict_stats_process_entry_from_recalc_pool(
 
 	ut_ad(!srv_read_only_mode);
 
+	DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
+			return;);
+
 	/* pop the first table from the auto recalc pool */
 	if (!dict_stats_recalc_pool_get(&table_id)) {
 		/* no tables for auto recalc */
