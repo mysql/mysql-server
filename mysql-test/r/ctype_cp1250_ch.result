@@ -1,8 +1,8 @@
 drop table if exists t1;
 DROP TABLE IF EXISTS t1;
 SHOW COLLATION LIKE 'cp1250_czech_cs';
-Collation	Charset	Id	Default	Compiled	Sortlen
-cp1250_czech_cs	cp1250	34		Yes	2
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+cp1250_czech_cs	cp1250	34		Yes	2	PAD SPACE
 SET @test_character_set= 'cp1250';
 SET @test_collation= 'cp1250_general_ci';
 SET @safe_character_set_server= @@character_set_server;

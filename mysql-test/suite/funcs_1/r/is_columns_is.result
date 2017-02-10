@@ -18,6 +18,7 @@ def	information_schema	COLLATIONS	ID	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL
 def	information_schema	COLLATIONS	IS_DEFAULT	4		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select		
 def	information_schema	COLLATIONS	IS_COMPILED	5		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select		
 def	information_schema	COLLATIONS	SORTLEN	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select		
+def	information_schema	COLLATIONS	PAD_ATTRIBUTE	7	NULL	NO	varchar	9	27	NULL	NULL	NULL	utf8	utf8_bin	varchar(9)			select		
 def	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	COLUMNS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
@@ -531,6 +532,7 @@ NULL	information_schema	COLLATIONS	ID	bigint	NULL	NULL	NULL	NULL	bigint(20) unsi
 3.0000	information_schema	COLLATIONS	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	COLLATIONS	IS_COMPILED	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 NULL	information_schema	COLLATIONS	SORTLEN	int	NULL	NULL	NULL	NULL	int(10) unsigned
+3.0000	information_schema	COLLATIONS	PAD_ATTRIBUTE	varchar	9	27	utf8	utf8_bin	varchar(9)
 3.0000	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLUMNS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
