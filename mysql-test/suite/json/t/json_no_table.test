@@ -2306,3 +2306,15 @@ SELECT MIN(CASE 0 WHEN 1 THEN JSON_ARRAY() ELSE NULL END);
 --echo #
 --error ER_INVALID_TYPE_FOR_JSON
 DO BIT_COUNT(COMPRESS(1) << JSON_DEPTH(1));
+
+--echo #
+--echo # Bug#25516881: JSON_UNQUOTE RETURNS WRONG RESULT WHEN INPUT IS UTF-16
+--echo #
+# Used to return the quoted string unchanged.
+SELECT JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16));
+# Used to accept binary strings.
+--error ER_INVALID_JSON_CHARSET
+SELECT JSON_UNQUOTE(CAST('ABCD' AS BINARY));
+# JSON_UNQUOTE should return utf8mb4 encoded results, but used to return utf16.
+SELECT HEX(JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16))),
+       HEX(JSON_UNQUOTE(CAST('abc' AS CHAR CHARSET utf16)));

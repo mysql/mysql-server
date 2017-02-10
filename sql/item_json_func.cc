@@ -3518,15 +3518,27 @@ String *Item_func_json_unquote::val_str(String *str)
       return error_str();
     }
 
-    if (res->length() < 2 || *res->ptr() != '"' ||
-        res->ptr()[res->length() - 1] != '"')
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
+    const char *utf8text;
+    size_t utf8len;
+    if (ensure_utf8mb4(res, &buf, &utf8text, &utf8len, true))
+      return error_str();
+    String *utf8str= (res->ptr() == utf8text) ? res : &buf;
+    DBUG_ASSERT(utf8text == utf8str->ptr());
+
+    if (utf8len < 2 || utf8text[0] != '"' || utf8text[utf8len - 1] != '"')
     {
       null_value= false;
-      return res; // return string unchanged
+      // Return string unchanged, but convert to utf8mb4 if needed.
+      if (res == utf8str)
+        return res;
+      if (str->copy(utf8text, utf8len, collation.collation))
+        return error_str();                     /* purecov: inspected */
+      return str;
     }
 
     bool parse_error= false;
-    if (parse_json(res, 0, func_name(), &dom, true, &parse_error))
+    if (parse_json(utf8str, 0, func_name(), &dom, true, &parse_error))
     {
       return error_str();
     }
