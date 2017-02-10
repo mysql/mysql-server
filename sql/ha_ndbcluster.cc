@@ -13936,17 +13936,13 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
 {
   DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
-  { // extra bracket to avoid gcc 2.95.3 warning
-  uint i;
-  Thd_ndb *thd_ndb;
-  Ndb* ndb;
-  char name[FN_REFLEN + 1];
-  HASH ndb_tables, ok_tables;
-  NDBDICT::List list;
 
+  char name[FN_REFLEN + 1];
+
+  Ndb* ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  thd_ndb= get_thd_ndb(thd);
+  Thd_ndb* thd_ndb= get_thd_ndb(thd);
 
   if (dir)
     DBUG_RETURN(0); // Discover of databases not yet supported
@@ -13956,11 +13952,15 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   // List tables in NDB
-  NDBDICT *dict= ndb->getDictionary();
-  if (dict->listObjects(list, 
-                        NdbDictionary::Object::UserTable) != 0)
-    ERR_RETURN(dict->getNdbError());
+  NDBDICT::List list;
+  {
+    NDBDICT *dict= ndb->getDictionary();
+    if (dict->listObjects(list,
+                          NdbDictionary::Object::UserTable) != 0)
+      ERR_RETURN(dict->getNdbError());
+  }
 
+  HASH ndb_tables;
   if (my_hash_init(&ndb_tables, table_alias_charset,list.count,0,
                    tables_get_key, nullptr, 0,
                    PSI_INSTRUMENT_ME))
@@ -13969,6 +13969,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_RETURN(-1);
   }
 
+  HASH ok_tables;
   if (my_hash_init(&ok_tables, system_charset_info,32,0,
                    tables_get_key, nullptr, 0,
                    PSI_INSTRUMENT_ME))
@@ -13978,7 +13979,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_RETURN(-1);
   }  
 
-  for (i= 0 ; i < list.count ; i++)
+  for (unsigned i= 0 ; i < list.count ; i++)
   {
     NDBDICT::List::Element& elmt= list.elements[i];
     if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
@@ -14105,7 +14106,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     /* setup logging to binlog for all discovered tables */
     char *end, *end1= name +
       build_table_filename(name, sizeof(name) - 1, db, "", "", 0);
-    for (i= 0; i < ok_tables.records; i++)
+    for (ulong i= 0; i < ok_tables.records; i++)
     {
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
@@ -14118,7 +14119,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   // Check for new files to discover
   DBUG_PRINT("info", ("Checking for new files to discover"));       
   List<char> create_list;
-  for (i= 0 ; i < ndb_tables.records ; i++)
+  for (ulong i= 0 ; i < ndb_tables.records ; i++)
   {
     file_name_str= (char*) my_hash_element(&ndb_tables, i);
     if (!my_hash_search(&ok_tables,
@@ -14206,8 +14207,8 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       }
     }
   }
-  } // extra bracket to avoid gcc 2.95.3 warning
-  DBUG_RETURN(0);    
+
+  DBUG_RETURN(0);
 }
 
 
