@@ -18,6 +18,10 @@
   TABLE HOSTS.
 */
 
+#include "storage/perfschema/table_hosts.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_memory.h"
 #include "pfs_status.h"
 #include "pfs_visitor.h"
-#include "table_hosts.h"
 
 THR_LOCK table_hosts::m_table_lock;
 

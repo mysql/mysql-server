@@ -16,10 +16,11 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"

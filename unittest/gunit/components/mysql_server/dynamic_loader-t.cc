@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
+#include <stddef.h>
 
 #include "my_inttypes.h"
 #include "my_io.h"

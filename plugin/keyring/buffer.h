@@ -16,6 +16,8 @@
 #ifndef MYSQL_BUFFER_H
 #define MYSQL_BUFFER_H
 
+#include <stddef.h>
+
 #include "i_serialized_object.h"
 #include "keyring_memory.h"
 #include "my_inttypes.h"

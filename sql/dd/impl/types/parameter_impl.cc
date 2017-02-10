@@ -15,6 +15,7 @@
 
 #include "dd/impl/types/parameter_impl.h"
 
+#include <stddef.h>
 #include <sstream>
 
 #include "dd/impl/properties_impl.h"                  // Properties_impl

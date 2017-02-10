@@ -19,6 +19,7 @@
 
 #include "admin_cmd_handler.h"
 
+#include <stddef.h>
 #include <algorithm>
 
 #include "my_inttypes.h"

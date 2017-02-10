@@ -18,6 +18,7 @@
 #ifndef ABSTRACT_CHAIN_ELEMENT_INCLUDED
 #define ABSTRACT_CHAIN_ELEMENT_INCLUDED
 
+#include <stddef.h>
 #include <functional>
 
 #include "abstract_progress_reporter.h"

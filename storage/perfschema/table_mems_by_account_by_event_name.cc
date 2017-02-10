@@ -18,6 +18,10 @@
   Table MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME (implementation).
 */
 
+#include "storage/perfschema/table_mems_by_account_by_event_name.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_memory.h"
 #include "pfs_visitor.h"
-#include "table_mems_by_account_by_event_name.h"
 
 THR_LOCK table_mems_by_account_by_event_name::m_table_lock;
 

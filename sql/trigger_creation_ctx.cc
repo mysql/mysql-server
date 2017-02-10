@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/trigger_creation_ctx.h"
+
 #include <stddef.h>
 
 #include "derror.h"
@@ -28,7 +30,6 @@
 #include "sql_db.h" // get_default_db_collation()
 #include "sql_error.h"
 #include "system_variables.h"
-#include "trigger_creation_ctx.h"
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,

@@ -24,7 +24,7 @@
   @{
 */
 
-#include "sql_resolver.h"
+#include "sql/sql_resolver.h"
 
 #include <stddef.h>
 #include <sys/types.h>

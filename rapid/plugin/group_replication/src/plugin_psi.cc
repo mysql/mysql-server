@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 
 #include "plugin_psi.h"
+
+#include <stddef.h>
 
 PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_applier_module_suspend,

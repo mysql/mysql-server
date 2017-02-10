@@ -21,8 +21,9 @@
   attached to WL#7909.
  */
 
-#include "json_path.h"
+#include "sql/json_path.h"
 
+#include <stddef.h>
 #include <algorithm>                            // any_of
 #include <memory>                               // unique_ptr
 #include <string>

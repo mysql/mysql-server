@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_tblmap.h"
+#include "sql/rpl_tblmap.h"
+
+#include <stddef.h>
+
 #ifdef MYSQL_SERVER
 #include "table.h"       // TABLE
 #endif

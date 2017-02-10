@@ -18,6 +18,10 @@
   Table DATA_LOCK_WAITS (implementation).
 */
 
+#include "storage/perfschema/table_data_lock_waits.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -29,7 +33,6 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "table_data_lock_waits.h"
 
 THR_LOCK table_data_lock_waits::m_table_lock;
 

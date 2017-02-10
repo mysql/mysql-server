@@ -18,6 +18,7 @@
 #include <m_string.h>
 #include <my_global.h>
 #include <my_sys.h>
+#include <stddef.h>
 
 #include "my_inttypes.h"
 #include "my_io.h"

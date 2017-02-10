@@ -15,6 +15,8 @@
 
 #include "sql_service_interface.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "plugin_log.h"
 

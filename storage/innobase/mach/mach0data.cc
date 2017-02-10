@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,8 @@ Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
 #include "mach0data.h"
+
+#include <stddef.h>
 
 /** Read a 64-bit integer in a much compressed form.
 @param[in,out]	ptr	pointer to memory where to read,

@@ -15,6 +15,8 @@
 
 #include "member_info.h"
 
+#include <stddef.h>
+
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "plugin_psi.h"

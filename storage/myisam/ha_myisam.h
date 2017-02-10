@@ -22,6 +22,7 @@
 
 #include <ft_global.h>
 #include <myisam.h>
+#include <stddef.h>
 
 #include "handler.h"                            /* handler */
 #include "my_icp.h"

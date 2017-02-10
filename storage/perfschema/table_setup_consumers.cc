@@ -18,6 +18,10 @@
   Table SETUP_CONSUMERS (implementation).
 */
 
+#include "storage/perfschema/table_setup_consumers.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -25,7 +29,6 @@
 #include "pfs_digest.h"
 #include "pfs_events_waits.h"
 #include "pfs_instr.h"
-#include "table_setup_consumers.h"
 
 #define COUNT_SETUP_CONSUMERS 15
 

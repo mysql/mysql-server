@@ -22,6 +22,8 @@
   Helpers to implement a performance schema table.
 */
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"

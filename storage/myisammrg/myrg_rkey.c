@@ -26,6 +26,8 @@
  */
 
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "myrg_def.h"

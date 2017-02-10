@@ -19,11 +19,13 @@
   Unit tests for lock-free algorithms of mysys
 */
 
+#include "my_config.h"
+
 #include <gtest/gtest.h>
+#include <stddef.h>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"

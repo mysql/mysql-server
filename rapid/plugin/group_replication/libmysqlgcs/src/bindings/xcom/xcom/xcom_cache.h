@@ -16,6 +16,7 @@
 #ifndef XCOM_CACHE_H
 #define XCOM_CACHE_H
 
+#include <stddef.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

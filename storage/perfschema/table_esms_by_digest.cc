@@ -19,6 +19,10 @@
   Table EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_DIGEST (implementation).
 */
 
+#include "storage/perfschema/table_esms_by_digest.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -31,7 +35,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "table_esms_by_digest.h"
 
 THR_LOCK table_esms_by_digest::m_table_lock;
 

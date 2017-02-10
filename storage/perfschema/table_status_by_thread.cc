@@ -18,6 +18,9 @@
   Table STATUS_BY_THREAD (implementation).
 */
 
+#include "storage/perfschema/table_status_by_thread.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
@@ -31,7 +34,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_status_by_thread.h"
 
 bool
 PFS_index_status_by_thread::match(PFS_thread *pfs)

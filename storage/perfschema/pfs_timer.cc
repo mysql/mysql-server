@@ -18,10 +18,13 @@
   Performance schema timers (implementation).
 */
 
+#include "storage/perfschema/pfs_timer.h"
+
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_rdtsc.h"
-#include "pfs_timer.h"
 
 enum_timer_name idle_timer = TIMER_NAME_MICROSEC;
 enum_timer_name wait_timer = TIMER_NAME_CYCLE;

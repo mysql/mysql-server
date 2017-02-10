@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 
+#include <stddef.h>
+
 #include "cap_handles_expired_passwords.h"
 // needed for ip_to_hostname(), should probably be turned into a service
 #include "hostname.h"

@@ -19,10 +19,13 @@
   Cursor CURSOR_BY_THREAD (implementation).
 */
 
+#include "storage/perfschema/cursor_by_thread.h"
+
+#include <stddef.h>
+
 #include "my_global.h"
-#include "cursor_by_thread.h"
-#include "pfs_instr.h"
 #include "pfs_buffer_container.h"
+#include "pfs_instr.h"
 
 ha_rows
 cursor_by_thread::get_row_count(void)

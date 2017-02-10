@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,13 @@
 // First include (the generated) my_config.h, to get correct platform defines,
 // then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "test_utils.h"
-#include "mock_create_field.h"
+#include <gtest/gtest.h>
+#include <stddef.h>
+
 #include "item_timefunc.h"         // Item_func_now_local
+#include "mock_create_field.h"
+#include "test_utils.h"
 
 
 namespace create_field_unittest {

@@ -18,6 +18,10 @@
   Table EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_ERROR (implementation).
 */
 
+#include "storage/perfschema/table_ees_by_host_by_error.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_ees_by_host_by_error.h"
 
 THR_LOCK table_ees_by_host_by_error::m_table_lock;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,16 @@
 #ifndef RECOVERY_INCLUDE
 #define RECOVERY_INCLUDE
 
+#include <mysql/gcs/gcs_communication_interface.h>
+#include <mysql/gcs/gcs_control_interface.h>
+#include <mysql/group_replication_priv.h>
+#include <stddef.h>
 #include <list>
 #include <string>
 
 #include "applier.h"
 #include "channel_observation_manager.h"
 #include "recovery_state_transfer.h"
-#include <mysql/gcs/gcs_communication_interface.h>
-#include <mysql/gcs/gcs_control_interface.h>
-#include <mysql/group_replication_priv.h>
 
 /* The possible policies used on recovery when applying cached transactions */
 enum enum_recovery_completion_policies

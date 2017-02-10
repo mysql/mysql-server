@@ -17,6 +17,7 @@
  * 02110-1301  USA
  */
 
+#include <stddef.h>
 #include <sstream>
 
 #include "my_dbug.h"

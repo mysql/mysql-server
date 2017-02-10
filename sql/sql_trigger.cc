@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include "sql/sql_trigger.h"
+
 #include <stddef.h>
 
 #include "auth_acls.h"
@@ -52,7 +54,6 @@
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                // build_table_filename()
-#include "sql_trigger.h"
 #include "system_variables.h"
 #include "table.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher

@@ -16,6 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <my_sys.h>                         // my_error
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
+#include <stddef.h>
 #include <new>
 #include <stdexcept>                        // std::exception subclasses
 

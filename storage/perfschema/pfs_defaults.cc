@@ -18,11 +18,14 @@
   Default setup (implementation).
 */
 
+#include "storage/perfschema/pfs_defaults.h"
+
+#include <stddef.h>
+
 #include "my_global.h"
 #include "pfs.h"
-#include "pfs_defaults.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 

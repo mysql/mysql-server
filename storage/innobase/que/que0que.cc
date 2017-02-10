@@ -23,6 +23,8 @@ Query graph
 Created 5/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "dict0crea.h"
 #include "eval0eval.h"
 #include "eval0proc.h"

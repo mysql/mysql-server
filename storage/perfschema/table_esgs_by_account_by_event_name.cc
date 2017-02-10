@@ -19,6 +19,10 @@
   Table EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME (implementation).
 */
 
+#include "storage/perfschema/table_esgs_by_account_by_event_name.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_esgs_by_account_by_event_name.h"
 
 THR_LOCK table_esgs_by_account_by_event_name::m_table_lock;
 

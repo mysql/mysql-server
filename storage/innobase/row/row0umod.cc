@@ -23,6 +23,8 @@ Undo modify of a row
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "btr0btr.h"
 #include "dict0boot.h"
 #include "dict0dict.h"

@@ -18,6 +18,10 @@
   Table EVENTS_TRANSACTIONS_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_transactions.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -28,7 +32,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "table_events_transactions.h"
 #include "table_helper.h"
 #include "xa.h"
 

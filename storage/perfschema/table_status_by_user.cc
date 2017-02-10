@@ -18,6 +18,9 @@
   Table STATUS_BY_USER (implementation).
 */
 
+#include "storage/perfschema/table_status_by_user.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
@@ -33,7 +36,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
 #include "sql_class.h"
-#include "table_status_by_user.h"
 
 THR_LOCK table_status_by_user::m_table_lock;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -27,6 +27,8 @@ Created 1/8/1996 Heikki Tuuri
 /** NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
 external tools. */
+
+#include <stddef.h>
 
 #include "dict0dict.h"
 #include "dict0mem.h"

@@ -19,6 +19,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <stddef.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif

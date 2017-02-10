@@ -16,6 +16,7 @@
 #include "delayed_plugin_initialization.h"
 
 #include <mysql/group_replication_priv.h>
+#include <stddef.h>
 
 #include "my_dbug.h"
 #include "plugin.h"

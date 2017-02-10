@@ -18,7 +18,9 @@
   TABLE SESSION_CONNECT_ATTRS.
 */
 
-#include "table_session_connect_attrs.h"
+#include "storage/perfschema/table_session_connect_attrs.h"
+
+#include <stddef.h>
 
 THR_LOCK table_session_connect_attrs::m_table_lock;
 

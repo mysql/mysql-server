@@ -17,6 +17,7 @@
 #define REPLICATION_THREADS_API_INCLUDE
 
 #include <mysql/group_replication_priv.h>
+#include <stddef.h>
 #include <string>
 
 #include "my_inttypes.h"

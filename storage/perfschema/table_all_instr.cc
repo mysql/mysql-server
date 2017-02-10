@@ -18,11 +18,14 @@
   Abstract tables for all instruments (implementation).
 */
 
+#include "storage/perfschema/table_all_instr.h"
+
+#include <stddef.h>
+
 #include "my_global.h"
 #include "my_thread.h"
-#include "table_all_instr.h"
-#include "pfs_global.h"
 #include "pfs_buffer_container.h"
+#include "pfs_global.h"
 
 ha_rows
 table_all_instr::get_row_count(void)

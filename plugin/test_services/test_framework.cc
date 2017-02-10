@@ -15,9 +15,8 @@
 
 #include <my_global.h>
 #include <mysql/plugin.h>
-//#include <stdlib.h>
-//#include <ctype.h>
 #include <mysql_version.h>
+#include <stddef.h>
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"

@@ -20,7 +20,7 @@
   !! This file is built from my_locale.pl !!
 */
 
-#include "sql_locale.h"
+#include "sql/sql_locale.h"
 
 #include <stddef.h>
 

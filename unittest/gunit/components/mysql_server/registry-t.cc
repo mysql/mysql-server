@@ -20,6 +20,7 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/mysql_lex_string.h>
+#include <stddef.h>
 
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <mysql/components/services/persistent_dynamic_loader.h>

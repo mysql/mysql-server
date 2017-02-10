@@ -19,6 +19,7 @@
 
 #include "streaming_command_delegate.h"
 
+#include <stddef.h>
 #include <iostream>
 #include <string>
 

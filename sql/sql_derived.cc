@@ -20,6 +20,8 @@
 */
 
 
+#include "sql/sql_derived.h"
+
 #include <stddef.h>
 
 #include "auth_acls.h"
@@ -37,7 +39,6 @@
 #include "sql_base.h"                         // EXTRA_RECORD
 #include "sql_class.h"
 #include "sql_const.h"
-#include "sql_derived.h"
 #include "sql_executor.h"
 #include "sql_lex.h"
 #include "sql_list.h"

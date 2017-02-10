@@ -18,6 +18,10 @@
   Table EVENTS_ERRORS_SUMMARY_GLOBAL_BY_EVENT_NAME (implementation).
 */
 
+#include "storage/perfschema/table_ees_global_by_error.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "table_ees_global_by_error.h"
 
 THR_LOCK table_ees_global_by_error::m_table_lock;
 

@@ -21,6 +21,10 @@
   Table replication_applier_configuration (implementation).
 */
 
+#include "storage/perfschema/table_replication_applier_configuration.h"
+
+#include <stddef.h>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -32,7 +36,6 @@
 #include "rpl_rli.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"
-#include "table_replication_applier_configuration.h"
 
 THR_LOCK table_replication_applier_configuration::m_table_lock;
 

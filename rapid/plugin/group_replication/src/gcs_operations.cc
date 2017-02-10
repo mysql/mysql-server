@@ -15,6 +15,7 @@
 
 #include "gcs_operations.h"
 
+#include <stddef.h>
 #include <vector>
 
 #include "my_dbug.h"

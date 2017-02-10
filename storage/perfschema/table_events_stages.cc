@@ -18,6 +18,10 @@
   Table EVENTS_STAGES_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_stages.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -28,7 +32,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "table_events_stages.h"
 
 THR_LOCK table_events_stages_current::m_table_lock;
 

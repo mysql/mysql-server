@@ -18,6 +18,7 @@
 */
 
 #include <errno.h>
+#include <stddef.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

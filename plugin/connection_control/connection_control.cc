@@ -16,6 +16,7 @@
 #include <my_atomic.h>
 #include <my_global.h>
 #include <mysql/plugin_audit.h>         /* mysql_event_connection */
+#include <stddef.h>
 
 #include "connection_control.h"
 #include "connection_control_coordinator.h" /* g_connection_event_coordinator */

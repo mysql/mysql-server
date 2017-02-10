@@ -16,6 +16,8 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
+#include <stddef.h>
+
 #include "auth_common.h" /* struct ACL_* */
 #include "key.h"
 #include "my_base.h"

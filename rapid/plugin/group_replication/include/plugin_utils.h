@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <mysql/group_replication_priv.h>
+#include <stddef.h>
 #include <map>
 #include <queue>
 #include <string>

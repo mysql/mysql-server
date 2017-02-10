@@ -17,6 +17,7 @@
 #include <mysql/plugin.h>
 #include <mysql_com.h>
 #include <mysql_version.h>
+#include <stddef.h>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"

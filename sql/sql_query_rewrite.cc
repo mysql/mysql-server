@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#include "sql/sql_query_rewrite.h"
 
 #include <stddef.h>
 
@@ -29,7 +31,6 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_parse.h"
-#include "sql_query_rewrite.h"
 
 class Parser_state;
 class THD;

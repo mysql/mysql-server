@@ -15,6 +15,8 @@
 
 #include "keyring_key.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 
 namespace keyring {

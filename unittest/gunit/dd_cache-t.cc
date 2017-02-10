@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_config.h"
+
 #include <gtest/gtest.h>
+#include <stddef.h>
 #include <algorithm>
 #include <typeinfo>
 #include <vector>
@@ -38,7 +41,6 @@
 #include "dd/properties.h"
 #include "mdl.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "test_mdl_context_owner.h"
 #include "test_utils.h"
 

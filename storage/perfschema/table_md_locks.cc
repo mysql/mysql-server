@@ -18,6 +18,10 @@
   Table METADATA_LOCKS (implementation).
 */
 
+#include "storage/perfschema/table_md_locks.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -28,7 +32,6 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "table_md_locks.h"
 
 THR_LOCK table_metadata_locks::m_table_lock;
 

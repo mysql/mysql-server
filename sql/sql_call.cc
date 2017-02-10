@@ -16,7 +16,7 @@
 
 /* Execute CALL statement */
 
-#include "sql_call.h"
+#include "sql/sql_call.h"
 
 #include <limits.h>
 #include <stddef.h>

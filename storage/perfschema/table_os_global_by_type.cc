@@ -19,6 +19,10 @@
   Table OBJECTS_SUMMARY_GLOBAL_BY_TYPE (implementation).
 */
 
+#include "storage/perfschema/table_os_global_by_type.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -28,7 +32,6 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
-#include "table_os_global_by_type.h"
 
 THR_LOCK table_os_global_by_type::m_table_lock;
 

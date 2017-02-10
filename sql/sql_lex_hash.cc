@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/sql_lex_hash.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -24,7 +26,6 @@
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"
-#include "sql_lex_hash.h"
 
 const Lex_hash Lex_hash::sql_keywords(sql_keywords_map, sql_keywords_max_len);
 const Lex_hash Lex_hash::sql_keywords_and_funcs(sql_keywords_and_funcs_map,

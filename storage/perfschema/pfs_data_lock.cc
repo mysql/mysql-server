@@ -18,9 +18,12 @@
   The performance schema implementation for data locks.
 */
 
+#include "storage/perfschema/pfs_data_lock.h"
+
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "my_global.h"
-#include "pfs_data_lock.h"
 
 /**
   @page PAGE_PFS_DATA_LOCKS Performance schema data locks

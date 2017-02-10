@@ -17,6 +17,7 @@
 #include <mysql/components/service_implementation.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+#include <stddef.h>
 
 #include "my_dbug.h"
 

@@ -17,6 +17,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql/service_mysql_alloc.h>
+#include <stddef.h>
 
 #include "my_inttypes.h"
 

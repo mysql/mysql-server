@@ -17,6 +17,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <stddef.h>
 #include <string>
 
 #include "mock/ngs_general.h"

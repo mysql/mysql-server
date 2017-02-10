@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,11 @@
 #ifndef SQL_FORMATTER_OPTIONS_INCLUDED
 #define SQL_FORMATTER_OPTIONS_INCLUDED
 
+#include <my_global.h>
+#include <stddef.h>
+
 #include "base/abstract_options_provider.h"
 #include "mysql_chain_element_options.h"
-#include <my_global.h>
 #include "typelib.h"
 
 namespace Mysql{

@@ -21,6 +21,7 @@
 */
 
 #include <gtest/gtest.h>
+#include <stddef.h>
 
 #include "my_global.h"
 #include "my_inttypes.h"

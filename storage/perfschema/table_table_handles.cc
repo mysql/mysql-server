@@ -18,6 +18,10 @@
   Table TABLE_TABLE_HANDLES (implementation).
 */
 
+#include "storage/perfschema/table_table_handles.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -28,7 +32,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_stat.h"
-#include "table_table_handles.h"
 
 THR_LOCK table_table_handles::m_table_lock;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,11 +17,13 @@
   Minimal code to be able to link a unit test.
 */
 
-#include "my_global.h"
+#include <stddef.h>
+
 #include "m_ctype.h"
+#include "my_global.h"
+#include "mysqld.h"
 #include "sql_class.h"
 #include "sql_show.h"
-#include "mysqld.h"
 
 struct System_status_var global_status_var;
 

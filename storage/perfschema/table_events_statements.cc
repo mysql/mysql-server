@@ -18,6 +18,10 @@
   Table EVENTS_STATEMENTS_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_statements.h"
+
+#include <stddef.h>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
-#include "table_events_statements.h"
 #include "table_helper.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;

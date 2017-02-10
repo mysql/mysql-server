@@ -19,6 +19,10 @@
   Table TABLE_IO_WAITS_SUMMARY_BY_TABLE (implementation).
 */
 
+#include "storage/perfschema/table_tiws_by_table.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_tiws_by_table.h"
 
 THR_LOCK table_tiws_by_table::m_table_lock;
 

@@ -18,6 +18,9 @@
   Table SESSION_STATUS (implementation).
 */
 
+#include "storage/perfschema/table_session_status.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
@@ -31,7 +34,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_session_status.h"
 
 bool
 PFS_index_session_status::match(const Status_variable *pfs)

@@ -15,6 +15,7 @@
 
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include

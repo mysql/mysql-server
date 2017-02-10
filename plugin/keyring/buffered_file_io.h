@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <mysql/plugin.h>
+#include <stddef.h>
 
 #include "buffer.h"
 #include "checker/checker_factory.h"

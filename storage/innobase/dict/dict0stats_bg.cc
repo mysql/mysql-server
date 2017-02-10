@@ -23,6 +23,7 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include <stddef.h>
 #include <vector>
 
 #include "dict0dict.h"

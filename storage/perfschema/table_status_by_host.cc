@@ -18,6 +18,9 @@
   Table STATUS_BY_HOST (implementation).
 */
 
+#include "storage/perfschema/table_status_by_host.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
@@ -32,7 +35,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_status_by_host.h"
 
 THR_LOCK table_status_by_host::m_table_lock;
 

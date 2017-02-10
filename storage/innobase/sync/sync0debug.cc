@@ -31,6 +31,7 @@ Created 2012-08-21 Sunny Bains
 
 #include "sync0debug.h"
 
+#include <stddef.h>
 #include <algorithm>
 #include <iostream>
 #include <map>

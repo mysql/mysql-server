@@ -19,16 +19,19 @@
   Table replication_group_member_stats (implementation).
 */
 
+#include "storage/perfschema/table_replication_group_member_stats.h"
+
+#include <stddef.h>
+
+#include "field.h"
+#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
-#include "field.h"
-#include "log.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_group_replication.h"
 #include "table.h"
-#include "table_replication_group_member_stats.h"
 #include "table_helper.h"
 #include "thr_lock.h"
 

@@ -18,6 +18,10 @@
   Table SETUP_TIMERS (implementation).
 */
 
+#include "storage/perfschema/table_setup_timers.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -25,7 +29,6 @@
 #include "my_thread.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
-#include "table_setup_timers.h"
 
 #define COUNT_SETUP_TIMERS 5
 

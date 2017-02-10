@@ -21,6 +21,8 @@
   Default setup (declarations).
 */
 
+#include "mysql/psi/psi_thread.h"
+
 /**
   Configure the performance schema setup tables with default content.
   The tables populated are:

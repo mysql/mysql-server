@@ -16,6 +16,8 @@
 #ifndef SQL_SERVICE_COMMAND_INCLUDE
 #define SQL_SERVICE_COMMAND_INCLUDE
 
+#include <stddef.h>
+
 #include "my_inttypes.h"
 #include "sql_service_interface.h"
 

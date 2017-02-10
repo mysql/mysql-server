@@ -22,6 +22,8 @@
   Table replication_connection_status (declarations).
 */
 
+#include <stddef.h>
+
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "pfs_column_types.h"

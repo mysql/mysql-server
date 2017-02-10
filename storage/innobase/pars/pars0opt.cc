@@ -25,6 +25,8 @@ Created 12/21/1997 Heikki Tuuri
 
 #include "pars0opt.h"
 
+#include <stddef.h>
+
 #include "dict0boot.h"
 #include "dict0dict.h"
 #include "dict0mem.h"

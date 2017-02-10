@@ -18,6 +18,10 @@
   TABLE USERS.
 */
 
+#include "storage/perfschema/table_users.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -29,7 +33,6 @@
 #include "pfs_status.h"
 #include "pfs_user.h"
 #include "pfs_visitor.h"
-#include "table_users.h"
 
 THR_LOCK table_users::m_table_lock;
 

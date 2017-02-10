@@ -15,6 +15,7 @@
 
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysql/service_rpl_transaction_write_set.h>
+#include <stddef.h>
 #include <string>
 #include <vector>
 

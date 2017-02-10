@@ -18,6 +18,10 @@
   Table VARIABLES_INFO (implementation).
 */
 
+#include "storage/perfschema/table_variables_info.h"
+
+#include <stddef.h>
+
 #include "current_thd.h"
 #include "field.h"
 #include "my_dbug.h"
@@ -29,7 +33,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_variables_info.h"
 
 THR_LOCK table_variables_info::m_table_lock;
 

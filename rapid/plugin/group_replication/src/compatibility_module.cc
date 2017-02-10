@@ -15,6 +15,8 @@
 
 #include "compatibility_module.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 
 Compatibility_module::Compatibility_module()

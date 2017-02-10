@@ -16,13 +16,14 @@
 #ifndef RPL_MSR_H
 #define RPL_MSR_H
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <map>
 #include <string>
 #include <utility>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_psi_config.h"

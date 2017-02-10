@@ -23,6 +23,8 @@ Transaction undo log
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"

@@ -15,6 +15,7 @@
 
 #include "dd/impl/types/column_impl.h"
 
+#include <stddef.h>
 #include <memory>
 #include <sstream>
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,13 +17,14 @@
 
 #include "abstract_progress_watcher.h"
 
+#include <stddef.h>
 #include <algorithm>
 #include <chrono>
 #include <functional>
 
-#include "table_rows_dump_task.h"
-#include "table_definition_dump_task.h"
 #include "row_group_dump_task.h"
+#include "table_definition_dump_task.h"
+#include "table_rows_dump_task.h"
 
 using namespace Mysql::Tools::Dump;
 

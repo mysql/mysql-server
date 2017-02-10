@@ -15,6 +15,8 @@
 
 #include "handlers/applier_handler.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "plugin.h"
 #include "plugin_log.h"

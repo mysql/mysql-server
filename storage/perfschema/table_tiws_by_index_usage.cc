@@ -18,7 +18,11 @@
   Table TABLE_IO_WAITS_SUMMARY_BY_INDEX_USAGE (implementation).
 */
 
+#include "storage/perfschema/table_tiws_by_index_usage.h"
+
 #include "my_config.h"
+
+#include <stddef.h>
 
 #include "field.h"
 #include "my_dbug.h"
@@ -30,7 +34,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_tiws_by_index_usage.h"
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 

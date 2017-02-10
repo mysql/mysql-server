@@ -16,6 +16,8 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <set>
@@ -25,7 +27,6 @@
 #include "auth_acls.h"                          /* ACL information */
 #include "m_string.h"
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"

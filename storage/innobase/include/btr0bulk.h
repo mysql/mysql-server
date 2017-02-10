@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,16 @@ The B-tree bulk load
 Created 03/11/2014 Shaohua Wang
 *************************************************************************/
 
+#include <stddef.h>
+
 #ifndef btr0bulk_h
 #define btr0bulk_h
+
+#include <vector>
 
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "ut0new.h"
-
-#include <vector>
 
 /** Innodb B-tree index fill factor for bulk load. */
 extern	long	innobase_fill_factor;

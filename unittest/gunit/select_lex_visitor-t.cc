@@ -16,6 +16,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <stddef.h>
 
 #include "current_thd.h"
 #include "my_inttypes.h"

@@ -15,6 +15,8 @@
 
 #include "gcs_view.h"
 
+#include <stddef.h>
+
 Gcs_view::Gcs_view(const std::vector<Gcs_member_identifier>& members,
                    const Gcs_view_identifier &view_id,
                    const std::vector<Gcs_member_identifier> &leaving,

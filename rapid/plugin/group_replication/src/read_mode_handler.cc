@@ -15,6 +15,8 @@
 
 #include "read_mode_handler.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "plugin_utils.h"
 

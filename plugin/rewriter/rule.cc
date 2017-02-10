@@ -14,10 +14,12 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#include "my_config.h"
+
+#include <stddef.h>
 #include <string>
 #include <vector>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "query_builder.h"

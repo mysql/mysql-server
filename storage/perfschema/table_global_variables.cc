@@ -18,6 +18,9 @@
   Table GLOBAL_VARIABLES (implementation).
 */
 
+#include "storage/perfschema/table_global_variables.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
@@ -31,7 +34,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_global_variables.h"
 
 bool
 PFS_index_global_variables::match(const System_variable *pfs)

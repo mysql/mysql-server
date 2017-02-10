@@ -21,8 +21,10 @@
   Performance schema connection slice (declarations).
 */
 
-#include "pfs_lock.h"
+#include <stddef.h>
+
 #include "lf.h"
+#include "pfs_lock.h"
 #include "pfs_status.h"
 
 struct PFS_single_stat;

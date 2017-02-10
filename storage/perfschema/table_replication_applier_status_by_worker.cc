@@ -21,6 +21,10 @@
   Table replication_applier_status_by_worker (implementation).
 */
 
+#include "storage/perfschema/table_replication_applier_status_by_worker.h"
+
+#include <stddef.h>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -33,7 +37,6 @@
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"
-#include "table_replication_applier_status_by_worker.h"
 
 THR_LOCK table_replication_applier_status_by_worker::m_table_lock;
 

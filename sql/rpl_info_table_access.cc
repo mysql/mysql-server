@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_table_access.h"
+#include "sql/rpl_info_table_access.h"
 
 #include <stddef.h>
 

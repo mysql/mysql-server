@@ -21,6 +21,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ha_innopart_h
 #define ha_innopart_h
 
+#include <stddef.h>
+
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "partitioning/partition_handler.h"

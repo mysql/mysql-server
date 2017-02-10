@@ -127,6 +127,7 @@
 #include "mysqld_thd_manager.h"
 
 #define PFS_VAR
+#include <stddef.h>
 #include <string>
 
 #include "my_dbug.h"

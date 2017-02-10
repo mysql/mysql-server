@@ -18,6 +18,10 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME (implementation).
 */
 
+#include "storage/perfschema/table_esms_by_thread_by_event_name.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -28,7 +32,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_esms_by_thread_by_event_name.h"
 
 THR_LOCK table_esms_by_thread_by_event_name::m_table_lock;
 

@@ -21,6 +21,8 @@
   Table USER_VARIABLES_BY_THREAD (declarations).
 */
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"

@@ -27,6 +27,8 @@ Created 11/26/1995 Heikki Tuuri
 #ifndef mtr0mtr_h
 #define mtr0mtr_h
 
+#include <stddef.h>
+
 #include "buf0types.h"
 #include "dyn0buf.h"
 #include "fil0fil.h"

@@ -18,6 +18,10 @@
   TABLE ACCOUNTS.
 */
 
+#include "storage/perfschema/table_accounts.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
@@ -28,7 +32,6 @@
 #include "pfs_memory.h"
 #include "pfs_status.h"
 #include "pfs_visitor.h"
-#include "table_accounts.h"
 
 THR_LOCK table_accounts::m_table_lock;
 
