@@ -5875,8 +5875,8 @@ static bool prepare_foreign_key(THD *thd,
     fk_info->ref_db= fk_key->ref_db;
     if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
     {
-      char buff[NAME_CHAR_LEN + 1];
-      my_stpncpy(buff, fk_info->ref_db.str, NAME_CHAR_LEN);
+      char buff[NAME_LEN + 1];
+      my_stpncpy(buff, fk_info->ref_db.str, NAME_LEN);
       my_casedn_str(system_charset_info, buff);
       fk_info->ref_db.str= sql_strdup(buff);
       fk_info->ref_db.length= strlen(fk_info->ref_db.str);
@@ -5888,8 +5888,8 @@ static bool prepare_foreign_key(THD *thd,
   fk_info->ref_table= fk_key->ref_table;
   if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
   {
-    char buff[NAME_CHAR_LEN + 1];
-    my_stpncpy(buff, fk_info->ref_table.str, NAME_CHAR_LEN);
+    char buff[NAME_LEN + 1];
+    my_stpncpy(buff, fk_info->ref_table.str, NAME_LEN);
     my_casedn_str(system_charset_info, buff);
     fk_info->ref_table.str= sql_strdup(buff);
     fk_info->ref_table.length= strlen(fk_info->ref_table.str);
