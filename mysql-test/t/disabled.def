@@ -40,7 +40,3 @@ commit_1innodb                   : disables it temporarily until WL#7743 fixes i
 audit_plugin_2           : Bug#24970428 2016-10-28 Marc TEST AUDIT_PLUGIN_2 USES DEPRECATED FEATURE SHOW_COMPATIBILITY_56
 
 lowercase_table4         : Wating for fix of Bug#25495714: FOREIGN KEY INFORMATION IN NEW DD NOT FOLLOW THE LOWER CASE TABLE NAME SETTING
-
-import_empty_secure_file_priv    : Waiting for fix of writing .SDI file.
-import                           : Waiting for fix of writing .SDI file.
-import_symlink                   : Waiting for fix of writing .SDI file.

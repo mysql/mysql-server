@@ -192,9 +192,9 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   w.String(dd_object_type, dd_object_type_size);
 
   w.String(STRING_WITH_LEN("dd_object"));
-#if 0//WL#7141 TODO: fix WL#7069 conflicts
+
   dd_obj.serialize(&wctx, &w);
-#endif
+
   w.EndObject();
 
   return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
@@ -203,6 +203,10 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
 
 const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
 {
+  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  return empty_;
+
+#if 0 // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
   if (wctx->m_thd == nullptr || id == INVALID_OBJECT_ID)
   {
     return empty_;
@@ -224,6 +228,7 @@ const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
   DBUG_ASSERT(tsp != nullptr);
 
   return tsp->name();
+#endif
 }
 
 /**
