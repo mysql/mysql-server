@@ -13938,8 +13938,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
 
-  char name[FN_REFLEN + 1];
-
   ndb_log_verbose(60, "find_files ->");
 
   Ndb* ndb;
@@ -13979,16 +13977,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
     DBUG_RETURN(-1);
   }
-
-  HASH ok_tables;
-  if (my_hash_init(&ok_tables, system_charset_info,32,0,
-                   tables_get_key, nullptr, 0,
-                   PSI_INSTRUMENT_ME))
-  {
-    DBUG_PRINT("error", ("Failed to init HASH ok_tables"));
-    my_hash_free(&ndb_tables);
-    DBUG_RETURN(-1);
-  }  
 
   for (unsigned i= 0 ; i < list.count ; i++)
   {
@@ -14038,107 +14026,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     my_hash_insert(&ndb_tables, (uchar*)thd->mem_strdup(elmt.name));
   }
 
-  // NOTE! list could go out of scope here, should not be used anymore.
-  // Relevant parts copied into the two hash tables
-
-  ndb_log_verbose(60, " - iterating list of files...");
-  LEX_STRING *file_name;
-  List_iterator<LEX_STRING> it(*files);
-  while ((file_name=it++))
-  {
-    bool file_on_disk= FALSE;
-    DBUG_PRINT("info", ("File : %s", file_name->str));
-    ndb_log_verbose(60, " -- checking file '%s'", file_name->str);
-
-    if (my_hash_search(&ndb_tables,
-                       (const uchar*)file_name->str, file_name->length))
-    {
-      ndb_log_verbose(60, " --- exists in NDB");
-      build_table_filename(name, sizeof(name) - 1, db,
-                           file_name->str, reg_ext, 0);
-      if (my_access(name, F_OK))
-      {
-        ndb_log_verbose(60, " --- have no frm file on disk, name: '%s'", name);
-
-        /* No frm for database, table name combination, but
-         * Cluster says the table with that combination exists.
-         * Assume frm was deleted, re-discover from engine.
-         */
-        DBUG_PRINT("info", ("Table %s listed and need discovery",
-                            file_name->str));
-        ndb_log_verbose(60, " --- try to create from NDB");
-        if (ndb_create_table_from_engine(thd, db, file_name->str))
-        {
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_TABLE_EXISTS_ERROR,
-                              "Discover of table %s.%s failed",
-                              db, file_name->str);
-          ndb_log_verbose(60, " --- failed to create from NDB");
-          continue;
-        }
-      }
-      DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
-      file_on_disk= TRUE;
-      ndb_log_verbose(60, " --- existed in NDB and on disk");
-    }
-    
-    // Check for .ndb file with this name
-    build_table_filename(name, sizeof(name) - 1, db,
-                         file_name->str, ha_ndb_ext, 0);
-    DBUG_PRINT("info", ("Check access for %s", name));
-    if (my_access(name, F_OK))
-    {
-      DBUG_PRINT("info", ("%s did not exist on disk", name));
-      ndb_log_verbose(60, " --- have no ndb file on disk, name: '%s'", name);
-
-      // .ndb file did not exist on disk, another table type
-      if (file_on_disk)
-      {
-        ndb_log_verbose(60, " --- but frm file existed, suppose 'local table'");
-        // Cluster table and an frm file exist, but no .ndb file
-        // Assume this means the frm is for a local table, and is
-        // hiding the cluster table in its shadow. 
-	// Ignore this ndb table 
- 	uchar *record= my_hash_search(&ndb_tables,
-                                      (const uchar*) file_name->str,
-                                      file_name->length);
-	DBUG_ASSERT(record);
-	my_hash_delete(&ndb_tables, record);
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-			    ER_TABLE_EXISTS_ERROR,
-			    "Local table %s.%s shadows ndb table",
-			    db, file_name->str);
-
-        ndb_log_verbose(60, " --- removed '%s' from list of NDB tables",
-                        file_name->str);
-      }
-      continue;
-    }
-
-    /* .ndb file exists */
-    if (file_on_disk) 
-    {
-      // File existed in Cluster and has both frm and .ndb files, 
-      // Put in ok_tables list
-      my_hash_insert(&ok_tables, (uchar*) file_name->str);
-      ndb_log_verbose(60, " --- put file in list of OK tables");
-      continue;
-    }
-    DBUG_PRINT("info", ("%s existed on disk", name));     
-    // The .ndb file exists on disk, but it's not in list of tables in cluster
-    // Verify that handler agrees table is gone.
-
-    ndb_log_verbose(60, " --- exist on disk but not in NDB");
-    if (ndbcluster_table_exists_in_engine(hton, thd, db, file_name->str) ==
-        HA_ERR_NO_SUCH_TABLE)
-    {
-      DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
-      ndb_log_verbose(60, " --- NDB says it does not exist, remove from files");
-      it.remove();
-    }
-  }
-
-  my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
 
   /* Hide mysql.ndb_schema table */
