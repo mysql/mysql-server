@@ -13945,7 +13945,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   Ndb* ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  Thd_ndb* thd_ndb= get_thd_ndb(thd);
 
   if (dir)
   {
@@ -14137,28 +14136,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       ndb_log_verbose(60, " --- NDB says it does not exist, remove from files");
       it.remove();
     }
-  }
-
-  if (!thd_ndb->check_option(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES))
-  {
-    /* setup logging to binlog for all discovered tables */
-    char *end, *end1= name +
-      build_table_filename(name, sizeof(name) - 1, db, "", "", 0);
-
-    ndb_log_verbose(60, " -- iterating list of ok tables");
-    for (ulong i= 0; i < ok_tables.records; i++)
-    {
-      char* file_name_str= (char*)my_hash_element(&ok_tables, i);
-      end= end1 +
-        tablename_to_filename(file_name_str, end1, (uint)(sizeof(name) - (end1 - name)));
-      ndb_log_verbose(60, " -- setting up binlog for '%s'", name);
-      ndbcluster_create_binlog_setup(thd, ndb, name,
-                                     db, file_name_str, 0);
-    }
-  }
-  else
-  {
-    ndb_log_verbose(60, " -- skip, no binlog setup in find files");
   }
 
   my_hash_free(&ok_tables);

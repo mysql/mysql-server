@@ -1087,12 +1087,6 @@ class Ndb_binlog_setup {
         char path[FN_REFLEN + 1];
         build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
 
-        /* Require that no binlog setup is attempted yet, that will come later
-         * right now we just want to get rid of stray frms et al
-         */
-        Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
-        thd_ndb_options.set(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES);
-
         Ndb_find_files_list tab_names(thd);
         if (!tab_names.find_tables(db_name->str, path))
         {
