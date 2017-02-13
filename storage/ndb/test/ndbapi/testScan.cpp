@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2323,7 +2323,7 @@ populateFragment0(Ndb* ndb, const NdbDictionary::Table* tab, Uint32 rows, Uint32
   extraCols[0].appStorage = &fragment;
   extraCols[0].recAttr = NULL;
 
-  Uint32 row_count = 0;
+  Uint64 row_count = 0;
   extraCols[1].column = NdbDictionary::Column::ROW_COUNT;
   extraCols[1].appStorage = &row_count;
   extraCols[1].recAttr = NULL;
