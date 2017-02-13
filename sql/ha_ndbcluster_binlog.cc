@@ -1051,53 +1051,6 @@ class Ndb_binlog_setup {
   THD* const m_thd;
   Thd_ndb* const m_thd_ndb;
 
-  /*
-    Clean-up any stray files for non-existing NDB tables
-    - "stray" means that there is a .frm + .ndb file on disk
-       but there exists no such table in NDB. The two files
-       can then be deleted from disk to get in synch with
-       what's in NDB.
-    NOTE! All the lof this function is in ndbcluster_find_files()
-    which will do the removal of "stray" files
-  */
-  static
-  void clean_away_stray_files(THD *thd, Thd_ndb* thd_ndb)
-  {
-    DBUG_ENTER("Ndb_binlog_setup::clean_away_stray_files");
-
-    // Populate list of databases
-    Ndb_find_files_list db_names(thd);
-    if (!db_names.find_databases(mysql_data_home))
-    {
-      thd->clear_error();
-      DBUG_PRINT("info", ("Failed to find databases"));
-      DBUG_VOID_RETURN;
-    }
-
-    LEX_STRING *db_name;
-    while ((db_name= db_names.next()))
-    {
-      DBUG_PRINT("info", ("Found database %s", db_name->str));
-      if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
-      {
-
-        ndb_log_info("Cleaning stray tables from database '%s'",
-                     db_name->str);
-
-        char path[FN_REFLEN + 1];
-        build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
-
-        Ndb_find_files_list tab_names(thd);
-        if (!tab_names.find_tables(db_name->str, path))
-        {
-          thd->clear_error();
-          DBUG_PRINT("info", ("Failed to find tables"));
-        }
-      }
-    }
-    DBUG_VOID_RETURN;
-  }
-
 
   /*
     Ndb has no representation of the database schema objects.
@@ -1590,8 +1543,6 @@ public:
           NOTE! Failure to create APPLY_TABLE eventOp is retried
           by find_all_files(), and eventually failed.
        */
-
-       clean_away_stray_files(m_thd, m_thd_ndb);
 
        if (find_all_databases(m_thd, m_thd_ndb))
          break;
