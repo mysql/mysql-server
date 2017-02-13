@@ -13922,112 +13922,24 @@ int ndb_create_table_from_engine(THD *thd,
 }
 
 
-// Used for the hash tables in ndbcluster_find_files()
-static const uchar* tables_get_key(const uchar *entry, size_t *length)
-{
-  *length= strlen(pointer_cast<const char*>(entry));
-  return entry;
-}
-
-
 static int
-ndbcluster_find_files(handlerton *hton, THD *thd,
-                      const char *db, const char *path,
-                      const char *wild, bool dir, List<LEX_STRING> *files)
+ndbcluster_find_files(handlerton* /* hton */, THD* /* thd */,
+                      const char* db, const char* /* path */,
+                      const char* /* wild */, bool dir,
+                      List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
 
-  ndb_log_verbose(60, "find_files ->");
-
-  Ndb* ndb;
-  if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
   if (dir)
   {
-    ndb_log_verbose(60, " <- asking about databases");
-    DBUG_RETURN(0); // NDB know nothing about databases, really?
+    // Nothing to do for databases at this time
+    DBUG_RETURN(0);
   }
-
-  ndb_log_verbose(60, " - listing tables in NDB, building lookup tables...");
-
-  // List tables in NDB
-  NDBDICT::List list;
-  {
-    NDBDICT *dict= ndb->getDictionary();
-    if (dict->listObjects(list,
-                          NdbDictionary::Object::UserTable) != 0)
-    {
-      ndb_log_verbose(60, " <- error listing tables in NDB, error: %d",
-                      dict->getNdbError().code);
-      ERR_RETURN(dict->getNdbError());
-    }
-  }
-
-  HASH ndb_tables;
-  if (my_hash_init(&ndb_tables, table_alias_charset,list.count,0,
-                   tables_get_key, nullptr, 0,
-                   PSI_INSTRUMENT_ME))
-  {
-    DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
-    DBUG_RETURN(-1);
-  }
-
-  for (unsigned i= 0 ; i < list.count ; i++)
-  {
-    NDBDICT::List::Element& elmt= list.elements[i];
-
-    DBUG_PRINT("info", ("Found %s/%s in NDB", elmt.database, elmt.name));
-    ndb_log_verbose(60, " - found NDB table '%s.%s'",
-                    elmt.database, elmt.name);
-
-    if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
-    {
-      ndb_log_verbose(60, " -- skip, hidden table");
-      DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
-      continue;
-    }
-
-    // Add only tables that belongs to db
-    if (my_strcasecmp(system_charset_info, elmt.database, db))
-    {
-      ndb_log_verbose(60, " -- skip, different database");
-      continue;
-    }
-
-    // Apply wildcard to list of tables in NDB
-    if (wild)
-    {
-      ndb_log_verbose(60, " - applying wildcard: '%s'", wild);
-      if (lower_case_table_names)
-      {
-        if (wild_case_compare(files_charset_info, elmt.name, wild))
-        {
-          ndb_log_verbose(60, " -- skip, lowercase wildcard didn't match");
-          continue;
-        }
-      }
-      else
-      {
-        if (wild_compare(elmt.name,wild,0))
-        {
-          ndb_log_verbose(60, " -- skip, wildcard didn't match");
-          continue;
-        }
-      }
-    }
-    DBUG_PRINT("info", ("Inserting %s into ndb_tables hash", elmt.name));
-    ndb_log_verbose(60, " -- inserting in hash of NDB tables");
-    my_hash_insert(&ndb_tables, (uchar*)thd->mem_strdup(elmt.name));
-  }
-
-  my_hash_free(&ndb_tables);
 
   /* Hide mysql.ndb_schema table */
   if (!strcmp(db, NDB_REP_DB))
   {
-    ndb_log_verbose(60, " - Iterating files to hide mysql.ndb_schema table");
     LEX_STRING* file_name;
     List_iterator<LEX_STRING> it(*files);
     while ((file_name= it++))
@@ -14035,13 +13947,11 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       if (!strcmp(file_name->str, NDB_SCHEMA_TABLE))
       {
         DBUG_PRINT("info", ("Hiding table '%s.%s'", db, file_name->str));
-        ndb_log_verbose(60, " -- found mysql.ndb_schema, hiding");
         it.remove();
+        break; // Match found, no need to continue iterating
       }
     }
   }
-
-  ndb_log_verbose(60, " <- done!");
 
   DBUG_RETURN(0);
 }
