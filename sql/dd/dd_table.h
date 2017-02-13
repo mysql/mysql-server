@@ -215,7 +215,6 @@ bool add_foreign_keys_and_triggers(THD *thd,
   @retval false on success
   @retval true on failure
 */
-template <typename T>
 bool drop_table(THD *thd,
                 const char *schema_name,
                 const char *table_name,
@@ -241,9 +240,8 @@ bool drop_table(THD *thd,
   @retval false on success
   @retval true on failure
 */
-template <typename T>
 bool drop_table(THD *thd, const char *schema_name, const char *name,
-                const T *table_def, bool commit_dd_changes);
+                const dd::Table *table_def, bool commit_dd_changes);
 
 /**
   Check if a table or view exists

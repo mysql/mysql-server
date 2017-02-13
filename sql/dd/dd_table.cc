@@ -82,24 +82,6 @@
 #include "typelib.h"
 
 // Explicit instanciation of some template functions
-template bool dd::drop_table<dd::Abstract_table>(THD *thd,
-                                                 const char *schema_name,
-                                                 const char *name,
-                                                 bool commit_dd_changes);
-template bool dd::drop_table<dd::Table>(THD *thd,
-                                        const char *schema_name,
-                                        const char *name,
-                                        bool commit_dd_changes);
-template bool dd::drop_table<dd::View>(THD *thd,
-                                       const char *schema_name,
-                                       const char *name,
-                                       bool commit_dd_changes);
-template bool dd::drop_table<dd::Table>(THD *thd,
-                                        const char *schema_name,
-                                        const char *name,
-                                        const dd::Table *table_def,
-                                        bool commit_dd_changes);
-
 template bool dd::table_exists<dd::Abstract_table>(
                                       dd::cache::Dictionary_client *client,
                                       const char *schema_name,
@@ -2463,7 +2445,6 @@ bool add_foreign_keys_and_triggers(THD *thd,
 }
 
 
-template <typename T>
 bool drop_table(THD *thd, const char *schema_name, const char *name,
                 bool commit_dd_changes)
 {
@@ -2488,21 +2469,21 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
     return true;
   }
 
-  const T *at= NULL;
-  if (client->acquire(schema_name, name, &at))
+  const dd::Table *table_def= NULL;
+  if (client->acquire(schema_name, name, &table_def))
   {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
   // A non-existing object is a legitimate scenario.
-  if (!at)
+  if (!table_def)
     return false;
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  // Drop the table/view and related dynamic statistics too.
-  if (client->drop(at) ||
+  // Drop the table and related dynamic statistics too.
+  if (client->drop(table_def) ||
       client->remove_table_dynamic_statistics(schema_name, name))
   {
     if (commit_dd_changes)
@@ -2519,9 +2500,8 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 }
 
 
-template <typename T>
 bool drop_table(THD *thd, const char *schema_name, const char *name,
-                const T *table_def, bool commit_dd_changes)
+                const dd::Table *table_def, bool commit_dd_changes)
 {
   /*
     Acquire lock on schema so assert in Dictionary_client::drop() checking
@@ -2536,7 +2516,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  // Drop the table/view
+  // Drop the table
   if (thd->dd_client()->drop(table_def) ||
       thd->dd_client()->remove_table_dynamic_statistics(schema_name, name))
   {

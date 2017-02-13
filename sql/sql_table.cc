@@ -1409,7 +1409,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
               else
               {
                 //  Remove table from DD
-                if (dd::drop_table<dd::Table>(thd, db, table_name, true))
+                if (dd::drop_table(thd, db, table_name, true))
                   break;
               }
             }
@@ -2212,7 +2212,7 @@ static bool rea_create_base_table(THD *thd, const char *path,
           as we anyway report error.
         */
         if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-          (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
+          (void) dd::drop_table(thd, db, table_name, true);
 
         DBUG_RETURN(true);
       }
@@ -2278,7 +2278,7 @@ err:
       We ignore error from dd_drop_table() as we anyway
       return 'true' failure below.
     */
-    (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
+    (void) dd::drop_table(thd, db, table_name, true);
   }
 
   DBUG_RETURN(true);
@@ -3505,8 +3505,8 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 
       Don't commit the changes if table belongs to SE supporting atomic DDL.
     */
-    error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
-                                     table_def, !atomic) ||
+    error= dd::drop_table(thd, table->db, table->table_name,
+                          table_def, !atomic) ||
            update_referencing_views_metadata(thd, table, !atomic, nullptr);
   }
 
@@ -3845,9 +3845,11 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                        false);
 
-      if (dd::drop_table<dd::Abstract_table>(thd, table->db,
-                                             table->table_name,
-                                             false) ||
+      const dd::View *view= nullptr;
+      if (thd->dd_client()->acquire(table->db, table->table_name, &view))
+        goto err_with_rollback;
+
+      if (thd->dd_client()->drop(view) ||
           update_referencing_views_metadata(thd, table, false, nullptr))
         goto err_with_rollback;
 
@@ -4340,8 +4342,8 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   // because the DDL code will handle situations where a table is present
   // in the DD while missing from the SE, but not the opposite.
   if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
-      dd::drop_table<dd::Table>(thd, db, table_name, table_def,
-                                !(flags & NO_DD_COMMIT)))
+      dd::drop_table(thd, db, table_name, table_def,
+                     !(flags & NO_DD_COMMIT)))
   {
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(true);
@@ -9935,8 +9937,8 @@ cleanup2:
 #endif
      )
   {
-    (void) dd::drop_table<dd::Table>(thd, alter_ctx->new_db,
-                                     alter_ctx->tmp_name, true);
+    (void) dd::drop_table(thd, alter_ctx->new_db,
+                          alter_ctx->tmp_name, true);
   }
 
   DBUG_RETURN(true);
@@ -12225,8 +12227,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
       if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
         // Delete temporary table object from data dictionary.
-        (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
-                                         alter_ctx.tmp_name, true);
+        (void) dd::drop_table(thd, alter_ctx.new_db,
+                              alter_ctx.tmp_name, true);
       else
       {
         dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -12894,8 +12896,8 @@ err_new_table_cleanup:
     if (!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
       if (no_ha_table) // Only remove from DD.
-        (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
-                                         alter_ctx.tmp_name, true);
+        (void) dd::drop_table(thd, alter_ctx.new_db,
+                              alter_ctx.tmp_name, true);
       else // Remove from both DD and SE.
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);

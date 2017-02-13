@@ -23,49 +23,44 @@ struct TABLE_LIST;
 typedef struct st_mem_root MEM_ROOT;
 
 namespace dd {
+class Schema;
 class View;
 
 /**
   Store view metadata in the data-dictionary.
 
   @param   thd                Thread handle.
+  @param   schema             Schema where the view should be created.
   @param   view               TABLE_LIST element describing the view.
-  @param   commit_dd_changes  Indicates whether changes to DD need to be
-                              committed.
 
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
+  @note The caller must rollback both statement and transaction on failure,
+        before any further accesses to DD. This is because such a failure
+        might be caused by a deadlock, which requires rollback before any
+        other operations on SE (including reads using attachable transactions)
+        can be done.
 
   @retval  false        On Success.
   @retval  true         On Failure.
 */
-bool create_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes);
+bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view);
 
 /**
   Update view metadata in dd.views.
 
   @param thd                Thread handle.
-  @param view               TABLE_LIST element describing the view.
-  @param commit_dd_changes  Indicates whether changes to DD need to be
-                            committed.
+  @param new_view           View object that should be updated.
+  @param view               TABLE_LIST element describing the new view.
 
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
+  @note The caller must rollback both statement and transaction on failure,
+        before any further accesses to DD. This is because such a failure
+        might be caused by a deadlock, which requires rollback before any
+        other operations on SE (including reads using attachable transactions)
+        can be done.
 
   @retval false       On success.
   @retval true        On failure.
 */
-bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes);
+bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view);
 
 /** Read view metadata from dd.views into TABLE_LIST */
 bool read_view(TABLE_LIST *view, const dd::View &view_ref,

@@ -921,14 +921,14 @@ drop view v1;
 
 if (!$have_debug)
 {
-  --replace_regex /5/X/
-  call p_verify_status_increment(5, 0, 3, 0);
+  --replace_regex /\(3/(X/
+  call p_verify_status_increment(3, 0, 3, 0);
 }
 
 if ($have_debug)
 {
-  --replace_regex /6/X/
-  call p_verify_status_increment(6, 0, 3, 0);
+  --replace_regex /4/X/
+  call p_verify_status_increment(4, 0, 3, 0);
 }
 
 --enable_warnings

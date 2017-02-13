@@ -1120,10 +1120,26 @@ static bool create_unlinked_view(THD *thd,
   thd->lex->query_tables= NULL;
   thd->lex->sroutines_list.save_and_clear(&saved_sroutines_list);
 
+  const dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire(view_ref->db, &schema))
+    return true;
+  DBUG_ASSERT(schema != nullptr); // Should be impossible during upgrade.
+
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  bool result= dd::create_view(thd, view_ref, true);
+  Disable_gtid_state_update_guard disabler(thd);
+
+  bool result= dd::create_view(thd, *schema, view_ref);
+
+  if (result)
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
+  else
+    result= trans_commit_stmt(thd) || trans_commit(thd);
 
   // Restore
   thd->lex->select_lex= backup_select;

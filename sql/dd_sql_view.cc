@@ -51,6 +51,7 @@
 #include "system_variables.h"
 #include "table.h"                      // TABLE_LIST
 #include "thr_lock.h"
+#include "transaction.h"
 
 namespace dd {
 class View_routine;
@@ -309,6 +310,7 @@ static bool open_views_and_update_metadata(
   Uncommitted_tables_guard *uncommitted_tables)
 {
   DBUG_ENTER("open_views_and_update_metadata");
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (!commit_dd_changes)
   {
@@ -452,10 +454,23 @@ static bool open_views_and_update_metadata(
     if (!commit_dd_changes)
       uncommitted_tables->add_table(view);
 
+    Disable_gtid_state_update_guard disabler(thd);
+
     // Update view metadata. mysql_register_view with VIEW_ALTER mode, drops
     // old view object and recreates the new one with the new definition.
-    if (mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER,
-                            commit_dd_changes))
+    bool res= mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER);
+    if (commit_dd_changes)
+    {
+      if (res)
+      {
+        trans_rollback_stmt(thd);
+        // Full rollback in case we have THD::transaction_rollback_request.
+        trans_rollback(thd);
+      }
+      else
+        res= trans_commit_stmt(thd) || trans_commit(thd);
+    }
+    if (res)
     {
       view_lex->unit->cleanup(true);
       lex_end(view_lex);

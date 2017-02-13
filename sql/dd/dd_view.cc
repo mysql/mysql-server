@@ -626,17 +626,8 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
 }
 
 
-bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
+bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view)
 {
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  dd::View *new_view= nullptr;
-  if (client->acquire_for_modification(view->db, view->table_name,
-                                       &new_view))
-    return true;
-
-  DBUG_ASSERT(new_view != nullptr);
-
   // Clear the columns, tables and routines since it will be added later.
   new_view->remove_children();
 
@@ -651,75 +642,25 @@ bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
   if (fill_dd_view_definition(thd, new_view, view))
     return true;
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Update DD tables.
-  if (client->update(new_view))
-  {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-    return true;
-  }
-
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
-
+  return thd->dd_client()->update(new_view);
 }
 
 
-bool create_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
+bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view)
 {
-  dd::cache::Dictionary_client *client= thd->dd_client();
-
-  // Check if the schema exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Schema *sch_obj= nullptr;
-  if (client->acquire(view->db, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!sch_obj)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
-    return true;
-  }
-
   // Create dd::View object.
   std::unique_ptr<dd::View> view_obj;
   if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name))
-  {
-    view_obj.reset(sch_obj->create_system_view(thd));
-  }
+    view_obj.reset(schema.create_system_view(thd));
   else
-  {
-    view_obj.reset(sch_obj->create_view(thd));
-  }
+    view_obj.reset(schema.create_view(thd));
 
   if (fill_dd_view_definition(thd, view_obj.get(), view))
     return true;
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Store info in DD views table.
-  if (client->store(view_obj.get()))
-  {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-    return true;
-  }
-
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
+  return thd->dd_client()->store(view_obj.get());
 }
 
 
