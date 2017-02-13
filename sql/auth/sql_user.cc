@@ -458,7 +458,8 @@ bool set_and_validate_user_attributes(THD *thd,
         always check for password expire/interval attributes as there is no
         way to differentiate NEVER EXPIRE and EXPIRE DEFAULT scenario
       */
-      what_to_set|= PASSWORD_EXPIRE_ATTR;
+      if (Str->alter_status.update_password_expired_fields)
+        what_to_set|= PASSWORD_EXPIRE_ATTR;
     }
     else
     {
