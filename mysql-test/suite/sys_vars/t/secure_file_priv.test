@@ -21,6 +21,9 @@ SHOW VARIABLES LIKE 'secure_file_priv';
 --perl
 use File::Basename;
 my $protected_file= dirname($ENV{MYSQLTEST_VARDIR}).'/bug50373.txt';
+# Ensure bug50373.txt does not exist (e.g. leftover from previous
+# test runs).
+unlink $protected_file;
 open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/bug50373.inc") or die;
 print FILE "SELECT * FROM t1 INTO OUTFILE '".$protected_file."';\n";
 print FILE "DELETE FROM t1;\n";
