@@ -14180,39 +14180,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     ndb_log_verbose(60, " -- skip, no binlog setup in find files");
   }
 
-  // Check for new files to discover
-  DBUG_PRINT("info", ("Checking for new files to discover"));
-  ndb_log_verbose(60, " - iterating list of ndb tables...");
-  List<char> create_list;
-  for (ulong i= 0 ; i < ndb_tables.records ; i++)
-  {
-    char* file_name_str= (char*) my_hash_element(&ndb_tables, i);
-    ndb_log_verbose(60, " -- checking file '%s'", file_name_str);
-    if (!my_hash_search(&ok_tables,
-                        (const uchar*) file_name_str, strlen(file_name_str)))
-    {
-      /* Table in Cluster did not have frm or .ndb */
-      ndb_log_verbose(60, " --- table exist in NDB but have nothing on disk");
-      build_table_filename(name, sizeof(name) - 1,
-                           db, file_name_str, reg_ext, 0);
-      ndb_log_verbose(60, " --- checking if file '%s' exists on disk",
-                      name);
-      if (my_access(name, F_OK))
-      {
-        DBUG_PRINT("info", ("%s must be discovered", file_name_str));
-        ndb_log_verbose(60,
-                        " --- file didn't exist on disk, adding "
-                        "to create list");
-        // File is in list of ndb tables and not in ok_tables.
-        // It is missing an frm file.
-        // This table need to be created
-        create_list.push_back(thd->mem_strdup(file_name_str));
-      }
-    }
-  }
-
-  ndb_log_verbose(60, " - finished iterating list of ndb tables...");
-
   if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
@@ -14254,29 +14221,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       ndb_tdc_close_cached_table(thd, db, file_name_str);
 
       DBUG_ASSERT(!thd->is_error());
-    }
-  }
-
-  // Create new files
-  ndb_log_verbose(60, " - iterating the list of files to create");
-  List_iterator_fast<char> it2(create_list);
-  char* file_name_str;
-  while ((file_name_str=it2++))
-  {  
-    DBUG_PRINT("info", ("Table %s need discovery", file_name_str));
-    ndb_log_verbose(60, " -- trying to create table '%s.%s' from engine",
-                    db, file_name_str);
-    if (ndb_create_table_from_engine(thd, db, file_name_str) == 0)
-    {
-      LEX_STRING *tmp_file_name= 0;
-      tmp_file_name= thd->make_lex_string(tmp_file_name, file_name_str,
-                                          (uint)strlen(file_name_str), TRUE);
-      files->push_back(tmp_file_name); 
-      ndb_log_verbose(60, " --- succeded, table added to list of files");
-    }
-    else
-    {
-      ndb_log_verbose(60, " --- failed to create table from engine");
     }
   }
 
