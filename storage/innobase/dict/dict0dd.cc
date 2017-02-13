@@ -2575,36 +2575,7 @@ dd_get_meta_data_filename(
 	char*		path;
 
 	/* Make sure the data_dir_path is set. */
-	if (dd_table == NULL) {
-		THD*			thd = current_thd;
-		MDL_ticket*     mdl = nullptr;
-		char		db_buf[NAME_LEN + 1];
-		char		tbl_buf[NAME_LEN + 1];
-		const dd::Table*	table_def = nullptr;
-
-		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
-
-		if (!innobase_parse_tbl_name(
-			table->name.m_name,
-			db_buf, tbl_buf, NULL)) {
-			return;
-		}
-
-		dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf);
-
-		if (client->acquire(db_buf, tbl_buf, &table_def)
-			|| table_def == nullptr) {
-			dd_mdl_release(thd, &mdl);
-			return;
-		}
-
-		dd_get_and_save_data_dir_path(table, table_def, false);
-		dd_mdl_release(thd, &mdl);
-	}
-	else {
-		dd_get_and_save_data_dir_path(table, dd_table, false);
-	}
+	dd_get_and_save_data_dir_path(table, dd_table, false);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
