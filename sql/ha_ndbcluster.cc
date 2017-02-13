@@ -13950,10 +13950,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_RETURN(0); // NDB know nothing about databases, really?
   }
 
-  Ndb_global_schema_lock_guard ndb_global_schema_lock_guard(thd);
-  if (ndb_global_schema_lock_guard.lock())
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
   ndb_log_verbose(60, " - listing tables in NDB, building lookup tables...");
 
   // List tables in NDB
