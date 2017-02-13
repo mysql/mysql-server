@@ -65,9 +65,12 @@ esac
 usage () {
         cat <<EOF
 Usage: $0 [OPTIONS]
+ The following options may be given as the first argument:
   --no-defaults              Don't read the system defaults file
   --defaults-file=FILE       Use the specified defaults file
   --defaults-extra-file=FILE Also use defaults from the specified file
+
+ Other options:
   --ledir=DIRECTORY          Look for mysqld in the specified directory
   --open-files-limit=LIMIT   Limit the number of open files
   --core-file-size=LIMIT     Limit core files to the specified size
@@ -206,7 +209,12 @@ parse_arguments() {
     case "$arg" in
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION="$val" ;;
-      --datadir=*) DATADIR="$val" ;;
+      --datadir=*)
+        case $val in
+          /) DATADIR=$val ;;
+          *) DATADIR="`echo $val | sed 's;/*$;;'`" ;;
+        esac
+        ;;
       --pid-file=*) pid_file="$val" ;;
       --plugin-dir=*) PLUGIN_DIR="$val" ;;
       --user=*) user="$val"; SET_USER=1 ;;
@@ -388,62 +396,69 @@ set_malloc_lib() {
   add_mysqld_ld_preload "$malloc_lib"
 }
 
+find_basedir_from_cmdline () {
+  for arg in "$@"; do
+    case $arg in
+      --basedir=*)
+        MY_BASEDIR_VERSION="`echo "$arg" | sed -e 's;^--[^=]*=;;'`"
+        # Convert to full path
+        cd "$MY_BASEDIR_VERSION"
+        if [ $? -ne 0 ] ; then
+          log_error "--basedir set to '$MY_BASEDIR_VERSION', however could not access directory"
+          exit 1
+        fi
+        MY_BASEDIR_VERSION="`pwd`"
+        ;;
+    esac
+  done
+}
 
 #
 # First, try to find BASEDIR and ledir (where mysqld is)
 #
 
-if echo '@pkgdatadir@' | grep '^@prefix@' > /dev/null
-then
-  relpkgdata=`echo '@pkgdatadir@' | sed -e 's,^@prefix@,,' -e 's,^/,,' -e 's,^,./,'`
+oldpwd="`pwd`"
+
+# Args not parsed yet, check if --basedir was given on command line
+find_basedir_from_cmdline "$@"
+
+# --basedir is already overridden on command line
+if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION" ; then
+  # Search for mysqld and set ledir
+  for dir in @INSTALL_SBINDIR@ libexec sbin bin ; do
+    if test -x "$MY_BASEDIR_VERSION/$dir/mysqld" ; then
+      ledir="$MY_BASEDIR_VERSION/$dir"
+      break
+    fi
+  done
+
 else
-  # pkgdatadir is not relative to prefix
-  relpkgdata='@pkgdatadir@'
-fi
+  # Basedir should be parent dir of bindir, unless some non-standard
+  # layout is used
 
-case "$0" in
-  /*)
-  MY_PWD='@prefix@'
-  ;;
-  *)
-  MY_PWD=`dirname $0`
-  MY_PWD=`dirname $MY_PWD`
-  ;;
-esac
-# Check for the directories we would expect from a binary release install
-if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
-then
-  # BASEDIR is already overridden on command line.  Do not re-set.
-
-  # Use BASEDIR to discover le.
-  if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
-  then
-    ledir="$MY_BASEDIR_VERSION/libexec"
-  elif test -x "$MY_BASEDIR_VERSION/sbin/mysqld"
-  then
-    ledir="$MY_BASEDIR_VERSION/sbin"
-  else
-    ledir="$MY_BASEDIR_VERSION/bin"
+  cd "`dirname $0`"
+  if [ -h "$0" ] ; then
+    realpath="`ls -l  "$0" | awk '{print $NF}'`"
+    cd "`dirname "$realpath"`"
   fi
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/bin/mysqld"
-then
-  MY_BASEDIR_VERSION="$MY_PWD"		# Where bin, share and data are
-  ledir="$MY_PWD/bin"			# Where mysqld is
-# Check for the directories we would expect from a source install
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
-then
-  MY_BASEDIR_VERSION="$MY_PWD"		# Where libexec, share and var are
-  ledir="$MY_PWD/libexec"		# Where mysqld is
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/sbin/mysqld"
-then
-  MY_BASEDIR_VERSION="$MY_PWD"		# Where sbin, share and var are
-  ledir="$MY_PWD/sbin"			# Where mysqld is
-# Since we didn't find anything, used the compiled-in defaults
-else
-  MY_BASEDIR_VERSION='@prefix@'
-  ledir='@libexecdir@'
-fi
+  cd ..
+  MY_PWD="`pwd`"
 
+  # Search for mysqld and set ledir and BASEDIR
+  for dir in @INSTALL_SBINDIR@ libexec sbin bin ; do
+    if test -x "$MY_PWD/$dir/mysqld" ; then
+      MY_BASEDIR_VERSION="$MY_PWD"
+      ledir="$MY_BASEDIR_VERSION/$dir"
+      break
+    fi
+  done
+
+  # If we still didn't find anything, use the compiled-in defaults
+  if test -z "$MY_BASEDIR_VERSION" ; then
+    MY_BASEDIR_VERSION='@prefix@'
+    ledir='@libexecdir@'
+  fi
+fi
 
 #
 # Second, try to find the data directory
@@ -457,10 +472,6 @@ then
   then
     defaults="--defaults-extra-file=$DATADIR/my.cnf"
   fi
-# Next try where the source installs put it
-elif test -d $MY_BASEDIR_VERSION/var/mysql
-then
-  DATADIR=$MY_BASEDIR_VERSION/var
 # Or just give up and use our compiled-in default
 else
   DATADIR=@localstatedir@
@@ -491,21 +502,10 @@ export MYSQL_HOME
 
 # Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
-if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults"
-then
+if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults" ; then
   print_defaults="$MY_BASEDIR_VERSION/bin/my_print_defaults"
-elif test -x `dirname $0`/my_print_defaults
-then
-  print_defaults="`dirname $0`/my_print_defaults"
-elif test -x ./bin/my_print_defaults
-then
-  print_defaults="./bin/my_print_defaults"
-elif test -x @bindir@/my_print_defaults
-then
+elif test -x "@bindir@/my_print_defaults" ; then
   print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults
-then
-  print_defaults="@bindir@/mysql_print_defaults"
 else
   print_defaults="my_print_defaults"
 fi
@@ -515,6 +515,8 @@ append_arg_to_args () {
 }
 
 args=
+
+cd "$oldpwd"
 
 SET_USER=2
 parse_arguments `$print_defaults $defaults --loose-verbose mysqld server`
@@ -613,7 +615,7 @@ fi
 logdir=`dirname "$err_log"`
 # Change the err log to the right user, if possible and it is in use
 if [ $logging = "file" -o $logging = "both" ]; then
-  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then
+  if [ ! -e "$err_log" -a ! -h "$err_log" ]; then
     if test -w / -o "$USER" = "root"; then
       case $logdir in
         /var/log)
@@ -633,7 +635,7 @@ if [ $logging = "file" -o $logging = "both" ]; then
     fi
   fi
 
-  if [ -f "$err_log" ]; then        # Log to err_log file
+  if [ -f "$err_log" -o -p "$err_log" ]; then        # Log to err_log file
     log_notice "Logging to '$err_log'."
   elif [ "x$user" = "xroot" ]; then # running as root, mysqld can create log file; continue
     echo "Logging to '$err_log'." >&2
