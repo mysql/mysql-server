@@ -1,4 +1,11 @@
 --source include/not_embedded.inc
+--source include/have_debug.inc
+
+--echo # Prevent background threads to acquire mdl locks, which
+--echo # the result unstable
+SET GLOBAL innodb_fast_shutdown=0;
+let $restart_parameters = restart: --debug=d,do_not_meta_lock_in_background;
+--source include/restart_mysqld.inc
 
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 
@@ -478,3 +485,5 @@ delete from performance_schema.setup_objects
 # In case of failure, will indicate the root cause
 show global status like "performance_schema%_lost";
 
+let $restart_parameters =;
+--source include/restart_mysqld.inc

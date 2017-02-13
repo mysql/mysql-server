@@ -174,7 +174,7 @@ inline bool dd_part_is_stored(
                || part->level() == 1);
 }
 
-/** Get the explicit dd::Tablespace::id of a partition.
+/** Get the explicit dd::Tablespace::id of a table.
 @param[in]      table   non-partitioned table
 @return the explicit dd::Tablespace::id
 @retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */

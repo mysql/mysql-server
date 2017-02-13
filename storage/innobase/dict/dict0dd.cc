@@ -2712,6 +2712,90 @@ dd_open_table_one(
 	return(m_table);
 }
 
+/** Open single table with name
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+static
+void
+dd_open_table_one_on_name(
+	dd::cache::Dictionary_client*	client,
+	const char*			name,
+	bool				dict_locked,
+	dict_names_t&			fk_list,
+	THD*				thd)
+{
+	dict_table_t*		table = nullptr;
+	const dd::Table*	dd_table = nullptr;
+
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	table = dict_table_check_if_in_cache_low(name);
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (!table) {
+		MDL_ticket*     mdl = nullptr;
+		char		db_buf[NAME_LEN + 1];
+		char		tbl_buf[NAME_LEN + 1];
+
+		if (!dd_parse_tbl_name(
+			name, db_buf, tbl_buf, NULL)) {
+			return;
+		}
+
+		dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf);
+
+		if (client->acquire(db_buf, tbl_buf, &dd_table)
+		    || dd_table == nullptr) {
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		ut_ad(dd_table->se_private_id()
+		      != dd::INVALID_OBJECT_ID);
+
+		TABLE_SHARE	ts;
+
+		init_tmp_table_share(thd,
+			&ts, db_buf, strlen(db_buf),
+			dd_table->name().c_str(),
+			""/* file name */, nullptr);
+
+		ulint error = open_table_def(thd, &ts, false,
+					     dd_table);
+
+		if (error) {
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		TABLE	td;
+
+		error = open_table_from_share(thd, &ts,
+			dd_table->name().c_str(),
+			0, OPEN_FRM_FILE_ONLY, 0,
+			&td, false, dd_table);
+
+		if (error) {
+			free_table_share(&ts);
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		table = dd_open_table_one(
+			client, &td, name, table, dd_table,
+			false, thd, fk_list);
+
+		closefrm(&td, false);
+		free_table_share(&ts);
+		dd_table_close(table, thd, &mdl, false);
+	}
+}
 
 /** Open foreign tables reference a table.
 @param[in,out]	client		data dictionary client
@@ -2725,83 +2809,68 @@ dd_open_fk_tables(
 	THD*				thd)
 {
 	while (!fk_list.empty()) {
-		table_name_t		fk_table_name;
-		dict_table_t*		fk_table;
-		const dd::Table*	dd_table = nullptr;
+		const char*	name  = const_cast<char*>(fk_list.front());
 
-		fk_table_name.m_name =
-			const_cast<char*>(fk_list.front());
-		if (!dict_locked) {
-			mutex_enter(&dict_sys->mutex);
-		}
+		dd_open_table_one_on_name(client, name, dict_locked,
+					  fk_list, thd);
 
-		fk_table = dict_table_check_if_in_cache_low(
-			fk_table_name.m_name);
-		if (!dict_locked) {
-			mutex_exit(&dict_sys->mutex);
-		}
-
-		if (!fk_table) {
-			MDL_ticket*     fk_mdl = nullptr;
-			char		db_buf[NAME_LEN + 1];
-			char		tbl_buf[NAME_LEN + 1];
-
-			if (!dd_parse_tbl_name(
-				fk_table_name.m_name,
-				db_buf, tbl_buf, NULL)) {
-				goto next;
-			}
-
-			dd_mdl_acquire(thd, &fk_mdl, db_buf, tbl_buf);
-
-			if (client->acquire(db_buf, tbl_buf, &dd_table)
-			    || dd_table == nullptr) {
-				dd_mdl_release(thd, &fk_mdl);
-				goto next;
-			}
-
-			ut_ad(dd_table->se_private_id()
-			      != dd::INVALID_OBJECT_ID);
-
-			TABLE_SHARE	ts;
-
-			init_tmp_table_share(thd,
-				&ts, db_buf, strlen(db_buf),
-				dd_table->name().c_str(),
-				""/* file name */, nullptr);
-
-			ulint error = open_table_def(thd, &ts, false,
-						     dd_table);
-
-			if (error) {
-				dd_mdl_release(thd, &fk_mdl);
-				goto next;
-			}
-
-			TABLE	td;
-
-			error = open_table_from_share(thd, &ts,
-				dd_table->name().c_str(),
-				0, OPEN_FRM_FILE_ONLY, 0,
-				&td, false, dd_table);
-
-			if (error) {
-				free_table_share(&ts);
-				dd_mdl_release(thd, &fk_mdl);
-				goto next;
-			}
-
-			fk_table = dd_open_table_one(
-				client, &td, fk_table_name.m_name,
-				fk_table, dd_table,
-				false, thd, fk_list);
-
-			closefrm(&td, false);
-			free_table_share(&ts);
-			dd_table_close(fk_table, thd, &fk_mdl, false);
-		}
-next:
 		fk_list.pop_front();
+	}
+}
+
+extern const char* fts_common_tables[];
+
+/** Open FTS AUX tables
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+static
+void
+dd_open_fts_aux_tables(
+	dd::cache::Dictionary_client*	client,
+	dict_table_t*			table,
+	bool				dict_locked,
+	THD*				thd)
+{
+        ulint           i;
+        fts_table_t     fts_table;
+	dict_names_t	fk_list;
+
+        FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+
+        /* Rename common auxiliary tables */
+        for (i = 0; fts_common_tables[i] != NULL; ++i) {
+                char    table_name[MAX_FULL_NAME_LEN];
+
+                fts_table.suffix = fts_common_tables[i];
+
+                fts_get_table_name(&fts_table, table_name);
+		dd_open_table_one_on_name(client, table_name,
+					  dict_locked, fk_list, thd);
+	}
+
+
+        fts_t*  fts = table->fts;
+
+        /* Rename index specific auxiliary tables */
+        for (i = 0; fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+             ++i) {
+                dict_index_t*   index;
+
+                index = static_cast<dict_index_t*>(
+                        ib_vector_getp(fts->indexes, i));
+
+                FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
+
+                for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
+                        char    table_name[MAX_FULL_NAME_LEN];
+
+                        fts_table.suffix = fts_get_suffix(j);
+
+                        fts_get_table_name(&fts_table, table_name);
+			dd_open_table_one_on_name(client, table_name,
+						  dict_locked, fk_list, thd);
+		}
 	}
 }
 
@@ -2844,6 +2913,10 @@ dd_open_table(
 			releaser(client);
 
 		dd_open_fk_tables(client, fk_list, false, thd);
+	}
+
+	if (m_table && m_table->fts) {
+		dd_open_fts_aux_tables(client, m_table, false, thd);
 	}
 
 	return(m_table);

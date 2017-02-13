@@ -1145,6 +1145,12 @@ row_purge(
 	THD*	thd = current_thd;
 	bool 	dict_op_lock_acquired = false;
 
+	DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
+			while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+				os_thread_sleep(500000);
+			}
+			return;);
+
 	while (row_purge_parse_undo_rec(
 			node, undo_rec, &updated_extern, thd, thr, &dict_op_lock_acquired)) {
 
