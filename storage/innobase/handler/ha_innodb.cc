@@ -3617,12 +3617,13 @@ boot_tablespaces(THD* thd)
 		//ut_ad(dd_space_is_valid(*t));
 
 		/* There should be exactly one file name associated
-		with each InnoDB tablespace, except innodb_system,
-		which will already have been opened. */
+		with each InnoDB tablespace, except innodb_system */
 		fail = p.get_uint32(dd_space_key_strings[DD_SPACE_ID], &id)
 			|| p.get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
 					&flags)
-			|| t->files().size() != 1;
+			|| (t->files().size() != 1 &&
+			    strcmp(t->name().c_str(),
+				   dict_sys_t::sys_space_name) != 0);
 
 		if (fail) {
 			break;
