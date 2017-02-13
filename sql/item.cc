@@ -7368,13 +7368,11 @@ class Item_json final : public Item_basic_constant
 {
   Json_wrapper m_value;
 public:
-  Item_json(Json_wrapper &&value, const Item_name_string &name,
-            const DTCollation &coll)
+  Item_json(Json_wrapper &&value, const Item_name_string &name)
     : m_value(std::move(value))
   {
-    set_data_type(MYSQL_TYPE_JSON);
+    set_data_type_json();
     item_name= name;
-    collation.set(coll);
   }
   enum Type type() const override { return STRING_ITEM; }
 
@@ -7426,7 +7424,7 @@ public:
   Item *clone_item() const override
   {
     Json_wrapper wr(m_value.clone_dom(current_thd));
-    return new Item_json(std::move(wr), item_name, collation);
+    return new Item_json(std::move(wr), item_name);
   }
   /* purecov: end */
 };
@@ -9271,8 +9269,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
-        new_item= new Item_json(std::move(wr), item->item_name,
-                                item->collation);
+        new_item= new Item_json(std::move(wr), item->item_name);
       break;
     }
     char buff[MAX_FIELD_WIDTH];

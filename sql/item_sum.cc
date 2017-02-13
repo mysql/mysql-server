@@ -4230,12 +4230,9 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref)
   if (resolve_type(thd))
     return true;
 
-  set_data_type(MYSQL_TYPE_JSON);
-
   if (check_sum_func(thd, ref))
     return true;
 
-  max_length= MAX_BLOB_WIDTH;
   maybe_null= true;
   null_value= true;
   fixed= true;

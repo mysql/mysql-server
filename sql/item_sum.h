@@ -23,6 +23,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <utility>          // std::forward
 
 #include "binary_log_types.h"
 #include "enum_query_type.h"
@@ -1026,22 +1027,14 @@ protected:
   Json_wrapper m_wrapper;
 
 public:
-  Item_sum_json(THD *thd, Item_sum *item)
-    : Item_sum(thd, item)
+  /**
+    Construct an Item_sum_json instance.
+    @param args  arguments to forward to Item_sum's constructor
+  */
+  template <typename... Args>
+  Item_sum_json(Args&&... args) : Item_sum(std::forward<Args>(args)...)
   {
-    set_data_type(MYSQL_TYPE_JSON);
-  }
-
-  Item_sum_json(const POS &pos, Item *a)
-    : Item_sum(pos, a)
-  {
-    set_data_type(MYSQL_TYPE_JSON);
-  }
-
-  Item_sum_json(const POS &pos, Item *a, Item *b)
-    : Item_sum(pos, a, b)
-  {
-    set_data_type(MYSQL_TYPE_JSON);
+    set_data_type_json();
   }
 
   bool fix_fields(THD *thd, Item **pItem) override;

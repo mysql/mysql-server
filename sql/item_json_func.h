@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <utility>              // std::forward
 
 #include "binary_log_types.h"
 #include "enum_query_type.h"
@@ -142,25 +143,21 @@ protected:
     override;
 
 public:
-  Item_json_func(THD *thd, const POS &pos, Item *a) : Item_func(pos, a),
-    m_path_cache(thd, 1)
-  {}
-  Item_json_func(THD *thd, const POS &pos, Item *a, Item *b) : Item_func(pos, a, b),
-    m_path_cache(thd, 2)
-  {}
-  Item_json_func(THD *thd, const POS &pos, Item *a, Item *b, Item *c)
-    : Item_func(pos, a, b, c), m_path_cache(thd, 3)
-  {}
-  Item_json_func(THD *thd, const POS &pos, PT_item_list *a) : Item_func(pos, a),
-    m_path_cache(thd, arg_count)
-  {}
+  /**
+    Construct an Item_json_func instance.
+    @param thd   THD handle
+    @param args  arguments to forward to Item_func's constructor
+  */
+  template <typename... Args>
+  Item_json_func(THD *thd, Args&&... args)
+    : Item_func(std::forward<Args>(args)...), m_path_cache(thd, arg_count)
+  {
+    set_data_type_json();
+  }
 
   bool resolve_type(THD *) override
   {
-    set_data_type(MYSQL_TYPE_JSON);
-    max_length= MAX_BLOB_WIDTH;
     maybe_null= true;
-    collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
     return false;
   }
   enum Item_result result_type() const override { return STRING_RESULT; }

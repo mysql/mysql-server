@@ -1112,8 +1112,8 @@ CREATE TABLE t2(gid int, a int);
 INSERT INTO t2(gid, a) VALUES (1, 1), (1, 2), (2, 4), (2, 8);
 SELECT gid, 1.0 * JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
 gid	1.0 * JSON_ARRAYAGG(a)
-1	0.0
-2	0.0
+1	0
+2	0
 Warnings:
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg( at row 3
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg( at row 5
@@ -1142,8 +1142,8 @@ Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 5
 SELECT gid, SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2 GROUP BY gid;
 gid	SEC_TO_TIME(JSON_ARRAYAGG(a))
-1	00:00:00
-2	00:00:00
+1	00:00:00.000000
+2	00:00:00.000000
 Warnings:
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg( at row 3
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg( at row 5

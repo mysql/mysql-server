@@ -1187,6 +1187,17 @@ public:
   }
 
   /**
+    Set the data type of the Item to be JSON.
+  */
+  void set_data_type_json()
+  {
+    set_data_type(MYSQL_TYPE_JSON);
+    collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
+    decimals= NOT_FIXED_DEC;
+    max_length= MAX_BLOB_WIDTH;
+  }
+
+  /**
     Set type information of Item from "result" information.
     For String types, type is set based on maximum string size.
     For other types, the associated type with the largest precision is set.

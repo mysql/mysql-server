@@ -2329,3 +2329,8 @@ SELECT JSON_SEARCH('["a", "a"]', CAST('one' AS CHAR CHARSET utf16), 'a') AS c1,
                           '$.a', '$.b') AS c3,
        JSON_CONTAINS_PATH('{"a":"x"}', CAST('all' AS CHAR CHARSET utf16),
                           '$.a', '$.b') AS c4;
+
+--echo #
+--echo # Bug#25530204: THE RESULT OF SUM ON JSON_EXTRACT LOST THE DECIMAL PART
+--echo #
+SELECT SUM(CAST('5.45' AS JSON));
