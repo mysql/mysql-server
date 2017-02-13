@@ -67,6 +67,7 @@ public:
   /**
     Handle a condition.
     @param sql_errno The sql error number.
+    @param message The sql error text.
 
     @retval true If the error number is a parser error, we claim we handle the
     error.

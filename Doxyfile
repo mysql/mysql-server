@@ -942,7 +942,7 @@ EXCLUDE                = cmd-line-utils \
                          libmysql \
                          libmysql_r \
                          mysql-test \
-                         plugin \
+                         plugin/innodb_memcached/daemon_memcached/include/memcached \
                          source_downloads \
                          sql/sql_hints.cc \
                          sql/sql_yacc.cc \

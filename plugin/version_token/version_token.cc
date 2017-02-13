@@ -100,7 +100,7 @@ public:
   /**
     Sets a new value for the atomic boolean
 
-    @param new value
+    @param new_value value to set
   */
   void set(bool new_value)
   {

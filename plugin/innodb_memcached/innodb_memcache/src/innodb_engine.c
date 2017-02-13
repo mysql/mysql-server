@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -874,7 +874,7 @@ enum conn_mode {
 /*******************************************************************//**
 Opens mysql table if enable_binlog or enable_mdl is set
 @param conn_data	connection cursor data
-@param conn_optioin	read or write operation
+@param conn_option	read or write operation
 @param engine		Innodb memcached engine
 @returns DB_SUCCESS on success and DB_ERROR on failure */
 ib_err_t

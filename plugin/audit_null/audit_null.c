@@ -468,6 +468,7 @@ static int audit_null_notify(MYSQL_THD thd,
       break;
     }
   }
+#if 0
   /**
     Currently events not active.
 
@@ -509,6 +510,7 @@ static int audit_null_notify(MYSQL_THD thd,
     }
   }
   */
+#endif
   else if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS)
   {
     /* const struct mysql_event_server_startup *event_startup=

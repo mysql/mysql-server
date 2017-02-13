@@ -470,6 +470,7 @@ public:
      if it is full.
 
      @param[in] size size of the container.
+     @param ackinfo Acknowledgement information
 
      @return 0 if succeeds, otherwise fails.
   */
