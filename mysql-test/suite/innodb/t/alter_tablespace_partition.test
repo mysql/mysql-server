@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+--source include/have_innodb_max_16k.inc
 
 # needed in sourced show_i_s_tablespaces.inc
 let $MYSQLD_DATADIR = `select @@datadir`;
