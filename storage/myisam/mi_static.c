@@ -21,6 +21,8 @@
 #ifndef MY_GLOBAL_INCLUDED
 #include "myisamdef.h"
 #endif
+#include <sys/types.h>
+
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_io.h"

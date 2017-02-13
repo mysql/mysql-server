@@ -22,6 +22,8 @@
   Performance schema account (declarations).
 */
 
+#include <sys/types.h>
+
 #include "lf.h"
 #include "my_inttypes.h"
 #include "mysql_com.h" /* USERNAME_LENGTH */

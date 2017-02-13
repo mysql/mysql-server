@@ -28,12 +28,13 @@
 #include <mysql_version.h>
 #include <stdio.h>                              // Needed on SunOS 5.10
 #include <stdlib.h>
-#include "print_version.h"
+#include <sys/types.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 #include <vector>
 
 #include "my_compiler.h"
+#include "print_version.h"
 
 const int initial_symbol_table_size= 4096;
 

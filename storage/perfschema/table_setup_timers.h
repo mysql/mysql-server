@@ -21,6 +21,8 @@
   Table SETUP_TIMERS (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"

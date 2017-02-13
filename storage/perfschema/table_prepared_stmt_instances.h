@@ -21,6 +21,8 @@
   Table PREPARED_STATEMENT_INSTANCE(declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_prepared_stmt.h"
 #include "table_helper.h"

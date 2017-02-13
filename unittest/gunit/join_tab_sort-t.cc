@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <gtest/gtest.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "merge_sort.h"

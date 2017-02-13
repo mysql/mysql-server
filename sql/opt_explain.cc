@@ -18,11 +18,12 @@
   "EXPLAIN <command>" implementation.
 */
 
-#include "opt_explain.h"
+#include "sql/opt_explain.h"
 
 #include <limits.h>
 #include <math.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "auth_acls.h"
 #include "current_thd.h"

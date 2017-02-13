@@ -21,6 +21,7 @@
 */
 
 #include <myisammrg.h>
+#include <sys/types.h>
 
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"

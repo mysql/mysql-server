@@ -21,6 +21,8 @@
   Events transactions data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 #include "pfs_column_types.h"

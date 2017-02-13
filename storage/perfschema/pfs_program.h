@@ -21,6 +21,8 @@
   Stored Program data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_stat.h"
 

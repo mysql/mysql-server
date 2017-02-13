@@ -44,6 +44,7 @@
 #include <my_dir.h>
 #include <my_getopt.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "../mysys/mysys_priv.h"
 #include "m_ctype.h"

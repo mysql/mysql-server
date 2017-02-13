@@ -21,6 +21,8 @@
   Table SETUP_ACTORS (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_engine_table.h"
 #include "table_helper.h"
 

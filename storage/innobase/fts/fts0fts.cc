@@ -21,6 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Full Text Search interface
 ***********************************************************************/
 
+#include <sys/types.h>
 #include <new>
 
 #include "btr0pcur.h"

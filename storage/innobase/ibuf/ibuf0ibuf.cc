@@ -23,6 +23,8 @@ Insert buffer
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -3795,10 +3797,12 @@ skip_watch:
 	}
 
 	if (err == DB_SUCCESS) {
-#ifdef UNIV_IBUF_DEBUG
-		/* fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
-		page_no, index->name); */
+/*
+#if defined(UNIV_IBUF_DEBUG)
+		fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
+			page_no, index->name);
 #endif
+*/
 		DBUG_RETURN(TRUE);
 
 	} else {

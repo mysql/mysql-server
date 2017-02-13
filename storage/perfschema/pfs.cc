@@ -13,10 +13,13 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "storage/perfschema/pfs.h"
+
 #include "my_config.h"
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 /**
   @file storage/perfschema/pfs.cc
@@ -31,7 +34,6 @@
 #include "my_macros.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_thread.h"
-#include "pfs.h"
 #include "pfs_account.h"
 #include "pfs_column_values.h"
 #include "pfs_data_lock.h"

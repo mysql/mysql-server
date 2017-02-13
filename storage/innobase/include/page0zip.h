@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -32,23 +32,22 @@ Created June 2005 by Marko Makela
 # define UNIV_INLINE
 #endif
 
-#include "univ.i"
+#include <sys/types.h>
+
 #include "buf0buf.h"
-#include "ut0crc32.h"
 #include "buf0checksum.h"
-#include "mach0data.h"
-#include "zlib.h"
-
-#include "mtr0types.h"
-#include "page0types.h"
-
 #include "buf0types.h"
-
 #include "dict0types.h"
+#include "mach0data.h"
+#include "mem0mem.h"
+#include "mtr0types.h"
+#include "page/zipdecompress.h"
+#include "page0types.h"
 #include "srv0srv.h"
 #include "trx0types.h"
-#include "mem0mem.h"
-#include "page/zipdecompress.h"
+#include "univ.i"
+#include "ut0crc32.h"
+#include "zlib.h"
 
 /* Compression level to be used by zlib. Settable by user. */
 extern uint	page_zip_level;

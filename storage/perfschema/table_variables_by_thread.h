@@ -21,6 +21,8 @@
   Table VARIABLES_BY_THREAD (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"

@@ -22,6 +22,8 @@
   Performance schema user (declarations).
 */
 
+#include <sys/types.h>
+
 #include "lf.h"
 #include "my_inttypes.h"
 #include "pfs_con_slice.h"

@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"

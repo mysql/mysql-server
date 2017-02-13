@@ -16,6 +16,7 @@
 #include "my_config.h"
 
 #include <gtest/gtest.h>
+#include <sys/types.h>
 #include <limits>
 
 #include "my_byteorder.h"

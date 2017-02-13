@@ -21,6 +21,8 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"

@@ -23,6 +23,7 @@ InnoDB R-tree interfaces
 Created 2013/03/27 Allen Lai and Jimmy Yang
 ***********************************************************************/
 
+#include <sys/types.h>
 #include <cmath>
 
 #include "fsp0fsp.h"

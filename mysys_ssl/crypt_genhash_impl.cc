@@ -20,6 +20,8 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <sys/types.h>
+
 #ifdef HAVE_OPENSSL
 
 #ifdef HAVE_YASSL

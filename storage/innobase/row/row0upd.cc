@@ -23,6 +23,8 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "dict0dict.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"

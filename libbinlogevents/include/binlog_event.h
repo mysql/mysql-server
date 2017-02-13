@@ -29,6 +29,7 @@
 #define BINLOG_EVENT_INCLUDED
 
 #include <stdlib.h>
+#include <sys/types.h>
 #include <zlib.h> //for checksum calculations
 #include <climits>
 #include <cstdio>

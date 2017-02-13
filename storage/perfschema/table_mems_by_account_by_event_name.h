@@ -21,10 +21,12 @@
   Table MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
+#include "pfs_account.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
-#include "pfs_account.h"
 #include "table_helper.h"
 
 /**

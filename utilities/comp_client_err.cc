@@ -21,10 +21,11 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
-#include "print_version.h"
-#include "welcome_copyright_notice.h"
+#include <sys/types.h>
 
 #include "my_compiler.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 static const char *INFILE= "errmsg.h";
 static const char *OUTFILE= "mysqlclient_ername.h";

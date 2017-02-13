@@ -23,10 +23,13 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
+#include "storage/innobase/handler/i_s.h"
+
 #include <field.h>
 #include <sql_acl.h>
 #include <sql_show.h>
 #include <sql_time.h>
+#include <sys/types.h>
 
 #include "btr0btr.h"
 #include "btr0pcur.h"
@@ -45,7 +48,6 @@ Created July 18, 2007 Vasil Dimov
 #include "fts0types.h"
 #include "fut0fut.h"
 #include "ha_prototypes.h"
-#include "i_s.h"
 #include "ibuf0ibuf.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

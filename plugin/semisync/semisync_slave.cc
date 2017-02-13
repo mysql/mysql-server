@@ -16,6 +16,8 @@
 
 #include "semisync_slave.h"
 
+#include <sys/types.h>
+
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "my_dbug.h"

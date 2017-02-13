@@ -39,6 +39,7 @@ Created 2011/04/18 Sunny Bains
 
 #include <mysql/service_thd_wait.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "dict0dict.h"
 #include "ha_prototypes.h"

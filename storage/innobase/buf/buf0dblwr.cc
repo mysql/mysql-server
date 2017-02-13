@@ -23,6 +23,8 @@ Doublwrite buffer module
 Created 2011/12/19
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "buf0buf.h"
 #include "buf0checksum.h"
 #include "buf0dblwr.h"

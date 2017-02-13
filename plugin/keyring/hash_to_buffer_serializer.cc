@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "hash_to_buffer_serializer.h"
+#include "plugin/keyring/hash_to_buffer_serializer.h"
 
 #include <stddef.h>
+#include <sys/types.h>
 
 namespace keyring
 {

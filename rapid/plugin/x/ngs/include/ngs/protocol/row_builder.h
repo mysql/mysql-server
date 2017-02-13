@@ -20,6 +20,7 @@
 #ifndef _NGS_ROW_BUILDER_H_
 #define _NGS_ROW_BUILDER_H_
 
+#include <sys/types.h>
 #include <set>
 #include <string>
 

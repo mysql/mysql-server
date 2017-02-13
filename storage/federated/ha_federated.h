@@ -21,6 +21,7 @@
 */
 
 #include <mysql.h>
+#include <sys/types.h>
 
 #include "handler.h"
 #include "my_dbug.h"

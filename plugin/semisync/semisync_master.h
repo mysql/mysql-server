@@ -18,6 +18,8 @@
 #ifndef SEMISYNC_MASTER_H
 #define SEMISYNC_MASTER_H
 
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

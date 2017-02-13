@@ -25,6 +25,7 @@
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_rpl_transaction_ctx.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

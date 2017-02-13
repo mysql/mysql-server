@@ -23,6 +23,7 @@ Purge old versions
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
 #include <new>
 
 #include "fsp0fsp.h"

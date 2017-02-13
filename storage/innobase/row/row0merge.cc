@@ -26,6 +26,7 @@ Completed by Sunny Bains and Marko Makela
 
 #include <fcntl.h>
 #include <math.h>
+#include <sys/types.h>
 
 #include "btr0bulk.h"
 #include "dict0crea.h"

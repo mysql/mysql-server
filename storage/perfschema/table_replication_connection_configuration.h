@@ -22,6 +22,8 @@
   Table replication_connection_configuration (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_io.h"
 #include "mysql_com.h"
 #include "pfs_column_types.h"

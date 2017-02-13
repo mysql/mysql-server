@@ -25,6 +25,7 @@ Created 2012-02-08 by Sunny Bains.
 
 #include <errno.h>
 #include <my_aes.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "btr0pcur.h"

@@ -21,6 +21,8 @@
   Table MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"

@@ -29,13 +29,14 @@
 #include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "print_version.h"
+#include <sys/types.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
 
 
 const char *config_file="my";			/* Default config file */

@@ -18,6 +18,8 @@
   get by myrg_info(). The next record can be read with pos= -1 */
 
 
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "myrg_def.h"

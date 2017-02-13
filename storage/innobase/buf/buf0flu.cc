@@ -25,6 +25,7 @@ Created 11/11/1995 Heikki Tuuri
 
 #include <my_dbug.h>
 #include <mysql/service_thd_wait.h>
+#include <sys/types.h>
 
 #include "buf0buf.h"
 #include "buf0checksum.h"

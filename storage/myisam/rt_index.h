@@ -20,6 +20,8 @@
 #ifndef _rt_index_h
 #define _rt_index_h
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)

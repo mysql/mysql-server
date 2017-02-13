@@ -39,6 +39,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "benchmark.h"

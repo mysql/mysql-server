@@ -18,6 +18,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 

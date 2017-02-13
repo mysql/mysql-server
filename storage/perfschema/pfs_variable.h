@@ -128,6 +128,7 @@
 
 #define PFS_VAR
 #include <stddef.h>
+#include <sys/types.h>
 #include <string>
 
 #include "my_dbug.h"

@@ -26,6 +26,7 @@
 #include <openssl/sha.h>
 #endif
 
+#include <sys/types.h>
 #include <cstring>
 #include <stdexcept>
 

@@ -40,6 +40,7 @@
 #include <sql_common.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <violite.h>
 #include <cmath> // std::isinf
 

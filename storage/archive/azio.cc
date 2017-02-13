@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "azlib.h"
 #include "my_byteorder.h"

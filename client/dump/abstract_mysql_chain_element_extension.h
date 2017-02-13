@@ -18,6 +18,7 @@
 #ifndef ABSTRACT_MYSQL_CHAIN_ELEMENT_EXTENSION_INCLUDED
 #define ABSTRACT_MYSQL_CHAIN_ELEMENT_EXTENSION_INCLUDED
 
+#include <sys/types.h>
 #include <functional>
 
 #include "abstract_data_object.h"

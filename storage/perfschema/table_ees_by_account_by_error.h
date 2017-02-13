@@ -21,13 +21,15 @@
   Table EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR (declarations).
 */
 
+#include <sys/types.h>
+
+#include "pfs_account.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "table_helper.h"
 #include "pfs_error.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables

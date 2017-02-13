@@ -17,7 +17,10 @@
  * 02110-1301  USA
  */
 
+#include "rapid/plugin/x/src/xpl_client.h"
+
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "cap_handles_expired_passwords.h"
 // needed for ip_to_hostname(), should probably be turned into a service
@@ -30,7 +33,6 @@
 #include "ngs/capabilities/handler_readonly_value.h"
 #include "ngs/thread.h"
 #include "ngs_common/string_formatter.h"
-#include "xpl_client.h"
 #include "xpl_server.h"
 #include "xpl_session.h"
 

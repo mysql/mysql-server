@@ -19,6 +19,7 @@
 */
 
 #include <my_thread.h> /* For pthread_t */
+#include <sys/types.h>
 #include <algorithm>
 
 #include "my_dbug.h"

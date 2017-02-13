@@ -24,6 +24,9 @@ Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
 #include "data0type.h"
+
+#include <sys/types.h>
+
 #include "ha_prototypes.h"
 #include "my_inttypes.h"
 #ifndef UNIV_HOTBACKUP

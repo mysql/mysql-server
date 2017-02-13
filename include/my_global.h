@@ -28,7 +28,6 @@
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
-#include <sys/types.h>
 #include <time.h>
 
 #endif  // MY_GLOBAL_INCLUDED

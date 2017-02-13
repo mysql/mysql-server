@@ -28,6 +28,7 @@ Created 9/30/1995 Heikki Tuuri
 
 #include <errno.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "ha_prototypes.h"
 #include "my_inttypes.h"

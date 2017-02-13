@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -38,9 +39,9 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h" // mysql_file_create
 #include "mysql/psi/psi_base.h"
-#include "psi_memory_key.h"       // key_memory_DD_import
 #include "mysqld.h"               // is_secure_file_path
 #include "mysqld_error.h"
+#include "psi_memory_key.h"       // key_memory_DD_import
 #include "sql_const.h"            // CREATE_MODE
 #include "sql_table.h"            // build_table_filename
 #include "table.h"

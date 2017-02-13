@@ -25,6 +25,8 @@ Created 4/20/1996 Heikki Tuuri
 
 #include "row0row.h"
 
+#include <sys/types.h>
+
 #include "btr0btr.h"
 #include "data0type.h"
 #include "dict0boot.h"

@@ -21,6 +21,8 @@
   Stored Program data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "include/mysql/psi/mysql_ps.h"
 #include "my_inttypes.h"
 #include "pfs_program.h"

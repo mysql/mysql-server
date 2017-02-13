@@ -21,6 +21,8 @@
   Private interface for the server (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_psi_config.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"

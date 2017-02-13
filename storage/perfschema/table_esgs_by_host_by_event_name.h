@@ -22,11 +22,13 @@
   Table EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
 #include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**

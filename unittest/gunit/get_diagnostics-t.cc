@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "item.h"
 #include "item_func.h"

@@ -23,6 +23,8 @@ Transaction rollback
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"

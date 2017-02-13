@@ -24,6 +24,8 @@
 
 #include "my_config.h"
 
+#include <sys/types.h>
+
 #include "keycache.h"
 #include "m_ctype.h"
 #include "m_string.h"

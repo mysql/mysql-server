@@ -20,6 +20,7 @@
 #include <m_string.h>
 #include <my_aes.h>
 #include <my_global.h>
+#include <sys/types.h>
 
 #include "my_aes_impl.h"
 #include "my_inttypes.h"

@@ -22,6 +22,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_dbug.h"

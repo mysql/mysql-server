@@ -21,6 +21,8 @@
   Table TABLE_HANDLES (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"

@@ -48,6 +48,7 @@
 #include <m_ctype.h>
 #include <my_getopt.h>
 #include <stdarg.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"

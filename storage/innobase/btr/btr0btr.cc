@@ -26,6 +26,8 @@ Created 6/2/1994 Heikki Tuuri
 
 #include "btr0btr.h"
 
+#include <sys/types.h>
+
 #include "fsp0sysspace.h"
 #include "gis0rtree.h"
 #include "my_dbug.h"

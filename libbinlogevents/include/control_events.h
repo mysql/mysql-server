@@ -29,10 +29,12 @@
 #ifndef CONTROL_EVENT_INCLUDED
 #define CONTROL_EVENT_INCLUDED
 
-#include "binlog_event.h"
+#include <sys/types.h>
 #include <list>
 #include <map>
 #include <vector>
+
+#include "binlog_event.h"
 
 namespace binary_log
 {

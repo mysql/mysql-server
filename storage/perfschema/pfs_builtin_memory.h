@@ -16,6 +16,8 @@
 #ifndef PFS_BUILTIN_MEMORY_H
 #define PFS_BUILTIN_MEMORY_H
 
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"

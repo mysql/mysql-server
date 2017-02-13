@@ -26,6 +26,7 @@ Created 25/5/2010 Sunny Bains
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include <mysql/service_thd_wait.h>
+#include <sys/types.h>
 
 #include "ha_prototypes.h"
 #include "lock0lock.h"

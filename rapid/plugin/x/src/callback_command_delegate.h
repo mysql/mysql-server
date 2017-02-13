@@ -20,6 +20,8 @@
 #ifndef _XPL_CALLBACK_COMMAND_DELEGATE_H_
 #define _XPL_CALLBACK_COMMAND_DELEGATE_H_
 
+#include <sys/types.h>
+
 #include "command_delegate.h"
 #include "my_inttypes.h"
 #include "ngs/protocol_encoder.h"

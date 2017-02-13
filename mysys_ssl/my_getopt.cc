@@ -25,6 +25,7 @@
 #include <mysys_err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "../mysys/mysys_priv.h"
 #include "my_compiler.h"

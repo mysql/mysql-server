@@ -21,8 +21,10 @@
   TABLE SESSION_CONNECT (abstract)
 */
 
-#include "pfs_column_types.h"
+#include <sys/types.h>
+
 #include "cursor_by_thread_connect_attr.h"
+#include "pfs_column_types.h"
 #include "table_helper.h"
 
 #define MAX_ATTR_NAME_CHARS 32

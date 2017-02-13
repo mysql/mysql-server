@@ -15,6 +15,8 @@
 #ifndef SQL_USER_TABLE_INCLUDED
 #define SQL_USER_TABLE_INCLUDED
 
+#include <sys/types.h>
+
 #include "derror.h"                     /* ER_DEFAULT */
 #include "log.h"                        /* error_log_print */
 #include "my_compiler.h"

@@ -22,10 +22,12 @@
   Table OBJECTS_SUMMARY_GLOBAL_BY_TYPE (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_program.h"
 #include "table_helper.h"
 

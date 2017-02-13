@@ -26,6 +26,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 ***********************************************************************/
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "fts0fts.h"
 #include "fts0opt.h"

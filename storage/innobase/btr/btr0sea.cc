@@ -32,6 +32,8 @@ Created 2/17/1996 Heikki Tuuri
 
 #include "btr0sea.h"
 
+#include <sys/types.h>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0pcur.h"

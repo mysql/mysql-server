@@ -25,6 +25,8 @@ Created 8/22/1994 Heikki Tuuri
 
 #include "ha0ha.h"
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 
 #ifndef UNIV_HOTBACKUP

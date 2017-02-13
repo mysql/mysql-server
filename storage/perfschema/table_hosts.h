@@ -21,8 +21,10 @@
   TABLE HOSTS.
 */
 
-#include "pfs_column_types.h"
+#include <sys/types.h>
+
 #include "cursor_by_host.h"
+#include "pfs_column_types.h"
 #include "table_helper.h"
 
 struct PFS_host;

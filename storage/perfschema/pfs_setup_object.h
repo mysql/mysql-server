@@ -21,8 +21,10 @@
   Performance schema setup object (declarations).
 */
 
-#include "pfs_lock.h"
+#include <sys/types.h>
+
 #include "lf.h"
+#include "pfs_lock.h"
 
 class String;
 struct PFS_global_param;

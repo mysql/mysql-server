@@ -32,6 +32,8 @@ Created 12/19/1997 Heikki Tuuri
 
 #include "row0sel.h"
 
+#include <sys/types.h>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"

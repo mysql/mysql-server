@@ -16,6 +16,7 @@
 
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "current_thd.h"
 #include "my_inttypes.h"

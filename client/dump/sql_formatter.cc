@@ -15,16 +15,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/sql_formatter.h"
+
 #include "my_config.h"
 
 #include <boost/algorithm/string.hpp>
+#include <sys/types.h>
 #include <chrono>
 #include <functional>
 #include <sstream>
 
 #include "mysql_function.h"
 #include "privilege.h"
-#include "sql_formatter.h"
 #include "stored_procedure.h"
 #include "view.h"
 

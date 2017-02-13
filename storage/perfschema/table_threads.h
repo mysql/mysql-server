@@ -21,6 +21,8 @@
   TABLE THREADS.
 */
 
+#include <sys/types.h>
+
 #include "cursor_by_thread.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"

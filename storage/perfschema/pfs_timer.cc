@@ -21,6 +21,7 @@
 #include "storage/perfschema/pfs_timer.h"
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_global.h"

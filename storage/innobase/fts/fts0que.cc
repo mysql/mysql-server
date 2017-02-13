@@ -24,6 +24,7 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
+#include <sys/types.h>
 #include <iomanip>
 #include <vector>
 

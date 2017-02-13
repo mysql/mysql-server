@@ -17,6 +17,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <sys/types.h>
 
 #include "callback_command_delegate.h"
 #include "my_inttypes.h"

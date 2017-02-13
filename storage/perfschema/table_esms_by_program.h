@@ -21,8 +21,10 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM (declarations).
 */
 
-#include "table_helper.h"
+#include <sys/types.h>
+
 #include "pfs_program.h"
+#include "table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

@@ -44,6 +44,7 @@
 #endif
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */

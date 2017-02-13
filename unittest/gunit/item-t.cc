@@ -16,6 +16,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
 #include "item.h"

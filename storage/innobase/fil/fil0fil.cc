@@ -27,6 +27,7 @@ Created 10/25/1995 Heikki Tuuri
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "btr0btr.h"
 #include "buf0buf.h"

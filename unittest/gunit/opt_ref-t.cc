@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
 #include "mock_field_long.h"

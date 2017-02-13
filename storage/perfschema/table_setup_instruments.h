@@ -21,8 +21,10 @@
   Table SETUP_INSTRUMENTS (declarations).
 */
 
-#include "pfs_instr_class.h"
+#include <sys/types.h>
+
 #include "pfs_engine_table.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**

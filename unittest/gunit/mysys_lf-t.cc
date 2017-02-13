@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"

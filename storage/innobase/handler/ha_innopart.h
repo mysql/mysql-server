@@ -22,6 +22,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ha_innopart_h
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"

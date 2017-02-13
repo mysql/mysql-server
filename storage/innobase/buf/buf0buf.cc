@@ -56,6 +56,7 @@ Created 11/5/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #include <errno.h>
+#include <sys/types.h>
 #include <map>
 #include <new>
 #include <sstream>

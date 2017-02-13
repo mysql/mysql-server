@@ -21,6 +21,8 @@
   Table STATUS_BY_ACCOUNT (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_account.h"
 #include "pfs_account.h"

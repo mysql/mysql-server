@@ -21,11 +21,13 @@
   Table DATA_LOCK_WAITS (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs.h"
 #include "pfs_column_types.h"
+#include "pfs_data_lock.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"
-#include "pfs_data_lock.h"
 
 struct PFS_data_lock_waits;
 class PFS_index_data_lock_waits;

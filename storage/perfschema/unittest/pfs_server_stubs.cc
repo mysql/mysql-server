@@ -18,6 +18,7 @@
 */
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_global.h"

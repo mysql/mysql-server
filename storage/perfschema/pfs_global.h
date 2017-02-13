@@ -19,6 +19,7 @@
 #include "my_config.h"
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "current_thd.h"
 #include "my_compiler.h"

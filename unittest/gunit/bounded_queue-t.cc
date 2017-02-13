@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
 
 #include "bounded_queue.h"
@@ -25,7 +28,6 @@
 #include "fake_costmodel.h"
 #include "filesort_utils.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_inttypes.h"

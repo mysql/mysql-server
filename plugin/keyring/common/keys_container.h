@@ -18,6 +18,7 @@
 
 #include <hash.h>
 #include <my_global.h>
+#include <sys/types.h>
 #include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 
 #include "i_keyring_io.h"

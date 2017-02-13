@@ -19,6 +19,7 @@
 #include <my_bitmap.h>
 #include <my_global.h>
 #include <my_thread.h>
+#include <sys/types.h>
 
 #include "my_inttypes.h"
 

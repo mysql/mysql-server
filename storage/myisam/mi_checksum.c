@@ -15,6 +15,8 @@
 
 /* Calculate a checksum for a row */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "myisamdef.h"
 

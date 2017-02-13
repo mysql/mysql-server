@@ -25,6 +25,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0rec.h"
 
+#include <sys/types.h>
+
 #include "fsp0fsp.h"
 #include "mach0data.h"
 #include "mtr0log.h"

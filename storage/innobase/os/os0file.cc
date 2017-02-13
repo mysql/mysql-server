@@ -73,6 +73,7 @@ Created 10/21/1995 Heikki Tuuri
 #include <my_rnd.h>
 #include <mysql/service_mysql_keyring.h>
 #include <mysqld.h>
+#include <sys/types.h>
 #include <zlib.h>
 
 /** Insert buffer segment id */

@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <my_decimal.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
 #include "field.h"

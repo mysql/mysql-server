@@ -18,6 +18,7 @@
  */
 
 #include <stddef.h>
+#include <sys/types.h>
 #include <sstream>
 
 #include "my_dbug.h"

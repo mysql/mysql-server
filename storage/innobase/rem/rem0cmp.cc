@@ -27,6 +27,7 @@ Created 7/1/1994 Heikki Tuuri
 #include <gstream.h>
 #include <page0cur.h>
 #include <spatial.h>
+#include <sys/types.h>
 #include <algorithm>
 
 #include "ha_prototypes.h"

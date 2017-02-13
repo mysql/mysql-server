@@ -22,15 +22,17 @@
   MySQL Configuration Utility
 */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "client_priv.h"
 #include "my_aes.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_default_priv.h"

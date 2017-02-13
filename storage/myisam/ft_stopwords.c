@@ -16,6 +16,7 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_compare.h"

@@ -20,6 +20,7 @@
   the file descriptior.
 */
 
+#include <sys/types.h>
 #include <new>
 
 #include "my_compiler.h"

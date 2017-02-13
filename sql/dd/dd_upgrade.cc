@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/dd/dd_upgrade.h"
+
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,7 +35,6 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
-#include "dd_upgrade.h"
 #include "derror.h"                           // ER_DEFAULT
 #include "event_db_repository.h"              // Events
 #include "event_parse_data.h"                 // Event_parse_data

@@ -23,6 +23,7 @@
 */
 
 #include <mysql/plugin_group_replication.h>
+#include <sys/types.h>
 
 #include "my_inttypes.h"
 #include "mysql_com.h"

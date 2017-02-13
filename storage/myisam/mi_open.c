@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>
+#include <sys/types.h>
 
 #include "fulltext.h"
 #include "my_compiler.h"

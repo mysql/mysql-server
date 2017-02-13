@@ -18,6 +18,7 @@
 #include <mysql/plugin.h>
 #include <mysql/service_srv_session_info.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

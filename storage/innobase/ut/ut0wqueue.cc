@@ -16,11 +16,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "ut0wqueue.h"
+
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "mem0mem.h"
 #include "ut0list.h"
-#include "ut0wqueue.h"
 
 /*******************************************************************//**
 @file ut/ut0wqueue.cc

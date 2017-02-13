@@ -25,6 +25,7 @@
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/service_locking.h>
 #include <sql_class.h>
+#include <sys/types.h>
 #include <sstream>
 
 #include "my_compiler.h"

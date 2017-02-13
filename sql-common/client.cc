@@ -38,6 +38,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
+#include <sys/types.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif

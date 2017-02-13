@@ -23,6 +23,8 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "btr0bulk.h"
 #include "btr0cur.h"
 #include "dict0dict.h"

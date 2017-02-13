@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,13 @@ InnoDB Native API
 #ifndef api0misc_h
 #define	api0misc_h
 
-#include "univ.i"
+#include <sys/types.h>
+
+#include "handler.h"
 #include "os0file.h"
 #include "que0que.h"
 #include "trx0trx.h"
-#include "handler.h"
+#include "univ.i"
 
 /** Whether binlog is enabled for applications using InnoDB APIs */
 extern my_bool                  ib_binlog_enabled;

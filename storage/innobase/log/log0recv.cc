@@ -25,6 +25,7 @@ Created 9/20/1997 Heikki Tuuri
 *******************************************************/
 
 #include <my_aes.h>
+#include <sys/types.h>
 #include <map>
 #include <new>
 #include <string>

@@ -16,6 +16,8 @@
 #ifndef PFS_VISITOR_H
 #define PFS_VISITOR_H
 
+#include <sys/types.h>
+
 #include "my_compiler.h"
 #include "mysqld_error.h"
 #include "pfs_stat.h"

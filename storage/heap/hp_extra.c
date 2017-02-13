@@ -18,6 +18,8 @@
 /* - Set databasehandler to normal */
 /* - Reset recordpointers as after open database */
 
+#include <sys/types.h>
+
 #include "heapdef.h"
 #include "my_dbug.h"
 

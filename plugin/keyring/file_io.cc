@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <my_global.h>
 #include <mysql/psi/mysql_file.h>
+#include <sys/types.h>
 #include <sstream>
 #include <utility>
 

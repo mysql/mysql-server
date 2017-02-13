@@ -18,6 +18,8 @@
   them in sorted order through SORT_INFO functions.
 */
 
+#include <sys/types.h>
+
 #include "fulltext.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

@@ -23,6 +23,8 @@ Full Text Search functionality.
 Created 2007-03-27 Sunny Bains
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "dict0dict.h"
 #include "fts0priv.h"
 #include "fts0types.h"

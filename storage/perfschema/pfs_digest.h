@@ -21,6 +21,8 @@
   Statement Digest data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "lf.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"

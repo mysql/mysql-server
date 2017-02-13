@@ -28,6 +28,7 @@ InnoDB Native API
 #include <dd/types/tablespace.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "api0api.h"
 #include "api0misc.h"

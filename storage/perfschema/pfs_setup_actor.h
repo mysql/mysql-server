@@ -21,9 +21,11 @@
   Performance schema setup actors (declarations).
 */
 
-#include "sql_string.h"
-#include "pfs_lock.h"
+#include <sys/types.h>
+
 #include "lf.h"
+#include "pfs_lock.h"
+#include "sql_string.h"
 
 struct PFS_global_param;
 class PFS_opaque_container_page;

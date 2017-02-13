@@ -24,6 +24,7 @@
 #include <my_getopt.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "fulltext.h"
 #include "my_compiler.h"

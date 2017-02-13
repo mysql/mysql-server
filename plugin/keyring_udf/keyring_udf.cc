@@ -19,6 +19,7 @@
 #include <my_global.h>
 #include <sql_class.h> // THD
 #include <stdio.h>
+#include <sys/types.h>
 #include <new>
 
 #include "my_dbug.h"

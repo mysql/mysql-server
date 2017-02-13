@@ -21,6 +21,7 @@
 #include <pfs_instr_class.h>
 #include <pfs_server.h>
 #include <string.h>
+#include <sys/types.h>
 #include <tap.h>
 
 #include "my_inttypes.h"

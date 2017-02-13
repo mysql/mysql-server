@@ -28,6 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 
 #include <stdlib.h>
 #include <strfunc.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <string>
 

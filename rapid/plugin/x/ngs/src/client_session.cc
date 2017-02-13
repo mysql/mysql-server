@@ -20,6 +20,7 @@
 #include "ngs/client_session.h"
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/server_interface.h"

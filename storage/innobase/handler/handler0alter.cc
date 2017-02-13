@@ -29,6 +29,7 @@ Smart ALTER TABLE
 #include <sql_lex.h>
 #include <sql_table.h>
 #include <sql_thd_internal_api.h>
+#include <sys/types.h>
 
 #include "btr0sea.h"
 #include "dd/types/table.h"           // dd::Table

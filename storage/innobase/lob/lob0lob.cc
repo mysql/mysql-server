@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <sys/types.h>
+
 #include "btr0pcur.h"
 #include "fil0fil.h"
 #include "lob0fit.h"

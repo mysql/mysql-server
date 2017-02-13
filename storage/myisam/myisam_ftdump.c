@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <my_getopt.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"

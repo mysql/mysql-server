@@ -15,6 +15,8 @@
 
 /* Support rutiner with are using with dbug */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "myisamdef.h"
 

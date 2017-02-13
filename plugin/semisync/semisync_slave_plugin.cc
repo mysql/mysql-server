@@ -19,6 +19,7 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

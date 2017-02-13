@@ -24,6 +24,7 @@
 #endif
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <functional>
 

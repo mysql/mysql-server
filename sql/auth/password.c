@@ -60,6 +60,7 @@
 *****************************************************************************/
 
 #include <string.h>
+#include <sys/types.h>
 
 #include "crypt_genhash_impl.h"
 #include "m_string.h"

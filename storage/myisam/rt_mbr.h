@@ -20,6 +20,8 @@
 #ifndef _rt_mbr_h
 #define _rt_mbr_h
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 
 int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,

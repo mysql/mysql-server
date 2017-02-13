@@ -16,6 +16,7 @@
 /* Functions to check if a row is unique */
 
 #include <m_ctype.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

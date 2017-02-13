@@ -16,6 +16,8 @@
 #ifndef HA_PERFSCHEMA_H
 #define HA_PERFSCHEMA_H
 
+#include <sys/types.h>
+
 #include "handler.h" /* class handler */
 #include "my_inttypes.h"
 

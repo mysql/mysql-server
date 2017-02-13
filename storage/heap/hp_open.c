@@ -16,6 +16,7 @@
 /* open a heap-database */
 
 #include <errno.h>
+#include <sys/types.h>
 
 #include "heapdef.h"
 #include "my_dbug.h"

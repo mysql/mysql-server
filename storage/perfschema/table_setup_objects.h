@@ -21,6 +21,8 @@
   Table SETUP_OBJECTS (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_engine_table.h"
 #include "table_helper.h"
 

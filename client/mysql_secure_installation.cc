@@ -16,6 +16,7 @@
 */
 
 #include <stdlib.h>
+#include <sys/types.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "client_priv.h"

@@ -20,6 +20,8 @@
   Used when optimizing querries.
  */
 
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "myisamdef.h"

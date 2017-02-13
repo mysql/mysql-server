@@ -16,6 +16,8 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
+#include <sys/types.h>
+
 #include "ctype.h"
 #include "ftdefs.h"
 #include "my_compiler.h"

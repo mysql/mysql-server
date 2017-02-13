@@ -20,6 +20,7 @@
 #include <mysql/plugin_audit.h>
 #include <mysqld_error.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"

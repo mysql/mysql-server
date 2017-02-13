@@ -21,6 +21,7 @@
 #include <my_tree.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"

@@ -22,6 +22,8 @@
   Table replication_applier_status_by_coordinator(declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "pfs_column_types.h"

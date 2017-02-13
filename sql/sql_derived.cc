@@ -23,6 +23,7 @@
 #include "sql/sql_derived.h"
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "auth_acls.h"
 #include "handler.h"

@@ -39,6 +39,7 @@ Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
 #include <mysqld.h>
+#include <sys/types.h>
 
 #include "btr0sea.h"
 #include "buf0flu.h"

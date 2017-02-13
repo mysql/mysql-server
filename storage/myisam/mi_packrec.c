@@ -17,6 +17,8 @@
 
 #include "my_config.h"
 
+#include <sys/types.h>
+
 #include "fulltext.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

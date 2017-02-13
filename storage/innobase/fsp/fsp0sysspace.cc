@@ -25,6 +25,7 @@ Refactored 2013-7-26 by Kevin Lewis
 *******************************************************/
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "dict0load.h"
 #include "fsp0sysspace.h"

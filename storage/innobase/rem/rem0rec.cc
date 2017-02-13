@@ -25,6 +25,8 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "rem0rec.h"
 
+#include <sys/types.h>
+
 #include "fts0fts.h"
 #include "gis0geo.h"
 #include "mach0data.h"

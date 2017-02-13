@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include <sys/types.h>
 
 // "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
 // issue in Solaris (unqualified map used, which clashes with some other map defined

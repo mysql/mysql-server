@@ -18,6 +18,7 @@
 #include <mysql/plugin.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "m_string.h"
 #include "my_dbug.h"

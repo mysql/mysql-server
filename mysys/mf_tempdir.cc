@@ -17,6 +17,7 @@
 
 #include <m_string.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "mutex_lock.h"
 #include "my_dbug.h"

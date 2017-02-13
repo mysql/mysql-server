@@ -18,6 +18,7 @@
 #include "my_config.h"
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "fulltext.h"
 #include "m_ctype.h"

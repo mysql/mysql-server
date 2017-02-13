@@ -36,6 +36,7 @@
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "errmsg.h"
 #include "my_dbug.h"

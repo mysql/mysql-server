@@ -24,6 +24,7 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 *******************************************************/
 
 #include <spatial.h>
+#include <sys/types.h>
 #include <cmath>
 
 #include "gis0geo.h"

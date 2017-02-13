@@ -21,6 +21,8 @@
   Events statements data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_digest.h"

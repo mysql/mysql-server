@@ -41,6 +41,7 @@ Created 2/16/1996 Heikki Tuuri
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "btr0btr.h"
 #include "btr0cur.h"

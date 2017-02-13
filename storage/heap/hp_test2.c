@@ -18,6 +18,7 @@
 #include "my_config.h"
 
 #include <signal.h>
+#include <sys/types.h>
 
 #include "heapdef.h"		/* Because of hp_find_block */
 #include "my_compiler.h"

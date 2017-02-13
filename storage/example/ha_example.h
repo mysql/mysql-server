@@ -31,6 +31,8 @@
   /sql/handler.h and /storage/example/ha_example.cc
 */
 
+#include <sys/types.h>
+
 #include "handler.h"                     /* handler */
 #include "my_base.h"                     /* ha_rows */
 #include "my_compiler.h"

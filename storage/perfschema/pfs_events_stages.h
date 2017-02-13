@@ -21,6 +21,8 @@
   Events waits data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_events.h"
 #include "pfs_global.h"
 

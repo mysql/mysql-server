@@ -18,6 +18,7 @@
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
+#include <sys/types.h>
 #include <string>
 #include <vector>
 

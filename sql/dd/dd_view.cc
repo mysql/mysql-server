@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_view.h"
+#include "sql/dd/dd_view.h"
 
 #include <string.h>
+#include <sys/types.h>
 #include <time.h>
 #include <memory>
 #include <string>
@@ -46,8 +47,8 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
-#include "mysqld_error.h"
 #include "mysql_time.h"                       // MYSQL_TIME
+#include "mysqld_error.h"
 #include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
 #include "session_tracker.h"
 #include "sp.h"                               // Sroutine_hash_entry

@@ -17,6 +17,8 @@
 
 /* class for the the heap handler */
 
+#include <sys/types.h>
+
 #include "handler.h"
 #include "heap.h"
 #include "my_global.h"

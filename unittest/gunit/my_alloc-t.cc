@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "my_inttypes.h"
 #include "my_sys.h"

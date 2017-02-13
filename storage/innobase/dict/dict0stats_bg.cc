@@ -23,12 +23,14 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include "dict0stats_bg.h"
+
 #include <stddef.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "dict0dict.h"
 #include "dict0stats.h"
-#include "dict0stats_bg.h"
 #include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "row0mysql.h"

@@ -24,6 +24,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "mdl.h"
 #include "my_dbug.h"

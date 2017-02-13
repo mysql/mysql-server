@@ -16,6 +16,7 @@
 /* functions on blocks; Keys and records are saved in blocks */
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "heapdef.h"
 #include "my_inttypes.h"

@@ -28,6 +28,7 @@ Created 9/17/2000 Heikki Tuuri
 #include <gstream.h>
 #include <spatial.h>
 #include <sql_const.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <deque>
 #include <new>
