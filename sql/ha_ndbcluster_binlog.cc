@@ -1035,6 +1035,110 @@ static void ndb_notify_tables_writable()
 }
 
 
+static int
+ndb_create_table_from_engine(THD *thd,
+                             const char *schema_name,
+                             const char *table_name,
+                             bool force_overwrite = false)
+{
+  DBUG_ENTER("ndb_create_table_from_engine");
+  DBUG_PRINT("enter", ("schema_name: %s, table_name: %s",
+                       schema_name, table_name));
+
+  Thd_ndb* thd_ndb = get_thd_ndb(thd);
+  Ndb* ndb = thd_ndb->ndb;
+  NDBDICT* dict = ndb->getDictionary();
+
+  if (ndb->setDatabaseName(schema_name))
+  {
+    DBUG_PRINT("error", ("Failed to set database name of Ndb object"));
+    DBUG_RETURN(false);
+  }
+
+  Ndb_table_guard ndbtab_g(dict, table_name);
+  const NDBTAB *tab= ndbtab_g.get_table();
+  if (!tab)
+  {
+    // Could not open the table from NDB
+    const NdbError err= dict->getNdbError();
+    if (err.code == 709 || err.code == 723)
+    {
+      // Got the normal 'No such table existed'
+      DBUG_PRINT("info", ("No such table, error: %u", err.code));
+      DBUG_RETURN(709);
+    }
+
+    // Got an unexpected error
+    DBUG_PRINT("error", ("Got unexpected error when trying to open table "
+                         "from NDB, error %u", err.code));
+    DBUG_ASSERT(false); // Catch in debug
+    DBUG_RETURN(1);
+  }
+
+  DBUG_PRINT("info", ("Found table '%s'", table_name));
+
+  dd::sdi_t sdi;
+  {
+    Uint32 version;
+    void* unpacked_data;
+    Uint32 unpacked_len;
+    const int get_result =
+        tab->getExtraMetadata(version,
+                              &unpacked_data, &unpacked_len);
+    if (get_result != 0)
+    {
+      DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
+                           get_result));
+      DBUG_RETURN(10);
+    }
+
+    if (version != 2)
+    {
+      free(unpacked_data);
+      DBUG_PRINT("error", ("Found extra metadata with unsupported "
+                           "version: %d", version));
+      DBUG_RETURN(11);
+    }
+
+    sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+
+    free(unpacked_data);
+  }
+
+
+  // Found table, now install it in DD
+  const bool install_res = ndb_dd_install_table(thd,
+                                                schema_name,
+                                                table_name,
+                                                sdi, force_overwrite);
+  if (!install_res)
+  {
+    DBUG_RETURN(12);
+  }
+
+  // ndbcluster_create_binlog_setup() ... to open the share for
+  // binlog
+  {
+    char key[FN_REFLEN + 1];
+    char *end= key +
+        build_table_filename(key, sizeof(key) - 1, schema_name, "", "", 0);
+    /* finalize construction of path */
+    end+= tablename_to_filename(table_name, end,
+                                (uint)(sizeof(key)-(end-key)));
+
+    if (ndbcluster_create_binlog_setup(thd, ndb, key,
+                                       schema_name, table_name, NULL))
+    {
+      DBUG_ASSERT(false); // Catch in debug
+      DBUG_RETURN(37);
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+
 /**
   Utility class encapsulating the code which setup the 'ndb binlog thread'
   to be "connected" to the cluster.
@@ -1050,6 +1154,8 @@ class Ndb_binlog_setup {
 
   THD* const m_thd;
   Thd_ndb* const m_thd_ndb;
+
+
 
 
   /*
