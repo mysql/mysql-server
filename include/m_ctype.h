@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -117,8 +118,17 @@ typedef struct my_contraction_t
 
 typedef struct my_contraction_list_t
 {
-  size_t nitems;         /* Number of items in the list                  */
-  MY_CONTRACTION *item;  /* List of contractions                         */
+  bool has_contractions;
+  /*
+    Contractions are split by their length. The first two elements in nitems
+    and item are meaningless because contraction must consist of at least two
+    code points.
+  */
+
+  /* Number of contractions of same length. */
+  size_t nitems[MY_UCA_MAX_CONTRACTION + 1];
+  /* Lists of contractions of same length. */
+  MY_CONTRACTION* item[MY_UCA_MAX_CONTRACTION + 1];
 
   /*
     Character flags for each character, e.g. "is contraction head"

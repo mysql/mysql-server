@@ -60,10 +60,11 @@ MY_UCA_INFO my_uca_v400=
   0xFFFF,    /* maxchar           */
   uca_length,
   uca_weight,
-  {          /* Contractions:     */
-    0,       /*   nitems          */
-    NULL,    /*   item            */
-    NULL     /*   flags           */
+  {            /* Contractions:     */
+    false,     /* has_contractions  */
+    {0},       /*   nitems          */
+    {nullptr}, /*   item            */
+    nullptr    /*   flags           */
   },
 
   /* Logical positions */
@@ -96,10 +97,11 @@ MY_UCA_INFO my_uca_v520=
   0x10FFFF,      /* maxchar           */
   uca520_length,
   uca520_weight,
-  {              /* Contractions:     */
-    0,           /*   nitems          */
-    NULL,        /*   item            */
-    NULL         /*   flags           */
+  {            /* Contractions:     */
+    false,     /* has_contractions  */
+    {0},       /*   nitems          */
+    {nullptr}, /*   item            */
+    nullptr    /*   flags           */
   },
 
   0x0009,    /* first_non_ignorable       p != ignore                       */
@@ -849,15 +851,15 @@ static MY_CONTRACTION *
 my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
                        my_bool with_context)
 {
-  MY_CONTRACTION *next= &list->item[list->nitems];
-  size_t i;
   /*
     Contraction is always at least two code points.
     Contraction is never longer than MY_UCA_MAX_CONTRACTION,
     which is guaranteed by using my_coll_rule_expand() with proper limit.
   */
   DBUG_ASSERT(len > 1 && len <= MY_UCA_MAX_CONTRACTION);
-  for (i= 0; i < len; i++)
+
+  MY_CONTRACTION *next= &list->item[len][list->nitems[len]];
+  for (size_t i= 0; i < len; i++)
   {
     /*
       We don't support contractions with U+0000.
@@ -866,10 +868,10 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
     DBUG_ASSERT(wc[i] != 0);
     next->ch[i]= wc[i];
   }
-  if (i < MY_UCA_MAX_CONTRACTION)
-    next->ch[i]= 0; /* Add end-of-line marker */
+  if (len < MY_UCA_MAX_CONTRACTION)
+    next->ch[len]= 0; /* Add end-of-line marker */
   next->with_context= with_context;
-  list->nitems++;
+  list->nitems[len]++;
   return next;
 }
 
@@ -879,24 +881,35 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
   
   @param contractions      Pointer to UCA data
   @param loader            Pointer to charset loader
-  @param n        Number of contractions
+  @param ncontractions     Pointer to number of contractions
   
   @return   Error code
   @retval   0 - memory allocated successfully
   @retval   1 - not enough memory
 */
 
-static my_bool
+static bool
 my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
-                          MY_CHARSET_LOADER *loader, size_t n)
+                          MY_CHARSET_LOADER *loader, size_t *ncontractions)
 {
-  size_t size= n * sizeof(MY_CONTRACTION);
-  if (!(contractions->item= static_cast<MY_CONTRACTION*>((loader->once_alloc)(size))) ||
-      !(contractions->flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
-    return 1;
-  memset(contractions->item, 0, size);
+  for (size_t contraction_len= 2; contraction_len <= MY_UCA_MAX_CONTRACTION;
+       contraction_len++)
+  {
+    if (ncontractions[contraction_len])
+    {
+      size_t size= ncontractions[contraction_len] * sizeof(MY_CONTRACTION);
+      contractions->item[contraction_len]=
+        static_cast<MY_CONTRACTION*>((loader->once_alloc)(size));
+      if (!contractions->item[contraction_len])
+        return true;
+      memset(contractions->item[contraction_len], 0, size);
+    }
+  }
+  if (!(contractions->flags=
+        (char *)(loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
+    return true;
   memset(contractions->flags, 0, MY_UCA_CNT_FLAG_SIZE);
-  return 0;
+  return false;
 }
 
 
@@ -911,7 +924,7 @@ my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
 const MY_CONTRACTIONS *
 my_charset_get_contractions(const CHARSET_INFO *cs)
 {
-  return (cs->uca != NULL) && (cs->uca->contractions.nitems > 0) ?
+  return (cs->uca != NULL) && (cs->uca->contractions.has_contractions) ?
           &cs->uca->contractions : NULL;
 }
 
@@ -929,7 +942,7 @@ my_charset_get_contractions(const CHARSET_INFO *cs)
 static inline my_bool
 my_uca_have_contractions(const MY_UCA_INFO *uca)
 {
-  return (uca->contractions.nitems > 0);
+  return uca->contractions.has_contractions;
 }
 
 
@@ -1002,9 +1015,9 @@ uint16 *
 my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2)
 {
   MY_CONTRACTION *c, *last;
-  for (c= list->item, last= c + list->nitems; c < last; c++)
+  for (c= list->item[2], last= c + list->nitems[2]; c < last; c++)
   {
-    if (c->ch[0] == wc1 && c->ch[1] == wc2 && c->ch[2] == 0)
+    if (c->ch[0] == wc1 && c->ch[1] == wc2)
     {
       return c->weight;
     }
@@ -1085,7 +1098,7 @@ static inline const uint16 *
 my_uca_contraction_weight(const MY_CONTRACTIONS *list, const my_wc_t *wc, size_t len)
 {
   MY_CONTRACTION *c, *last;
-  for (c= list->item, last= c + list->nitems; c < last; c++)
+  for (c= list->item[len], last= c + list->nitems[len]; c < last; c++)
   {
     if ((len == MY_UCA_MAX_CONTRACTION || c->ch[len] == 0) &&
         !c->with_context &&
@@ -1148,10 +1161,7 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
 {
   size_t clen= 1;
   int flag;
-  uchar *s, *beg= nullptr;
-  const MY_CONTRACTION *contraction_begin= cs->uca->contractions.item;
-  const MY_CONTRACTION *contraction_end=
-    contraction_begin + cs->uca->contractions.nitems;
+  uchar *s, *beg;
   MY_CONTRACTION tofind;
   memset(&tofind, 0, sizeof(tofind));
   tofind.ch[0]= wc0;
@@ -1192,13 +1202,16 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
         to looking for new character sequence which adds one more character,
         which is obviously greater than the current one.
       */
+      const MY_CONTRACTION *contraction_begin=
+        cs->uca->contractions.item[clen + 1];
+      const MY_CONTRACTION *contraction_end=
+        contraction_begin + cs->uca->contractions.nitems[clen + 1];
       auto candidate= std::lower_bound(contraction_begin,
                                        contraction_end,
                                        tofind,
                                        contraction_chars_cmp);
-      if (candidate == contraction_end)
-        break;
-      if (!contraction_chars_cmp(tofind, *candidate))
+      if (candidate != contraction_end &&
+          !contraction_chars_cmp(tofind, *candidate))
       {
         /*
           std::lower_bound() ensures *candidate is greater than or equal to
@@ -1206,7 +1219,7 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
           tofind is greater than or equal to *candidate. So tofind has to
           equal to *candidate.
         */
-        contraction_begin= longest_contraction= candidate;
+        longest_contraction= candidate;
         beg= s;
         *chars_skipped= clen;
       }
@@ -1263,11 +1276,12 @@ my_uca_scanner::previous_context_find(my_wc_t wc0, my_wc_t wc1)
   memset(&tofind, 0, sizeof(tofind));
   tofind.ch[0]= wc0;
   tofind.ch[1]= wc1;
-  MY_CONTRACTION *contraction_end= contractions->item + contractions->nitems;
-  MY_CONTRACTION *c= std::lower_bound(contractions->item,
+  MY_CONTRACTION *contraction_end=
+    contractions->item[2] + contractions->nitems[2];
+  MY_CONTRACTION *c= std::lower_bound(contractions->item[2],
                                       contraction_end,
                                       tofind, contraction_chars_cmp);
-  if (c == contraction_end || c->ch[0] != wc0 || c->ch[1] != wc1 || c->ch[2])
+  if (c == contraction_end || c->ch[0] != wc0 || c->ch[1] != wc1)
     return NULL;
   if (c->with_context)
   {
@@ -4358,11 +4372,12 @@ apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                                r->with_context)->weight;
     to_stride= 1;
     to_num_ce= &to[MY_UCA_MAX_WEIGHT_SIZE - 1];
+    /* Temporarily hide - it's incomplete */
+    dst->contractions.nitems[nshift]--;
     /* Store weights of the "reset to" character */
-    dst->contractions.nitems--; /* Temporarily hide - it's incomplete */
     nweights= my_char_weight_put(dst, to, to_stride, MY_UCA_MAX_WEIGHT_SIZE - 1,
                                  to_num_ce, r, nreset, rules->uca->version);
-    dst->contractions.nitems++; /* Activate, now it's complete */
+    dst->contractions.nitems[nshift]++; /* Activate, now it's complete */
   }
   else
   {
@@ -4450,8 +4465,8 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                   bool lengths_are_temporary)
 {
   MY_COLL_RULE *r, *rlast;
-  int ncontractions= 0;
   size_t i, npages= (src->maxchar + 1) / 256;
+  size_t ncontractions[MY_UCA_MAX_CONTRACTION + 1]{0};
 
   dst->maxchar= src->maxchar;
 
@@ -4516,7 +4531,10 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       dst->weights[pagec]= NULL; /* Mark that we'll overwrite this page */
     }
     else
-      ncontractions++;
+    {
+      ncontractions[my_wstrnlen(r->curr, MY_UCA_MAX_CONTRACTION)]++;
+      dst->contractions.has_contractions= true;
+    }
   }
 
   /* Allocate pages that we'll overwrite and copy default weights */
@@ -4532,7 +4550,7 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       return rc;
   }
 
-  if (ncontractions)
+  if (dst->contractions.has_contractions)
   {
     if (my_uca_alloc_contractions(&dst->contractions, loader, ncontractions))
       return TRUE;
@@ -4552,10 +4570,16 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       return TRUE;
   }
   // Sort contractions by the code points.
-  if (ncontractions)
-    std::sort(dst->contractions.item,
-              dst->contractions.item + dst->contractions.nitems,
-              contraction_chars_cmp);
+  if (dst->contractions.has_contractions)
+  {
+    for (size_t i= 2; i <= MY_UCA_MAX_CONTRACTION; i++)
+    {
+      if (dst->contractions.nitems[i])
+        std::sort(dst->contractions.item[i],
+                  dst->contractions.item[i] + dst->contractions.nitems[i],
+                  contraction_chars_cmp);
+    }
+  }
   return FALSE;
 }
 
