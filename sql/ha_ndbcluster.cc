@@ -14045,7 +14045,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   ndb_log_verbose(60, " - iterating list of files...");
   LEX_STRING *file_name;
   List_iterator<LEX_STRING> it(*files);
-  List<char> delete_list;
   while ((file_name=it++))
   {
     bool file_on_disk= FALSE;
@@ -14137,24 +14136,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
       ndb_log_verbose(60, " --- NDB says it does not exist, remove from files");
       it.remove();
-      if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
-      {
-	/*
-	  Don't delete anything when called from a (binlog-) thread
-	  acting as a participant in schema distribution.
-	  This is a kludge to avoid
-	  that something is deleted when "Ndb schema dist"
-	  uses find_files() to check for "local tables in db"
-	*/
-        ndb_log_verbose(60, " --- schema dist participant, don't "
-                        "put in delete list");
-      }
-      else
-      {
-        ndb_log_verbose(60, " --- put in delete list");
-	// Put in list of tables to remove from disk
-	delete_list.push_back(thd->mem_strdup(file_name->str));
-      }
     }
   }
 
@@ -14178,50 +14159,6 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   else
   {
     ndb_log_verbose(60, " -- skip, no binlog setup in find files");
-  }
-
-  if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
-  {
-    /*
-      Don't delete anything when called from a (binlog-) thread
-      acting as a participant in schema distribution.
-      This is a kludge to avoid
-      that something is deleted when "Ndb schema dist"
-      uses find_files() to check for "local tables in db"
-    */
-    ndb_log_verbose(60,
-                    " - this is schema dist participant, don't "
-                    "delete anything");
-  }
-  else
-  {
-    /*
-      Delete old files
-      (.frm files with corresponding .ndb + does not exists in NDB)
-    */
-    ndb_log_verbose(60, " - iterating the list of files to delete...");
-    List_iterator_fast<char> it3(delete_list);
-    char* file_name_str;
-    while ((file_name_str= it3++))
-    {
-      DBUG_PRINT("info", ("Deleting local files for table '%s.%s'",
-                          db, file_name_str));
-      ndb_log_verbose(60, " -- removing local files for table '%s.%s'",
-                      db, file_name_str);
-
-      // Delete the table and its related files from disk
-      Ndb_local_schema::Table local_table(thd, db, file_name_str);
-      local_table.remove_table();
-
-      // Flush the table out of ndbapi's dictionary cache
-      Ndb_table_guard ndbtab_g(ndb->getDictionary(), file_name_str);
-      ndbtab_g.invalidate();
-
-      // Flush the table from table def. cache.
-      ndb_tdc_close_cached_table(thd, db, file_name_str);
-
-      DBUG_ASSERT(!thd->is_error());
-    }
   }
 
   my_hash_free(&ok_tables);
