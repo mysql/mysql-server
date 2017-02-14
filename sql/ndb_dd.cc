@@ -190,8 +190,15 @@ ndb_dd_install_table(class THD *thd,
           each time data-dictionary tables are closed after being updated.'
 
      Turn off autocommit
+
+     NOTE! Raw implementation since usage of the Disable_autocommit_guard
+     class detects how the "ndb binlog injector thread loop" is holding a
+     transaction open. It's not a good idea to flip these bits while
+     transaction is open, but that is another problem.
   */
-  Disable_autocommit_guard autocommit_guard(thd);
+  ulonglong save_option_bits = thd->variables.option_bits;
+  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
 
   {
     dd::cache::Dictionary_client* client= thd->dd_client();
@@ -201,17 +208,20 @@ ndb_dd_install_table(class THD *thd,
 
     if (client->acquire(schema_name, &schema))
     {
+      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
     if (schema == nullptr)
     {
       DBUG_ASSERT(false); // Database does not exist
+      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
     std::unique_ptr<dd::Table> table_object{dd::create_object<dd::Table>()};
     if (dd::deserialize(thd, sdi, table_object.get()))
     {
+      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -222,6 +232,7 @@ ndb_dd_install_table(class THD *thd,
     const dd::Table *existing= nullptr;
     if (client->acquire(schema->name(), table_object->name(), &existing))
     {
+      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -232,6 +243,7 @@ ndb_dd_install_table(class THD *thd,
       {
         // Don't overwrite existing table
         DBUG_ASSERT(false);
+        thd->variables.option_bits = save_option_bits;
         DBUG_RETURN(false);
       }
 
@@ -243,6 +255,7 @@ ndb_dd_install_table(class THD *thd,
     {
       // trans_rollback...
       DBUG_ASSERT(false); // Failed to store
+      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -250,6 +263,7 @@ ndb_dd_install_table(class THD *thd,
     trans_commit(thd);
   }
 
+  thd->variables.option_bits = save_option_bits;
 
   // TODO Must be done in _all_ return paths
   thd->mdl_context.release_transactional_locks();
