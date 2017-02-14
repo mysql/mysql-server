@@ -514,7 +514,8 @@ dict_boot(void)
 
 	dberr_t	err = DB_SUCCESS;
 
-	if (srv_read_only_mode && !ibuf_is_empty()) {
+	if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	    && srv_read_only_mode && !ibuf_is_empty()) {
 
 		ib::error() << "Change buffer must be empty when"
 			" --innodb-read-only is set!";
