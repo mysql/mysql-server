@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -864,10 +864,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "IndexMemory",
     DB_TOKEN,
     "Number bytes on each " DB_TOKEN_PRINT " node allocated for storing indexes",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT64,
-    "18M",
+    "0M",
     "1M",
     "1024G" },
 
@@ -879,7 +879,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
-    "80M",
+    "98M",
     "1M",
     "1024G" },
 
