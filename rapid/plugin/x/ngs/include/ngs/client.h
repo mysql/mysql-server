@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,13 +20,13 @@
 #ifndef _NGS_CLIENT_H_
 #define _NGS_CLIENT_H_
 
-#include "ngs/protocol_encoder.h"
-#include "ngs/protocol_decoder.h"
+#include "my_inttypes.h"
+#include "ngs/capabilities/configurator.h"
+#include "ngs/interface/client_interface.h"
 #include "ngs/memory.h"
 #include "ngs/protocol/message.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/capabilities/configurator.h"
-
+#include "ngs/protocol_decoder.h"
+#include "ngs/protocol_encoder.h"
 #include "ngs_common/atomic.h"
 #include "ngs_common/chrono.h"
 #include "ngs_common/connection_vio.h"
@@ -57,7 +57,7 @@ namespace ngs
 
     virtual void activate_tls();
 
-    virtual void reset_accept_time(const Client_state new_state = Client_accepted);
+    virtual void reset_accept_time();
 
     virtual void on_auth_timeout();
     virtual void on_server_shutdown();

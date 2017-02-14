@@ -16,6 +16,8 @@
 
 #include "table.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -46,6 +48,8 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -3099,7 +3103,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (prgflag & (READ_ALL+EXTRA_RECORD))
     records++;
 
-  if (!(record= (uchar*) alloc_root(root, share->rec_buff_length * records)))
+  record= pointer_cast<uchar *>
+    (alloc_root(root, share->rec_buff_length * records + share->null_bytes));
+  if (record == NULL)
     goto err;                                   /* purecov: inspected */
 
   if (records == 0)
@@ -3115,6 +3121,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
+  outparam->null_flags_saved= record + (records * share->rec_buff_length);
 
   if (!(field_ptr = (Field **) alloc_root(root,
                                           (uint) ((share->fields+1)*
@@ -4267,13 +4274,12 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     memcpy((char*) alias, tl->alias, length);
   }
 
-  const_table= 0;
-  null_row= 0;
-  nullable= 0;
+  const_table= FALSE;
+  nullable= FALSE;
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
-  status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  set_not_started();
   insert_values= 0;
   fulltext_searched= 0;
   file->ft_handler= 0;
@@ -4515,9 +4521,8 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 void TABLE_LIST::reset()
 {
   // @todo If TABLE::init() was always called, this would not be necessary:
-  table->const_table= 0;
-  table->null_row= 0;
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  table->const_table= FALSE;
+  table->set_not_started();
 
   table->force_index= force_index;
   table->force_index_order= table->force_index_group= 0;

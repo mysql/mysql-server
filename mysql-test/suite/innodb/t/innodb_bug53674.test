@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 
 create table bug53674(a int)engine=innodb;
 insert into bug53674 values (1),(2);

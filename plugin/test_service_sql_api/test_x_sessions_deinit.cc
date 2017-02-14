@@ -19,6 +19,8 @@
 #include <stdlib.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"                             // my_write, my_malloc
 
 static const char *log_filename= "test_x_sessions_deinit";

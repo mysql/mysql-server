@@ -3,7 +3,7 @@ set optimizer_switch='mrr_cost_based=off';
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 set names utf8;
-CREATE DATABASE world;
+CREATE DATABASE world character set utf8mb4;
 use world;
 CREATE TABLE country (
 Code char(3) NOT NULL default '',
@@ -48,7 +48,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -63,6 +62,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -217,7 +217,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -240,7 +240,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -255,6 +254,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -409,7 +409,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -420,7 +420,7 @@ show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	262144
 DROP DATABASE world;
-CREATE DATABASE world;
+CREATE DATABASE world character set utf8mb4;
 use world;
 CREATE TABLE country (
 Code char(3) NOT NULL default '',
@@ -455,15 +455,14 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -478,6 +477,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -487,8 +487,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	countrylanguage	NULL	range	PRIMARY,Percentage	Percentage	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	33.33	Using where
-1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	11.11	Using where
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	12	world.countrylanguage.Country	1	33.33	Using where
+1	SIMPLE	city	NULL	ref	Country	Country	12	world.countrylanguage.Country	18	11.11	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`country`.`Code` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Country` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -632,7 +632,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -643,15 +643,14 @@ SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name` from `world`.`country` join `world`.`city` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Population` > 100000) and (`world`.`country`.`Name` like 'L%'))
 SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 Name
-?iauliai
 Beirut
 Bengasi
 Daugavpils
@@ -666,6 +665,7 @@ Tripoli
 Tripoli
 Vientiane
 Vilnius
+Šiauliai
 EXPLAIN
 SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)
 FROM country LEFT JOIN countrylanguage ON
@@ -674,9 +674,9 @@ WHERE
 country.Population > 10000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
-1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	33	world.country.Code,const	1	100.00	NULL
+1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	132	world.country.Code,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `world`.`country`.`Name` AS `Name`,if(isnull(`world`.`countrylanguage`.`Country`),NULL,`world`.`countrylanguage`.`Percentage`) AS `IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)` from `world`.`country` left join `world`.`countrylanguage` on(((`world`.`countrylanguage`.`Language` = 'English') and (`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`))) where (`world`.`country`.`Population` > 10000000)
+Note	1003	/* select#1 */ select `world`.`country`.`Name` AS `Name`,if(isnull(`world`.`countrylanguage`.`Country`),NULL,`world`.`countrylanguage`.`Percentage`) AS `IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)` from `world`.`country` left join `world`.`countrylanguage` on(((`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`) and (`world`.`countrylanguage`.`Language` = 'English'))) where (`world`.`country`.`Population` > 10000000)
 SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)
 FROM country LEFT JOIN countrylanguage ON
 (countrylanguage.country=country.Code AND Language='English')
@@ -702,7 +702,7 @@ Colombia	NULL
 Congo, The Democratic Republic of the	NULL
 Cuba	NULL
 Czech Republic	NULL
-Côte d?Ivoire	NULL
+Côte d’Ivoire	NULL
 Ecuador	NULL
 Egypt	NULL
 Ethiopia	NULL
@@ -770,15 +770,14 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -793,6 +792,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -802,8 +802,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	countrylanguage	NULL	range	PRIMARY,Percentage	Percentage	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	33.33	Using where
-1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	11.11	Using where
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	12	world.countrylanguage.Country	1	33.33	Using where
+1	SIMPLE	city	NULL	ref	Country	Country	12	world.countrylanguage.Country	18	11.11	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`country`.`Code` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Country` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -947,7 +947,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -958,15 +958,14 @@ SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name` from `world`.`country` join `world`.`city` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Population` > 100000) and (`world`.`country`.`Name` like 'L%'))
 SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 Name
-?iauliai
 Beirut
 Bengasi
 Daugavpils
@@ -981,6 +980,7 @@ Tripoli
 Tripoli
 Vientiane
 Vilnius
+Šiauliai
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
@@ -1040,7 +1040,7 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND city.Population > 3000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	city	NULL	range	Population,Country	Population	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.city.Country	#	100.00	NULL
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	12	world.city.Country	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`country`.`Code` = `world`.`city`.`Country`) and (`world`.`city`.`Population` > 3000000))
 SELECT city.Name, country.Name FROM city,country
@@ -1098,7 +1098,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -1113,12 +1112,12 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
-ALTER TABLE country MODIFY Name varchar(300) NOT NULL default '';
+Šiauliai	Lithuania
+ALTER TABLE country MODIFY Name varchar(250) NOT NULL default '';
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -1133,6 +1132,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 ALTER TABLE country ADD COLUMN PopulationBar text;
 UPDATE country 
 SET PopulationBar=REPEAT('x', CAST(Population/100000 AS unsigned int));
@@ -1140,7 +1140,6 @@ SELECT city.Name, country.Name, country.PopulationBar FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name	PopulationBar
-?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
@@ -1155,12 +1154,12 @@ Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Šiauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 set join_buffer_size=256;
 SELECT city.Name, country.Name, country.PopulationBar FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name	PopulationBar
-?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
@@ -1175,6 +1174,7 @@ Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Šiauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 set join_buffer_size=default;
 DROP DATABASE world;
 use test;

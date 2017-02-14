@@ -23,11 +23,11 @@
 
 #include <fcntl.h>
 #include <float.h>
-#include <random>       // std::mt19937
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
 #include <algorithm>
+#include <random>       // std::mt19937
 #include <string>
 
 #include "dd/object_id.h"      // dd::Object_id
@@ -42,6 +42,9 @@
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
 #include "mysql/psi/psi_table.h"
@@ -799,39 +802,21 @@ enum enum_schema_tables
   SCH_FIRST=0,
   SCH_COLUMN_PRIVILEGES=SCH_FIRST,
   SCH_ENGINES,
-  SCH_EVENTS,
   SCH_FILES,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
-  SCH_PARAMETERS,
   SCH_PARTITIONS,
   SCH_PLUGINS,
   SCH_PROCESSLIST,
   SCH_PROFILES,
   SCH_REFERENTIAL_CONSTRAINTS,
-  SCH_PROCEDURES,
   SCH_SCHEMA_PRIVILEGES,
   SCH_TABLESPACES,
   SCH_TABLE_PRIVILEGES,
-  SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
   SCH_TMP_TABLE_COLUMNS,
   SCH_TMP_TABLE_KEYS,
   SCH_LAST=SCH_TMP_TABLE_KEYS
-};
-
-/*
-  New DD converts these I_S tables to system views.
-*/
-enum enum_schema_dd_views
-{
-  SCH_CHARSETS=0,
-  SCH_COLLATIONS,
-  SCH_SCHEMATA,
-  SCH_KEYS,
-  SCH_TABLES,
-  SCH_TABLE_STATUS,
-  SCH_COLUMNS
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
@@ -2353,7 +2338,7 @@ typedef struct st_range_seq_if
     
     RETURN
       1 - Record with this range_info and/or this rowid shall be filtered
-          out from the stream of records returned by multi_range_read_next()
+          out from the stream of records returned by ha_multi_range_read_next()
       0 - The record shall be left in the stream
   */ 
   bool (*skip_record) (range_seq_t seq, char *range_info, uchar *rowid);
@@ -2901,6 +2886,16 @@ public:
   The position can be a file position, a primary key, a ROWID dependent
   on the handler below.
 
+  All functions that retrieve records and are callable through the
+  handler interface must indicate whether a record is present after the call
+  or not. Record found is indicated by returning 0 and setting table status
+  to "has row". Record not found is indicated by returning a non-zero value
+  and setting table status to "no row".
+  @see TABLE::set_found_row() and TABLE::set_no_row().
+  By enforcing these rules in the handler interface, storage handler functions
+  need not set any status in struct TABLE. These notes also apply to module
+  index scan, documented below.
+
   Methods:
 
     rnd_init()
@@ -3298,8 +3293,8 @@ private:
   PSI_table_locker_state m_psi_locker_state;
 
 public:
-  virtual void unbind_psi();
-  virtual void rebind_psi();
+  void unbind_psi();
+  void rebind_psi();
   /**
     Put the handler in 'batch' mode when collecting
     table io instrumented events.
@@ -3384,7 +3379,9 @@ public:
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
-  /* TODO: reorganize the methods and have proper public/protected/private qualifiers!!! */
+  /*
+    @todo reorganize functions, make proper public/protected/private qualifiers
+  */
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
@@ -3471,7 +3468,6 @@ public:
   int ha_delete_row(const uchar * buf);
   void ha_release_auto_increment();
 
-  int check_collation_compatibility();
   int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
   /** to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
@@ -3540,13 +3536,10 @@ public:
     @retval  false                 table and key names were not available,
                                    the out parameters were not touched.
   */
-  virtual bool get_foreign_dup_key(char *child_table_name MY_ATTRIBUTE((unused)),
-                                   uint child_table_name_len MY_ATTRIBUTE((unused)),
-                                   char *child_key_name MY_ATTRIBUTE((unused)),
-                                   uint child_key_name_len MY_ATTRIBUTE((unused)))
-  { DBUG_ASSERT(false); return(false); }
-
-
+  virtual bool get_foreign_dup_key(char *child_table_name,
+                                   uint child_table_name_len,
+                                   char *child_key_name ,
+                                   uint child_key_name_len);
   /**
     Change the internal TABLE_SHARE pointer.
 
@@ -3687,7 +3680,10 @@ public:
                      enum_sampling_method sampling_method);
   int ha_sample_next(uchar *buf);
   int ha_sample_end();
+
 private:
+  int check_collation_compatibility();
+
   /**
     Make a guestimate for how much of a table or index is in a memory
     buffer in the case where the storage engine has not provided any
@@ -3712,8 +3708,13 @@ public:
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                     uint n_ranges, uint mode,
                                     HANDLER_BUFFER *buf);
-  virtual int multi_range_read_next(char **range_info);
 
+  int ha_multi_range_read_next(char **range_info);
+
+  int ha_read_range_first(const key_range *start_key,
+                          const key_range *end_key,
+                          bool eq_range, bool sorted);
+  int ha_read_range_next();
 
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
@@ -3758,6 +3759,8 @@ public:
   virtual bool is_fatal_error(int error);
 
 protected:
+  virtual int multi_range_read_next(char **range_info);
+
   /**
     Number of rows in table. It will only be called if
     (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
@@ -3912,9 +3915,7 @@ protected:
      Positions an index cursor to the index specified in the handle
      ('active_index'). Fetches the row if available. If the key value is null,
      begin at the first key of the index.
-     @returns 0 if success (found a record, and function has set table->status
-     to 0); non-zero if no record (function has set table->status to
-     STATUS_NOT_FOUND).
+     @returns 0 if success (found a record); non-zero if no record.
   */
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
@@ -3962,11 +3963,13 @@ protected:
     uint key_len= calculate_key_len(table, active_index, keypart_map);
     return index_read_last(buf, key, key_len);
   }
-public:
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
   virtual int read_range_next();
+
+public:
 
   /**
     Set the end position for a range scan. This is used for checking
@@ -3992,12 +3995,17 @@ public:
   {
     return ft_init_ext(hints->get_flags(), inx, key);
   }
-  virtual int ft_read(uchar*) { return HA_ERR_WRONG_COMMAND; }
+  int ha_ft_read(uchar *buf);
+  int ha_read_first_row(uchar *buf, uint primary_key);
+
 protected:
   /// @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
   /// @see index_read_map().
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
+
+  virtual int ft_read(uchar*) { return HA_ERR_WRONG_COMMAND; }
+
 public:
   /**
     This function only works for handlers having
@@ -4005,12 +4013,11 @@ public:
     It will return the row with the PK given in the record argument.
   */
   virtual int rnd_pos_by_record(uchar *record)
-    {
-      DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
-      position(record);
-      return ha_rnd_pos(record, ref);
-    }
-  virtual int read_first_row(uchar *buf, uint primary_key);
+  {
+    DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+    position(record);
+    return ha_rnd_pos(record, ref);
+  }
 
 
   /**
@@ -4543,14 +4550,23 @@ public:
   virtual const TABLE* parent_of_pushed_join() const
   { return NULL; }
 
-  virtual int index_read_pushed(uchar *buf MY_ATTRIBUTE((unused)),
-                                const uchar *key MY_ATTRIBUTE((unused)),
-                                key_part_map keypart_map MY_ATTRIBUTE((unused)))
-  { return  HA_ERR_WRONG_COMMAND; }
+  int ha_index_read_pushed(uchar *buf, const uchar *key,
+                           key_part_map keypart_map);
 
-  virtual int index_next_pushed(uchar *buf MY_ATTRIBUTE((unused)))
-  { return  HA_ERR_WRONG_COMMAND; }
+  int ha_index_next_pushed(uchar *buf);
 
+protected:
+  virtual int index_read_pushed(uchar *, const uchar *, key_part_map)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  virtual int index_next_pushed(uchar *)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+public:
  /**
    Part of old, deprecated in-place ALTER API.
  */
@@ -4900,7 +4916,9 @@ protected:
           the old schema and table name in this method for some reason it
           has to use ha_alter_info object to figure it out.
  */
- virtual void notify_table_changed(Alter_inplace_info *ha_alter_info) { };
+ virtual void
+ notify_table_changed(Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)))
+ { };
 
 public:
  /* End of On-line/in-place ALTER TABLE interface. */
@@ -5209,7 +5227,7 @@ public:
             to data-dictionary only if storage engine supports atomic DDL
             (i.e. has HTON_SUPPORTS_ATOMIC_DDL flag set).
   */
-  virtual int truncate(dd::Table *table_def)
+  virtual int truncate(dd::Table *table_def MY_ATTRIBUTE((unused)))
   { return HA_ERR_WRONG_COMMAND; }
   virtual int optimize(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
@@ -5326,10 +5344,14 @@ public:
     @retval  0      Success.
     @retval  non-0  Error.
   */
-  virtual int get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
-                                         const List<Create_field> *create_list,
-                                         const KEY *key_info, uint key_count,
-                                         dd::Table *table)
+  virtual int
+    get_extra_columns_and_keys(const HA_CREATE_INFO
+                               *create_info MY_ATTRIBUTE((unused)),
+                               const List<Create_field>
+                               *create_list MY_ATTRIBUTE((unused)),
+                               const KEY *key_info MY_ATTRIBUTE((unused)),
+                               uint key_count MY_ATTRIBUTE((unused)),
+                               dd::Table *table MY_ATTRIBUTE((unused)))
   { return 0; }
 
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
@@ -5388,6 +5410,8 @@ protected:
   void set_ha_share_ptr(Handler_share *arg_ha_share);
   void lock_shared_ha_data();
   void unlock_shared_ha_data();
+
+  friend class DsMrr_impl;
 };
 
 

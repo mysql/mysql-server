@@ -99,11 +99,6 @@ INSERT INTO t1 VALUES (2);
 --let $wait_condition= SELECT count(*)=2 FROM t1;
 --source include/wait_condition.inc
 
-if (!$success)
-{
-  --die Timeout in wait_condition.inc
-}
-
 --echo #
 --echo # Cleanup
 --echo #

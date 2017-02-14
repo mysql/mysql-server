@@ -34,7 +34,9 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "pars0pars.h"
 #include "row0ext.h"
@@ -3601,7 +3603,8 @@ row_merge_file_create_low(
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-				&state, innodb_temp_file_key, PSI_FILE_OPEN,
+				&state, innodb_temp_file_key.m_value,
+				PSI_FILE_OPEN,
 				"Innodb Merge Temp File", &locker);
 	if (locker != NULL) {
 		PSI_FILE_CALL(start_file_open_wait)(locker,

@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,28 +16,30 @@
 
 #define BINLOG_H_INCLUDED
 
-#include <atomic>
-#include <utility>
-
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
+#include <utility>
 
 #include "binlog_event.h"              // enum_binlog_checksum_alg
 #include "m_string.h"                  // llstr
 #include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"                 // Item_result
+#include "rpl_gtid.h"                  // Gtid_set, Sid_map
 #include "sql_string.h"
 #include "tc_log.h"                    // TC_LOG
 #include "thr_mutex.h"
-#include "rpl_gtid.h"                  // Gtid_set, Sid_map
 
 class Format_description_log_event;
 class Gtid_set;
@@ -746,13 +748,13 @@ public:
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
-#if !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
 
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
 
-#endif /* !defined(MYSQL_CLIENT) */
+#endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc)
   {
     bytes_written += inc;
@@ -890,12 +892,10 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-#ifdef HAVE_REPLICATION
   bool append_buffer(const char* buf, uint len, Master_info *mi);
   bool append_event(Log_event* ev, Master_info *mi);
 private:
   bool after_append_to_relay_log(Master_info *mi);
-#endif // ifdef HAVE_REPLICATION
 public:
 
   void make_log_name(char* buf, const char* log_ident);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                        // free_root
 #include "mysql/psi/mysql_rwlock.h"
@@ -234,7 +235,6 @@ public:
                  my_off_t log_pos);
 };
 
-#ifdef HAVE_REPLICATION
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 #endif
@@ -297,7 +297,6 @@ public:
 private:
   void init_param(Binlog_relay_IO_param *param, Master_info *mi);
 };
-#endif /* HAVE_REPLICATION */
 
 int delegates_init();
 void delegates_destroy();
@@ -305,10 +304,8 @@ void delegates_destroy();
 extern Trans_delegate *transaction_delegate;
 extern Binlog_storage_delegate *binlog_storage_delegate;
 extern Server_state_delegate *server_state_delegate;
-#ifdef HAVE_REPLICATION
 extern Binlog_transmit_delegate *binlog_transmit_delegate;
 extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
-#endif /* HAVE_REPLICATION */
 
 /*
   if there is no observers in the delegate, we can return 0

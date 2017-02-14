@@ -17,6 +17,7 @@
 #define HA_PERFSCHEMA_H
 
 #include "handler.h" /* class handler */
+#include "my_inttypes.h"
 
 /**
   @file storage/perfschema/ha_perfschema.h

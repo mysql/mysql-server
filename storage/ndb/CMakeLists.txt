@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,30 +52,6 @@ ENDMACRO()
 
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 
-# Disable specific types of warnings for storage/ndb
-# if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning
-          "unused-but-set-variable"
-          "strict-aliasing"
-          # Downgrade -Werror to warning for "may be used uninitialized"
-          # and "is used uninitialized in this function"
-          "error=maybe-uninitialized"
-          "error=uninitialized"
-          # Downgrade placement-new as part of Bug #24822203
-          "error=placement-new")
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
-
 #
 # Add the ndbcluster plugin
 #
@@ -120,9 +96,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 IF(NOT MYSQL_CLUSTER_VERSION)
 ENDIF()
 
-# NDB needs replication
-ADD_DEFINITIONS(-DHAVE_REPLICATION)
-
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
 OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
@@ -160,7 +133,9 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
           "error=maybe-uninitialized"
-          "error=uninitialized")
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
@@ -170,23 +145,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
     ENDIF()
   ENDFOREACH()
-ENDIF()
-
-# Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
-# the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
-# is compiled without this define)
-IF(NOT WITHOUT_SERVER)
-  # Add MYSQL_SERVER to the list of compile definitions used when compiling
-  # the ndbcluster plugin. This is a workaround to BUG#23508762 where a spelling
-  # error in plugin.cmake causes MYSQL_SERVER to not be defined. Workaround can
-  # be removed when bug is fixed. NOTE! ndbcluster_embedded is not affected by the
-  # spelling error.
-  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "MYSQL_SERVER")
-
-  # Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
-  # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
-  # is compiled without this define)
-  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
 ENDIF()
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)

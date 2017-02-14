@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,7 @@ protected:
     Uint32 m_page_id;
     Uint32 m_table_id;
     Uint32 m_fragment_id;
+    Uint32 m_create_table_version;
     Uint32 m_instance_no;
     enum {
       SendToAll = 1,
@@ -107,12 +108,17 @@ protected:
 
   void disk_restart_undo_finish(Signal*);
 
+  void disk_restart_undo_send_next(Signal*);
+
   void disk_restart_undo_send(Signal*, Uint32 i);
 
   // TSMAN
 
-  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
-				const Local_key* key, Uint32 pages);
+  int disk_restart_alloc_extent(Uint32 tableId,
+                                Uint32 fragId,
+                                Uint32 create_table_version,
+				const Local_key* key,
+                                Uint32 pages);
   void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 			      const Local_key* key, Uint32 bits);
 };

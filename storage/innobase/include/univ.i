@@ -95,13 +95,6 @@ support cross-platform development and expose comonly used SQL names. */
 
 #include "my_psi_config.h"
 
-#ifdef HAVE_PSI_INTERFACE
-
-/** Define for performance schema registration key */
-using mysql_pfs_key_t = unsigned int;
-
-#endif /* HAVE_PFS_INTERFACE */
-
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 #include <sys/stat.h>
 
@@ -146,15 +139,6 @@ defined, the rwlocks are simply not tracked. */
 # ifdef HAVE_PSI_MEMORY_INTERFACE
 #  define UNIV_PFS_MEMORY
 # endif /* HAVE_PSI_MEMORY_INTERFACE */
-
-/* There are mutexes/rwlocks that we want to exclude from
-instrumentation even if their corresponding performance schema
-define is set. And this PFS_NOT_INSTRUMENTED is used
-as the key value to identify those objects that would
-be excluded from instrumentation. */
-# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
-
-# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
 
 /* For PSI_MUTEX_CALL() and similar. */
 #include "pfs_thread_provider.h"

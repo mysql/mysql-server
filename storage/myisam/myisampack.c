@@ -15,6 +15,8 @@
 
 /* Pack MyISAM file */
 
+#include "my_config.h"
+
 #include <assert.h>
 #include <fcntl.h>
 #include <my_getopt.h>
@@ -22,12 +24,17 @@
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"
 #include "mysys_err.h"
+#include "print_version.h"
 #include "queues.h"
 
 #if SIZEOF_LONG_LONG > 4
@@ -300,13 +307,6 @@ static struct my_option my_long_options[] =
    &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s Ver 1.23 for %s on %s\n",
-              my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-}
 
 
 static void usage(void)

@@ -22,8 +22,9 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST (declarations).
 */
 
-#include "table_helper.h"
+#include "my_inttypes.h"
 #include "pfs_digest.h"
+#include "table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

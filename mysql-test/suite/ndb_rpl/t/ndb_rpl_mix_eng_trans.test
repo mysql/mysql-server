@@ -24,7 +24,6 @@
 
 source include/have_ndb.inc;
 source suite/ndb_rpl/ndb_master-slave.inc;
-source include/have_innodb.inc;
 
 CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
 CREATE TABLE tinnodb (a int) ENGINE = INNODB;

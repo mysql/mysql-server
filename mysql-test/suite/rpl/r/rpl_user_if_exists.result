@@ -12,15 +12,15 @@ CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT E
 CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS');
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
-Note	3162	User 'wl8540'@'nohost1' does not exist.
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
 ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'wl8540'@'nohost1' does not exist.
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
@@ -41,8 +41,8 @@ COUNT(*)
 2
 CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
-Note	3163	User 'wl8540'@'nohost1' already exists.
-Note	3163	User 'wl8540'@'nohost2' already exists.
+Note	3163	Authorization ID 'wl8540'@'nohost1' already exists.
+Note	3163	Authorization ID 'wl8540'@'nohost2' already exists.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 2
@@ -59,14 +59,14 @@ COUNT(*)
 CREATE USER wl8540@nohost1;
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
 ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'wl8540'@'nohost1' does not exist.
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
@@ -88,14 +88,14 @@ IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
 ALTER USER IF EXISTS slave_user2@localhost
 IDENTIFIED WITH 'sha256_password' WITH MAX_CONNECTIONS_PER_HOUR 2;
 Warnings:
-Note	3162	User 'slave_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 DROP USER IF EXISTS slave_user2@localhost;
 Warnings:
-Note	3162	User 'slave_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2,
 slave_user1@localhost,slave_user2@localhost;
 Warnings:
-Note	3162	User 'slave_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 FLUSH PRIVILEGES;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

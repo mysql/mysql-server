@@ -152,6 +152,8 @@ ST_LATFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10))
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),10));
 ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),10))
 POINT(10 10)
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 ######################################################################################################
 # BUG#19204199 : DISTANCE() AND ENVELOPE() FUNCTIONS RETURN WRONG RESULT
 ######################################################################################################
@@ -256,17 +258,17 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0000, 11]}"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0000, 11]}"))
-POINT(102 11)
+POINT(11 102)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.00000, 11]}"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.00000, 11]}"))
-POINT(102 11)
+POINT(11 102)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.000000, 11]}"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.000000, 11]}"))
-POINT(102 11)
+POINT(11 102)
 ######################################################################################################
 # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 ######################################################################################################

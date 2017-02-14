@@ -23,6 +23,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 
 /* Include necessary SQL headers */
 #include <debug_sync.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <log.h>
 #include <my_check_opt.h>
@@ -52,6 +53,8 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "key.h"
 #include "lock0lock.h"
 #include "my_dbug.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "partition_info.h"
 #include "row0import.h"
 #include "row0ins.h"
@@ -4433,6 +4436,125 @@ ha_innopart::cmp_ref(
 
 	return(cmp);
 }
+
+//TODO_MERGE
+#if 0
+/** Prepare for creating new partitions during ALTER TABLE ... PARTITION.
+@param[in]	num_partitions	Number of new partitions to be created.
+@param[in]	only_create	True if only creating the partition
+(no open/lock is needed).
+@return	0 for success else error code. */
+int
+ha_innopart::prepare_for_new_partitions(
+	uint	num_partitions,
+	bool	only_create)
+{
+	m_new_partitions = UT_NEW(Altered_partitions(num_partitions,
+						     only_create),
+				  mem_key_partitioning);
+	if (m_new_partitions == NULL) {
+		return(HA_ERR_OUT_OF_MEM);
+	}
+	if (m_new_partitions->initialize()) {
+		UT_DELETE(m_new_partitions);
+		m_new_partitions = NULL;
+		return(HA_ERR_OUT_OF_MEM);
+	}
+	return(0);
+}
+
+/** Create a new partition to be filled during ALTER TABLE ... PARTITION.
+@param[in]	table		Table to create the partition in.
+@param[in]	create_info	Table/partition specific create info.
+@param[in]	part_name	Partition name.
+@param[in]	new_part_id	Partition id in new table.
+@param[in]	part_elem	Partition element.
+@return	0 for success else error code. */
+int
+ha_innopart::create_new_partition(
+	TABLE*			table,
+	HA_CREATE_INFO*		create_info,
+	const char*		part_name,
+	uint			new_part_id,
+	partition_element*	part_elem)
+{
+	int		error;
+	char		norm_name[FN_REFLEN];
+	const char*	tablespace_name_backup = create_info->tablespace;
+	const char*	data_file_name_backup = create_info->data_file_name;
+	DBUG_ENTER("ha_innopart::create_new_partition");
+	/* Delete by ddl_log on failure. */
+	normalize_table_name(norm_name, part_name);
+	set_create_info_dir(part_elem, create_info);
+
+	/* The below check is the same as for CREATE TABLE, but since we are
+	doing an alter here it will not trigger the check in
+	create_option_tablespace_is_valid(). */
+	if (tablespace_is_shared_space(create_info)
+	    && create_info->data_file_name != NULL
+	    && create_info->data_file_name[0] != '\0') {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY cannot be used"
+			" with a TABLESPACE assignment.", MYF(0));
+		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+	}
+
+	error = ha_innobase::create(norm_name, table, create_info, NULL);
+	create_info->tablespace = tablespace_name_backup;
+	create_info->data_file_name = data_file_name_backup;
+	if (error == HA_ERR_FOUND_DUPP_KEY) {
+		DBUG_RETURN(HA_ERR_TABLE_EXIST);
+	}
+	if (error != 0) {
+		DBUG_RETURN(error);
+	}
+	if (!m_new_partitions->only_create())
+	{
+		dict_table_t* part;
+		part = dict_table_open_on_name(norm_name,
+					       false,
+					       true,
+					       DICT_ERR_IGNORE_NONE);
+		if (part == NULL) {
+			DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+		}
+		m_new_partitions->set_part(new_part_id, part);
+	}
+	DBUG_RETURN(0);
+}
+
+/** Close and finalize new partitions. */
+void
+ha_innopart::close_new_partitions()
+{
+	if (m_new_partitions != NULL) {
+		UT_DELETE(m_new_partitions);
+		m_new_partitions = NULL;
+	}
+}
+
+/** write row to new partition.
+@param[in]	new_part	New partition to write to.
+@return	0 for success else error code. */
+int
+ha_innopart::write_row_in_new_part(
+	uint	new_part)
+{
+	int	result;
+	DBUG_ENTER("ha_innopart::write_row_in_new_part");
+
+	m_last_part = new_part;
+	if (m_new_partitions->part(new_part) == NULL) {
+		/* Altered partition contains misplaced row. */
+		m_err_rec = table->record[0];
+		DBUG_RETURN(HA_ERR_ROW_IN_WRONG_PARTITION);
+	}
+	m_new_partitions->get_prebuilt(m_prebuilt, new_part);
+	result = ha_innobase::write_row(table->record[0]);
+	m_new_partitions->set_from_prebuilt(m_prebuilt, new_part);
+	DBUG_RETURN(result);
+}
+#endif
 
 /** Allocate the array to hold blob heaps for all partitions */
 mem_heap_t**

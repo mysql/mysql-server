@@ -3147,3 +3147,27 @@ TRUNCATE TABLE t1;
 # Operation below succeeds, since the table has no records.
 ALTER TABLE t1 ADD COLUMN fld4 DATETIME NOT NULL, ALGORITHM=INPLACE;
 DROP TABLE t1;
+#
+# Additional coverage for WL#7743 "New data dictionary: changes to
+# DDL-related parts of SE API". Check that ALTER TABLE INPLACE with
+# RENAME TO clause correctly handles FKs and triggers.
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk)) ENGINE=InnoDB;
+ALTER TABLE t2 ADD COLUMN j INT, RENAME TO t3, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fk` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t3;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
+ALTER TABLE t1 ADD COLUMN j INT, RENAME TO t4, ALGORITHM=INPLACE;
+SELECT trigger_name, event_object_schema, event_object_table, action_statement
+FROM information_schema.triggers WHERE event_object_schema = 'test';
+TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
+t1_bi	test	t4	SET @a:=0
+DROP TABLE t4;

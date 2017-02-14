@@ -40,7 +40,6 @@ SET @max_row = 20;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'INNODB';
 
 ##### Assign a big number smaller than the maximum value for partitions  #####

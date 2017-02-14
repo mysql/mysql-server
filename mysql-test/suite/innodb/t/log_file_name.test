@@ -1,7 +1,6 @@
 # WL#7142 InnoDB: Simplify tablespace discovery during crash recovery
 # Test the detection of duplicate tablespaces.
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 # Embedded server does not support crashing

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,16 @@ process control primitives
 Created 9/30/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include "my_config.h"
 
+#include <errno.h>
+
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
 #include "os0proc.h"
 #include "srv0srv.h"
-#include "ut0mem.h"
 #include "ut0byte.h"
+#include "ut0mem.h"
 
 /* FreeBSD for example has only MAP_ANON, Linux has MAP_ANONYMOUS and
 MAP_ANON but MAP_ANON is marked as deprecated */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Created  10/2016 Jimmy Yamg
 #include "dict0crea.h"
 #include "sql_base.h"
 #include "field.h"
+#include "dict0priv.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]      partition       partition or subpartition
@@ -58,7 +59,7 @@ dd_get_space_id(const dd::Partition& partition)
         return(id);
 }
 
-/** Parse a table name
+/** Parse a table file name into table name and database name
 @param[in]      tbl_name        table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
@@ -67,7 +68,7 @@ dd_get_space_id(const dd::Partition& partition)
 is invalid */
 UNIV_INLINE
 bool
-innobase_parse_tbl_name(
+dd_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name,
@@ -119,8 +120,8 @@ innobase_parse_tbl_name(
 UNIV_INLINE
 const dd::Column*
 dd_find_column(
-	dd::Table* dd_table,
-	const char* name)
+	const dd::Table*	dd_table,
+	const char*		name)
 {
 	for (const dd::Column* c : dd_table->columns()) {
 		if (!my_strcasecmp(system_charset_info,
@@ -195,17 +196,15 @@ dd_set_hidden_unique_index(
         return(index);
 }
 
-/** Returns a table object based on table id.
+/** Returns a cached table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
-@param[in]	table_op	operation to perform
 @return table, NULL if does not exist */
 UNIV_INLINE
 dict_table_t*
 dd_table_open_on_id_in_mem(
 	table_id_t	table_id,
-	ibool		dict_locked,
-	dict_table_op_t	table_op)
+	ibool		dict_locked)
 {
 	dict_table_t*	table;
 
@@ -242,17 +241,15 @@ dd_table_open_on_id_in_mem(
         return(table);
 }
 
-/** Returns a table object based on table id.
+/** Returns a cached table object based on table name.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
-@param[in]	table_op	operation to perform
 @return table, NULL if does not exist */
 UNIV_INLINE
 dict_table_t*
 dd_table_open_on_name_in_mem(
 	const char*	name,
-	ibool		dict_locked,
-	ulint		ignore_op)
+	ibool		dict_locked)
 {
 	dict_table_t*	table = nullptr;
 
@@ -260,36 +257,11 @@ dd_table_open_on_name_in_mem(
 		mutex_enter(&dict_sys->mutex);
 	}
 
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	ut_ad(name);
-
-	/* Look for the table name in the hash table */
-	ulint	fold = ut_fold_string(name);
-
-	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
-                    dict_table_t*, table, ut_ad(table->cached),
-                    !strcmp(table->name.m_name, name));
+	table = dict_table_check_if_in_cache_low(name);
 
 	ut_ad(!table || table->cached);
 
 	if (table != NULL) {
-		 if (ignore_op == DICT_ERR_IGNORE_NONE
-		     && table->is_corrupted()) {
-			/* Make life easy for drop table. */
-			dict_table_prevent_eviction(table);
-
-			if (!dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-			}
-
-			ib::info() << "Table "
-				<< table->name
-				<< " is corrupted. Please drop the table"
-				" and recreate it";
-			return(nullptr);
-		}
-
 		if (table->can_be_evicted) {
 			dict_move_to_mru(table);
 		}
@@ -397,7 +369,7 @@ get_row_format_name(enum row_type row_format)
         return("ROW_FORMAT");
 }
 
-/** Acquire a metadata lock.
+/** Acquire a shared metadata lock.
 @param[in,out]	thd	current thread
 @param[out]	mdl	metadata lock
 @param[in]	db	schema name

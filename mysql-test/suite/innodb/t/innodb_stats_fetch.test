@@ -3,7 +3,6 @@
 # can be used to forcibly (re)fetch the stats from disk)
 #
 
--- source include/have_innodb.inc
 # Various sizes printed in this test depend on the page size and the
 # functionality tested here is not related to the page size, so we only
 # test with 16k page size.

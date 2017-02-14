@@ -13,9 +13,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "thr_lock.h"                           /* THR_LOCK */
 #include "handler.h"                            /* handler */
+#include "my_inttypes.h"
 #include "table.h"                              /* TABLE_SHARE */
+#include "thr_lock.h"                           /* THR_LOCK */
 
 /*
   Shared structure for correct LOCK operation

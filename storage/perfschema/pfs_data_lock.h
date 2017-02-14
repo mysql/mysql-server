@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,13 @@
   Performance schema instrumentation (declarations).
 */
 
-#include <vector>
-#include <unordered_set>
-
 #include <my_global.h>
 #include <mysql/psi/psi_data_lock.h>
+#include <unordered_set>
+#include <vector>
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "table_helper.h"
 
 struct pk_pos_data_lock

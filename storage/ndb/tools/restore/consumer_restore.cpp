@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1394,7 +1394,7 @@ static void set_default_nodegroups(NdbDictionary::Table *table)
   table->setFragmentData(node_group, no_parts);
 }
 
-Uint32 BackupRestore::map_ng(Uint32 ng)
+Uint32 BackupRestore::map_ng(Uint32 ng) const
 {
   NODE_GROUP_MAP *ng_map = m_nodegroup_map;
 
@@ -1424,7 +1424,7 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
 }
 
 
-bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts)
+bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const
 {
   Uint32 i;
   bool mapped = FALSE;
@@ -1454,7 +1454,7 @@ static void copy_byte(const char **data, char **new_data, uint *len)
 
 bool BackupRestore::search_replace(char *search_str, char **new_data,
                                    const char **data, const char *end_data,
-                                   uint *new_data_len)
+                                   uint *new_data_len) const
 {
   uint search_str_len = (uint)strlen(search_str);
   uint inx = 0;
@@ -1539,7 +1539,7 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
 }
 
 bool BackupRestore::map_in_frm(char *new_data, const char *data,
-                                       uint data_len, uint *new_data_len)
+                                       uint data_len, uint *new_data_len) const
 {
   const char *end_data= data + data_len;
   const char *end_part_data;
@@ -1582,28 +1582,44 @@ error:
 }
 
 
-bool BackupRestore::translate_frm(NdbDictionary::Table *table)
+bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
 {
-  uchar *pack_data, *data, *new_pack_data;
+  uchar *data;
   char *new_data;
   uint new_data_len;
-  size_t data_len, new_pack_len;
-  uint no_parts, extra_growth;
+  size_t data_len;
   DBUG_ENTER("translate_frm");
 
-  pack_data = (uchar*) table->getFrmData();
-  no_parts = table->getFragmentCount();
+  {
+    // Extract extra metadata for this table, check for version 1
+    Uint32 version;
+    void* unpacked_data;
+    Uint32 unpacked_len;
+    const int get_result =
+        table->getExtraMetadata(version,
+                                &unpacked_data, &unpacked_len);
+    if (get_result != 0)
+    {
+      DBUG_RETURN(true);
+    }
+
+    if (version != 1)
+    {
+      free(unpacked_data);
+      DBUG_RETURN(true);
+    }
+
+    data = (uchar*)unpacked_data;
+    data_len = unpacked_len;
+  }
+
   /*
     Add max 4 characters per partition to handle worst case
     of mapping from single digit to 5-digit number.
     Fairly future-proof, ok up to 99999 node groups.
   */
-  extra_growth = no_parts * 4;
-  if (uncompress_serialized_meta_data(pack_data, table->getFrmLength(),
-                                      &data, &data_len))
-  {
-    DBUG_RETURN(TRUE);
-  }
+  const uint no_parts = table->getFragmentCount();
+  const uint extra_growth = no_parts * 4;
   if ((new_data = (char*) malloc(data_len + extra_growth)))
   {
     DBUG_RETURN(TRUE);
@@ -1613,14 +1629,21 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
     free(new_data);
     DBUG_RETURN(TRUE);
   }
-  if (compress_serialized_meta_data(reinterpret_cast<uchar *>(new_data),
-                                    new_data_len, &new_pack_data,
-                                    &new_pack_len))
+  const int set_result =
+      table->setExtraMetadata(1, // version 1 for frm
+                              new_data, (Uint32)new_data_len);
+  if (set_result != 0)
   {
     free(new_data);
     DBUG_RETURN(TRUE);
   }
-  table->setFrm(new_pack_data, (Uint32)new_pack_len);
+
+  // NOTE! the memory allocated in 'new_data' is not released here
+  // NOTE! the memory returned in 'data' from getExtraMetadata() is not
+  // released here(and a few error places above)
+  // NOTE! the usage of this function and its functionality is described in
+  // BUG25449055 NDB_RESTORE TRANSLATE FRM FOR USERDEFINED PARTITIOING TABLES
+
   DBUG_RETURN(FALSE);
 }
 

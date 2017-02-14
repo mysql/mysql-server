@@ -24,27 +24,29 @@ Created 3/14/1997 Heikki Tuuri
 *******************************************************/
 
 #include "row0purge.h"
+
 #include "fsp0fsp.h"
+#include "ha_innodb.h"
+#include "handler.h"
+#include "lob0lob.h"
+#include "log0log.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
+#include "my_inttypes.h"
+#include "mysqld.h"
 #include "que0que.h"
+#include "row0log.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
 #include "row0vers.h"
-#include "row0mysql.h"
-#include "row0log.h"
-#include "log0log.h"
 #include "srv0mon.h"
 #include "srv0start.h"
-#include "handler.h"
-#include "ha_innodb.h"
-#include "mysqld.h"
-#include "lob0lob.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 #include "current_thd.h"
 #include "sql_base.h"
@@ -1142,6 +1144,12 @@ row_purge(
 	bool	updated_extern;
 	THD*	thd = current_thd;
 	bool 	dict_op_lock_acquired = false;
+
+	DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
+			while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+				os_thread_sleep(500000);
+			}
+			return;);
 
 	while (row_purge_parse_undo_rec(
 			node, undo_rec, &updated_extern, thd, thr, &dict_op_lock_acquired)) {

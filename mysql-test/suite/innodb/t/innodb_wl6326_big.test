@@ -22,7 +22,6 @@
 #
 
 # WL#6326 is about the sx locks (InnoDB feature only).
---source include/have_innodb.inc
 # Runtime properties:
 # Notebook i5 dual core with HT, MySQL binaries compiled with debug,
 #          max_row_count=10000 rows

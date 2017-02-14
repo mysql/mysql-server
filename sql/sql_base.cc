@@ -21,12 +21,17 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <algorithm>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "check_stack.h"
+#include "dd/dd_table.h"              // dd::table_exists
+#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/abstract_table.h"
+#include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -43,18 +48,23 @@
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "mf_wcomp.h"                 // wild_one, wild_many
+#include "mutex_lock.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
@@ -70,6 +80,7 @@
 #include "query_options.h"
 #include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_rli.h"                  //Relay_log_information
 #include "session_tracker.h"
 #include "sp.h"                       // Sroutine_hash_entry
 #include "sp_cache.h"                 // sp_cache_version
@@ -104,19 +115,6 @@
 #include "transaction.h"              // trans_rollback_stmt
 #include "transaction_info.h"
 #include "xa.h"
-
-#ifdef HAVE_REPLICATION
-#include "rpl_rli.h"                  //Relay_log_information
-#endif
-
-#include <algorithm>
-
-#include "dd/dd_table.h"              // dd::table_exists
-#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
-#include "dd/types/table.h"           // dd::Table
-#include "mutex_lock.h"
-#include "mysql/psi/mysql_file.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -641,7 +639,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     share->error= true; // Allow waiters to detect the error
     share->ref_count--;
     (void) my_hash_delete(&table_def_cache, (uchar*) share);
-#ifndef DBUG_OFF
+#if defined(ENABLED_DEBUG_SYNC)
     if (!thd->is_attachable_ro_transaction_active())
       DEBUG_SYNC(thd, "get_share_after_destroy");
 #endif
@@ -667,7 +665,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(share);
 
 found:
-#ifndef DBUG_OFF
+#if defined(ENABLED_DEBUG_SYNC)
   if (!thd->is_attachable_ro_transaction_active())
     DEBUG_SYNC(thd, "get_share_found_share");
 #endif
@@ -1451,10 +1449,10 @@ static bool belongs_to_dd_table(const TABLE_LIST *tl)
 
 
 /**
- Performance Schema tables must be accessible independently of the LOCK TABLE
- mode. These macros handle the special case of P_S tables being used under
- LOCK TABLE mode.
- Check if the table belongs to the P_S, excluding setup and threads tables.
+  Performance Schema tables must be accessible independently of the LOCK TABLE
+  mode. These macros handle the special case of P_S tables being used under
+  LOCK TABLE mode.
+  Check if the table belongs to the P_S, excluding setup and threads tables.
 */
 static inline bool belongs_to_p_s(TABLE_LIST *tl)
 {
@@ -1774,13 +1772,11 @@ bool close_temporary_tables(THD *thd)
     }
 
     thd->temporary_tables= 0;
-#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       atomic_slave_open_temp_tables -= slave_closed_temp_tables;
       thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -= slave_closed_temp_tables;
     }
-#endif
 
     DBUG_RETURN(FALSE);
   }
@@ -2001,13 +1997,11 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
   thd->temporary_tables=0;
-#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     atomic_slave_open_temp_tables -= slave_closed_temp_tables;
     thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -= slave_closed_temp_tables;
   }
-#endif
 
   DBUG_RETURN(error);
 }
@@ -2381,7 +2375,6 @@ void close_temporary_table(THD *thd, TABLE *table,
     if (thd->temporary_tables)
       table->next->prev= 0;
   }
-#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
@@ -2390,7 +2383,6 @@ void close_temporary_table(THD *thd, TABLE *table,
     --atomic_slave_open_temp_tables;
     --thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
   }
-#endif
   close_temporary(thd, table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
@@ -5758,9 +5750,7 @@ restart:
   sroutine_to_open= &thd->lex->sroutines_list.first;
   *counter= 0;
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_opening_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /*
@@ -6486,9 +6476,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* should not be used in a prelocked_mode context, see NOTE above */
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_opening_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /* open_ltable can be used only for BASIC TABLEs */
@@ -7091,13 +7079,11 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       tmp_table->next->prev= tmp_table;
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
-#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       ++atomic_slave_open_temp_tables;
       ++thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
     }
-#endif
   }
   tmp_table->pos_in_table_list= NULL;
 

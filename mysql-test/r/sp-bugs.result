@@ -214,16 +214,16 @@ BEGIN
 SELECT "PROCEDURE testp_bug11763507";
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'testf_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'TESTF_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='testf_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='TESTF_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;

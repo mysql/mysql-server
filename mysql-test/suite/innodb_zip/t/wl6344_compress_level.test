@@ -9,7 +9,6 @@
 # greater than the
 # the size of the table when compression level=9
 #*******************************************************************
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 USE test;

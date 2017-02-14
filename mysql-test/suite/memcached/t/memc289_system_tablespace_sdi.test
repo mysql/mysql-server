@@ -1,7 +1,6 @@
 # Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
-source include/have_innodb.inc;
 # Memcached SDI APIs are enabled only for debug version
 source include/have_debug.inc;
 

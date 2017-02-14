@@ -21,13 +21,9 @@
   Table replication_group_members (implementation).
 */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
-
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#endif /* EMBEDDED_LIBRARY */
-
 #include "field.h"
 #include "log.h"
 #include "pfs_instr.h"
@@ -35,9 +31,8 @@
 #include "rpl_group_replication.h"
 #include "table.h"
 #include "table_replication_group_members.h"
+#include "table_helper.h"
 #include "thr_lock.h"
-
-#ifdef HAVE_REPLICATION
 
 /*
   Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
@@ -97,7 +92,6 @@ set_member_state(void* const context, const char& value, size_t length)
   row->member_state_length = length;
   memcpy(row->member_state, &value, length);
 }
-#endif /* HAVE_REPLICATION */
 
 THR_LOCK table_replication_group_members::m_table_lock;
 
@@ -174,17 +168,12 @@ table_replication_group_members::reset_position(void)
 ha_rows
 table_replication_group_members::get_row_count()
 {
-#ifdef HAVE_REPLICATION
   return get_group_replication_members_number_info();
-#else
-  return 0;
-#endif /* HAVE_REPLICATION */
 }
 
 int
 table_replication_group_members::rnd_next(void)
 {
-#ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
   {
     return HA_ERR_END_OF_FILE;
@@ -195,7 +184,6 @@ table_replication_group_members::rnd_next(void)
     m_next_pos.set_after(&m_pos);
     return make_row(m_pos.m_index);
   }
-#endif /* HAVE_REPLICATION */
 
   return HA_ERR_END_OF_FILE;
 }
@@ -203,7 +191,6 @@ table_replication_group_members::rnd_next(void)
 int
 table_replication_group_members::rnd_pos(const void* pos MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
   {
     return HA_ERR_END_OF_FILE;
@@ -212,12 +199,8 @@ table_replication_group_members::rnd_pos(const void* pos MY_ATTRIBUTE((unused)))
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < get_row_count());
   return make_row(m_pos.m_index);
-#else
-  return HA_ERR_END_OF_FILE;
-#endif /* HAVE_REPLICATION */
 }
 
-#ifdef HAVE_REPLICATION
 int
 table_replication_group_members::make_row(uint index)
 {
@@ -250,7 +233,6 @@ table_replication_group_members::make_row(uint index)
 
   DBUG_RETURN(0);
 }
-#endif /* HAVE_REPLICATION */
 
 int
 table_replication_group_members::read_row_values(
@@ -259,7 +241,6 @@ table_replication_group_members::read_row_values(
   Field** fields MY_ATTRIBUTE((unused)),
   bool read_all MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   Field* f;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -299,7 +280,4 @@ table_replication_group_members::read_row_values(
     }
   }
   return 0;
-#else
-  return HA_ERR_RECORD_DELETED;
-#endif /* HAVE_REPLICATION */
 }

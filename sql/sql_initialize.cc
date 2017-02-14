@@ -28,6 +28,7 @@
 #include "m_ctype.h"
 #include "my_dir.h"
 #include "my_global.h"
+#include "my_io.h"
 #include "my_rnd.h"
 #include "my_sys.h"
 #include "mysql_com.h"

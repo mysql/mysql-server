@@ -13,7 +13,6 @@
 # Bug #21691396  ER_GTID_NEXT_TYPE_UNDEFINED_GROUP ON BINLOGLESS SLAVE AFTER IO THREAD RECONNECT
 
 --source include/not_group_replication_plugin.inc
---source include/have_gtid.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

@@ -148,7 +148,7 @@ SignalSender::~SignalSender(){
 
 int SignalSender::lock()
 {
-  start_poll();
+  prepare_poll();
   assert(m_locked == false);
   m_locked = true;
   return 0;

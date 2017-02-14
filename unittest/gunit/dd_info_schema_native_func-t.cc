@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -172,6 +172,22 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
 
   // CAN_ACCESS_COLUMN(NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_can_access_column, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // CAN_ACCESS_TRIGGER(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_trigger, TWO_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // CAN_ACCESS_ROUTINE(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_routine,
+              prepare_null_list(null_list, null, 5));
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // CAN_ACCESS_EVENT(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_event, NULL_ARG);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 

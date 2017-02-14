@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,17 +43,16 @@ public:
   virtual void trp_wakeup()
     {};
 
-  Uint32 open(class TransporterFacade*, int blockNo = -1,
-              bool receive_thread = false);
+  Uint32 open(class TransporterFacade*, int blockNo = -1);
   void close();
 
-  void start_poll();
+  void prepare_poll();
   void do_poll(Uint32);
   void complete_poll();
   void wakeup();
 
   void flush_send_buffers();
-  int do_forceSend(int val = 1);
+  int do_forceSend(bool forceSend = true);
 
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId);
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId,
@@ -74,7 +73,7 @@ public:
   void unlock();
   /* Interface used by Multiple NDB waiter code */
   void lock_client();
-  bool check_if_locked(void);
+  bool check_if_locked(void) const;
 
   Uint32 getOwnNodeId() const;
 
@@ -110,7 +109,10 @@ private:
   TransporterFacade * m_facade;
 
   /**
-   * This is used for polling
+   * This is used for polling by the poll_owner:
+   *   A client is 'locked_for_poll' iff it is registered in the 
+   *   m_locked_clients[] array by the poll owner.
+   *   'm_locked_for_poll' also implies 'm_mutex' is locked
    */
   bool m_locked_for_poll;
 public:
@@ -123,11 +125,16 @@ public:
   {
     return m_locked_for_poll;
   }
+
+  bool has_unflushed_sends() const
+  {
+    return m_send_nodes_cnt > 0;
+  }
 private:
   struct PollQueue
   {
     PollQueue();
-    void assert_destroy() const;
+    ~PollQueue();
 
     /**
      * PQ_WAITING - trp_client either waits in the poll-queue, or
@@ -147,28 +154,25 @@ private:
     trp_client *m_prev;
     trp_client *m_next;
     NdbCondition * m_condition;
-
-    /**
-     * This is called by poll owner
-     *   before doing external poll
-     */
-    void start_poll(trp_client* self);
-
-    void lock_client(trp_client*);
-    bool check_if_locked(const trp_client*,
-                         const Uint32 start) const;
-    Uint32 m_locked_cnt;
-    Uint32 m_lock_array_size;
-    trp_client ** m_locked_clients;
   } m_poll;
 
   /**
-   * This is used for sending
+   * This is used for sending.
+   * m_send_nodes_* are the nodes we have pending unflushed
+   * messages to
    */
+  NodeBitmask m_send_nodes_mask;
   Uint32 m_send_nodes_cnt;
   NodeId m_send_nodes_list[MAX_NODES];
-  NodeBitmask m_send_nodes_mask;
+
   TFBuffer* m_send_buffers;
+
+  /**
+   * The m_flushed_nodes_mask are the aggregated set of nodes
+   * we have flushed messages to, which are yet not known to
+   * to have been (force-)sent by the transporter.
+   */
+  NodeBitmask m_flushed_nodes_mask;
 };
 
 class PollGuard
@@ -192,9 +196,9 @@ private:
 
 inline
 bool
-trp_client::check_if_locked()
+trp_client::check_if_locked() const
 {
-  return m_facade->m_poll_owner->m_poll.check_if_locked(this, (Uint32)0);
+  return m_facade->check_if_locked(this, 0);
 }
 
 inline
@@ -203,7 +207,7 @@ trp_client::lock_client()
 {
   if (!check_if_locked())
   {
-    m_facade->m_poll_owner->m_poll.lock_client(this);
+    m_facade->lock_client(this);
   }
 }
 
@@ -220,7 +224,7 @@ inline
 void
 trp_client::unlock()
 {
-  assert(m_send_nodes_mask.isclear()); // Nothing unsent when unlocking...
+  assert(has_unflushed_sends() == false); //Nothing unsent when unlocking...
   assert(m_poll.m_locked == true);
   m_poll.m_locked = false;
   NdbMutex_Unlock(m_mutex);
@@ -276,45 +280,6 @@ trp_client::raw_sendFragmentedSignal(const NdbApiSignal * signal, Uint32 nodeId,
 {
   assert(m_poll.m_locked);
   return m_facade->sendFragmentedSignal(this, signal, nodeId, ptr, secs);
-}
-
-inline
-trp_client::PollQueue::PollQueue()
-{
-  m_waiting = PQ_IDLE;
-  m_locked = false;
-  m_poll_owner = false;
-  m_poll_queue = false;
-  m_next = 0;
-  m_prev = 0;
-  m_condition = NdbCondition_Create();
-  m_locked_cnt = 0;
-  m_lock_array_size = 0;
-  m_locked_clients = NULL;
-}
-
-inline
-void
-trp_client::PollQueue::assert_destroy() const
-{
-  if (m_waiting != PQ_IDLE ||
-      m_locked == true ||
-      m_poll_owner == true ||
-      m_poll_queue == true ||
-      m_next != 0 ||
-      m_prev != 0 ||
-      m_locked_cnt != 0)
-  {
-    ndbout << "ERR: ~trp_client: Deleting trp_clnt in use: waiting"
-	   << m_waiting
-	   << " locked  " << m_locked
-	   << " poll_owner " << m_poll_owner
-	   << " poll_queue " << m_poll_queue
-	   << " next " << m_next
-	   << " prev " << m_prev
-	   << " condition " << m_condition << endl;
-    require(false);
-  }
 }
 
 #endif

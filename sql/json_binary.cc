@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1414,6 +1414,34 @@ Value Value::lookup(const char *key, size_t len) const
 
 
 /**
+  Is this binary value pointing to data that is contained in the specified
+  string.
+
+  @param str     a string with binary data
+  @retval true   if the string contains data pointed to from this object
+  @retval false  otherwise
+*/
+bool Value::is_backed_by(const String *str) const
+{
+  /*
+    The m_data member is only valid for objects, arrays, strings and opaque
+    values. Other types have copied the necessary data into the Value object
+    and do not depend on data in any String object.
+  */
+  switch (m_type)
+  {
+  case OBJECT:
+  case ARRAY:
+  case STRING:
+  case OPAQUE:
+    return m_data >= str->ptr() && m_data < str->ptr() + str->length();
+  default:
+    return false;
+  }
+}
+
+
+/**
   Copy the binary representation of this value into a buffer,
   replacing the contents of the receiving buffer.
 
@@ -1423,6 +1451,9 @@ Value Value::lookup(const char *key, size_t len) const
 */
 bool Value::raw_binary(const THD *thd, String *buf) const
 {
+  // It's not safe to overwrite ourselves.
+  DBUG_ASSERT(!is_backed_by(buf));
+
   // Reset the buffer.
   buf->length(0);
   buf->set_charset(&my_charset_bin);

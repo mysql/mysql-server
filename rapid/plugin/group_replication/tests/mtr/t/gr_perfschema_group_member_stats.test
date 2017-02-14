@@ -140,11 +140,6 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo [ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
 --let $wait_condition= SELECT Count_Transactions_in_queue = 3 from performance_schema.replication_group_member_stats;
 --source include/wait_condition.inc
-if (!$success)
-{
-  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
-  --die Timeout in wait_condition.inc
-}
 
 --connection server1
 --echo server1

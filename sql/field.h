@@ -674,10 +674,10 @@ private:
   bool m_is_tmp_null;
 
   /**
-    The value of THD::count_cuted_fields at the moment of setting
+    The value of THD::check_for_truncated_fields at the moment of setting
     m_is_tmp_null attribute.
   */
-  enum_check_fields m_count_cuted_fields_saved;
+  enum_check_fields m_check_for_truncated_fields_saved;
 
 protected:
   const uchar *get_null_ptr() const
@@ -1219,14 +1219,15 @@ public:
   type_conversion_status check_constraints(int mysql_errno);
 
   /**
-    Remember the value of THD::count_cuted_fields to handle possible
+    Remember the value of THD::check_for_truncated_fields to handle possible
     NOT-NULL constraint errors after BEFORE-trigger execution is finished.
-    We should save the value of THD::count_cuted_fields before starting
+    We should save the value of THD::check_for_truncated_fields before starting
     BEFORE-trigger processing since during triggers execution the
-    value of THD::count_cuted_fields could be changed.
+    value of THD::check_for_truncated_fields could be changed.
   */
-  void set_count_cuted_fields(enum_check_fields count_cuted_fields)
-  { m_count_cuted_fields_saved= count_cuted_fields; }
+  void set_check_for_truncated_fields(
+    enum_check_fields check_for_truncated_fields)
+  { m_check_for_truncated_fields_saved= check_for_truncated_fields; }
 
   bool maybe_null(void) const
   { return real_maybe_null() || table->is_nullable(); }
@@ -1276,6 +1277,12 @@ public:
   virtual void make_field(Send_field *);
 
   /**
+    Returns whether make_sort_key() writes variable-length sort keys,
+    ie., whether it can return fewer bytes than it's asked for.
+  */
+  virtual bool sort_key_is_varlen() const { return false; }
+
+  /**
     Writes a copy of the current value in the record buffer, suitable for
     sorting using byte-by-byte comparison. Integers are always in big-endian
     regardless of hardware architecture. At most length bytes are written
@@ -1284,8 +1291,12 @@ public:
     @param buff The buffer, assumed to be at least length bytes.
 
     @param length Number of bytes to write.
+
+    @retval The number of bytes actually written. Note that unless
+      sort_key_is_varlen() returns true, this must be exactly the same
+      as length.
   */
-  virtual void make_sort_key(uchar *buff, size_t length) = 0;
+  virtual size_t make_sort_key(uchar *buff, size_t length) = 0;
   virtual bool optimize_range(uint idx, uint part);
   /*
     This should be true for fields which, when compared with constant
@@ -1485,14 +1496,15 @@ public:
 
     @note
       This function won't produce warning and increase cut fields counter
-      if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+      if check_for_truncated_fields == CHECK_FIELD_IGNORE for current thread.
 
-      if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+      if check_for_truncated_fields == CHECK_FIELD_IGNORE then we ignore notes.
       This allows us to avoid notes in optimization, like
       convert_constant_item().
 
     @retval
-      1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+      1 if check_for_truncated_fields == CHECK_FIELD_IGNORE and error level
+      is not NOTE
     @retval
       0 otherwise
   */
@@ -1979,7 +1991,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
@@ -2045,7 +2057,7 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   String *val_str(String*, String *);
   int cmp(const uchar *, const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return field_length; }
@@ -2094,7 +2106,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
@@ -2158,7 +2170,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 6; }
@@ -2218,7 +2230,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 8; }
@@ -2285,7 +2297,7 @@ public:
   bool send_binary(Protocol *protocol);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
@@ -2353,7 +2365,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return true; }
@@ -2417,7 +2429,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return sizeof(float); }
   uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
@@ -2479,7 +2491,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return sizeof(double); }
   uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
@@ -2546,7 +2558,7 @@ public:
   String *val_str(String*, String *value2)
   { value2->length(0); return value2;}
   int cmp(const uchar*, const uchar*) { return 0;}
-  void make_sort_key(uchar*, size_t)  {}
+  size_t make_sort_key(uchar*, size_t len)  { return len; }
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
@@ -2704,11 +2716,11 @@ protected:
     @param[in] code            Warning code
     @param[in] val             Warning parameter
     @param[in] ts_type         Timestamp type (time, date, datetime, none)
-    @param[in] cut_increment   Incrementing of cut field counter
+    @param[in] truncate_increment  Incrementing of truncated field counter
   */
   void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString val,
-                            timestamp_type ts_type, int cut_increment);
+                            timestamp_type ts_type, int truncate_increment);
 public:
   /**
     Constructor for Field_temporal
@@ -2949,7 +2961,10 @@ public:
 
   uint decimals() const { return dec; }
   const CHARSET_INFO *sort_charset() const { return &my_charset_bin; }
-  void make_sort_key(uchar *to, size_t length) { memcpy(to, ptr, length); }
+  size_t make_sort_key(uchar *to, size_t length) {
+    memcpy(to, ptr, length);
+    return length;
+  }
   int cmp(const uchar *a_ptr, const uchar *b_ptr)
   {
     return memcmp(a_ptr, b_ptr, pack_length());
@@ -2987,7 +3002,7 @@ public:
   }
   longlong val_int(void);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 0; }
@@ -3151,7 +3166,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3267,7 +3282,7 @@ public:
   longlong val_time_temporal();
   bool get_time(MYSQL_TIME *ltime);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3355,7 +3370,11 @@ public:
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
   const CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
-  void make_sort_key(uchar *to, size_t length) { memcpy(to, ptr, length); }
+  size_t make_sort_key(uchar *to, size_t length)
+  {
+    memcpy(to, ptr, length);
+    return length;
+  }
   int cmp(const uchar *a_ptr, const uchar *b_ptr)
   {
     return memcmp(a_ptr, b_ptr, pack_length());
@@ -3412,7 +3431,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3553,7 +3572,7 @@ public:
   String *val_str(String*,String *);
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -3645,7 +3664,7 @@ public:
   {
     return cmp_max(a, b, ~0L);
   }
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   size_t get_key_image(uchar *buff, size_t length, imagetype type);
   void set_key_image(const uchar *buff, size_t length);
   void sql_type(String &str) const;
@@ -3793,7 +3812,7 @@ public:
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
   uint32 key_length() const { return 0; }
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const
   { return (uint32) (packlength + portable_sizeof_char_ptr); }
 
@@ -4082,32 +4101,32 @@ public:
     :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
   {}
 
-  enum_field_types type() const { return MYSQL_TYPE_JSON; }
-  void sql_type(String &str) const;
+  enum_field_types type() const override { return MYSQL_TYPE_JSON; }
+  void sql_type(String &str) const override;
   /**
     Return a text charset so that string functions automatically
     convert the field value to string and treat it as a non-binary
     string.
   */
-  const CHARSET_INFO *charset() const { return &my_charset_utf8mb4_bin; }
+  const CHARSET_INFO *charset() const override { return &my_charset_utf8mb4_bin; }
   /**
     Sort should treat the field as binary and not attempt any
     conversions.
   */
-  const CHARSET_INFO *sort_charset() const { return field_charset; }
+  const CHARSET_INFO *sort_charset() const override { return field_charset; }
   /**
     JSON columns don't have an associated charset. Returning false
     here prevents SHOW CREATE TABLE from attaching a CHARACTER SET
     clause to the column.
   */
-  bool has_charset() const { return false; }
+  bool has_charset() const override { return false; }
   type_conversion_status store(const char *to, size_t length,
-                               const CHARSET_INFO *charset);
-  type_conversion_status store(double nr);
-  type_conversion_status store(longlong nr, bool unsigned_val);
-  type_conversion_status store_decimal(const my_decimal *);
+                               const CHARSET_INFO *charset) override;
+  type_conversion_status store(double nr) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override;
+  type_conversion_status store_decimal(const my_decimal *) override;
   type_conversion_status store_json(Json_wrapper *json);
-  type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg);
+  type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg) override;
   type_conversion_status store(Field_json *field);
 
   /**
@@ -4126,7 +4145,7 @@ public:
 
     @returns the JSON value as an int
   */
-  longlong val_int();
+  longlong val_int() override;
 
   /**
    Retrieve the JSON as a double if possible. This requires a JSON scalar
@@ -4134,7 +4153,7 @@ public:
 
    @returns the JSON value as a double
    */
-  double val_real();
+  double val_real() override;
 
   /**
     Retrieve the JSON value stored in this field as text
@@ -4142,15 +4161,16 @@ public:
     @param[in,out] buf1 string buffer for converting JSON value to string
     @param[in,out] buf2 unused
   */
-  String *val_str(String *buf1, String *buf2);
-  my_decimal *val_decimal(my_decimal *m);
-  bool get_time(MYSQL_TIME *ltime);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  Field_json *clone(MEM_ROOT *mem_root) const;
-  Field_json *clone() const;
-  uint is_equal(const Create_field *new_field);
-  Item_result cast_to_int_type () const { return INT_RESULT; }
-  void make_sort_key(uchar *to, size_t length);
+  String *val_str(String *buf1, String *buf2) override;
+  my_decimal *val_decimal(my_decimal *m) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  Field_json *clone(MEM_ROOT *mem_root) const override;
+  Field_json *clone() const override;
+  uint is_equal(const Create_field *new_field) override;
+  Item_result cast_to_int_type () const override { return INT_RESULT; }
+  bool sort_key_is_varlen() const override { return true; }
+  size_t make_sort_key(uchar *to, size_t length) override;
 
   /**
     Make a hash key that can be used by sql_executor.cc/unique_hash
@@ -4194,7 +4214,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void make_sort_key(uchar *buff, size_t length);
+  size_t make_sort_key(uchar *buff, size_t length);
   uint32 pack_length() const { return (uint32) packlength; }
   void store_type(ulonglong value);
   void sql_type(String &str) const;
@@ -4337,8 +4357,10 @@ public:
   size_t get_key_image(uchar *buff, size_t length, imagetype type);
   void set_key_image(const uchar *buff, size_t length)
   { Field_bit::store((char*) buff, length, &my_charset_bin); }
-  void make_sort_key(uchar *buff, size_t length)
-  { get_key_image(buff, length, itRAW); }
+  size_t make_sort_key(uchar *buff, size_t length) {
+    get_key_image(buff, length, itRAW);
+    return length;
+  }
   uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
   uint pack_length_from_metadata(uint field_metadata);

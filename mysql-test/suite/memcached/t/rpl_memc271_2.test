@@ -5,7 +5,6 @@ source include/not_valgrind.inc;
 # both with binlog-format=mixed.
 #
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");

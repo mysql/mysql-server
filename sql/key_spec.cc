@@ -24,6 +24,7 @@
 #include "field.h"       // Create_field
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql_class.h"   // THD

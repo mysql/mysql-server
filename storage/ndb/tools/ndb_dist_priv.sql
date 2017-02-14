@@ -31,6 +31,12 @@ reads sql data
 begin
  declare distributed bool default 0;
 
+ -- Ignore warning 3090 ER_WARN_DEPRECATED_SQLMODE when
+ -- resetting sql_mode to the original value
+ declare continue handler for 3090 begin end;
+ SET @sql_mode_orig=@@SESSION.sql_mode;
+ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+ 
  select COUNT(table_name) = 6
    into distributed
      from information_schema.tables
@@ -41,6 +47,7 @@ begin
              table_type = 'BASE TABLE' and
              engine = 'NDBCLUSTER';
 
+ SET SESSION sql_mode=@sql_mode_orig;
  return distributed;
 end|
 
@@ -55,6 +62,12 @@ begin
  -- source tables are known to hold invalid timestamp
  -- values in the Timestamp column but should be copied anyway
  declare continue handler for 1292 begin end;
+
+ -- Ignore warning 3090 ER_WARN_DEPRECATED_SQLMODE when
+ -- resetting sql_mode to the original value
+ declare continue handler for 3090 begin end;
+ SET @sql_mode_orig=@@SESSION.sql_mode;
+ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
 
  select mysql.mysql_cluster_privileges_are_distributed()
    into distributed_privileges;
@@ -75,9 +88,6 @@ begin
      like mysql.columns_priv;
    create table if not exists mysql.procs_priv_backup
      like mysql.procs_priv;
-   -- Remove possibly illegal timestamps in mysql.proxies_priv
-   update mysql.proxies_priv set Timestamp = current_timestamp
-   where Timestamp = timestamp(0);
    create table if not exists mysql.proxies_priv_backup
      like mysql.proxies_priv;
    if distributed_privileges = 1 then
@@ -139,11 +149,19 @@ begin
  insert into mysql.ndb_columns_priv_backup select * from mysql.columns_priv;
  insert into mysql.ndb_procs_priv_backup select * from mysql.procs_priv;
  insert into mysql.ndb_proxies_priv_backup select * from mysql.proxies_priv;
+ SET SESSION sql_mode=@sql_mode_orig;
 end|
 
 create procedure mysql.mysql_cluster_restore_privileges_from_local()
 begin
  declare local_backup bool default 0;
+
+ -- Ignore warning 3090 ER_WARN_DEPRECATED_SQLMODE when
+ -- resetting sql_mode to the original value
+ declare continue handler for 3090 begin end;
+ SET @sql_mode_orig=@@SESSION.sql_mode;
+ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+
  select 1 into local_backup
    from information_schema.tables
     where table_schema = "mysql" and table_name = "user_backup";
@@ -173,11 +191,19 @@ begin
    delete from mysql.proxies_priv;
    insert into mysql.proxies_priv select * from mysql.proxies_priv_backup;
  end if;
+ SET SESSION sql_mode=@sql_mode_orig;
 end|
 
 create procedure mysql.mysql_cluster_restore_privileges()
 begin
  declare distributed_backup bool default 0;
+
+ -- Ignore warning 3090 ER_WARN_DEPRECATED_SQLMODE when
+ -- resetting sql_mode to the original value
+ declare continue handler for 3090 begin end;
+ SET @sql_mode_orig=@@SESSION.sql_mode;
+ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+
  select 1 into distributed_backup
    from information_schema.tables
      where table_schema = "mysql" and table_name = "ndb_user_backup";
@@ -216,11 +242,19 @@ begin
  else
    call mysql_cluster_restore_privileges_from_local();
  end if;
+ SET SESSION sql_mode=@sql_mode_orig;
 end|
 
 create procedure mysql.mysql_cluster_restore_local_privileges()
 begin
  declare distributed_privileges bool default 0;
+
+ -- Ignore warning 3090 ER_WARN_DEPRECATED_SQLMODE when
+ -- resetting sql_mode to the original value
+ declare continue handler for 3090 begin end;
+ SET @sql_mode_orig=@@SESSION.sql_mode;
+ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+
  select mysql.mysql_cluster_privileges_are_distributed()
    into distributed_privileges;
  if distributed_privileges = 1 then
@@ -234,12 +268,20 @@ begin
   end;
  end if;
  call mysql_cluster_restore_privileges_from_local();
+ SET SESSION sql_mode=@sql_mode_orig;
 end|
 
 create procedure mysql.mysql_cluster_move_grant_tables()
 begin
  declare distributed_privileges bool default 0;
  declare revert bool default 0;
+
+ -- Ignore warning 3090 ER_WARN_DEPRECATED_SQLMODE when
+ -- resetting sql_mode to the original value
+ declare continue handler for 3090 begin end;
+ SET @sql_mode_orig=@@SESSION.sql_mode;
+ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+
  select mysql.mysql_cluster_privileges_are_distributed()
    into distributed_privileges;
  if distributed_privileges = 0 then
@@ -250,15 +292,13 @@ begin
    alter table mysql.tables_priv algorithm = copy, engine = ndb;
    alter table mysql.columns_priv algorithm = copy, engine = ndb;
    alter table mysql.procs_priv algorithm = copy, engine = ndb;
-   -- Remove possibly illegal timestamps in mysql.proxies_priv
-   update mysql.proxies_priv set Timestamp = current_timestamp
-   where Timestamp = timestamp(0);
    alter table mysql.proxies_priv algorithm = copy, engine = ndb;
   end;
  end if;
  if revert = 1 then
    call mysql_cluster_restore_privileges();
  end if;
+ SET SESSION sql_mode=@sql_mode_orig;
 end|
 
 create procedure mysql.mysql_cluster_move_privileges()

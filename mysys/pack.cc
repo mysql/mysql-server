@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "mysql_com.h"
-#include "mysql.h"
 #include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_global.h"
+#include "my_inttypes.h"
+#include "mysql.h"
+#include "mysql_com.h"
 
 /* Get the length of next field. Change parameter to point at fieldstart */
 ulong STDCALL net_field_length(uchar **packet)

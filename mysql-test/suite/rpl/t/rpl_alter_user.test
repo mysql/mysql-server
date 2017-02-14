@@ -39,6 +39,8 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
+# slave's GTID log events are 7 bytes larger than the same events on master
+--let $binlog_start= `SELECT $saved_master_pos + 7`
 --source include/show_binlog_events.inc
 # Reset the flag
 --connection master
@@ -73,6 +75,8 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
+# slave's GTID log events are 7 bytes larger than the same events on master
+--let $binlog_start= `SELECT $saved_master_pos + 21`
 --source include/show_binlog_events.inc
 # Reset the flag
 --connection master

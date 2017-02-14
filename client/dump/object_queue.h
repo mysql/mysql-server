@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,13 +22,14 @@
 #include <map>
 #include <queue>
 
-#include "i_object_reader.h"
-#include "abstract_object_reader_wrapper.h"
 #include "abstract_dump_task.h"
+#include "abstract_object_reader_wrapper.h"
 #include "base/abstract_program.h"
-#include "thread_group.h"
-#include "base/mutex.h"
 #include "base/atomic.h"
+#include "base/mutex.h"
+#include "i_object_reader.h"
+#include "my_inttypes.h"
+#include "thread_group.h"
 
 namespace Mysql{
 namespace Tools{

@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   We use Git for source management.
 
   You should use the TRUNK source tree (currently called
-  "mysql-trunk") for all new developments. To download and set
+  "mysql-trunk") for all new development. To download and set
   up the public development branch, use these commands:
 
   ~~~~~~~~~~~~~~~~
@@ -57,8 +57,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 /**
   @page INDENTATION_SPACING Indentation and Spacing
 
-  - For indentation use space; do not use the tab (\\t)
-    character. See the editor configuration tips at the end
+  - For indentation, use space characters, not tab (\\t)
+    characters. See the editor configuration tips at the end
     of this section for instructions on configuring a vim or
     emacs editor to use spaces instead of tabs.
 
@@ -95,7 +95,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   ~~~~~~~~~~~~~~~~
 
 
-  - An exception to the rule above: namespaces (named or
+  - An exception to the preceding rule: namespaces (named or
     unnamed) do not introduce a new level of indentation.
     Example:
 
@@ -143,8 +143,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   ~~~~~~~~~~~~~~~~
 
 
-  - Matching '{}' (left and right braces) should be in the
-    same column, that is, the closing '}' should be directly
+  - Align matching '{}' (left and right braces) in the
+    same column; that is, the closing '}' should be directly
     below the opening '{'. Do not put any non-space
     characters on the same line as a brace, not even a
     comment. Indent within braces. Exception: if there is
@@ -176,7 +176,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   }
   ~~~~~~~~~~~~~~~~
 
-  - You may align variable declarations like this:
+  - Align variable declarations like this:
 
   ~~~~~~~~~~~~~~~~
   Type      value;
@@ -185,14 +185,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   ~~~~~~~~~~~~~~~~
 
 
-  - Assignment : For new projects Google style should be
-    followed. Traditional assignment rules for mysql are
-    listed here. For old projects/components mysql old
-    style can be used for time being.
+  - Assignment: For new projects, follow Google style.
+    Traditional assignment rules for MySQL are
+    listed here. For old projects/components, use the old MySQL
+    style for the time being.
 
   - When assigning to a variable, put zero spaces after the
     target variable name, then the assignment operator
-    ('=''+=' etc.), then space(s). For single assignments,
+    ('=', '+=', etc.), then space(s). For single assignments,
     there should be only one space after the equal sign. For
     multiple assignments, add additional spaces so that the
     source values line up. For example:
@@ -234,7 +234,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
   - Put spaces both before and after binary comparison
     operators ('>', '==', '>=', etc.), binary arithmetic
-    operators ('+' etc.), and binary Boolean operators ('||'
+    operators ('+', etc.), and binary Boolean operators ('||',
     etc.). Do not put spaces around unary operators like '!'
     or '++'. Do not put spaces around [de-]referencing
     operators like '->' or '[]'. Do not put space after '*'
@@ -273,10 +273,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
     *val++;
   ~~~~~~~~~~~~~~~~
 
-  - In function declarations and invocations: there is no
-    space between function name and '('; there is no space or
-    line break between '(' and the first argument; if the
-    arguments do not fit on one line then align them.
+  - In function declarations and invocations: There is no
+    space between function name and '('. There is no space or
+    line break between '(' and the first argument. If the
+    arguments do not fit on one line, align them.
     Examples:
 
   ~~~~~~~~~~~~~~~~
@@ -297,7 +297,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   long_long_method_name(const char *long_long_arg1, size_t long_long_arg2,
                         Long_long_type *arg3)
   ~~~~~~~~~~~~~~~~
-  (You may but don't have to split Class_name::method_name into
+  (You may but need not split Class_name::method_name into
   two lines.) When arguments do not fit on one line, consider
   renaming them.
 
@@ -332,9 +332,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
   - Avoid capitalization except for class names; class names
     should begin with a capital letter.
-    This is an exception from google coding guidelines. It is
+    This exception from Google coding guidelines exists
     because the server has a history of using My_class. It will
-    be confusing with mixing the two (from a code review perspective).
+    be confusing to mix the two (from a code-review perspective).
 
   ~~~~~~~~~~~~~~~~
   class Item;
@@ -346,10 +346,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
     that begin or end with '_'.
 
   - Use long function and variable names in English. This
-    will make your code easier to read for all developers.
+    makes your code easier to read for all developers.
 
   - We used to have the rule: "Structure types are typedef'ed
-    to an all-upper-case identifier." This has been
+    to an all-upper-case identifier." That rule has been
     deprecated for C++ code. Do not add typedefs for
     structs/classes in C++
 
@@ -364,9 +364,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   - Function declarations (forward declarations) have
     parameter names in addition to parameter types.
 
-  - Member variables names : Use m_foo (non-static) and
-    s_foo (static). It is different from google coding style
-    as it is an improvement over it.
+  - Member variable names: Do not use foo_. Instead, use
+    m_foo (non-static) and s_foo (static), which
+    are improvements over the Google style.
 */
 
 
@@ -377,10 +377,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
     may think is not trivial.
 
   - Comments for pure virtual functions, documentation for
-    API usage should be placed in front of (member, or
-    non-member) function declarations. Description of
+    API usage should precede (member, or
+    non-member) function declarations. Descriptions of
     implementation details, algorithms, anything that does
-    not impact usage, should be put in front of
+    not impact usage, should precede the
     implementation. Please try to not duplicate information.
     Make a reference to the declaration from the
     implementation if necessary. If the implementation and
@@ -388,7 +388,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
     interface to the implementation, and keep the entire
     comment in a single place.
 
-  - Class comments should be put in front of class
+  - Class comments should precede the class
     declaration.
 
   - When writing multi-line comments please put the '<em>*</em>' and
@@ -400,7 +400,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   <table style="background-color:#E0E0E0"><tr><td style="width:670px"><pre>
   /<em>*</em>
     This is how a multi-line comment in the middle of code
-    should look.  Note it is not Doxygen-style if it's not at the
+    should look.  Note it is not Doxygen-style if it is not at the
     beginning of a code enclosure (function or class).
   <em>*</em>/
 
@@ -417,7 +417,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   /<em>*</em> We must check if stack_size = Solaris 2.9 can return 0 here.
   <em>*</em>/</td></tr></table></div>
 
-  - Single-line comments like this are OK in C++
+  - Single-line comments like this are okay in C++.
 
   <div style="margin-left:30px">
   <table style="background-color:#E0E0E0"><tr><td style="width:670px">
@@ -429,7 +429,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
     either /<em>*</em> ... *<em></em>/ or a // double slash. In C files or in
     header files used by C files, avoid // comments.
 
-  - Align short side // or /<em>*</em> ... <em>*</em>/ comments by 48 column
+  - Align short side // or /<em>*</em> ... <em>*</em>/ comments by 48th column
     (start the comment in column 49).
 
   <div style="margin-left:30px">
@@ -438,7 +438,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   </td></tr></table></div>
 
   - When commenting members of a structure or a class, align
-    comments by 48th column. If a comment doesn't fit into
+    comments by 48th column. If a comment does not fit into
     one line, move it to a separate line. Do not create
     multiline comments aligned by 48th column.
 
@@ -465,13 +465,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   - Each standalone comment must start with a Capital letter.
 
   - There is a '.' at the end of each statement in a comment
-    paragraph (for the last one as well).
+    paragraph, including the last one.
 
   <div style="margin-left:30px">
   <table style="background-color:#E0E0E0"><tr><td style="width:670px"><pre>
   /<em>*</em>
     This is a standalone comment. The comment is aligned to fit 79
-    characters per line. There is a dot at the end of each sentence.
+    characters per line. There is a period at the end of each sentence.
     Including the last one.
   <em>*</em>/</pre>
   </td></tr></table></div>
@@ -488,23 +488,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
         for additional information.
 
       + Note the IN and OUT parameters. IN is implicit, and
-        can (but usually shouldn't) be specified with tag
-        \@param[in]. For OUT and INOUT parameters you should
-        use tags \@param[out] and \@param[in,out]
+        can (but usually should not) be specified with the
+        \@param[in] tag. For OUT and INOUT parameters you should
+        use \@param[out] and \@param[in,out] tags,
         respectively.
 
       + Parameter specifications in \@param section start
         with lowercase and are not terminated with a full
         stop/period.
 
-      + Section headers are aligned at 2 spaces. This must
+      + Section headers are aligned at two spaces. This must
         be a sentence with a full stop/period at the end.
         If the sentence must express a subject that
         contains a full stop such that Doxygen would be
         fooled into stopping early, then use \@brief and
         \@details to explicitly mark them.
 
-      + Align \@retval specifications at 4 spaces if they
+      + Align \@retval specifications at four spaces if they
         follow a \@return description. Else, align at two
         spaces.
 
@@ -545,15 +545,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   @page HEADER_FILE Header Files
 
   - Use header guards. Put the header guard in the first
-    line of the header, before the copyright. Use
+    line of the header, before the copyright. Use an
     all-uppercase name for the header guard. Derive the
-    header guard name from the file name, and append
-    _INCLUDED to create a macro name. Example: sql_base.h ->
-    SQL_BASE_INCLUDED.
+    header guard name from the file base name, and append
+    _INCLUDED to create a macro name. Example: sql_show.h ->
+    SQL_SHOW_INCLUDED.
 
-  - Include directives shall be first in the file. In class
-    implementation, include the header file with class
-    declaration before all other header files, to make sure
+  - Include directives shall be first in the file. In a class
+    implementation, include the header file containing the class
+    declaration before all other header files, to ensure
     that the header is self-sufficient.
 
   - Every header file should be self-sufficient in the sense
@@ -564,9 +564,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   #include "my_header.h"
   ~~~~~~~~~~~~~~~~
 
-  An exception is made for generated files, for example, those
-  generated by Yacc and Lex, since it is not possible to
-  re-write the generators to produce "correct" files.
+  An exception is made for generated files; for example, those
+  generated by Yacc and Lex, because it is not possible to
+  rewrite the generators to produce "correct" files.
 */
 
 
@@ -686,7 +686,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
     - warning
 
-      When something doesn't go the usual route or may be wrong.
+      When something does not go the usual route or may be wrong.
 
     - error
 

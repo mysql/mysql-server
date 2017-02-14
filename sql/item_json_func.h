@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "mem_root_array.h"     // Mem_root_array
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
@@ -155,10 +156,9 @@ public:
     m_path_cache(thd, arg_count)
   {}
 
-  enum_field_types field_type() const override { return MYSQL_TYPE_JSON; }
-
   bool resolve_type(THD *) override
   {
+    set_data_type(MYSQL_TYPE_JSON);
     max_length= MAX_BLOB_WIDTH;
     maybe_null= true;
     collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
@@ -696,8 +696,8 @@ public:
      Any interior character could be replaced by a 6 character
      escape sequence. Plus we will add 2 framing quote characters.
     */
-    uint32 max_char_length= (6 * args[0]->max_length) + 2;
-    fix_length_and_charset(max_char_length, &my_charset_utf8mb4_bin);
+    uint32 max_char_length= (6 * args[0]->max_char_length()) + 2;
+    set_data_type_string(max_char_length, &my_charset_utf8mb4_bin);
     return false;
   };
 
@@ -724,7 +724,7 @@ public:
   bool resolve_type(THD *) override
   {
     maybe_null= true;
-    fix_length_and_charset(args[0]->max_length, &my_charset_utf8mb4_bin);
+    set_data_type_string(args[0]->max_char_length(), &my_charset_utf8mb4_bin);
     return false;
   };
 
@@ -742,9 +742,9 @@ public:
 
   const char *func_name() const override { return "json_pretty"; }
 
-  bool resolve_type(THD *thd) override
+  bool resolve_type(THD*) override
   {
-    fix_length_and_charset(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
+    set_data_type_string(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
     return false;
   }
 

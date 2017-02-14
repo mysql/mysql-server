@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "handler.h"
 #include "item.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "partition_info.h"     // check_partition_tablespace_names()
@@ -41,7 +42,6 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"          // prepare_index_and_data_dir_path()
-#include "partition_info.h"     // has_external_data_or_index_dir
 #include "sql_select.h"         // handle_query()
 #include "sql_table.h"          // mysql_create_like_table()
 #include "sql_tablespace.h"     // check_tablespace_name()

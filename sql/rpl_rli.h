@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -263,6 +265,13 @@ public:
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
+
+  /**
+    Variable is set to true as long as
+    original_commit_timestamp > immediate_commit_timestamp so that the
+    corresponding warning is only logged once.
+  */
+  bool gtid_timestamps_warning_logged;
 
   /*
     Let's call a group (of events) :
@@ -536,6 +545,10 @@ public:
     The timestamp is set and reset in @c sql_slave_killed().
   */
   time_t last_event_start_time;
+
+  /* The original master commit timestamp in microseconds since epoch */
+  uint64 original_commit_timestamp;
+
   /*
     A container to hold on Intvar-, Rand-, Uservar- log-events in case
     the slave is configured with table filtering rules.

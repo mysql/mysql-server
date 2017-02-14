@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 
 let newdir= $MYSQLTEST_VARDIR/tmp/log_corruption;

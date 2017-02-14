@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,9 +49,13 @@
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
@@ -193,8 +197,6 @@ typedef struct rpl_event_coordinates
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
-
-#ifdef MYSQL_SERVER
 
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
@@ -568,12 +570,12 @@ public:
   Discrete_intervals_list auto_inc_intervals_forced;
   ulonglong current_found_rows;
   ulonglong previous_found_rows;
-  ha_rows    cuted_fields, sent_row_count, examined_row_count;
+  ha_rows    num_truncated_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log;
   SAVEPOINT *savepoints;
-  enum enum_check_fields count_cuted_fields;
+  enum enum_check_fields check_for_truncated_fields;
 };
 
 
@@ -1352,7 +1354,6 @@ public:
   static bool binlog_row_event_extra_data_eq(const uchar* a,
                                              const uchar* b);
 
-#ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
   /*
@@ -1531,8 +1532,6 @@ public:
 
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
-
-#endif /* MYSQL_CLIENT */
 
 private:
   std::unique_ptr<Transaction_ctx> m_transaction;
@@ -1929,7 +1928,7 @@ public:
     m_row_count_func= row_count_func;
   }
 
-  ha_rows    cuted_fields;
+  ha_rows    num_truncated_fields;
 
 private:
   /**
@@ -2143,7 +2142,7 @@ public:
   */
   int thd_tx_priority;
 
-  enum_check_fields count_cuted_fields;
+  enum_check_fields check_for_truncated_fields;
 
   // For user variables replication
   Prealloced_array<Binlog_user_var_event*, 2> user_var_events;
@@ -2475,7 +2474,6 @@ public:
   /** Disconnect the associated communication endpoint. */
   void disconnect(bool server_shutdown= false);
 
-#ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
     /* The query can be logged in row format or in statement format. */
     ROW_QUERY_TYPE,
@@ -2490,7 +2488,6 @@ public:
                    const char *query, size_t query_len, bool is_trans,
                    bool direct, bool suppress_use,
                    int errcode);
-#endif
 
   // Begin implementation of MDL_context_owner interface.
 
@@ -3088,14 +3085,12 @@ public:
     DBUG_VOID_RETURN;
   }
 
-#ifdef HAVE_REPLICATION
   /**
     Copies variables.gtid_next to
     ((Slave_worker *)rli_slave)->currently_executing_gtid,
     if this is a slave thread.
   */
   void set_currently_executing_gtid_for_slave_thread();
-#endif
 
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
@@ -4311,7 +4306,5 @@ inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *ht
 }
 
 /*************************************************************************/
-
-#endif /* MYSQL_SERVER */
 
 #endif /* SQL_CLASS_INCLUDED */

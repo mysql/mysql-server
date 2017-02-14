@@ -26,7 +26,6 @@
 --let $skip_recovery_configuration=1
 --source include/have_binlog_format_row.inc
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 --let $group_replication_group_name= 56ada920-9d9f-11e4-bd06-0800200c9a66
 

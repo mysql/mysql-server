@@ -1,6 +1,5 @@
 # This is the basic function tests for innodb FTS
 
--- source include/have_innodb.inc
 
 # Create FTS table
 CREATE TABLE articles (

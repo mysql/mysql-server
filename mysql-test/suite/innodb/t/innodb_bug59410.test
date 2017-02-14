@@ -1,7 +1,6 @@
 #
 # Bug#59410 read uncommitted: unlock row could not find a 3 mode lock on the record
 #
--- source include/have_innodb.inc
 
 # only interested that the following do not produce something like
 # InnoDB: Error: unlock row could not find a 2 mode lock on the record

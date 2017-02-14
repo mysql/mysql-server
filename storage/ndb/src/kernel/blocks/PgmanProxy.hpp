@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,15 +105,15 @@ protected:
   int drop_page(Page_cache_client& caller,
                 Local_key key, Uint32 page_id);
 
-  Uint32 create_data_file(Signal*);
+  Uint32 create_data_file(Signal*, Uint32 version);
 
-  Uint32 alloc_data_file(Signal*, Uint32 file_no);
+  Uint32 alloc_data_file(Signal*, Uint32 file_no, Uint32 version);
 
   void map_file_no(Signal*, Uint32 file_no, Uint32 fd);
 
   void free_data_file(Signal*, Uint32 file_no, Uint32 fd);
 
-  void send_data_file_ord(Signal*, Uint32 i, Uint32 ret,
+  void send_data_file_ord(Signal*, Uint32 i, Uint32 ret, Uint32 version,
                           Uint32 cmd, Uint32 file_no = RNIL, Uint32 fd = RNIL);
 };
 

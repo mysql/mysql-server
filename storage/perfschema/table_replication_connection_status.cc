@@ -21,13 +21,9 @@
   Table replication_connection_status (implementation).
 */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
-
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#endif /* EMBEDDED_LIBRARY */
-
 #include "log.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
@@ -39,8 +35,6 @@
 #include "rpl_slave.h"
 #include "sql_parse.h"
 #include "table_replication_connection_status.h"
-
-#ifdef HAVE_REPLICATION
 
 /*
   Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.
@@ -83,8 +77,6 @@ set_service_state(void *const context, bool value)
   row->service_state =
     value ? PS_RPL_CONNECT_SERVICE_STATE_YES : PS_RPL_CONNECT_SERVICE_STATE_NO;
 }
-
-#endif /* HAVE_REPLICATION */
 
 THR_LOCK table_replication_connection_status::m_table_lock;
 
@@ -166,7 +158,6 @@ PFS_engine_table_share table_replication_connection_status::m_share = {
   false  /* perpetual */
 };
 
-#ifdef HAVE_REPLICATION
 bool
 PFS_index_rpl_connection_status_by_channel::match(Master_info *mi)
 {
@@ -225,7 +216,6 @@ PFS_index_rpl_connection_status_by_thread::match(Master_info *mi)
 
   return true;
 }
-#endif
 
 PFS_engine_table *
 table_replication_connection_status::create(void)
@@ -252,12 +242,8 @@ table_replication_connection_status::reset_position(void)
 ha_rows
 table_replication_connection_status::get_row_count()
 {
-#ifdef HAVE_REPLICATION
   /*A lock is not needed for an estimate */
   return channel_map.get_max_channels();
-#else
-  return 0;
-#endif /* HAVE_REPLICATION */
 }
 
 int
@@ -265,7 +251,6 @@ table_replication_connection_status::rnd_next(void)
 {
   int res = HA_ERR_END_OF_FILE;
 
-#ifdef HAVE_REPLICATION
   Master_info *mi = NULL;
 
   channel_map.rdlock();
@@ -284,7 +269,6 @@ table_replication_connection_status::rnd_next(void)
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
 
   return res;
 }
@@ -295,7 +279,6 @@ table_replication_connection_status::rnd_pos(
 {
   int res = HA_ERR_RECORD_DELETED;
 
-#ifdef HAVE_REPLICATION
   Master_info *mi;
 
   set_position(pos);
@@ -308,7 +291,6 @@ table_replication_connection_status::rnd_pos(
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
 
   return res;
 }
@@ -317,7 +299,6 @@ int
 table_replication_connection_status::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool)
 {
-#ifdef HAVE_REPLICATION
   PFS_index_rpl_connection_status *result = NULL;
 
   switch (idx)
@@ -334,7 +315,6 @@ table_replication_connection_status::index_init(uint idx MY_ATTRIBUTE((unused)),
   }
   m_opened_index = result;
   m_index = result;
-#endif
   return 0;
 }
 
@@ -343,7 +323,6 @@ table_replication_connection_status::index_next(void)
 {
   int res = HA_ERR_END_OF_FILE;
 
-#ifdef HAVE_REPLICATION
   Master_info *mi = NULL;
 
   channel_map.rdlock();
@@ -365,12 +344,10 @@ table_replication_connection_status::index_next(void)
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
 
   return res;
 }
 
-#ifdef HAVE_REPLICATION
 int
 table_replication_connection_status::make_row(Master_info *mi)
 {
@@ -507,7 +484,6 @@ end:
 
   DBUG_RETURN(0);
 }
-#endif /* HAVE_REPLICATION */
 
 int
 table_replication_connection_status::read_row_values(
@@ -516,7 +492,6 @@ table_replication_connection_status::read_row_values(
   Field **fields MY_ATTRIBUTE((unused)),
   bool read_all MY_ATTRIBUTE((unused)))
 {
-#ifdef HAVE_REPLICATION
   Field *f;
 
   DBUG_ASSERT(table->s->null_bytes == 1);
@@ -593,7 +568,4 @@ table_replication_connection_status::read_row_values(
   m_row.cleanup();
 
   return 0;
-#else
-  return HA_ERR_RECORD_DELETED;
-#endif /* HAVE_REPLICATION */
 }

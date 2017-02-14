@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
   m_saved_auto_increment_increment(
     thd->variables.auto_increment_increment)
 {
-  m_saved_count_cuted_fields= m_thd->count_cuted_fields;
+  m_saved_check_for_truncated_fields= m_thd->check_for_truncated_fields;
 
   m_saved_mode= m_thd->variables.sql_mode;
   m_thd->variables.sql_mode= 0; // Reset during DD operations
@@ -205,7 +205,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx()
   // Close all the tables that are open till now.
   close_thread_tables(m_thd);
 
-  m_thd->count_cuted_fields= m_saved_count_cuted_fields;
+  m_thd->check_for_truncated_fields= m_saved_check_for_truncated_fields;
   m_thd->variables.sql_mode= m_saved_mode;
 
   m_thd->variables.option_bits= m_saved_binlog_options;

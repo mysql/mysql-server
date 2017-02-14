@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
 #ifndef RPL_RLI_PDB_H
 #define RPL_RLI_PDB_H
 
-#ifdef HAVE_REPLICATION
-
 #include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
@@ -26,6 +24,8 @@
 #include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_cond.h"
@@ -699,5 +699,4 @@ inline Slave_worker* get_thd_worker(THD *thd)
 
 int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 
-#endif // HAVE_REPLICATION
 #endif

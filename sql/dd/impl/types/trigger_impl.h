@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__TRIGGER_IMPL_INCLUDED
 
 #include "my_config.h"
+#include "my_inttypes.h"
 
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>

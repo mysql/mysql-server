@@ -6,7 +6,6 @@
 --echo #                BUT CAN ALTER ENGINE=INNODB
 --echo #
 
---source include/have_innodb.inc
 
 # Using chmod to remove write permission excludes Windows.
 --source include/not_windows.inc

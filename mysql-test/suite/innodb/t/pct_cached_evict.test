@@ -3,7 +3,6 @@
 # in the stats for how much pages per index are cached.
 #
 
--- source include/have_innodb.inc
 
 let $get_n_cached_pages=
 SELECT cached.n_cached_pages AS n_cached_pages

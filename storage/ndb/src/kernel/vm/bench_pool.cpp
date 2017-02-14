@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ init(ArrayPool<T> & pool, Uint32 cnt)
 
 template <typename T>
 void
-init(RecordPool<T, WOPool> & pool, Uint32 cnt)
+init(RecordPool<T, WOPool<T> > & pool, Uint32 cnt)
 {
   Pool_context pc;
   pc.m_block = &block;
@@ -87,7 +87,7 @@ init(RecordPool<T, WOPool> & pool, Uint32 cnt)
 
 template <typename T>
 void
-init(RecordPool<T, RWPool> & pool, Uint32 cnt)
+init(RecordPool<T, RWPool<T> > & pool, Uint32 cnt)
 {
   Pool_context pc;
   pc.m_block = &block;
@@ -403,18 +403,18 @@ template <typename T>
 void test_rw(Uint32 cnt, Uint32 loop)
 {
   printf("RW ; %d ; %d", sizeof(T), (cnt * sizeof(T))>>10); fflush(stdout);
-  RecordPool<T, RWPool> pool;
+  RecordPool<T, RWPool<T> > pool;
   init(pool, cnt);
-  test_pool<T, RecordPool<T, RWPool> >(pool, cnt, loop);
+  test_pool<T, RecordPool<T, RWPool<T> > >(pool, cnt, loop);
 }
 
 template <typename T>
 void test_wo(Uint32 cnt, Uint32 loop)
 {
   printf("WO ; %d ; %d", sizeof(T), (cnt * sizeof(T))>>10); fflush(stdout);
-  RecordPool<T, WOPool> pool;
+  RecordPool<T, WOPool<T> > pool;
   init(pool, cnt);
-  test_pool<T, RecordPool<T, WOPool> >(pool, cnt, loop);
+  test_pool<T, RecordPool<T, WOPool<T> > >(pool, cnt, loop);
 }
 
 #include <EventLogger.hpp>
@@ -584,11 +584,11 @@ template void test_ap<X>(unsigned, unsigned);\
 template void test_wo<X>(unsigned, unsigned);\
 template void test_rw<X>(unsigned, unsigned);\
 template void test_pool<X, ArrayPool<X> >(ArrayPool<X>&, unsigned, unsigned);\
-template void test_pool<X, RecordPool<X, RWPool> >(RecordPool<X, RWPool>&, unsigned, unsigned); \
-template void test_pool<X, RecordPool<X, WOPool> >(RecordPool<X, WOPool>&, unsigned, unsigned);\
+template void test_pool<X, RecordPool<X, RWPool<X> > >(RecordPool<X, RWPool<X> >&, unsigned, unsigned); \
+template void test_pool<X, RecordPool<X, WOPool<X> > >(RecordPool<X, WOPool<X> >&, unsigned, unsigned);\
 template void init<X>(ArrayPool<X>&, unsigned);\
-template void init<X>(RecordPool<X, RWPool>&, unsigned);\
-template void init<X>(RecordPool<X, WOPool>&, unsigned)
+template void init<X>(RecordPool<X, RWPool<X> >&, unsigned);\
+template void init<X>(RecordPool<X, WOPool<X> >&, unsigned)
 
 INSTANCE(Rec32);
 INSTANCE(Rec36);

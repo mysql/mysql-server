@@ -3,7 +3,7 @@ set global optimizer_trace_max_mem_size=1048576;
 select user();
 user()
 root@localhost
-create database somedb;
+create database somedb character set latin1;
 use somedb;
 create table t1(a varchar(100));
 insert into t1 values("first");

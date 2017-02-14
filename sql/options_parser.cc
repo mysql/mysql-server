@@ -22,6 +22,7 @@
 #include <iterator>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysqld_error.h"
 
 namespace options_parser {

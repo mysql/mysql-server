@@ -1016,7 +1016,7 @@ cast(3.14e0 as json)
 3.14
 select cast(cast('10101abcde' as binary) as json);
 cast(cast('10101abcde' as binary) as json)
-"base64:type253:MTAxMDFhYmNkZQ=="
+"base64:type15:MTAxMDFhYmNkZQ=="
 select cast(ST_GeomFromText('POINT(1 1)') as json);
 cast(ST_GeomFromText('POINT(1 1)') as json)
 {"type": "Point", "coordinates": [1, 1]}

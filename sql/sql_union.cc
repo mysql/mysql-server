@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,11 +29,15 @@
 
 #include "sql_union.h"
 
+#include "my_config.h"
+
 #include <string.h>
 #include <sys/types.h>
 
 #include "auth_acls.h"
 #include "current_thd.h"
+#include "debug_sync.h"                         // DEBUG_SYNC
+#include "error_handler.h"                      // Strict_error_handler
 #include "field.h"
 #include "filesort.h"                           // filesort_free_buffers
 #include "handler.h"
@@ -41,13 +45,12 @@
 #include "item_subselect.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "opt_explain.h"                        // explain_no_table
 #include "opt_explain_format.h"
-#include "error_handler.h"                      // Strict_error_handler
-#include "debug_sync.h"                         // DEBUG_SYNC
 #include "parse_tree_node_base.h"
 #include "query_options.h"
 #include "sql_base.h"                           // fill_record
@@ -420,6 +423,23 @@ bool Query_result_union_direct::send_eof()
 }
 
 
+/// RAII class to automate saving/restoring of current_select()
+class Change_current_select
+{
+public:
+  Change_current_select(THD *thd_arg) :
+  thd(thd_arg), saved_select(thd->lex->current_select())
+  {}
+  void restore()
+  { thd->lex->set_current_select(saved_select); }
+  ~Change_current_select()
+  { restore(); }
+private:
+  THD *thd;
+  SELECT_LEX *saved_select;
+};
+
+
 /**
   Prepare the fake_select_lex query block
 
@@ -515,7 +535,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   DBUG_ENTER("SELECT_LEX_UNIT::prepare");
 
   DBUG_ASSERT(!is_prepared());
-  SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
+  Change_current_select save_select(thd);
 
   Query_result *tmp_result;
   bool instantiate_tmp_table= false;
@@ -612,7 +632,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (sl == first_recursive)
     {
       // create_result_table() depends on current_select()
-      thd_arg->lex->set_current_select(lex_select_save);
+      save_select.restore();
       /*
         All next query blocks will read the temporary table, which we must
         thus create now:
@@ -785,8 +805,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     }
   }
 
-  thd_arg->lex->set_current_select(lex_select_save);
-
   // Query blocks are prepared, update the state
   set_prepared();
 
@@ -812,7 +830,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd)
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
 
-  SELECT_LEX *save_select= thd->lex->current_select();
+  Change_current_select save_select(thd);
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
@@ -865,8 +883,6 @@ bool SELECT_LEX_UNIT::optimize(THD *thd)
       DBUG_RETURN(true);
   }
   set_optimized();    // All query blocks optimized, update the state
-  thd->lex->set_current_select(save_select);
-
   DBUG_RETURN(false);
 }
 
@@ -994,7 +1010,7 @@ private:
   /// Count of executions of recursive members.
   uint iteration_counter;
   Strict_error_handler strict_handler;
-  enum_check_fields save_count_cuted_fields;
+  enum_check_fields save_check_for_truncated_fields;
   sql_mode_t save_sql_mode;
   bool disabled_trace, pop_handler;
   /**
@@ -1059,8 +1075,8 @@ public:
     if (thd->is_strict_mode())
     {
       pop_handler= true;
-      save_count_cuted_fields= thd->count_cuted_fields;
-      thd->count_cuted_fields= CHECK_FIELD_WARN;
+      save_check_for_truncated_fields= thd->check_for_truncated_fields;
+      thd->check_for_truncated_fields= CHECK_FIELD_WARN;
       thd->push_internal_handler(&strict_handler);
     }
 
@@ -1194,7 +1210,7 @@ public:
       if (pop_handler)
       {
         thd->pop_internal_handler();
-        thd->count_cuted_fields= save_count_cuted_fields;
+        thd->check_for_truncated_fields= save_check_for_truncated_fields;
       }
     }
   }
@@ -1217,7 +1233,12 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
   if (is_executed() && !uncacheable)
     DBUG_RETURN(false);
 
-  SELECT_LEX *lex_select_save= thd->lex->current_select();
+  /*
+    Even if we return "true" the statement might continue
+    (e.g. ER_SUBQUERY_1_ROW in stmt with IGNORE), so we want to restore
+    current_select():
+  */
+  Change_current_select save_select(thd);
 
   if (is_executed())
   {
@@ -1302,7 +1323,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
       if (table->hash_field) // Prepare for access method of JOIN::exec
         table->file->ha_index_or_rnd_end();
       if (set_limit(thd, fake_select_lex))
-        DBUG_RETURN(status);                     /* purecov: inspected */
+        DBUG_RETURN(true);                      /* purecov: inspected */
       JOIN *join= fake_select_lex->join;
       if (recursive_executor.prepare_for_scan())
         DBUG_RETURN(true);                      /* purecov: inspected */
@@ -1331,7 +1352,6 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
     thd->current_found_rows= (ulonglong)table->file->stats.records;
   }
 
-  thd->lex->set_current_select(lex_select_save);
   DBUG_RETURN(status);
 }
 

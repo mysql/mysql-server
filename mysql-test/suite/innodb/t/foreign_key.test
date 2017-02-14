@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 --echo #
@@ -70,11 +69,12 @@ SELECT id, b FROM t1 ORDER BY id;
 SELECT a, b FROM t2 ORDER BY a;
 
 --echo # Operations on child table
-# TODO: NewDD: Waiting for WL#6049 fixes
+--echo TODO: NewDD: Waiting for WL#6049 fixes
+--echo TODO: Waiting for Bug#24666169
 #--error ER_NO_REFERENCED_ROW_2
-INSERT INTO t2 VALUES (56, 6);
+#INSERT INTO t2 VALUES (56, 6);
 #--error ER_NO_REFERENCED_ROW_2
-UPDATE t2 SET b = 99 WHERE a = 51;
+#UPDATE t2 SET b = 99 WHERE a = 51;
 DELETE FROM t2 WHERE a = 53;
 SELECT id, b FROM t1 ORDER BY id;
 SELECT a, b FROM t2 ORDER BY a;

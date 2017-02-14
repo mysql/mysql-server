@@ -33,15 +33,15 @@
 # BUG#26395: if crash during autocommit update to transactional table on master, slave fails
 
 --source include/not_group_replication_plugin.inc
-source include/have_innodb.inc;
+
 # have_debug is needed since we use the @@debug variable on master
-source include/have_debug.inc;
-source include/master-slave.inc;
+--source include/have_debug.inc
 
 # test adapts simulation of incomplete transaction that MTS does not tolerate
 # when is stopped. So it reacts with an error whereas the single-threaded is fine.
--- source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_slave_parallel_workers.inc
 
+--source include/master-slave.inc
 
 --echo ==== Initialize ====
 

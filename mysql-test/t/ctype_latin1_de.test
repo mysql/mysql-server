@@ -163,7 +163,6 @@ drop table t1;
 set @@collation_connection=latin1_german2_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 select hex(weight_string('Ä'));
 select hex(weight_string('ä'));
 select hex(weight_string('Ö'));

@@ -21,6 +21,8 @@
 
 #include "ftdefs.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,
 			     FT_SEG_ITERATOR *ftsi)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "my_bit.h"                  // is_single_bit
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld.h"                  // table_alias_charset
@@ -49,9 +50,9 @@
 #include "sql_lex.h"                 // LEX
 #include "sql_list.h"
 #include "sql_parse.h"               // add_join_natural
-#include "table.h"                   // Common_table_expr
 #include "sql_security_ctx.h"
 #include "table.h"
+#include "table.h"                   // Common_table_expr
 #include "thr_lock.h"
 
 class PT_field_def_base;
@@ -3638,4 +3639,90 @@ public:
   }
 };
 
+
+/**
+  Base class for Parse tree nodes of SHOW FIELDS/SHOW INDEX statements.
+*/
+class PT_show_fields_and_keys : public PT_statement
+{
+protected:
+  enum Type
+  {
+    SHOW_FIELDS= SQLCOM_SHOW_FIELDS,
+    SHOW_KEYS=   SQLCOM_SHOW_KEYS
+  };
+
+  PT_show_fields_and_keys(const POS &pos,
+                          Type type,
+                          Table_ident *table_ident,
+                          const LEX_STRING &wild,
+                          Item *where_condition)
+    : m_sql_cmd(static_cast<enum_sql_command>(type)),
+      m_pos(pos),
+      m_type(type),
+      m_table_ident(table_ident),
+      m_wild(wild),
+      m_where_condition(where_condition)
+  {
+    DBUG_ASSERT(wild.str == nullptr || where_condition == nullptr);
+  }
+
+public:
+  virtual Sql_cmd *make_cmd(THD *thd);
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  typedef PT_statement super;
+
+  // Sql_cmd for SHOW COLUMNS/SHOW INDEX statements.
+  Sql_cmd_show m_sql_cmd;
+
+  // Textual location of a token just parsed.
+  POS m_pos;
+
+  // SHOW_FIELDS or SHOW_KEYS
+  Type m_type;
+
+  // Table used in the statement.
+  Table_ident *m_table_ident;
+
+  // Wild or where clause used in the statement.
+  LEX_STRING m_wild;
+  Item *m_where_condition;
+};
+
+
+/**
+  Parse tree node for SHOW FIELDS statement.
+*/
+class PT_show_fields : public PT_show_fields_and_keys
+{
+public:
+  PT_show_fields(const POS &pos,
+                 Table_ident *table,
+                 const LEX_STRING &wild)
+    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr)
+  {}
+
+  PT_show_fields(const POS &pos,
+                 Table_ident *table_ident,
+                 Item *where_condition= nullptr)
+    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
+                              where_condition)
+  {}
+};
+
+
+/**
+  Parse tree node for SHOW INDEX statement.
+*/
+class PT_show_keys : public PT_show_fields_and_keys
+{
+public:
+  PT_show_keys(const POS &pos,
+               Table_ident *table,
+               Item *where_condition)
+    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition)
+  {}
+};
 #endif /* PARSE_TREE_NODES_INCLUDED */

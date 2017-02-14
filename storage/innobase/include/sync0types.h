@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0new.h"
 #include "ut0counter.h"
+#include "sync0sync.h"
 
 #ifdef UNIV_DEBUG
 /** Set when InnoDB has invoked exit(). */

@@ -4409,7 +4409,7 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
 WHERE routine_name = 'pr1';
-routine_name	routine_definition
+ROUTINE_NAME	ROUTINE_DEFINITION
 pr1	SELECT "Meow"
 
 dump table; if anything goes to stdout, it ends up here: ---------------
@@ -4428,7 +4428,7 @@ SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
 WHERE routine_name = 'pr1';
-routine_name	routine_definition
+ROUTINE_NAME	ROUTINE_DEFINITION
 
 reload db; this should restore routines and events
 SHOW TRIGGERS;
@@ -4439,7 +4439,7 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
 WHERE routine_name = 'pr1';
-routine_name	routine_definition
+ROUTINE_NAME	ROUTINE_DEFINITION
 pr1	SELECT "Meow"
 
 cleanup

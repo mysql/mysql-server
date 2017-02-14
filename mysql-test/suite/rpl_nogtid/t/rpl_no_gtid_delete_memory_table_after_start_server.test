@@ -32,7 +32,6 @@
 # The test cases verify some cases that cannot be run when gtid mode is on.
 ################################################################################
 
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression("Found 1 prepared XA transactions");

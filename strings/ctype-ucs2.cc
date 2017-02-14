@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -29,6 +29,8 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 
 
@@ -1712,7 +1714,6 @@ CHARSET_INFO my_charset_utf16_general_ci=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
   &my_collation_utf16_general_ci_handler
 };
@@ -1748,7 +1749,6 @@ CHARSET_INFO my_charset_utf16_bin=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
   &my_collation_utf16_bin_handler
 };
@@ -1886,7 +1886,6 @@ CHARSET_INFO my_charset_utf16le_general_ci=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16le_handler,
   &my_collation_utf16_general_ci_handler
 };
@@ -1922,7 +1921,6 @@ CHARSET_INFO my_charset_utf16le_bin=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16le_handler,
   &my_collation_utf16_bin_handler
 };
@@ -2831,7 +2829,6 @@ CHARSET_INFO my_charset_utf32_general_ci=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
   &my_collation_utf32_general_ci_handler
 };
@@ -2867,7 +2864,6 @@ CHARSET_INFO my_charset_utf32_bin=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
   &my_collation_utf32_bin_handler
 };
@@ -3457,7 +3453,6 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
 };
@@ -3493,7 +3488,6 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
   ' ',                                             /* pad char         */
   0,                          /* escape_with_backslash_is_dangerous    */
   1,                                               /* levels_for_compare */
-  1,                                               /* levels_for_order   */
   &my_charset_ucs2_handler,
   &my_collation_ucs2_general_ci_handler
 };
@@ -3529,7 +3523,6 @@ CHARSET_INFO my_charset_ucs2_bin=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler
 };

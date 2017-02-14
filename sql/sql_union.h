@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
 #ifndef SQL_UNION_INCLUDED
 #define SQL_UNION_INCLUDED
 
+#include "my_compiler.h"
 #include "my_global.h"          // ulong
+#include "my_inttypes.h"
 #include "query_result.h"       // Query_result_interceptor
 #include "table.h"
 #include "temp_table_param.h"   // Temp_table_param

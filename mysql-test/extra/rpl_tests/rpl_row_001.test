@@ -1,4 +1,3 @@
---source include/not_gtid_enabled.inc
 
 # Store the time of password_last_changed column from mysql.user table
 # to restore it back later.

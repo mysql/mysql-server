@@ -31,6 +31,7 @@ Created 25/5/2010 Sunny Bains
 #include "lock0lock.h"
 #include "lock0priv.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "que0que.h"
 #include "row0mysql.h"

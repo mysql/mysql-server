@@ -79,7 +79,7 @@ void Dbtc::initRecords()
 			     c_theIndexOperationPool);
   }
   // Init all fired triggers
-  DLFifoList<TcFiredTriggerData> triggers(c_theFiredTriggerPool);
+  TcFiredTriggerData_fifo triggers(c_theFiredTriggerPool);
   FiredTriggerPtr tptr;
   while (triggers.seizeLast(tptr) == true) {
     p= tptr.p;
@@ -93,7 +93,7 @@ void Dbtc::initRecords()
   c_theFiredTriggerPool.resetFreeMin();
 
   // Init all index records
-  DLList<TcIndexData> indexes(c_theIndexPool);
+  TcIndexData_list indexes(c_theIndexPool);
   TcIndexDataPtr iptr;
   while(indexes.seizeFirst(iptr) == true) {
     p= iptr.p;
@@ -102,7 +102,7 @@ void Dbtc::initRecords()
   while (indexes.releaseFirst());
 
   // Init all index operation records
-  SLList<TcIndexOperation> indexOps(c_theIndexOperationPool);
+  TcIndexOperation_sllist indexOps(c_theIndexOperationPool);
   TcIndexOperationPtr ioptr;
   while (indexOps.seizeFirst(ioptr) == true) {
     p= ioptr.p;
@@ -142,7 +142,7 @@ void Dbtc::initRecords()
   c_scan_frag_pool.setSize(cscanFragrecFileSize);
   {
     ScanFragRecPtr ptr;
-    SLList<ScanFragRec> tmp(c_scan_frag_pool);
+    ScanFragRec_sllist tmp(c_scan_frag_pool);
     while (tmp.seizeFirst(ptr)) {
       new (ptr.p) ScanFragRec();
     }

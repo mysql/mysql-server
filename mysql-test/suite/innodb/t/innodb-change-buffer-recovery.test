@@ -2,7 +2,6 @@
 --echo # Bug#69122 - INNODB DOESN'T REDO-LOG INSERT BUFFER MERGE
 --echo #             OPERATION IF IT IS DONE IN-PLACE
 --echo #
---source include/have_innodb.inc
 # innodb_change_buffering_debug option is debug only
 --source include/have_debug.inc
 # Embedded server does not support crashing

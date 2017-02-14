@@ -4,7 +4,6 @@
 # usage of DDLs on the table replication_applier_status_by_coordinator
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_applier_status_by_coordinator

@@ -20,8 +20,10 @@
 */
 
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "pfs.h"
 #include "pfs_buffer_container.h"

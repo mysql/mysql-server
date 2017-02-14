@@ -806,12 +806,10 @@ set collation_connection=utf16_general_ci;
 --source include/weight_string_euro.inc
 select hex(weight_string(_utf16 0xD800DC00));
 select hex(weight_string(_utf16 0xD800DC01));
---source include/weight_string_l1.inc
 
 set collation_connection=utf16_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # End of 5.6 tests

@@ -43,7 +43,9 @@ on 1/27/1998 */
 #include "eval0eval.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0opt.h"
 #include "pars0pars.h"
@@ -779,6 +781,8 @@ pars_retrieve_table_def(
 		sym_node->resolved = TRUE;
 		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
+		/* TODO: Use dict_table_open for InnoDB system
+		table. To be removed by WL#9535. */
 		if (strstr(sym_node->name, "sys") != nullptr
 		    || strstr(sym_node->name, "SYS") != nullptr) {
 			sym_node->table = dict_table_open_on_name(

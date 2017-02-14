@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+--source include/have_innodb_max_16k.inc
 --source include/not_embedded.inc
 
 let $file_name_checking = SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`

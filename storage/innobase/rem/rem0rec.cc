@@ -31,6 +31,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mtr0log.h"
 #include "mtr0mtr.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0page.h"
 #include "trx0sys.h"
 

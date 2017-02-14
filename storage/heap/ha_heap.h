@@ -17,9 +17,10 @@
 
 /* class for the the heap handler */
 
-#include "my_global.h"
-#include "heap.h"
 #include "handler.h"
+#include "heap.h"
+#include "my_global.h"
+#include "my_inttypes.h"
 #include "table.h"
 
 class ha_heap: public handler

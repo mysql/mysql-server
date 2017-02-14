@@ -201,7 +201,7 @@ SELECT trigger_schema, trigger_name, event_object_table FROM
 INFORMATION_SCHEMA.TRIGGERS
 WHERE trigger_schema COLLATE utf8_bin = 'BUP_XPFM_COMPAT_DB2'
   ORDER BY trigger_schema, trigger_name;
-trigger_schema	trigger_name	event_object_table
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_TABLE
 BUP_XPFM_COMPAT_DB2	trigger1	table1
 BUP_XPFM_COMPAT_DB2	TRIGGER2	TABLE2
 BUP_XPFM_COMPAT_DB2	TrigGer3	table3

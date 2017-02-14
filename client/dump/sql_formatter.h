@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,19 +20,20 @@
 
 #include <functional>
 
-#include "abstract_output_writer_wrapper.h"
-#include "i_data_formatter.h"
 #include "abstract_mysql_chain_element_extension.h"
+#include "abstract_output_writer_wrapper.h"
 #include "abstract_plain_sql_object_dump_task.h"
-#include "dump_start_dump_task.h"
-#include "dump_end_dump_task.h"
-#include "database_start_dump_task.h"
 #include "database_end_dump_task.h"
-#include "table_definition_dump_task.h"
-#include "table_deferred_indexes_dump_task.h"
+#include "database_start_dump_task.h"
+#include "dump_end_dump_task.h"
+#include "dump_start_dump_task.h"
+#include "i_data_formatter.h"
+#include "my_inttypes.h"
+#include "mysqldump_tool_chain_maker_options.h"
 #include "row_group_dump_task.h"
 #include "sql_formatter_options.h"
-#include "mysqldump_tool_chain_maker_options.h"
+#include "table_deferred_indexes_dump_task.h"
+#include "table_definition_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

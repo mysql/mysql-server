@@ -1223,14 +1223,6 @@ enum Item_result Item_singlerow_subselect::result_type() const
   return engine->type();
 }
 
-/* 
- Don't rely on the result type to calculate field type. 
- Ask the engine instead.
-*/
-enum_field_types Item_singlerow_subselect::field_type() const
-{
-  return engine->field_type();
-}
 
 bool Item_singlerow_subselect::resolve_type(THD *)
 {
@@ -1245,6 +1237,7 @@ bool Item_singlerow_subselect::resolve_type(THD *)
     engine->fix_length_and_dec(row);
     value= *row;
   }
+  set_data_type(engine->field_type());
   unsigned_flag= value->unsigned_flag;
   /*
     Check if NULL values may be returned by the subquery. Either
@@ -1553,7 +1546,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 
 bool Item_exists_subselect::resolve_type(THD *thd)
 {
-   decimals= 0;
+   set_data_type_longlong();
    max_length= 1;
    max_columns= engine->cols();
    if (exec_method == EXEC_EXISTS)
@@ -3058,12 +3051,12 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row,
   Item *sel_item;
   List_iterator_fast<Item> li(item_list);
   res_type= STRING_RESULT;
-  res_field_type= MYSQL_TYPE_VAR_STRING;
+  res_field_type= MYSQL_TYPE_VARCHAR;
   for (uint i= 0; (sel_item= li++); i++)
   {
     item->max_length= sel_item->max_length;
     res_type= sel_item->result_type();
-    res_field_type= sel_item->field_type();
+    res_field_type= sel_item->data_type();
     item->decimals= sel_item->decimals;
     item->unsigned_flag= sel_item->unsigned_flag;
     maybe_null|= sel_item->maybe_null;
@@ -3075,6 +3068,8 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row,
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
+  else
+    item->set_data_type(res_field_type);
 }
 
 
@@ -3271,7 +3266,6 @@ bool subselect_indexsubquery_engine::scan_table()
 
   table->file->extra_opt(HA_EXTRA_CACHE,
                          item->unit->thd->variables.read_buff_size);
-  table->reset_null_row();
   for (;;)
   {
     error=table->file->ha_rnd_next(table->record[0]);
@@ -3281,7 +3275,7 @@ bool subselect_indexsubquery_engine::scan_table()
       break;
     }
     /* No more rows */
-    if (table->status)
+    if (!table->has_row())
       break;
 
     if (!cond || cond->val_int())
@@ -3402,7 +3396,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
        Error converting the left IN operand to the column type of the right
        IN operand. 
       */
-      tab->table()->status= STATUS_NOT_FOUND;
+      tab->table()->set_no_row();
       *convert_error= true;
       DBUG_VOID_RETURN;
     }
@@ -3482,7 +3476,6 @@ bool subselect_indexsubquery_engine::exec()
   TABLE_LIST *const tl= tab->table_ref;
   Item_in_subselect *const item_in= static_cast<Item_in_subselect*>(item);
   item_in->value= false;
-  table->status= 0;
 
   if (tl && tl->uses_materialization() && !table->materialized)
   {
@@ -3551,8 +3544,7 @@ bool subselect_indexsubquery_engine::exec()
     for (;;)
     {
       error= 0;
-      table->reset_null_row();
-      if (!table->status)
+      if (table->has_row())
       {
         if ((!cond || cond->val_int()) && (!having || having->val_int()))
         {
@@ -4199,7 +4191,7 @@ err:
         DBUG_RETURN(true);
       *tab->ref().null_ref_key= 0; // prepare for next searches of non-NULL
       mat_table_has_nulls=
-        (table->status == 0) ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+        table->has_row() ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
     }
     if (mat_table_has_nulls == NEX_TRUE)
     {

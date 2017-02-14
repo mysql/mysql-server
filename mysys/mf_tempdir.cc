@@ -13,11 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <m_string.h>
 #include <stdlib.h>
 
 #include "mutex_lock.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "mysys_priv.h"
 #include "prealloced_array.h"
 

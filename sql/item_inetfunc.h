@@ -1,7 +1,7 @@
 #ifndef ITEM_INETFUNC_INCLUDED
 #define ITEM_INETFUNC_INCLUDED
 
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "item_strfunc.h"  // Item_str_func
 #include "m_ctype.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "parse_tree_node_base.h"
 
 class Item;
@@ -45,8 +46,6 @@ public:
 
   bool resolve_type(THD *) override
   {
-    decimals= 0;
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
     return false;
@@ -72,8 +71,7 @@ public:
 
   bool resolve_type(THD *) override
   {
-    decimals= 0;
-    fix_length_and_charset(3 * 8 + 7, default_charset());
+    set_data_type_string(3 * 8 + 7, default_charset());
     maybe_null= true;
     return false;
   }
@@ -138,8 +136,7 @@ public:
 
   bool resolve_type(THD *) override
   {
-    decimals= 0;
-    fix_length_and_charset(16, &my_charset_bin);
+    set_data_type_string(16, &my_charset_bin);
     maybe_null= true;
     return false;
   }
@@ -165,12 +162,10 @@ public:
 
   bool resolve_type(THD *) override
   {
-    decimals= 0;
-
     // max length: IPv6-address -- 16 bytes
     // 16 bytes / 2 bytes per group == 8 groups => 7 delimiter
     // 4 symbols per group
-    fix_length_and_charset(8 * 4 + 7, default_charset());
+    set_data_type_string(8 * 4 + 7, default_charset());
 
     maybe_null= true;
     return false;

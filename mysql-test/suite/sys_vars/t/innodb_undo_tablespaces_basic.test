@@ -16,7 +16,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 SELECT @@GLOBAL.innodb_undo_tablespaces >= 0;
 let $undo_tablespaces=`SELECT @@GLOBAL.innodb_undo_tablespaces`;

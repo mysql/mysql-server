@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -14,13 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include <stdio.h>
 #include <m_ctype.h>
+#include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
-#include <my_sys.h>
 #include <mysqld_error.h>
+#include <stdio.h>
+
 #include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {
@@ -90,6 +93,7 @@ static volatile int number_of_calls;
 
 #define AUDIT_NULL_VAR(x) static volatile int number_of_calls_ ## x;
 #include "audit_null_variables.h"
+
 #undef AUDIT_NULL_VAR
 
 /*
@@ -105,6 +109,7 @@ static struct st_mysql_show_var simple_status[] =
 #define AUDIT_NULL_VAR(x) { "Audit_null_" #x, (char*)&number_of_calls_ ## x, \
                             SHOW_INT, SHOW_SCOPE_GLOBAL },
 #include "audit_null_variables.h"
+
 #undef AUDIT_NULL_VAR
 
   { 0, 0, 0, SHOW_SCOPE_GLOBAL }

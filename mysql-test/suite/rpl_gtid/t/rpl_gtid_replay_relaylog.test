@@ -19,7 +19,6 @@
 --source include/have_debug.inc
 # This test is not need against MTS setup
 --source include/not_mts_slave_parallel_workers.inc
---source include/have_gtid.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

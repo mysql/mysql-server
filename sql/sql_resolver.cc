@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,8 +49,10 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "opt_hints.h"
@@ -378,7 +380,7 @@ bool SELECT_LEX::prepare(THD *thd)
     for (ORDER *ord= group_list.first; ord; ord= ord->next)
     {
       if ((*ord->item)->type() == Item::FIELD_ITEM &&
-          (*ord->item)->field_type() == MYSQL_TYPE_BIT)
+          (*ord->item)->data_type() == MYSQL_TYPE_BIT)
       {
         Item_field *field= new Item_field(thd, *(Item_field**)ord->item);
         ord->item= add_hidden_item(field);

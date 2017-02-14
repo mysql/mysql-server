@@ -40,6 +40,9 @@
 
 #define DUMP_VERSION "10.13"
 
+#include "my_config.h"
+
+#include <errno.h>
 #include <fcntl.h>
 #include <hash.h>
 #include <m_ctype.h>
@@ -53,14 +56,19 @@
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "mysql.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "print_version.h"
 #include "template_utils.h"
 #include "typelib.h"
 
@@ -168,7 +176,7 @@ static enum enum_set_gtid_purged_mode {
   SET_GTID_PURGED_ON=2
 } opt_set_gtid_purged_mode= SET_GTID_PURGED_AUTO;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
@@ -502,7 +510,7 @@ static struct my_option my_long_options[] =
     "then the default (AUTO) value will be considered.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -652,13 +660,6 @@ static void check_io(FILE *file)
   if (ferror(file) || errno == 5)
     die(EX_EOF, "Got errno %d on write", errno);
 }
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-} /* print_version */
-
 
 static void short_usage_sub(void)
 {
@@ -1676,7 +1677,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -6322,7 +6323,7 @@ int main(int argc, char **argv)
   if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
     goto err;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   /*

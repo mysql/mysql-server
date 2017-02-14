@@ -17,6 +17,7 @@
 
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 /*
 	   Returns one of following values:

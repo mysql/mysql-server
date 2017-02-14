@@ -24,11 +24,16 @@
   contains only the actual tests, plus the list of test functions to call.
 */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"
 
@@ -7171,128 +7176,11 @@ static void test_set_option()
 }
 
 
-#ifdef EMBEDDED_LIBRARY
-static void test_embedded_start_stop()
-{
-  MYSQL *mysql_emb=NULL;
-  int i, j;
-  int argc= original_argc;                    // Start with the original args
-  char **argv, **my_argv;
-  char test_name[]= "test_embedded_start_stop";
-  const unsigned int drop_db= opt_drop_db;
-#define EMBEDDED_RESTARTS 64
-
-  myheader("test_embedded_start_stop");
-
-  /* Must stop the main embedded server, since we use the same config. */
-  opt_drop_db= 0;
-  client_disconnect(mysql);    /* disconnect from server */
-  free_defaults(defaults_argv);
-  mysql_server_end();
-  /* Free everything allocated by my_once_alloc */
-  my_end(0);
-  opt_drop_db= drop_db;
-
-  /*
-    Use a copy of the original arguments.
-    The arguments will be altered when reading the configs and parsing
-    options.
-  */
-  my_argv= malloc((argc + 1) * sizeof(char*));
-  if (!my_argv)
-    exit(1);
-
-  /* Test restarting the embedded library many times. */
-  for (i= 1; i <= EMBEDDED_RESTARTS; i++)
-  {
-    argv= my_argv;
-    argv[0]= test_name;
-    for (j= 1; j < argc; j++)
-      argv[j]= original_argv[j];
-
-    /* Initialize everything again. */
-    MY_INIT(argv[0]);
-
-    /* Load the client defaults from the .cnf file[s]. */
-    if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
-    {
-      myerror("load_defaults failed"); 
-      exit(1);
-    }
-
-    /* Parse the options (including the ones given from defaults files). */
-    get_options(&argc, &argv);
-
-    /* mysql_library_init is the same as mysql_server_init. */
-    if (mysql_library_init(embedded_server_arg_count,
-                           embedded_server_args,
-                           (char**) embedded_server_groups))
-    {
-      myerror("mysql_library_init failed"); 
-      exit(1);
-    }
-
-    /* Create a client connection. */
-    if (!(mysql_emb= mysql_client_init(NULL)))
-    {
-      myerror("mysql_client_init failed");
-      exit(1);
-    }
-
-    /* Connect it and see if we can use the database. */
-    if (!(mysql_real_connect(mysql_emb, opt_host, opt_user,
-                             opt_password, current_db, 0,
-                             NULL, 0)))
-    {
-      myerror("mysql_real_connect failed");
-    }
-
-    /* Close the client connection */
-    mysql_close(mysql_emb);
-    mysql_emb = NULL;
-    /* Free arguments allocated for defaults files. */
-    free_defaults(defaults_argv);
-    /* mysql_library_end is a define for mysql_server_end. */
-    mysql_library_end();
-    /* Free everything allocated by my_once_alloc */
-    my_end(0);
-  }
-
-  argc= original_argc;
-  argv= my_argv;
-  argv[0]= test_name;
-  for (j= 1; j < argc; j++)
-    argv[j]= original_argv[j];
-
-  MY_INIT(argv[0]);
-
-  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
-  {
-    myerror("load_defaults failed \n "); 
-    exit(1);
-  }
-
-  get_options(&argc, &argv);
-
-  /* Must start the main embedded server again after the test. */
-  if (mysql_server_init(embedded_server_arg_count,
-                        embedded_server_args,
-                        (char**) embedded_server_groups))
-    DIE("Can't initialize MySQL server");
-
-  /* connect to server with no flags, default protocol, auto reconnect true */
-  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
-  free(my_argv);
-}
-#endif /* EMBEDDED_LIBRARY */
-
-
 /*
   Test a misc GRANT option
   bug #89 (reported by mark@mysql.com)
 */
 
-#ifndef EMBEDDED_LIBRARY
 static void test_prepare_grant()
 {
   int rc;
@@ -7386,7 +7274,7 @@ static void test_prepare_grant()
 
   }
 }
-#endif /* EMBEDDED_LIBRARY */
+
 
 /* Test DECIMAL conversion */
 
@@ -7778,14 +7666,14 @@ static void test_drop_temp()
 #endif
 
 
-/* Test warnings for cuted rows */
+/* Test warnings for truncated rows */
 
-static void test_cuted_rows()
+static void test_truncated_rows()
 {
   int        rc, count;
   MYSQL_RES  *result;
 
-  myheader("test_cuted_rows");
+  myheader("test_truncated_rows");
 
   mysql_query(mysql, "DROP TABLE if exists t1");
   mysql_query(mysql, "DROP TABLE if exists t2");
@@ -13138,7 +13026,6 @@ from t2);");
 
 static void test_bug8378()
 {
-#if !defined(EMBEDDED_LIBRARY)
   MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   char buf[256];
@@ -13182,7 +13069,6 @@ static void test_bug8378()
   myquery(rc);
 
   mysql_close(lmysql);
-#endif
 }
 
 
@@ -15126,8 +15012,6 @@ static void test_opt_reconnect()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
-
 static void test_bug12744()
 {
   MYSQL_STMT *prep_stmt = NULL;
@@ -15159,7 +15043,6 @@ static void test_bug12744()
   DIE_UNLESS(rc == 0);
 }
 
-#endif /* EMBEDDED_LIBRARY */
 
 /* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
 
@@ -17180,11 +17063,9 @@ static void test_bug31669()
 {
   int rc;
   static char buff[LARGE_BUFFER_SIZE+1];
-#ifndef EMBEDDED_LIBRARY
   static char user[USERNAME_CHAR_LENGTH+1];
   static char db[NAME_CHAR_LEN+1];
   static char query[LARGE_BUFFER_SIZE*2];
-#endif
   MYSQL *l_mysql;
 
 
@@ -17219,7 +17100,6 @@ static void test_bug31669()
   rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
   DIE_UNLESS(!rc);
 
-#ifndef EMBEDDED_LIBRARY
   memset(db, 'a', sizeof(db));
   db[NAME_CHAR_LEN]= 0;
   strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
@@ -17284,7 +17164,6 @@ static void test_bug31669()
   DIE_UNLESS(mysql_affected_rows(mysql) == 2);
 
   mysql_close(l_mysql);
-#endif
 
   DBUG_VOID_RETURN;
 }
@@ -19365,7 +19244,7 @@ static void test_wl6587()
   myquery(rc);
 }
 
-#ifndef EMBEDDED_LIBRARY
+
 /*
   Bug #17309863 AUTO RECONNECT DOES NOT WORK WITH 5.6 LIBMYSQLCLIENT
 */
@@ -19415,7 +19294,7 @@ static void test_bug17309863()
 
   mysql_close(lmysql);
 }
-#endif
+
 
 static void test_wl5928()
 {
@@ -19588,7 +19467,7 @@ static void test_wl6791()
   const_char_opts[] = {
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
     MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
     /* mysql_options() is a no-op on non-supporting platforms. */
     MYSQL_SHARED_MEMORY_BASE_NAME,
 #endif
@@ -21097,17 +20976,12 @@ static struct my_tests_st my_tests[]= {
   { "test_stiny_bug", test_stiny_bug },
   { "test_field_misc", test_field_misc },
   { "test_set_option", test_set_option },
-#ifdef EMBEDDED_LIBRARY
-  { "test_embedded_start_stop", test_embedded_start_stop },
-#endif
-#ifndef EMBEDDED_LIBRARY
   { "test_prepare_grant", test_prepare_grant },
-#endif
   { "test_explain_bug", test_explain_bug },
   { "test_decimal_bug", test_decimal_bug },
   { "test_nstmts", test_nstmts },
   { "test_logs;", test_logs },
-  { "test_cuted_rows", test_cuted_rows },
+  { "test_truncated_rows", test_truncated_rows },
   { "test_fetch_offset", test_fetch_offset },
   { "test_fetch_column", test_fetch_column },
   { "test_mem_overun", test_mem_overun },
@@ -21215,9 +21089,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug14845", test_bug14845 },
   { "test_opt_reconnect", test_opt_reconnect },
   { "test_bug15510", test_bug15510},
-#ifndef EMBEDDED_LIBRARY
   { "test_bug12744", test_bug12744 },
-#endif
   { "test_bug16143", test_bug16143 },
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
@@ -21287,9 +21159,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl6797", test_wl6797 },
   { "test_wl6791", test_wl6791 },
   { "test_wl5768", test_wl5768 },
-#ifndef EMBEDDED_LIBRARY
   { "test_bug17309863", test_bug17309863},
-#endif
   { "test_bug17512527", test_bug17512527},
   { "test_wl8016", test_wl8016},
   { "test_bug20645725", test_bug20645725 },

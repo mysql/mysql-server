@@ -65,6 +65,13 @@ set session transaction isolation level repeatable read;
 --error ER_LOCK_WAIT_TIMEOUT
 create table t2 as select * from t1;
 
+--echo # Additional coverage for WL#7743 "New data dictionary: changes
+--echo # to DDL-related parts of SE API". Check how rollback is handled
+--echo # by similar CTS for non-transactional table.
+BEGIN;
+--error ER_LOCK_WAIT_TIMEOUT
+create table t2 engine=myisam as select * from t1;
+
 --echo # Cleanup
 connection default;
 disconnect rr_con;

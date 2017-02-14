@@ -68,7 +68,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     else
     {
       // seize from pool and link to per-fragment list
-      LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
+      Local_ScanOp_list list(c_scanOpPool, frag.m_scanList);
       if (! list.seizeFirst(scanPtr)) {
 	jam();
 	break;
@@ -1036,9 +1036,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	{
           D("Tablespace_client - scanNext");
 	  Tablespace_client tsman(signal, this, c_tsman,
-				  frag.fragTableId, 
-				  frag.fragmentId, 
-				  frag.m_tablespace_id);
+                         frag.fragTableId, 
+                         frag.fragmentId,
+                         c_lqh->getCreateSchemaVersion(frag.fragTableId),
+                         frag.m_tablespace_id);
 	  unsigned uncommitted, committed;
 	  uncommitted = committed = ~(unsigned)0;
 	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
@@ -1384,7 +1385,7 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
      * EXECUTE_DIRECT on NEXT_SCANCONF which might end up
      * creating the same object further down the stack.
      */
-    LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+    Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
     ScanLockPtr lockPtr;
     while (list.first(lockPtr)) {
       jam();
@@ -1415,7 +1416,7 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
 void
 Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
 {
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
 #ifdef VM_TRACE
   list.first(lockPtr);
@@ -1432,7 +1433,7 @@ Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
 void
 Dbtup::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
 {
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
   list.first(lockPtr);
   while (lockPtr.i != RNIL) {
@@ -1462,7 +1463,7 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
   else
   {
     jam();
-    LocalDLList<ScanOp> list(c_scanOpPool, fragPtr.p->m_scanList);    
+    Local_ScanOp_list list(c_scanOpPool, fragPtr.p->m_scanList);
     list.release(scanPtr);
   }
 }

@@ -421,8 +421,8 @@ void Item_sum::fix_num_length_and_dec()
 
 bool Item_sum::resolve_type(THD *)
 {
-  maybe_null=1;
-  null_value=1;
+  maybe_null= true;
+  null_value= TRUE;
 
   const Sumfunctype t= sum_func();
 
@@ -1006,10 +1006,9 @@ bool Aggregator_distinct::setup(THD *thd)
     }
 
 
-    enum enum_field_types field_type;
+    enum enum_field_types field_type=
+      calc_tmp_field_type(arg->data_type(), arg->result_type());
 
-    field_type= calc_tmp_field_type(arg->field_type(),
-                              arg->result_type());
     field_def.init_for_tmp_table(field_type, 
                                  arg->max_length,
                                  arg->decimals, 
@@ -1259,8 +1258,7 @@ my_decimal *Item_sum_int::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool
-Item_sum_num::fix_fields(THD *thd, Item **ref)
+bool Item_sum_num::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
@@ -1269,19 +1267,18 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
 
   Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
-  decimals=0;
-  maybe_null=0;
+  maybe_null= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return true;
-    set_if_bigger(decimals, args[i]->decimals);
-    maybe_null |= args[i]->maybe_null;
+    maybe_null|= args[i]->maybe_null;
   }
-  result_field=0;
-  max_length=float_length(decimals);
-  null_value=1;
+
+  // Set this value before calling resolve_type()
+  null_value= TRUE;
+
   if (resolve_type(thd))
     return true;
 
@@ -1349,11 +1346,13 @@ bool Item_sum_bit::resolve_type(THD *)
      if Item_sum_bit_field is used.
     */
     max_length++;
+    set_data_type(MYSQL_TYPE_VARCHAR);
   }
   else
   {
     hybrid_type= INT_RESULT;
     max_length= MAX_BIGINT_WIDTH + 1;
+    set_data_type(MYSQL_TYPE_LONGLONG);
   }
 
   maybe_null= false;
@@ -1487,9 +1486,9 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     return true;
   item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
-    hybrid_field_type= ((Item_field*) item)->field->type();
+    set_data_type(item->data_type());
   else
-    hybrid_field_type= Item::field_type();
+    set_data_type_from_result(hybrid_type, max_length);
 
   if (check_sum_func(thd, ref))
     return true;
@@ -1549,7 +1548,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table)
     In order to preserve field type, it's needed to handle DATE/TIME
     fields creations separately.
   */
-  switch (args[0]->field_type()) {
+  switch (args[0]->data_type()) {
   case MYSQL_TYPE_DATE:
     field= new Field_newdate(maybe_null, item_name.ptr());
     break;
@@ -1557,6 +1556,8 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table)
     field= new Field_timef(maybe_null, item_name.ptr(), decimals);
     break;
   case MYSQL_TYPE_TIMESTAMP:
+    field= new Field_timestampf(maybe_null, item_name.ptr(), decimals);
+    break;
   case MYSQL_TYPE_DATETIME:
     field= new Field_datetimef(maybe_null, item_name.ptr(), decimals);
     break;
@@ -1645,6 +1646,8 @@ bool Item_sum_sum::resolve_type(THD *)
 
   if (reject_geometry_args(arg_count, args, this))
     DBUG_RETURN(true);
+
+  set_data_type_from_result(hybrid_type, max_length);
 
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
                       (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
@@ -1884,7 +1887,7 @@ bool Item_sum_avg::resolve_type(THD *thd)
 
   maybe_null= true;
   null_value= TRUE;
-  prec_increment= current_thd->variables.div_precincrement;
+  prec_increment= thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT)
   {
     int precision= args[0]->decimal_precision() + prec_increment;
@@ -1900,6 +1903,7 @@ bool Item_sum_avg::resolve_type(THD *thd)
     decimals= min<uint>(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
     max_length= args[0]->max_length + prec_increment;
   }
+  set_data_type_from_result(hybrid_type, max_length);
   return false;
 }
 
@@ -2089,9 +2093,8 @@ bool Item_sum_variance::resolve_type(THD *)
     type of the result is an implementation-defined aproximate numeric
     type.
   */
+  set_data_type_double();
   hybrid_type= REAL_RESULT;
-  decimals= NOT_FIXED_DEC;
-  max_length= float_length(decimals);
 
   if (reject_geometry_args(arg_count, args, this))
     DBUG_RETURN(true);
@@ -3018,8 +3021,10 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item)
   max_length= item->max_length;
   unsigned_flag= item->unsigned_flag;
   field=item->result_field;
-  maybe_null=1;
+  maybe_null= true;
   hybrid_type= res_type;
+  set_data_type(hybrid_type == DECIMAL_RESULT ?
+                MYSQL_TYPE_NEWDECIMAL : MYSQL_TYPE_DOUBLE);
   prec_increment= item->prec_increment;
   if (hybrid_type == DECIMAL_RESULT)
   {
@@ -3090,6 +3095,11 @@ Item_sum_bit_field::Item_sum_bit_field(Item_result res_type,
   field= item->result_field;
   maybe_null= false;
   hybrid_type= res_type;
+  DBUG_ASSERT(hybrid_type == INT_RESULT || hybrid_type == STRING_RESULT);
+  if (hybrid_type == INT_RESULT)
+    set_data_type(MYSQL_TYPE_LONGLONG);
+  else if (hybrid_type == STRING_RESULT)
+    set_data_type(MYSQL_TYPE_VARCHAR);
   // Implementation requires a non-Blob for string results.
   DBUG_ASSERT(hybrid_type != STRING_RESULT ||
               field->type() == MYSQL_TYPE_VARCHAR);
@@ -3186,6 +3196,7 @@ bool Item_sum_bit_field::get_time(MYSQL_TIME *ltime)
     return get_time_from_string(ltime);
 }
 
+
 Item_std_field::Item_std_field(Item_sum_std *item)
   : Item_variance_field(item)
 {
@@ -3228,13 +3239,15 @@ my_decimal *Item_std_field::val_decimal(my_decimal *dec_buf)
 Item_variance_field::Item_variance_field(Item_sum_variance *item)
 {
   item_name= item->item_name;
-  decimals=item->decimals;
-  max_length=item->max_length;
+  decimals= item->decimals;
+  max_length= item->max_length;
   unsigned_flag= item->unsigned_flag;
   field=item->result_field;
-  maybe_null=1;
+  maybe_null= true;
   sample= item->sample;
   hybrid_type= item->hybrid_type;
+  DBUG_ASSERT(hybrid_type == REAL_RESULT);
+  set_data_type(MYSQL_TYPE_DOUBLE);
 }
 
 
@@ -3406,6 +3419,7 @@ my_decimal *Item_sum_udf_int::val_decimal(my_decimal *dec)
 
 bool Item_sum_udf_str::resolve_type(THD *)
 {
+  set_data_type(MYSQL_TYPE_VARCHAR);
   max_length=0;
   for (uint i = 0; i < arg_count; i++)
     set_if_bigger(max_length,args[i]->max_length);
@@ -3949,6 +3963,9 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   result_field= 0;
   null_value= 1;
   max_length= thd->variables.group_concat_max_len;
+  set_data_type(max_length/collation.collation->mbmaxlen >
+                CONVERT_IF_BIGGER_TO_BLOB ?
+                MYSQL_TYPE_BLOB : MYSQL_TYPE_VARCHAR);
 
   size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),
@@ -4212,6 +4229,8 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref)
 
   if (resolve_type(thd))
     return true;
+
+  set_data_type(MYSQL_TYPE_JSON);
 
   if (check_sum_func(thd, ref))
     return true;

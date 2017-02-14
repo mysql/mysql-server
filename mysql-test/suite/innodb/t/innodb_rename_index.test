@@ -2,7 +2,6 @@
 # Test "ALTER TABLE ... RENAME INDEX" in InnoDB
 #
 
--- source include/have_innodb.inc
 let create =
 CREATE TABLE t (
 	a INT,

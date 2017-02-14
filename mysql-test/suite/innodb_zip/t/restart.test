@@ -2,7 +2,6 @@
 # These test make sure that tables are visible after rebooting
 #
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/not_embedded.inc
 SET default_storage_engine=InnoDB;

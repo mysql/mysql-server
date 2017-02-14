@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,13 +24,14 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "my_config.h"
-
 #include "m_ctype.h"
 #include "mb_wc.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
 #include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_uctype.h"  // IWYU pragma: keep
 
 #ifndef EILSEQ
@@ -5179,8 +5180,6 @@ pad:
   if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
     dst+= my_strxfrm_pad_nweights_unicode(dst, de, nweights);
 
-  my_strxfrm_desc_and_reverse(dst0, dst, flags, 0);
-
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
     dst+= my_strxfrm_pad_unicode(dst, de);
   return dst - dst0;
@@ -5260,8 +5259,6 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
     }
   }
   
-  my_strxfrm_desc_and_reverse(dst0, dst, flags, 0);
-
   if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
   {
     while (dst < de)
@@ -5983,7 +5980,6 @@ CHARSET_INFO my_charset_utf8_general_ci=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_utf8_handler,
     &my_collation_utf8_general_ci_handler
 };
@@ -6019,7 +6015,6 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_utf8_handler,
     &my_collation_utf8_general_ci_handler
 };
@@ -6055,7 +6050,6 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   ' ',                                          /* pad char         */
   0,                          /* escape_with_backslash_is_dangerous */
   1,                                            /* levels_for_compare */
-  1,                                            /* levels_for_order   */
   &my_charset_utf8_handler,
   &my_collation_utf8_general_ci_handler
 };
@@ -6092,7 +6086,6 @@ CHARSET_INFO my_charset_utf8_bin=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_utf8_handler,
     &my_collation_utf8_bin_handler
 };
@@ -7398,7 +7391,6 @@ CHARSET_INFO my_charset_filename=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_filename_handler,
     &my_collation_filename_handler
 };
@@ -8247,7 +8239,6 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
-  1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
   &my_collation_utf8mb4_general_ci_handler
 };
@@ -8284,7 +8275,6 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
-  1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
   &my_collation_utf8mb4_bin_handler
 };

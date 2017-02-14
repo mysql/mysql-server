@@ -1624,15 +1624,6 @@ substr(z.a,-1)	a
 6	456
 drop table t1;
 SET CHARACTER SET utf8;
-SHOW VARIABLES LIKE 'character\_set\_%';
-Variable_name	Value
-character_set_client	utf8
-character_set_connection	latin1
-character_set_database	latin1
-character_set_filesystem	binary
-character_set_results	utf8
-character_set_server	latin1
-character_set_system	utf8
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8;
@@ -2252,7 +2243,7 @@ def	test	t1	t1	s1	s1	252	255	0	Y	16	0	33
 def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	33
 def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	33
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	33
-def					HEX(s1)	253	4590	0	Y	0	0	33
+def					HEX(s1)	253	4590	0	Y	0	31	33
 s1	s2	s3	s4	HEX(s1)
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
@@ -2261,7 +2252,7 @@ def	test	t1	t1	s1	s1	252	255	0	Y	16	0	8
 def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	8
 def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	8
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	8
-def					HEX(s1)	253	1530	0	Y	0	0	8
+def					HEX(s1)	253	1530	0	Y	0	31	8
 s1	s2	s3	s4	HEX(s1)
 SET NAMES utf8;
 SELECT *, HEX(s1) FROM t1;
@@ -2270,7 +2261,7 @@ def	test	t1	t1	s1	s1	252	765	0	Y	16	0	33
 def	test	t1	t1	s2	s2	252	196605	0	Y	16	0	33
 def	test	t1	t1	s3	s3	252	50331645	0	Y	16	0	33
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	33
-def					HEX(s1)	253	4590	0	Y	0	0	33
+def					HEX(s1)	253	4590	0	Y	0	31	33
 s1	s2	s3	s4	HEX(s1)
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
@@ -5364,36 +5355,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 20AC20AC20AC00200020002000200020002000200020002000
-select @@collation_connection;
-@@collation_connection
-utf8_general_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0041
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0041
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-004100420043
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-00410042
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-004100420043
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-00410042004300200020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-20002000430042004100
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FFBEFFBDFFBCFFDFFFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFDFFFBCFFBDFFBEFF
 set @@collation_connection=utf8_bin;
 select @@collation_connection;
 @@collation_connection
@@ -5542,36 +5503,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 20AC20AC20AC00200020002000200020002000200020002000
-select @@collation_connection;
-@@collation_connection
-utf8_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0061
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0041
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-006100620063
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-00610062
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-006100620063
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-00610062006300200020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-20002000630062006100
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FF9EFF9DFF9CFFDFFFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFDFFF9CFF9DFF9EFF
 #
 # Checking strnxfrm() with odd length
 #

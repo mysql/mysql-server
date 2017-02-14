@@ -984,10 +984,16 @@ runBug16772(NDBT_Context* ctx, NDBT_Step* step){
   ndbout << "Restart node " << deadNodeId << endl; 
 
   if (restarter.restartOneDbNode(deadNodeId,
-				 /** initial */ false, 
-				 /** nostart */ true,
-				 /** abort   */ true))
+				 /** initial       */ false,
+				 /** nostart       */ true,
+				 /** abort         */ true,
+				 /** force         */ false,
+				 /** capture error */ true) == 0)
+  {
+    g_err << "Restart of node " << deadNodeId << " succeeded when it should "
+          << "have failed";
     return NDBT_FAILED;
+  }
   
   // It should now be hanging since we throw away NDB_FAILCONF
   const int ret = restarter.waitNodesNoStart(&deadNodeId, 1);
@@ -7577,6 +7583,20 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
    */
 
   /**
+   * This test case has been designed to work with only 1 nodegroup.
+   * With multiple nodegroups, a single node failure is not enough to
+   * force arbitration. Since the single node which failed does not
+   * form a viable community by itself, arbitration (and thus the error
+   * insert) is skipped. Thus, this test case should be skipped for
+   * clusters with more than 1 nodegroup.
+   */
+  if (restarter.getNumDbNodes() != 2)
+  {
+    g_err << "[SKIPPED] Test skipped.  Needs 1 nodegroup" << endl;
+    return NDBT_OK;
+  }
+
+  /**
    * 1. connect new api node
    */
   Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
@@ -7610,9 +7630,11 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
    */
   if (restarter.restartOneDbNode2(master,
                                   NdbRestarter::NRRF_NOSTART |
-                                  NdbRestarter::NRRF_ABORT) != 0)
+                                  NdbRestarter::NRRF_ABORT,
+                                  true) == 0)
   {
-    g_err << "ERROR: stopping old master " << master << endl;
+    g_err << "ERROR: Old master " << master << " reached not started state "
+          << "before arbitration win" << endl;
     return NDBT_FAILED;
   }
 
@@ -7784,6 +7806,175 @@ int runRestartandCheckLCPRestored(NDBT_Context* ctx, NDBT_Step* step)
   ndb_mgm_destroy_logevent_handle(&handle);
   return NDBT_OK;
 }
+
+int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
+  /*
+   * Bug #11757421:  SEND START OF NODE START COMMAND IGNORED IN RESTART
+   *
+   * This test checks the following scenarios:
+   * - Restart of a single data node
+   *   - When the shutdown process fails to begin
+   *   - When the shutdown process fails to complete
+   * - Restart of multiple data nodes
+   *   - When the shutdown process fails to begin
+   *   - When the shutdown process fails to complete
+   *
+   * The steps in each sub-scenario are as follows:
+   * - Insert error code in management node
+   * - Trigger restart which should fail to start node(s)
+   * - Remove the error insert
+   */
+  NdbRestarter restarter;
+  int cnt = restarter.getNumDbNodes();
+
+  if(restarter.waitClusterStarted() != 0)
+  {
+    g_err << "ERROR: Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  int nodeId = restarter.getDbNodeId(rand()%cnt);
+  int mgmdNodeId = ndb_mgm_get_mgmd_nodeid(restarter.handle);
+
+  ndbout << "Case 1: Restart of a single data node where the"
+         << " shutdown process fails to begin" << endl;
+  ndbout << "Insert error 10006 in mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 10006) != 0)
+  {
+    g_err << "ERROR: Error insert in mgmd failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Trigger restart of node " << nodeId
+         << " which should fail" << endl;
+  if(restarter.restartOneDbNode(nodeId, false, true, true, false, true)
+      == 0)
+  {
+    g_err << "ERROR: Restart of node " << nodeId
+          << " succeeded instead of failing" << endl;
+    return NDBT_FAILED;
+  }
+
+  //Check if the restart failed with correct error
+  BaseString error_code(ndb_mgm_get_latest_error_desc(restarter.handle),4);
+  if(error_code != "5024")
+  {
+    g_err << "ERROR: Restart of node " << nodeId << " failed with "
+          << "error " << error_code.c_str() << " instead of error "
+          << "5024" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Remove the error code from mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 0) != 0)
+  {
+    g_err << "ERROR: Error insert clear failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Case 2: Restart of a single data node where the"
+         << " shutdown process fails to complete" << endl;
+  ndbout << "Insert error 10007 in mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 10007) != 0)
+  {
+    g_err << "ERROR: Error insert in mgmd failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Trigger restart of node " << nodeId
+          << " which should fail" << endl;
+  if(restarter.restartOneDbNode(nodeId, false, true, true, false, true)
+      == 0)
+  {
+    g_err << "ERROR: Restart of node " << nodeId
+          << " succeeded instead of failing" << endl;
+    return NDBT_FAILED;
+  }
+
+  //Check if the restart failed with correct error
+  error_code.assign(ndb_mgm_get_latest_error_desc(restarter.handle),4);
+  if(error_code != "5025")
+  {
+    g_err << "ERROR: Restart of node " << nodeId << " failed with "
+          << "error " << error_code.c_str() << " instead of error "
+          << "5025" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Remove the error code from mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 0) != 0)
+  {
+    g_err << "ERROR: Error insert clear failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Case 3: Restart of all data nodes where the"
+         << " shutdown process fails to begin" << endl;
+  ndbout << "Insert error 10006 in mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 10006) != 0)
+  {
+    g_err << "ERROR: Error insert in mgmd failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Trigger restart of all nodes which should fail" << endl;
+  if(restarter.restartAll3(false, true, true, false)
+      == 0)
+  {
+    g_err << "ERROR: Restart of nodes succeeded "
+          << "instead of failing" << endl;
+    return NDBT_FAILED;
+  }
+
+  //Check if the restart failed with correct error
+  error_code.assign(ndb_mgm_get_latest_error_desc(restarter.handle),4);
+  if(error_code != "5024")
+  {
+    g_err << "ERROR: Restart of nodes failed with error "
+          << error_code.c_str() << " instead of error "
+          << "5024" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Remove the error code from mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 0) != 0)
+  {
+    g_err << "ERROR: Error insert clear failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Case 4: Restart of all data nodes where the"
+         << " shutdown process fails to complete" << endl;
+  ndbout << "Insert error 10007 in mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 10007) != 0)
+  {
+    g_err << "ERROR: Error insert in mgmd failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Trigger restart of all nodes which should fail" << endl;
+  if(restarter.restartAll3(false, true, true, false)
+      == 0)
+  {
+    g_err << "ERROR: Restart of nodes succeeded instead of failing"
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  //Check if the restart failed with correct error
+  error_code.assign(ndb_mgm_get_latest_error_desc(restarter.handle),4);
+  if(error_code != "5025")
+  {
+    g_err << "ERROR: Restart of nodes failed with error "
+          << error_code.c_str() << " instead of error "
+          << "5025" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Remove the error code from mgmd" << endl;
+  if(restarter.insertErrorInNode(mgmdNodeId, 0) != 0)
+  {
+    g_err << "ERROR: Error insert clear failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -8476,6 +8667,12 @@ TESTCASE("RestoreOlderLCP",
   STEP(runRestartandCheckLCPRestored);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
+}
+TESTCASE("StartDuringNodeRestart",
+         "Test Start of a node during a Restart when Stop is skipped/ "
+         "not completed in time.");
+{
+  STEP(runTestStartNode);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);

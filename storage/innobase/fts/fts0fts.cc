@@ -37,7 +37,9 @@ Full Text Search interface
 #include "fts0vlc.ic"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "row0mysql.h"
 #include "row0sel.h"
 #include "row0upd.h"
@@ -2201,8 +2203,7 @@ fts_create_index_tables(
 	dberr_t		err;
 	dict_table_t*	table;
 
-	table = dd_table_open_on_name_in_mem(index->table_name, true,
-					     DICT_ERR_IGNORE_NONE);
+	table = dd_table_open_on_name_in_mem(index->table_name, true);
 	ut_a(table != NULL);
 	ut_ad(table->get_ref_count() > 1);
 
@@ -6673,8 +6674,7 @@ fts_check_corrupt_index(
 	dict_table_t*	table;
 	dict_index_t*	index;
 
-	table = dd_table_open_on_id_in_mem(
-		aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+	table = dd_table_open_on_id_in_mem(aux_table->parent_id, TRUE);
 
 	if (table == NULL) {
 		return(0);

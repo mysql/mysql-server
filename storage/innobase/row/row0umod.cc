@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,23 +25,26 @@ Created 2/27/1997 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
-#include "row0umod.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
-#include "trx0undo.h"
-#include "trx0roll.h"
 #include "btr0btr.h"
-#include "mach0data.h"
-#include "row0undo.h"
-#include "row0vers.h"
-#include "row0log.h"
-#include "trx0trx.h"
-#include "trx0rec.h"
-#include "row0row.h"
-#include "row0upd.h"
-#include "que0que.h"
+#include "ha_prototypes.h"
 #include "log0log.h"
+#include "mach0data.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "que0que.h"
+#include "row0log.h"
+#include "row0row.h"
+#include "row0umod.h"
+#include "row0undo.h"
+#include "row0upd.h"
+#include "row0vers.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /* Considerations on undoing a modify operation.
 (1) Undoing a delete marking: all index records should be found. Some of
@@ -1125,8 +1128,7 @@ row_undo_mod_parse_undo_rec(
 	Notably, there cannot be a race between ROLLBACK and
 	DROP TEMPORARY TABLE, because temporary tables are
 	private to a single connection. */
-	node->table = dd_table_open_on_id_in_mem(
-		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
+	node->table = dd_table_open_on_id_in_mem(table_id, dict_locked);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */

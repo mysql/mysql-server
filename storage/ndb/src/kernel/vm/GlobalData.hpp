@@ -41,6 +41,9 @@ enum  restartStates {initial_state,
                      system_started, 
                      perform_stop};
 
+typedef ArrayPool<GlobalPage> GlobalPage_pool;
+typedef SafeArrayPool<GlobalPage> GlobalPage_safepool;
+
 struct GlobalData {
   Uint32     m_hb_count[MAX_NODES];   // hb counters
   NodeInfo   m_nodeInfo[MAX_NODES];   // At top to ensure cache alignment
@@ -136,8 +139,8 @@ private:
   Uint32     watchDog;
   SimulatedBlock* blockTable[NO_OF_BLOCKS]; // Owned by Dispatcher::
 public:
-  SafeArrayPool<GlobalPage> m_global_page_pool;
-  ArrayPool<GlobalPage> m_shared_page_pool;
+  GlobalPage_safepool m_global_page_pool;
+  GlobalPage_pool m_shared_page_pool;
 
 #ifdef GCP_TIMER_HACK
   // timings are local to the node

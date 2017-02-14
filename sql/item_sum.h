@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
 #include "my_time.h"
 #include "my_tree.h"        // TREE
 #include "mysql_com.h"
@@ -786,10 +789,22 @@ public:
 class Item_sum_int :public Item_sum_num
 {
 public:
-  Item_sum_int(const POS &pos, Item *item_par) :Item_sum_num(pos, item_par) {}
-
-  Item_sum_int(const POS &pos, PT_item_list *list) :Item_sum_num(pos, list) {}
-  Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
+  Item_sum_int(const POS &pos, Item *item_par) :Item_sum_num(pos, item_par)
+  { set_data_type_longlong(); }
+  Item_sum_int(const POS &pos, PT_item_list *list) :Item_sum_num(pos, list)
+  { set_data_type_longlong(); }
+  Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item)
+  { set_data_type_longlong(); }
+  bool resolve_type(THD*) override
+  {
+    maybe_null= false;
+    for (uint i= 0; i < arg_count; i++)
+    {
+       maybe_null|= args[i]->maybe_null;
+    }
+    null_value= FALSE;
+    return false;
+  }
   double val_real() override
   { DBUG_ASSERT(fixed); return static_cast<double>(val_int()); }
   String *val_str(String *str) override;
@@ -803,14 +818,6 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type() const override { return INT_RESULT; }
-  bool resolve_type(THD *) override
-  {
-    decimals= 0;
-    max_length= 21;
-    maybe_null= false;
-    null_value= FALSE;
-    return false;
-  }
 };
 
 
@@ -889,6 +896,12 @@ class Item_sum_count :public Item_sum_int
   {
     return has_with_distinct() ? COUNT_DISTINCT_FUNC : COUNT_FUNC;
   }
+  bool resolve_type(THD*) override
+  {
+    maybe_null= false;
+    null_value= FALSE;
+    return false;
+  }
   void no_rows_in_result() override { count= 0; }
   void make_const(longlong count_arg)
   {
@@ -961,11 +974,6 @@ public:
   {
     return get_time_from_numeric(ltime); /* Decimal or real */
   }
-  enum_field_types field_type() const override
-  {
-    return hybrid_type == DECIMAL_RESULT ?
-      MYSQL_TYPE_NEWDECIMAL : MYSQL_TYPE_DOUBLE;
-  }
   bool is_null() override { update_null_value(); return null_value; }
 };
 
@@ -1002,11 +1010,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   enum Type type() const override { return FIELD_BIT_ITEM; }
-  enum_field_types field_type() const override
-  {
-    return hybrid_type == INT_RESULT ?
-      MYSQL_TYPE_LONGLONG : MYSQL_TYPE_VAR_STRING;
-  }
   const char *func_name() const override
   { DBUG_ASSERT(0); return "sum_bit_field"; }
 };
@@ -1026,16 +1029,23 @@ protected:
 public:
   Item_sum_json(THD *thd, Item_sum *item)
     : Item_sum(thd, item)
-  {}
+  {
+    set_data_type(MYSQL_TYPE_JSON);
+  }
+
   Item_sum_json(const POS &pos, Item *a)
     : Item_sum(pos, a)
-  {}
+  {
+    set_data_type(MYSQL_TYPE_JSON);
+  }
+
   Item_sum_json(const POS &pos, Item *a, Item *b)
     : Item_sum(pos, a, b)
-  {}
+  {
+    set_data_type(MYSQL_TYPE_JSON);
+  }
 
   bool fix_fields(THD *thd, Item **pItem) override;
-  enum_field_types field_type() const override { return MYSQL_TYPE_JSON; }
   enum Sumfunctype sum_func() const override { return JSON_AGG_FUNC; }
   Item_result result_type() const override { return STRING_RESULT; }
 
@@ -1225,7 +1235,6 @@ public:
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type () const override { return REAL_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_DOUBLE;}
   const char *func_name() const override { DBUG_ASSERT(0); return "std_field";}
 };
 
@@ -1250,7 +1259,6 @@ class Item_sum_std : public Item_sum_variance
   const char *func_name() const override { return "std("; }
   Item *copy_or_same(THD* thd) override;
   enum Item_result result_type () const override { return REAL_RESULT; }
-  enum_field_types field_type() const override { return MYSQL_TYPE_DOUBLE;}
 };
 
 // This class is a string or number function depending on num_func
@@ -1262,25 +1270,22 @@ protected:
   Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
   Item_result hybrid_type;
-  enum_field_types hybrid_field_type;
   int cmp_sign;
   bool was_values;  // Set if we have found at least one row (for max/min only)
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
     :Item_sum(item_par), value(0), arg_cache(0), cmp(0),
-    hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
-    cmp_sign(sign), was_values(true)
+    hybrid_type(INT_RESULT), cmp_sign(sign), was_values(true)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(const POS &pos, Item *item_par,int sign)
     :Item_sum(pos, item_par), value(0), arg_cache(0), cmp(0),
-    hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
-    cmp_sign(sign), was_values(true)
+    hybrid_type(INT_RESULT), cmp_sign(sign), was_values(true)
   { collation.set(&my_charset_bin); }
 
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
     :Item_sum(thd, item), value(item->value), arg_cache(0),
-    hybrid_type(item->hybrid_type), hybrid_field_type(item->hybrid_field_type),
+    hybrid_type(item->hybrid_type),
     cmp_sign(item->cmp_sign), was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **) override;
@@ -1298,8 +1303,6 @@ protected:
   bool val_json(Json_wrapper *wr) override;
   bool keep_field_type() const override { return 1; }
   enum Item_result result_type () const override { return hybrid_type; }
-  enum enum_field_types field_type() const override
-  { return hybrid_field_type; }
   void update_field() override;
   void min_max_update_str_field();
   void min_max_update_temporal_field();
@@ -1518,6 +1521,7 @@ class Item_sum_udf_float final : public Item_udf_sum
   }
   bool resolve_type(THD *) override
   {
+    set_data_type(MYSQL_TYPE_DOUBLE);
     fix_num_length_and_dec();
     return false;
    }
@@ -1549,8 +1553,7 @@ public:
   enum Item_result result_type () const override { return INT_RESULT; }
   bool resolve_type(THD *) override
   {
-    decimals= 0;
-    max_length= 21;
+    set_data_type_longlong();
     return false;
   }
   Item *copy_or_same(THD* thd) override;
@@ -1627,6 +1630,7 @@ public:
   enum Item_result result_type () const override { return DECIMAL_RESULT; }
   bool resolve_type(THD *) override
   {
+    set_data_type(MYSQL_TYPE_NEWDECIMAL);
     fix_num_length_and_dec();
     return false;
    }
@@ -1706,13 +1710,6 @@ public:
   const char *func_name() const override { return "group_concat"; }
   Item_result result_type() const override { return STRING_RESULT; }
   Field *make_string_field(TABLE *table_arg) override;
-  enum_field_types field_type() const override
-  {
-    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB )
-      return MYSQL_TYPE_BLOB;
-    else
-      return MYSQL_TYPE_VARCHAR;
-  }
   void clear() override;
   bool add() override;
   void reset_field() override { DBUG_ASSERT(0); }        // not used

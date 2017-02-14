@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,25 +18,26 @@
  */
 
 #include "admin_cmd_handler.h"
-#include "xpl_error.h"
-#include "sql_data_context.h"
-#include "query_string_builder.h"
-#include "mysql/service_my_snprintf.h"
-#include "ngs/protocol/row_builder.h"
-#include "sql_data_result.h"
-#include "ngs/mysqlx/getter_any.h"
-#include "sha1.h"
-#include "password.h"
 
-#include "mysqlx_resultset.pb.h"
-#include "mysqlx_datatypes.pb.h"
-#include "mysqlx_sql.pb.h"
-
-#include "xpl_regex.h"
-#include "xpl_session.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
 #include <algorithm>
+
+#include "my_inttypes.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqlx_datatypes.pb.h"
+#include "mysqlx_resultset.pb.h"
+#include "mysqlx_sql.pb.h"
+#include "ngs/mysqlx/getter_any.h"
+#include "ngs/protocol/row_builder.h"
+#include "password.h"
+#include "query_string_builder.h"
+#include "sha1.h"
+#include "sql_data_context.h"
+#include "sql_data_result.h"
+#include "xpl_error.h"
+#include "xpl_log.h"
+#include "xpl_regex.h"
+#include "xpl_server.h"
+#include "xpl_session.h"
 
 
 namespace
@@ -1154,18 +1155,21 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
     return error;
 
   Query_string_builder qb;
-  qb.put("SELECT T.table_name AS name, "
+  qb.put("SELECT BINARY T.table_name AS name, "
          "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', "
-         "IF(COUNT(*)=1 AND ").put(COUNT_DOC).put("=1, 'COLLECTION_VIEW', 'VIEW'), "
-         "IF(COUNT(*)-2 = ")
+         "IF(COUNT(*)=1 AND ")
+      .put(COUNT_DOC)
+      .put("=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = ")
       .put(COUNT_GEN)
       .put(" AND ")
       .put(COUNT_DOC)
       .put("=1 AND ")
       .put(COUNT_ID)
       .put("=1, 'COLLECTION', 'TABLE')) AS type "
-           "FROM information_schema.tables AS T LEFT JOIN "
-           "information_schema.columns AS C USING (table_schema,table_name)"
+           "FROM information_schema.tables AS T "
+           "LEFT JOIN information_schema.columns AS C ON ("
+           "BINARY T.table_schema = C.table_schema AND "
+           "BINARY T.table_name = C.table_name) "
            "WHERE T.table_schema = ");
   if (schema.empty())
     qb.put("schema()");
@@ -1173,7 +1177,7 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
     qb.quote_string(schema);
   if (!pattern.empty())
     qb.put(" AND T.table_name LIKE ").quote_string(pattern);
-  qb.put(" GROUP BY T.table_name ORDER BY T.table_name");
+  qb.put(" GROUP BY name ORDER BY name");
 
   Sql_data_context::Result_info info;
   error = m_da.execute_sql_and_stream_results(qb.get().data(),

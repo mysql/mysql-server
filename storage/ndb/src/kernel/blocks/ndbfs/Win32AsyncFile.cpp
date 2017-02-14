@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,6 +104,7 @@ void Win32AsyncFile::openReq(Request* request)
   
     if((ERROR_FILE_EXISTS == request->error) && (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
       request->error = FsRef::fsErrFileExists;
+      (void)CloseHandle(hFile);
       return;
     }
 
@@ -123,6 +124,24 @@ void Win32AsyncFile::openReq(Request* request)
     request->error = 0;
   }
 
+  if (flags & FsOpenReq::OM_CHECK_SIZE)
+  {
+    LARGE_INTEGER size;
+    BOOL ret_code = GetFileSizeEx(hFile, &size);
+    if (!ret_code)
+    {
+      request->error = GetLastError();
+      (void)CloseHandle(hFile);
+      return;
+    }
+    if (Uint64(size.QuadPart) != request->par.open.file_size)
+    {
+      request->error = FsRef::fsErrInvalidFileSize;
+      (void)CloseHandle(hFile);
+      return;
+    }
+  }
+
   if (flags & FsOpenReq::OM_INIT)
   {
     LARGE_INTEGER off;
@@ -137,6 +156,8 @@ void Win32AsyncFile::openReq(Request* request)
       if(r==0)
       {
         request->error= GetLastError();
+        (void)CloseHandle(hFile);
+        (void)DeleteFile(theFileName.c_str());
         return;
       }
       DWORD dwWritten;
@@ -144,6 +165,9 @@ void Win32AsyncFile::openReq(Request* request)
       if(!bWrite || dwWritten!=sizeof(buf))
       {
         request->error= GetLastError();
+        (void)CloseHandle(hFile);
+        (void)DeleteFile(theFileName.c_str());
+        return;
       }
       off.QuadPart+=sizeof(buf);
     }
@@ -152,6 +176,8 @@ void Win32AsyncFile::openReq(Request* request)
     if(r==0)
     {
       request->error= GetLastError();
+      (void)CloseHandle(hFile);
+      (void)DeleteFile(theFileName.c_str());
       return;
     }
 
@@ -186,6 +212,9 @@ void Win32AsyncFile::openReq(Request* request)
 	if(!bWrite || dwWritten!=size)
 	{
 	  request->error= GetLastError();
+          (void)CloseHandle(hFile);
+          (void)DeleteFile(theFileName.c_str());
+          return;
 	}
 	size -= dwWritten;
 	buf += dwWritten;
@@ -193,9 +222,9 @@ void Win32AsyncFile::openReq(Request* request)
       if(size != 0)
       {
 	int err = errno;
-	/*	close(theFd);
-		unlink(theFileName.c_str());*/
 	request->error = err;
+        (void)CloseHandle(hFile);
+        (void)DeleteFile(theFileName.c_str());
 	return;
       }
       off.QuadPart += request->par.open.page_size;
@@ -206,8 +235,23 @@ void Win32AsyncFile::openReq(Request* request)
     if(r==0)
     {
       request->error= GetLastError();
+      (void)CloseHandle(hFile);
+      (void)DeleteFile(theFileName.c_str());
       return;
     }
+  }
+  if (flags & FsOpenReq::OM_READ_SIZE)
+  {
+    LARGE_INTEGER size;
+    BOOL ret_code = GetFileSizeEx(hFile, &size);
+    if (ret_code)
+    {
+      request->error = GetLastError();
+      (void)CloseHandle(hFile);
+      return;
+    }
+    request->m_file_size_hi = Uint32(Uint64(size.QuadPart) >> 32);
+    request->m_file_size_lo = Uint32(Uint64(size.QuadPart) & 0xFFFFFFFF);
   }
 
   return;

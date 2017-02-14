@@ -3,7 +3,6 @@
 # -----------------------------------------------------------------------
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 # Initial Setup for Digest

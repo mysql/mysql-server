@@ -9,7 +9,6 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 # This testcase fails sporadiaclly with these options --big,--parallel=8,--repeat=30 --retry=0
 # Due to some bug in the get_multi, variable unbale to clean up,following is the failure snippet
 # @@desc_t2.DD => DELHIDELHIDELHIDELHIDELHIDELHIDELHIDELHIDELHIDELHI0DAHARDAHARDAHARDAHARDAHARDAHARDAHARDAHARDAHARDAHAR

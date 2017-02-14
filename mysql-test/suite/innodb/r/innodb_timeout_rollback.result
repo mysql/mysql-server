@@ -52,6 +52,12 @@ set session transaction isolation level repeatable read;
 # (prior to fix this would trigger the assert).
 create table t2 as select * from t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API". Check how rollback is handled
+# by similar CTS for non-transactional table.
+BEGIN;
+create table t2 engine=myisam as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Cleanup
 COMMIT;
 drop table t1;

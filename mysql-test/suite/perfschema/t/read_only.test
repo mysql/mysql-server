@@ -5,7 +5,6 @@
 # - a user with SUPER privileges can
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 --enable_connect_log
 
 use performance_schema;

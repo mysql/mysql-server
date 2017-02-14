@@ -13,7 +13,6 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
--- source include/have_innodb.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

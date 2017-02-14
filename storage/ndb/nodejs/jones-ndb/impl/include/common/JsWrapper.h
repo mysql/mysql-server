@@ -38,7 +38,6 @@ using v8::String;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::PropertyCallbackInfo;
-using v8::WeakCallbackData;
 
 /* A Persistent<T> can be cast to a Local<T>.  See:
    https://groups.google.com/forum/#!msg/v8-users/6kSAbnUb-rQ/9G5RmCpsDIMJ.
@@ -61,11 +60,15 @@ inline Local<T> ToLocal(const Persistent<T>* p_) {
 #define IsExternalAscii IsExternalOneByte
 #define COPY_TO_BUFFER(Iso,Data,Len) node::Buffer::Copy(Iso,Data,Len).ToLocalChecked()
 #define USE_FOR_BUFFER(Iso,Data,Len) node::Buffer::New(Iso,Data,Len).ToLocalChecked()
+#define RECLAIM_PARAM v8::WeakCallbackInfo< GcReclaimer<CPP_OBJECT> >
+#define EXTRA_SET_WEAK ,v8::WeakCallbackType::kParameter
 #else
 #define BUFFER_HANDLE v8::Local
 #define LOCAL_BUFFER(B) B
 #define COPY_TO_BUFFER(Iso,Data,Len) node::Buffer::New(Iso,Data,Len)
 #define USE_FOR_BUFFER(Iso,Data,Len) node::Buffer::Use(Iso,Data,Len)
+#define RECLAIM_PARAM v8::WeakCallbackData<Value, GcReclaimer<CPP_OBJECT> >
+#define EXTRA_SET_WEAK
 #endif
 
 /* Signature of a V8 function wrapper
@@ -113,7 +116,7 @@ inline void check_class_id(const char *a, const char *b) {
 template<typename CPP_OBJECT> class GcReclaimer;  // forward declaration
 
 template<typename CPP_OBJECT>
-void onGcReclaim(const WeakCallbackData<Value, GcReclaimer<CPP_OBJECT> > & data) {
+void onGcReclaim(const RECLAIM_PARAM & data) {
   GcReclaimer<CPP_OBJECT> * reclaimer = data.GetParameter();
   reclaimer->reclaim();
   delete reclaimer;
@@ -126,7 +129,7 @@ public:
   void SetWeakReference(Isolate *isolate, Handle<Value> obj) {
     notifier.Reset(isolate, obj);
     notifier.MarkIndependent();
-    notifier.SetWeak(this, onGcReclaim<CPP_OBJECT>);
+    notifier.SetWeak(this, onGcReclaim<CPP_OBJECT> EXTRA_SET_WEAK);
   }
 
   void reclaim() {
@@ -167,7 +170,7 @@ public:
     isVO(false)
   {
     EscapableHandleScope scope(isolate);
-    Local<ObjectTemplate> proto = ObjectTemplate::New();
+    Local<ObjectTemplate> proto = ObjectTemplate::New(isolate);
     proto->SetInternalFieldCount(2);
     stencil.Set(isolate, proto);
   }
@@ -180,7 +183,7 @@ public:
   void addMethod(const char *name, V8WrapperFn wrapper) {
     stencil.Get(isolate)->Set(
       String::NewFromUtf8(isolate, name, v8::String::kInternalizedString),
-      FunctionTemplate::New(isolate, wrapper)->GetFunction()
+      FunctionTemplate::New(isolate, wrapper)
     );
   }
 

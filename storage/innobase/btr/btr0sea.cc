@@ -31,13 +31,16 @@ Created 2/17/1996 Heikki Tuuri
 *************************************************************************/
 
 #include "btr0sea.h"
-#include "buf0buf.h"
-#include "page0page.h"
-#include "page0cur.h"
+
+#include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0pcur.h"
-#include "btr0btr.h"
+#include "buf0buf.h"
 #include "ha0ha.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "page0cur.h"
+#include "page0page.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
 

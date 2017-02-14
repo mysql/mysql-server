@@ -47,6 +47,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "lock0lock.h"
 #include "mach0data.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "pars0sym.h"
 #include "que0que.h"

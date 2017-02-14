@@ -810,7 +810,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
 
 /**
   Mark all trigger fields as "temporary nullable" and remember the current
-  THD::count_cuted_fields value.
+  THD::check_for_truncated_fields value.
 
   @param thd Thread context.
 */
@@ -822,7 +822,8 @@ void Table_trigger_dispatcher::enable_fields_temporary_nullability(THD *thd)
   for (Field **next_field= m_subject_table->field; *next_field; ++next_field)
   {
     (*next_field)->set_tmp_nullable();
-    (*next_field)->set_count_cuted_fields(thd->count_cuted_fields);
+    (*next_field)->set_check_for_truncated_fields(
+      thd->check_for_truncated_fields);
 
     /*
       For statement LOAD INFILE we set field values during parsing of data file

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ Created 2007/3/16 Sunny Bains.
 #include "fts0fts.h"
 #include "fts0pars.h"
 #include "ha_prototypes.h"
+#include "my_inttypes.h"
 
 /* The FTS ast visit pass. */
 enum fts_ast_visit_pass_t {

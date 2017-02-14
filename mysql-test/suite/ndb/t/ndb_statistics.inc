@@ -21,9 +21,9 @@ INSERT INTO t100(I,J)
 
 CREATE TABLE t10000 LIKE t10;
 
-# Insert into t10000 into myisam and alter to ndb
-#  not to exhaust MaxNoOfConcurrentOperations
-ALTER TABLE t10000 ENGINE=MYISAM;
+# Insert into t10000 into innodb and alter to ndb
+# not to exhaust MaxNoOfConcurrentOperations
+ALTER TABLE t10000 ENGINE=INNODB;
 INSERT INTO t10000(I,J)
   SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
 ALTER TABLE t10000 ENGINE=NDBCLUSTER;

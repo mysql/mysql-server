@@ -50,7 +50,10 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -1053,7 +1056,8 @@ row_prebuilt_free(
 		rtr_clean_rtr_info(prebuilt->rtr_info, true);
 	}
 
-	if (prebuilt->table && !prebuilt->table->is_fts_aux()) {
+	if (prebuilt->table) {
+		ut_ad(!prebuilt->table->is_fts_aux());
 		dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
 	}
 
@@ -2426,15 +2430,9 @@ row_update_for_mysql_using_upd_graph(
 	trx_start_if_not_started_xa(trx, true);
 
 	if (dict_table_is_referenced_by_foreign_key(table)) {
-		/* Share lock the data dictionary to prevent any
-		table dictionary (for foreign constraint) change.
-		This is similar to row_ins_check_foreign_constraint
-		check protect by the dictionary lock as well.
-		In the future, this can be removed once the Foreign
-		key MDL is implemented */
-		//row_mysql_freeze_data_dictionary(trx);
+		/*TODO: use foreign key MDL to protect foreign
+		key tables(wl#6049) */
 		init_fts_doc_id_for_ref(table, &fk_depth);
-		//row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	node = prebuilt->upd_node;
@@ -3087,7 +3085,15 @@ error_handling:
 			<< table->name
 			<< " because tablespace full";
 
-		dict_mem_table_free(table);
+		if (dd_table_open_on_name_in_mem(table->name.m_name, true)) {
+
+			/* Server will rollback persisted metadata */
+			dd_table_close(table, nullptr, nullptr, true);
+
+			dict_table_remove_from_cache(table);
+		} else {
+			dict_mem_table_free(table);
+		}
 
 		break;
 
@@ -3378,7 +3384,7 @@ row_table_add_foreign_constraints(
 			 = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 		dict_table_t*	table = dd_table_open_on_name_in_mem(
-			name, true, DICT_ERR_IGNORE_NONE);
+			name, true);
 
 		err = dd_table_load_fk(
 			client, name, nullptr,

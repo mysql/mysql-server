@@ -10,22 +10,22 @@ CREATE ROLE role@host;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'role@host' at line 1
 CREATE ROLE 'role'@host;
 CREATE ROLE 'role'@`host`;
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE IF NOT EXISTS 'role'@'host';
 Warnings:
-Note	3163	User 'role'@'host' already exists.
+Note	3163	Authorization ID 'role'@'host' already exists.
 CREATE ROLE `role`@host;
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE `role`@`host`;
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE `role`@'host';
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE 'role'@host;
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE 'role'@`host`;
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE 'role'@'host';
-ERROR HY000: Operation CREATE USER failed for 'role'@'host'
+ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE role1, role2;
 CREATE ROLE r1 IDENTIFIED BY 'test';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY 'test'' at line 1
@@ -43,8 +43,8 @@ role	host	mysql_native_password	Account is locked
 # WL988.I-1
 CREATE ROLE IF NOT EXISTS role1, role2;
 Warnings:
-Note	3163	User 'role1'@'%' already exists.
-Note	3163	User 'role2'@'%' already exists.
+Note	3163	Authorization ID 'role1'@'%' already exists.
+Note	3163	Authorization ID 'role2'@'%' already exists.
 # Granting a role to another role using only role name.
 # WL988 I-4
 GRANT 'role' TO role1;
@@ -278,11 +278,11 @@ DROP ROLE 'role';
 # Don't fail if attempting to drop an unknown role.
 DROP ROLE IF EXISTS 'role';
 Warnings:
-Note	3162	User 'role'@'%' does not exist.
+Note	3162	Authorization ID 'role'@'%' does not exist.
 DROP ROLE IF EXISTS role1, role2;
 DROP ROLE IF EXISTS `role`, `role`@`host`;
 Warnings:
-Note	3162	User 'role'@'%' does not exist.
+Note	3162	Authorization ID 'role'@'%' does not exist.
 # ...unless this is what we want:
 DROP ROLE 'role';
 ERROR HY000: Operation DROP ROLE failed for 'role'@'%'
@@ -1242,12 +1242,12 @@ DROP ROLE r1,r2;
 DROP USER u1@localhost;
 DROP USER IF EXISTS u5, u2, u1, r1,r2, r3;
 Warnings:
-Note	3162	User 'u5'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'r1'@'%' does not exist.
-Note	3162	User 'r2'@'%' does not exist.
-Note	3162	User 'r3'@'%' does not exist.
+Note	3162	Authorization ID 'u5'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'r1'@'%' does not exist.
+Note	3162	Authorization ID 'r2'@'%' does not exist.
+Note	3162	Authorization ID 'r3'@'%' does not exist.
 CREATE USER u5;
 CREATE ROLE r1,r2,r3;
 GRANT ALL ON test.* TO r2;
@@ -1295,11 +1295,11 @@ DROP TABLE test.t5;
 # Test of role for proxy users
 DROP USER IF EXISTS baseuser, admin1, admin2, r1, r2;
 Warnings:
-Note	3162	User 'baseuser'@'%' does not exist.
-Note	3162	User 'admin1'@'%' does not exist.
-Note	3162	User 'admin2'@'%' does not exist.
-Note	3162	User 'r1'@'%' does not exist.
-Note	3162	User 'r2'@'%' does not exist.
+Note	3162	Authorization ID 'baseuser'@'%' does not exist.
+Note	3162	Authorization ID 'admin1'@'%' does not exist.
+Note	3162	Authorization ID 'admin2'@'%' does not exist.
+Note	3162	Authorization ID 'r1'@'%' does not exist.
+Note	3162	Authorization ID 'r2'@'%' does not exist.
 CREATE USER baseuser, admin1, admin2;
 GRANT PROXY ON baseuser TO admin1;
 GRANT PROXY ON baseuser TO admin2;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +45,9 @@
 #include "my_decimal.h"
 #include "my_dir.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -80,6 +83,9 @@
 #endif
 
 #include <algorithm>
+
+#include "print_version.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using std::min;
 
@@ -2600,6 +2606,8 @@ main(int argc, char **argv)
 
   if (argc != 2 && argc != 3)
   {
+    print_version();
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2004"));
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s timezonedir\n", argv[0]);
     fprintf(stderr, " %s timezonefile timezonename\n", argv[0]);

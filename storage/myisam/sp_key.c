@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #include "sp_defs.h"
 

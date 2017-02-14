@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,10 @@ Various utilities for Innobase.
 
 Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
+
+#include "my_config.h"
+
+#include <errno.h>
 
 #include "ha_prototypes.h"
 
@@ -503,6 +507,7 @@ ut_copy_file(
 
 #ifdef _WIN32
 # include <stdarg.h>
+
 /**********************************************************************//**
 A substitute for vsnprintf(3), formatted output conversion into
 a limited buffer. Note: this function DOES NOT return the number of

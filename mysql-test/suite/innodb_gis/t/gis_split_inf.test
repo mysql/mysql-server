@@ -1,5 +1,4 @@
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 create table t1(a geometrycollection not null,spatial key(a))engine=innodb;

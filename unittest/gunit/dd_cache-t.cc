@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,38 +13,34 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <vector>
+#include <gtest/gtest.h>
 #include <algorithm>
 #include <typeinfo>
-
-#include "my_config.h"
-#include <gtest/gtest.h>
-#include "test_utils.h"
-#include "mdl.h"
-#include "test_mdl_context_owner.h"
+#include <vector>
 
 #include "dd.h"
-
-// Avoid warning about deleting ptr to incomplete type on Win
-#include "dd/properties.h"
-
-#include "dd/dd.h"
-#include "dd/cache/element_map.h"
 #include "dd/cache/dictionary_client.h"
-
-#include "dd/impl/cache/free_list.h"
+#include "dd/cache/element_map.h"
+#include "dd/dd.h"
 #include "dd/impl/cache/cache_element.h"
-#include "dd/impl/cache/storage_adapter.h"
+#include "dd/impl/cache/free_list.h"
 #include "dd/impl/cache/shared_dictionary_cache.h"
-
+#include "dd/impl/cache/storage_adapter.h"
 #include "dd/impl/types/charset_impl.h"
 #include "dd/impl/types/collation_impl.h"
+#include "dd/impl/types/event_impl.h"
+#include "dd/impl/types/procedure_impl.h"
 #include "dd/impl/types/schema_impl.h"
 #include "dd/impl/types/table_impl.h"
 #include "dd/impl/types/tablespace_impl.h"
 #include "dd/impl/types/view_impl.h"
-#include "dd/impl/types/event_impl.h"
-#include "dd/impl/types/procedure_impl.h"
+// Avoid warning about deleting ptr to incomplete type on Win
+#include "dd/properties.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "test_mdl_context_owner.h"
+#include "test_utils.h"
 
 
 namespace dd {
@@ -1090,7 +1086,7 @@ TEST_F(CacheStorageTest, TestRename)
       temp_table->set_name("updated_table_name");
 
       // Change name of columns and indexes
-      for (const dd::Column *c : temp_table->columns())
+      for (const dd::Column *c : *temp_table->columns())
         const_cast<dd::Column*>(c)->set_name(c->name() + "_changed");
       for (dd::Index *i : *temp_table->indexes())
         i->set_name(i->name() + "_changed");

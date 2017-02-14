@@ -24,7 +24,6 @@
 ################################################################
 # Begin the functionality Testing of innodb_autoinc_lock_mode  #
 ################################################################
---source include/have_innodb.inc
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET global innodb_autoinc_lock_mode = 1;

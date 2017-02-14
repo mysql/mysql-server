@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 # Disabled in --log-bin runs until atomic DDL is properly supported in

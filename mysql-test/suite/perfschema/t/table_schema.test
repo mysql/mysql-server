@@ -1,7 +1,6 @@
 # Test to detect changest to the PERFORMANCE_SCHEMA table schemas
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # Use the INFORMATION_SCHEMA to examine the tables in the PERFORMANCE_SCHEMA
 # and detect any tables that have changed.

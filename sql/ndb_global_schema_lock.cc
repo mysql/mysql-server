@@ -24,6 +24,7 @@
 #include "portlib/NdbTick.h"
 #include "sql_class.h"
 #include "sql_thd_internal_api.h" // thd_query_unsafe
+#include "ndb_sleep.h"
 
 
 /**
@@ -68,14 +69,6 @@ static bool ndb_is_gsl_participant_active()
   mysql_mutex_unlock(&ndbcluster_mutex);
   return state;
 }
-
-/* perform random sleep in the range milli_sleep to 2*milli_sleep */
-static inline
-void do_retry_sleep(unsigned milli_sleep)
-{
-  my_sleep(1000*(milli_sleep + 5*(rand()%(milli_sleep/5))));
-}
-
 
 #include "ndb_table_guard.h"
 
@@ -160,7 +153,7 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
     }
 
     const unsigned retry_sleep= 50; /* 50 milliseconds, transaction */
-    do_retry_sleep(retry_sleep);
+    ndb_retry_sleep(retry_sleep);
   }
   return trans;
 
@@ -271,7 +264,7 @@ ndbcluster_global_schema_lock(THD *thd,
   proc_info.set("Waiting for ndbcluster global schema lock");
   thd_ndb->global_schema_lock_trans= gsl_lock_ext(thd, ndb, ndb_error);
 
-  DBUG_EXECUTE_IF("sleep_after_global_schema_lock", my_sleep(6000000););
+  DBUG_EXECUTE_IF("sleep_after_global_schema_lock", ndb_milli_sleep(6000););
 
   if (thd_ndb->global_schema_lock_trans)
   {

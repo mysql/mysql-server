@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__INDEX_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 
 #include "dd/collection.h"             // dd::Collection
 #include "dd/types/entity_object.h"    // dd::Entity_object
@@ -66,8 +67,10 @@ public:
   virtual ~Index()
   { };
 
-  /** Dummy method to be able to use Partition_index and Index interchangeably
-  in templates. */
+  /**
+    Dummy method to be able to use Partition_index and Index interchangeably
+    in templates.
+  */
   const Index &index() const
   { return *this; }
 
@@ -200,6 +203,12 @@ public:
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
+
+
+  /**
+    Check if index represents candidate key.
+  */
+  virtual bool is_candidate_key() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

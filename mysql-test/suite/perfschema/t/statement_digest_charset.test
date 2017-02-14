@@ -4,7 +4,6 @@
 #   See Bug#13809293 - PERFSCHEMA.DML_ESMS_BY_DIGEST FAILS ON DAILY-TRUNK SPORADICALLY
 #
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 DROP DATABASE IF EXISTS pfs_charset_test;

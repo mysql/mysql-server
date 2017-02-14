@@ -13,8 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <errno.h>
+
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 
 static int keys_compare(const void *a, const void *b, const void *c);

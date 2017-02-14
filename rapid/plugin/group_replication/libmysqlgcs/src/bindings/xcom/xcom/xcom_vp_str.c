@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,10 +82,12 @@ const char *cargo_type_to_str(cargo_type x)
         return "enable_arbitrator";
     case disable_arbitrator:
         return "disable_arbitrator";
-    case x_terminate_and_exit:
-        return "x_terminate_and_exit";
     case force_config_type:
         return "force_config_type";
+    case x_terminate_and_exit:
+        return "x_terminate_and_exit";
+    case set_cache_limit:
+        return "set_cache_limit";
     default:
         return "???";
     }

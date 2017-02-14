@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,25 @@
 #include <stdlib.h>
 #include "xcom_cfg.h"
 
+/* Reasonable initial cache limit */
+#define CACHE_LIMIT 1000000000ULL
+
+cfg_app_xcom_st* the_app_xcom_cfg;
+
 void init_cfg_app_xcom()
 {
-  if (!the_app_xcom_cfg)
-    the_app_xcom_cfg= (cfg_app_xcom_st*) malloc(sizeof(cfg_app_xcom_st));
+	if (!the_app_xcom_cfg)
+		the_app_xcom_cfg = (cfg_app_xcom_st *) malloc(sizeof(cfg_app_xcom_st));
 
-  the_app_xcom_cfg->m_poll_spin_loops= 0;
+	the_app_xcom_cfg->m_poll_spin_loops = 0;
+	the_app_xcom_cfg->cache_limit = CACHE_LIMIT;
+
 }
+
 void deinit_cfg_app_xcom()
 {
-  free(the_app_xcom_cfg);
-  the_app_xcom_cfg= NULL;
+	free(the_app_xcom_cfg);
+	the_app_xcom_cfg = NULL;
 }
+
+

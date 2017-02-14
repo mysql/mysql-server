@@ -15,13 +15,21 @@
 
 /* write whats in isam.log */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <my_tree.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "myisamdef.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -259,9 +267,8 @@ static void get_options(int *argc, char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
-	       MACHINE_TYPE);
-	puts("By Monty, for your professional use\n");
+	print_version();
+	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
 	if (version)
 	  break;
 	puts("Write info about whats in a MyISAM log file.");

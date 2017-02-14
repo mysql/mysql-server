@@ -22,29 +22,23 @@
   Table replication_applier_status_by_worker (declarations).
 */
 
+#include "my_inttypes.h"
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "table_helper.h"
-
-#ifdef HAVE_REPLICATION
-
-#include "rpl_mi.h"
-#include "mysql_com.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_msr.h"
 #include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+#include "rpl_mi.h"
+#include "rpl_msr.h"
+#include "rpl_rli_pdb.h"
+#include "table_helper.h"
 
 class Slave_worker;
 class Master_info;
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
-
-#ifdef HAVE_REPLICATION
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -80,8 +74,6 @@ struct st_row_worker
   uint last_error_message_length;
   ulonglong last_error_timestamp;
 };
-
-#endif /* HAVE_REPLICATION */
 
 /**
   Index 1 for replication channel
@@ -126,9 +118,7 @@ public:
   {
   }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi) = 0;
-#endif
 };
 
 class PFS_index_rpl_applier_status_by_worker_by_channel
@@ -144,9 +134,8 @@ public:
   {
   }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_name m_key;
 };
@@ -164,9 +153,8 @@ public:
   {
   }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_thread_id m_key;
 };
@@ -175,23 +163,19 @@ private:
 class table_replication_applier_status_by_worker : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
   int make_row(Slave_worker *);
   /*
     Master_info to construct a row to display SQL Thread's status
     information in STS mode
   */
   int make_row(Master_info *);
-#endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** current row*/
   st_row_worker m_row;
-#endif /* HAVE_REPLICATION */
   /** Current position. */
   workers_per_channel m_pos;
   /** Next position. */

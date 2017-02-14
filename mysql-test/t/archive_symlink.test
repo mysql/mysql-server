@@ -2,9 +2,6 @@
 --source include/not_windows.inc
 --source include/have_archive.inc
 
-# DATA DIRECTORY/INDEX DIRECTORY require symbolic link support
---source include/have_symlink.inc
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY = '$MYSQL_TMP_DIR/archive';
 let $index_directory = INDEX DIRECTORY = '$MYSQL_TMP_DIR/archive';

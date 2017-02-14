@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 /* Calculate a checksum for a row */
 
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)

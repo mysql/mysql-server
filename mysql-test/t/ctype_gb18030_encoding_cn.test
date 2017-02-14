@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Use the following chars to get single bytes
 # ‚ƒ„…†‡ˆ‰Š‘’“”• ¡¢£¤¥±º»¼½¾ ™š–—

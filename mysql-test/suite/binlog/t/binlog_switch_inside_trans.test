@@ -5,7 +5,6 @@
 # a transaction and in sub-statements.
 #
 
-source include/have_innodb.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_row.inc;
 

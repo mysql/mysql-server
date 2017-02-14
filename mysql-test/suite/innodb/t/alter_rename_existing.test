@@ -6,7 +6,6 @@
 --echo #                BUT CAN ALTER ENGINE=INNODB
 --echo #
 
---source include/have_innodb.inc
 
 --disable_query_log
 LET $MYSQLD_DATADIR = `select @@datadir`;

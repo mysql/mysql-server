@@ -11,11 +11,9 @@
 # It also requires various storage engines.
 --source include/have_archive.inc
 --source include/have_blackhole.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 
-# Finally it uses symlinks.
---source include/have_symlink.inc
+# windows does not support symlink
 --source include/not_windows.inc
 
 --echo # Create temporary tables in various storage engines.

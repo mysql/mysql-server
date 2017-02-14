@@ -2,12 +2,10 @@
 # Test information_schema.innodb_cmp_per_index
 #
 
--- source include/have_innodb.inc
 # numbers read in this test depend on the page size
 -- source include/have_innodb_16k.inc
 # include/restart_mysqld.inc does not work in embedded mode
 -- source include/not_embedded.inc
-
 
 # Using innodb_log_compressed=0 leads to a larger number of page
 # compressions, because page_cur_insert_rec_zip() will reorganize the

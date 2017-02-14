@@ -311,6 +311,7 @@ enum enum_sql_command {
   SQLCOM_GRANT_ROLE,
   SQLCOM_REVOKE_ROLE,
   SQLCOM_ALTER_USER_DEFAULT_ROLE,
+  SQLCOM_IMPORT,
   SQLCOM_END
 };
 typedef enum

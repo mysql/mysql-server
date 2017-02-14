@@ -1,5 +1,4 @@
 
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 # This test fails sporadically on valgrind, hence skipping
 --source include/not_valgrind.inc

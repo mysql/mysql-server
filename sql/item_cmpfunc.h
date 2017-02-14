@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,11 +29,15 @@
 #include "item_func.h"       // Item_int_func
 #include "item_row.h"        // Item_row
 #include "mem_root_array.h"  // Mem_root_array
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_regex.h"        // my_regex_t
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
@@ -185,7 +189,6 @@ public:
   bool is_bool_func() const override { return true; }
   bool resolve_type(THD*) override
   {
-    decimals= 0;
     max_length= 1;
     return false;
   }
@@ -1016,7 +1019,6 @@ private:
 class Item_func_coalesce : public Item_func_numhybrid
 {
 protected:
-  enum_field_types cached_field_type;
   Item_func_coalesce(const POS &pos, Item *a, Item *b)
     : Item_func_numhybrid(pos, a, b)
   {}
@@ -1037,11 +1039,10 @@ public:
   bool time_op(MYSQL_TIME *ltime) override;
   my_decimal *decimal_op(my_decimal *) override;
   bool resolve_type(THD *) override;
-  void find_num_type() override {}
+  void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
   const char *func_name() const override { return "coalesce"; }
   table_map not_null_tables() const override { return 0; }
-  enum_field_types field_type() const override { return cached_field_type; }
 };
 
 
@@ -1085,7 +1086,6 @@ public:
 class Item_func_if final : public Item_func
 {
   enum Item_result cached_result_type;
-  enum_field_types cached_field_type;
 public:
   Item_func_if(Item *a,Item *b,Item *c)
     :Item_func(a,b,c), cached_result_type(INT_RESULT)
@@ -1102,7 +1102,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   enum Item_result result_type() const override { return cached_result_type; }
-  enum_field_types field_type() const override { return cached_field_type; }
   bool fix_fields(THD *, Item **) override;
   bool resolve_type(THD *) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
@@ -1593,7 +1592,6 @@ class Item_func_case final : public Item_func
   uint ncases;
   Item_result cmp_type;
   DTCollation cmp_collation;
-  enum_field_types cached_field_type;
   cmp_item *cmp_items[5]; /* For all result types */
   cmp_item *case_item;
 public:
@@ -1628,7 +1626,6 @@ public:
   uint decimal_precision() const override;
   table_map not_null_tables() const override { return 0; }
   enum Item_result result_type() const override { return cached_result_type; }
-  enum_field_types field_type() const override { return cached_field_type; }
   const char *func_name() const override { return "case"; }
   void print(String *str, enum_query_type query_type) override;
   Item *find_item(String *str);
@@ -1885,7 +1882,6 @@ public:
   enum Functype functype() const override { return ISNOTNULL_FUNC; }
   bool resolve_type(THD *) override
   {
-    decimals= 0;
     max_length= 1;
     maybe_null= false;
     return false;
@@ -2070,7 +2066,6 @@ public:
   Item *transform(Item_transformer transformer, uchar *arg) override;
   void traverse_cond(Cond_traverser, void *arg, traverse_order order) override;
   void neg_arguments(THD *thd);
-  enum_field_types field_type() const override { return MYSQL_TYPE_LONGLONG; }
   bool subst_argument_checker(uchar **) override { return true; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;

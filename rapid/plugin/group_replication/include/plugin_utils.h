@@ -16,6 +16,7 @@
 #ifndef PLUGIN_UTILS_INCLUDED
 #define PLUGIN_UTILS_INCLUDED
 
+#include <errno.h>
 #include <mysql/group_replication_priv.h>
 #include <map>
 #include <queue>

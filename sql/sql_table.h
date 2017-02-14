@@ -19,9 +19,12 @@
 #include <set>
 #include <stddef.h>
 #include <sys/types.h>
+#include <set>
 
 #include "binary_log_types.h"  // enum_field_types
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "mysql/psi/mysql_mutex.h"
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
 #include "prealloced_array.h"
@@ -146,14 +149,6 @@ static const uint NO_FK_CHECKS=    1 << 3;
   the table.
 */
 static const uint NO_DD_COMMIT=    1 << 4;
-/**
-  Don't check that target name is not occuppied while renaming
-  the table. Rely on caller to do this.
-  WL7743/TODO: Remove once ALTER TABLE implementation does checks
-               for all cases.
-*/
-static const uint NO_TARGET_CHECK= 1 << 5;
-
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF

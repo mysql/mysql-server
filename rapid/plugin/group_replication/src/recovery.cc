@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <errno.h>
 #include <signal.h>
 
 #include "member_info.h"
@@ -316,7 +317,7 @@ Recovery_module::recovery_thread_handle()
                   });
   DBUG_EXECUTE_IF("recovery_thread_start_wait",
                   {
-                    const char act[]= "now wait_for signal.recovery_continue";
+                    const char act[]= "now signal signal.recovery_waiting wait_for signal.recovery_continue";
                     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif // DBUG_OFF

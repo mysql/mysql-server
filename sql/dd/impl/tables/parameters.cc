@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +70,9 @@ Parameters::Parameters()
                          "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
                          "    'MYSQL_TYPE_JSON'\n"
                          "  ) NOT NULL");
+  m_target_def.add_field(FIELD_DATA_TYPE_UTF8,
+                         "FIELD_DATA_TYPE_UTF8",
+                         "data_type_utf8 MEDIUMTEXT NOT NULL");
   m_target_def.add_field(FIELD_IS_ZEROFILL,
                          "FIELD_IS_ZEROFILL",
                          "is_zerofill BOOL");

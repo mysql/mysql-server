@@ -21,16 +21,17 @@
   Table STATUS_BY_ACCOUNT (declarations).
 */
 
+#include "my_inttypes.h"
+#include "pfs_account.h"
+#include "pfs_account.h"
+#include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "pfs_account.h"
 #include "pfs_host.h"
-#include "table_helper.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_variable.h"
-#include "pfs_buffer_container.h"
+#include "table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

@@ -19,7 +19,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
 #include "handler.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
@@ -263,10 +265,11 @@ public:
 	/** Create an InnoDB table.
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure
-	@param[in]	create_info	more information on the table
+	@param[in]	create_info	more information
 	@param[in,out]	table_def	dd::Table describing table to be created.
 	Can be adjusted by SE, the changes will be saved into data-dictionary at
 	statement commit time.
+	@param[in]	file_per_table	whether to create a tablespace too
 	@return error number
 	@retval 0 on success */
 	int create(
@@ -285,7 +288,7 @@ public:
 		const char*		name,
 		const dd::Table*	table_def);
 protected:
-	/** Dropping a table.
+	/** Drop a table.
 	@param[in]	name		table name
 	@param[in]	table_def	dd::Table describing table to
 	be dropped
@@ -398,7 +401,9 @@ public:
 	definition will be persisted in the data-dictionary at statement
 	commit time.
 
-	@retval true Failure, false Success */
+	@retval true Failure
+	@retval false Success
+	*/
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
@@ -420,7 +425,9 @@ public:
 	definition will be persisted in the data-dictionary at statement
 	commit time.
 
-	@retval true Failure, false Success */
+	@retval true Failure
+	@retval false Success
+	*/
 	bool inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
@@ -445,7 +452,9 @@ public:
 	table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
-	@retval true Failure, false Success */
+	@retval true Failure
+	@retval false Success
+	*/
 	bool commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
@@ -978,7 +987,7 @@ public:
 		dd::Object_id&			dd_space_id);
 
 	static void set_table_options(
-		dd::Table&	dd_table,
+		dd::Table*	dd_table,
 		dict_table_t*	table);
 
 private:

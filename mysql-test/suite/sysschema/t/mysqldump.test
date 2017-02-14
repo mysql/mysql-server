@@ -2,9 +2,7 @@
 -- source include/not_embedded.inc
 
 # Dump all databases
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP -uroot --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug20902791.sql
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug20902791.sql
 
 # Save a copy of the user/tables_priv tables, to restore later
 # Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.

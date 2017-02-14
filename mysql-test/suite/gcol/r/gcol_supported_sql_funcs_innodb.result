@@ -1473,7 +1473,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(5) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (weight_string(`a` as char(4) level 1)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (weight_string(`a` as char(4))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;

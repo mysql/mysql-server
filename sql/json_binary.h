@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,6 +138,7 @@
 
 #include "binary_log_types.h"                   // enum_field_types
 #include "my_global.h"
+#include "my_inttypes.h"
 
 class Json_dom;
 class String;
@@ -194,6 +195,7 @@ public:
   Value key(size_t pos) const;
   enum_field_types field_type() const;
   Value lookup(const char *key, size_t len) const;
+  bool is_backed_by(const String *str) const;
   bool raw_binary(const THD *thd, String *buf) const;
 
   /** Constructor for values that represent literals or errors. */

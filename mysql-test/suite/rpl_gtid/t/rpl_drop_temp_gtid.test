@@ -9,8 +9,6 @@
 #              POSITIONING ENABLED
 #
 --source include/have_binlog_format_statement.inc
---source include/have_innodb.inc
---source include/have_gtid.inc
 --let $use_gtids= 1
 --source include/master-slave.inc
 

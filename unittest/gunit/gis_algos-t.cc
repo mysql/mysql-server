@@ -17,9 +17,9 @@
 #include <cmath>
 
 #include "gstream.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "spatial.h"
 
 namespace gis_algo_unittest {

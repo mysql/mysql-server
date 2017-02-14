@@ -2719,7 +2719,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd)
       */
       if (item->fixed &&
           item->type() == Item::FIELD_ITEM &&
-          item->field_type() == MYSQL_TYPE_BIT)
+          item->data_type() == MYSQL_TYPE_BIT)
         ++bitcount;
     }
     order_group_num+= bitcount;
@@ -3611,14 +3611,23 @@ bool LEX::can_use_merged()
     temporary tables anymore now. So these queries should be
     allowed to be mergeable, which makes the INFORMATION_SCHEMA
     query execution faster.
+
+    According to optimizer team (Roy), making this decision based on
+    the command type here is a hack. This should probably change when
+    we introduce Sql_cmd_show class, which should treat the following
+    SHOW commands same as SQLCOM_SELECT.
   */
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_DATABASES:
-  case SQLCOM_SHOW_TABLES:
-  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_EVENTS:
   case SQLCOM_SHOW_FIELDS:
   case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_STATUS_FUNC:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_TRIGGERS:
     return TRUE;
   default:
     return FALSE;
@@ -4808,6 +4817,18 @@ bool LEX::accept(Select_lex_visitor *visitor)
 }
 
 
+bool LEX::set_wild(LEX_STRING w)
+{
+  if (w.str == nullptr)
+  {
+    wild= nullptr;
+    return false;
+  }
+  wild= new(thd->mem_root) String(w.str, w.length, system_charset_info);
+  return wild == nullptr;
+}
+
+
 void st_lex_master_info::initialize()
 {
   host= user= password= log_file_name= bind_addr = NULL;
@@ -4838,7 +4859,6 @@ void st_lex_master_info::set_unspecified()
   sql_delay= -1;
 }
 
-#ifdef MYSQL_SERVER
 uint binlog_unsafe_map[256];
 
 #define UNSAFE(a, b, c) \
@@ -4982,4 +5002,3 @@ void binlog_unsafe_map_init()
   UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
      BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
 }
-#endif

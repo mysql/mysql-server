@@ -33,10 +33,10 @@
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_cond.h"
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_push.h"
+#include "sql_class.h"
 #include "my_dbug.h"
-
+#include "current_thd.h"
 
 /*
   Explain why an operation could not be pushed

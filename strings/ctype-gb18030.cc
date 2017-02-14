@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 
 #define is_mb_1(c)            ((uchar) (c) <= 0x7F)
@@ -22135,7 +22136,7 @@ my_strnxfrm_gb18030(const CHARSET_INFO *cs,
     }
   }
 
-  return my_strxfrm_pad_desc_and_reverse(cs, ds, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, ds, dst, de, nweights, flags);
 }
 
 /**
@@ -22532,7 +22533,6 @@ CHARSET_INFO my_charset_gb18030_chinese_ci=
   ' ',                            /* pad char      */
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
-  1,                              /* levels_for_order   */
   &my_charset_gb18030_handler,
   &my_collation_ci_handler
 };
@@ -22567,7 +22567,6 @@ CHARSET_INFO my_charset_gb18030_bin=
   ' ',                            /* pad char      */
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
-  1,                              /* levels_for_order   */
   &my_charset_gb18030_handler,
   &my_collation_mb_bin_handler
 };

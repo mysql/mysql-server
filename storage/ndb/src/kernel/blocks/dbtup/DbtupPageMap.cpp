@@ -304,7 +304,7 @@ Dbtup::allocFragPage(Uint32 * err,
     return pagePtr.i;
   }
   
-  LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
+  Local_Page_fifo free_pages(c_page_pool, fragPtrP->thFreeFirst);
   Uint32 cnt = fragPtrP->noOfPages;
   Uint32 max = fragPtrP->m_max_page_cnt;
   Uint32 list = fragPtrP->m_free_page_id_list;

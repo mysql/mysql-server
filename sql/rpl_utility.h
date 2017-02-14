@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include "binary_log_types.h"   // enum_field_types
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef MYSQL_SERVER
 #include "handler.h"
@@ -37,7 +39,7 @@ class Log_event;
 class Relay_log_info;
 #endif
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 /**
    Hash table used when applying row events on the slave and there is
@@ -356,7 +358,7 @@ public:
   */
   uint32 calc_field_size(uint col, uchar *master_data) const;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Decide if the table definition is compatible with a table.
 
@@ -423,7 +425,7 @@ private:
 };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 /**
    Extend the normal table list with a few new fields needed by the
    slave thread, but nowhere else.

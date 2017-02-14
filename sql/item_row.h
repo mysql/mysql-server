@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 
 #include "enum_query_type.h"
 #include "item.h"  // Item
+#include "my_compiler.h"
 #include "my_decimal.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"

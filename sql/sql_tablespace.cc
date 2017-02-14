@@ -28,6 +28,8 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -162,8 +164,10 @@ static bool prepare_alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
     break;
 
   default:
+    /* purecov: begin deadcode */
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     DBUG_RETURN(true);
+    /* purecov: end */
   }
 
   DBUG_RETURN(false);

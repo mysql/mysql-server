@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,9 @@
 #include "my_config.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_global.h"
-#include "mysql_com.h"        // Item_result
+#include "my_inttypes.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
+#include "mysql_com.h"        // Item_result
 #include "prealloced_array.h" // Prealloced_array
 #include "sql_alloc.h"        // Sql_alloc
 #include "sql_const.h"        // SHOW_COMP_OPTION

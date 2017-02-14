@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,18 @@ Created 12/21/1997 Heikki Tuuri
 *******************************************************/
 
 #include "pars0opt.h"
-#include "row0sel.h"
-#include "row0ins.h"
-#include "row0upd.h"
+
 #include "dict0boot.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
-#include "que0que.h"
+#include "lock0lock.h"
+#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0pars.h"
-#include "lock0lock.h"
+#include "que0que.h"
+#include "row0ins.h"
+#include "row0sel.h"
+#include "row0upd.h"
 
 #define OPT_EQUAL	1	/* comparison by = */
 #define OPT_COMPARISON	2	/* comparison by <, >, <=, or >= */

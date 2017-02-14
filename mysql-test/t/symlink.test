@@ -1,5 +1,4 @@
-
---source include/have_symlink.inc
+# windows does not support symlink
 --source include/not_windows.inc
 
 --disable_warnings

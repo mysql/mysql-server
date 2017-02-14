@@ -687,10 +687,7 @@ DROP TABLE b,bb;
 CREATE TABLE t1 (
   col_varchar_255_latin1_key varchar(255) DEFAULT NULL,
   pk int(11) NOT NULL AUTO_INCREMENT,
-  dummy int(11),
   PRIMARY KEY (pk DESC),
-  UNIQUE KEY k1 (pk),
-  UNIQUE KEY k2 (pk, dummy),
   KEY k3 (col_varchar_255_latin1_key DESC)
 );
 INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES

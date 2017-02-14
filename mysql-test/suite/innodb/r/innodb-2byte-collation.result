@@ -79,7 +79,7 @@ insert into 2byte_collation values (0x0061);
 set @@character_set_results=NULL;
 select hex(c1) from 2byte_collation;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					hex(c1)	253	12	4	Y	0	0	33
+def					hex(c1)	253	12	4	Y	0	31	33
 hex(c1)
 0061
 drop table 2byte_collation;

@@ -25,7 +25,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "thr_malloc.h"
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 #include <algorithm>
 
@@ -60,7 +60,7 @@ using std::min;
 using std::max;
 using binary_log::checksum_crc32;
 
-#endif //MYSQL_CLIENT
+#endif //MYSQL_SERVER
 
 /*********************************************************************
  *                   table_def member definitions                    *
@@ -77,7 +77,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   return length;
 }
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
 /**
    Function to compare two size_t integers for their relative
    order. Used below.
@@ -898,7 +898,7 @@ err:
   DBUG_RETURN(conv_table);
 }
 
-#endif /* MYSQL_CLIENT */
+#endif /* MYSQL_SERVER */
 
 extern "C" {
 PSI_memory_key key_memory_table_def_memory;
@@ -1012,7 +1012,7 @@ table_def::~table_def()
 #endif
 }
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 #define HASH_ROWS_POS_SEARCH_INVALID -1
 
@@ -1359,7 +1359,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
 
 Deferred_log_events::Deferred_log_events()
   : m_array(key_memory_table_def_memory)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
 
 #include "dd_table.h"
 
+#include <string.h>
+#include <algorithm>
+#include <memory>                             // unique_ptr
+
 #include "current_thd.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
@@ -24,20 +28,20 @@
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/impl/utils.h"                    // dd::escape
 #include "dd/properties.h"                    // dd::Properties
-#include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/index_element.h"           // dd::Index_element
+#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/index.h"                   // dd::Index
+#include "dd/types/index_element.h"           // dd::Index_element
 #include "dd/types/object_table.h"            // dd::Object_table
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
+#include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
 #include "field.h"
@@ -46,16 +50,18 @@
 #include "key_spec.h"
 #include "log.h"                              // sql_print_error
 #include "m_ctype.h"
-#include "mdl.h"
 #include "m_string.h"
+#include "mdl.h"
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
-#include "mysqld.h"                           // dd_upgrade_skip_se
-#include "mysql/service_mysql_alloc.h"
+#include "my_io.h"
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                           // dd_upgrade_skip_se
+#include "mysqld_error.h"
 #include "partition_element.h"
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
@@ -246,18 +252,12 @@ dd::enum_column_types get_new_field_type(enum_field_types type)
 
 
 /**
-  @brief Function returns string representing column type by Create_field.
-         This is required for the IS implementation which uses views on DD
-         tables
-
-  @param[in]   table           TABLE object.
-  @param[in]   field           Column information.
-
-  @return dd::String_type representing column type.
+  Function returns string representing column type by Create_field.
+  This is required for the IS implementation which uses views on DD
 */
 
-static dd::String_type get_sql_type_by_create_field(TABLE *table,
-                                                Create_field *field)
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             Create_field *field)
 {
   DBUG_ENTER("get_sql_type_by_create_field");
 
@@ -388,6 +388,126 @@ static void prepare_default_value_string(THD *thd,
   }
 }
 
+/**
+  Helper method to get numeric scale for types using
+  Create_field type object.
+*/
+bool get_field_numeric_scale(Create_field *field, uint *scale)
+{
+  DBUG_ASSERT(*scale == 0);
+
+  switch (field->sql_type)
+  {
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    /* For these types we show NULL in I_S if scale was not given. */
+    if (field->decimals != NOT_FIXED_DEC)
+    {
+      *scale= field->decimals;
+      return false;
+    }
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_DECIMAL:
+    *scale= field->decimals;
+    return false;
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONGLONG:
+    DBUG_ASSERT(field->decimals == 0);
+  default:
+    return true;
+  }
+
+  return true;
+}
+
+/**
+  Helper method to get numeric precision for types using
+  Create_field type object.
+*/
+bool get_field_numeric_precision(Create_field *field,
+                                 uint *numeric_precision)
+{
+  switch(field->sql_type)
+  {
+    // these value is taken from Field_XXX::max_display_length() -1
+  case MYSQL_TYPE_TINY:
+    *numeric_precision= 3;
+    return false;
+  case MYSQL_TYPE_SHORT:
+    *numeric_precision= 5;
+    return false;
+  case MYSQL_TYPE_INT24:
+    *numeric_precision= 7;
+    return false;
+  case MYSQL_TYPE_LONG:
+    *numeric_precision= 10;
+    return false;
+  case MYSQL_TYPE_LONGLONG:
+    if (field->is_unsigned)
+      *numeric_precision= 20;
+    else
+      *numeric_precision= 19;
+
+    return false;
+  case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    *numeric_precision= field->length;
+    return false;
+  case MYSQL_TYPE_DECIMAL:
+    {
+      uint tmp= field->length;
+      if (!field->is_unsigned)
+        tmp--;
+      if (field->decimals)
+        tmp--;
+      *numeric_precision= tmp;
+      return false;
+    }
+  case MYSQL_TYPE_NEWDECIMAL:
+    *numeric_precision=
+      my_decimal_length_to_precision(field->length,
+                                     field->decimals,
+                                     field->is_unsigned);
+    return false;
+  default:
+    return true;
+  }
+
+  return true;
+}
+
+/**
+  Helper method to get datetime precision for types using
+  Create_field type object.
+*/
+bool get_field_datetime_precision(Create_field *field,
+                                  uint *datetime_precision)
+{
+  switch(field->sql_type)
+  {
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
+    *datetime_precision= field->length > MAX_DATETIME_WIDTH ?
+      (field->length - 1 - MAX_DATETIME_WIDTH) : 0;
+    return false;
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+    *datetime_precision= field->length > MAX_TIME_WIDTH ?
+      (field->length - 1 - MAX_TIME_WIDTH) : 0;
+    return false;
+  default:
+    return true;
+  }
+
+  return true;
+}
 
 static dd::String_type now_with_opt_decimals(uint decimals)
 {
@@ -411,28 +531,29 @@ fill_dd_columns_from_create_fields(THD *thd,
                                    const List<Create_field> &create_fields,
                                    handler *file)
 {
-  // Helper class which takes care of restoration of THD::count_cuted_fields
-  // after it was temporarily changed to CHECK_FIELD_WARN in order to prepare
-  // default values and freeing buffer which is allocated for the same purpose.
+  // Helper class which takes care of restoration of
+  // THD::check_for_truncated_fields after it was temporarily changed to
+  // CHECK_FIELD_WARN in order to prepare default values and freeing buffer
+  // which is allocated for the same purpose.
   class Context_handler
   {
   private:
     THD *m_thd;
     uchar *m_buf;
-    enum_check_fields m_count_cuted_fields;
+    enum_check_fields m_check_for_truncated_fields;
   public:
-    Context_handler(THD *thd, uchar *buf):
-                    m_thd(thd), m_buf(buf),
-                    m_count_cuted_fields(m_thd->count_cuted_fields)
+    Context_handler(THD *thd, uchar *buf)
+      : m_thd(thd), m_buf(buf),
+        m_check_for_truncated_fields(m_thd->check_for_truncated_fields)
     {
       // Set to warn about wrong default values.
-      m_thd->count_cuted_fields= CHECK_FIELD_WARN;
+      m_thd->check_for_truncated_fields= CHECK_FIELD_WARN;
     }
     ~Context_handler()
     {
       // Delete buffer and restore context.
       my_free(m_buf);
-      m_thd->count_cuted_fields= m_count_cuted_fields;
+      m_thd->check_for_truncated_fields= m_check_for_truncated_fields;
     }
   };
 
@@ -483,83 +604,18 @@ fill_dd_columns_from_create_fields(THD *thd,
 
     col_obj->set_char_length(field->length);
 
-    bool unsigned_flag= field->is_unsigned;
-    uint field_length= field->length;
-    uint dec= field->decimals;
-    switch(field->sql_type)
-    {
-      // these value is taken from Field_XXX::max_display_length() -1
-      case MYSQL_TYPE_TINY:
-        col_obj->set_numeric_precision(3);
-        break;
-      case MYSQL_TYPE_SHORT:
-         col_obj->set_numeric_precision(5);
-        break;
-      case MYSQL_TYPE_INT24:
-        col_obj->set_numeric_precision(7);
-        break;
-      case MYSQL_TYPE_LONG:
-        col_obj->set_numeric_precision(10);
-        break;
-      case MYSQL_TYPE_LONGLONG:
-      {
-        if (unsigned_flag)
-          col_obj->set_numeric_precision(20);
-        else
-          col_obj->set_numeric_precision(19);
-        break;
-      }
-      case MYSQL_TYPE_BIT:
-        col_obj->set_numeric_precision(field_length);
-        break;
-      case MYSQL_TYPE_FLOAT:
-      case MYSQL_TYPE_DOUBLE:
-      {
-        if (field->decimals != NOT_FIXED_DEC)
-        {
-          col_obj->set_numeric_scale(dec);
-        }
-        col_obj->set_numeric_precision(field_length);
-        break;
-      }
-      case MYSQL_TYPE_DECIMAL:
-      {
-        uint tmp= field_length;
-        if (!unsigned_flag)
-          tmp--;
-        if (dec)
-          tmp--;
-        col_obj->set_numeric_scale(dec);
-        col_obj->set_numeric_precision(tmp);
-        break;
-      }
-      case MYSQL_TYPE_NEWDECIMAL:
-      {
-        uint length= my_decimal_length_to_precision(field_length,
-                                                    dec, unsigned_flag);
+    // Set result numeric scale.
+    uint value= 0;
+    if (get_field_numeric_scale(field, &value) == false)
+      col_obj->set_numeric_scale(value);
 
-        col_obj->set_numeric_scale(dec);
-        col_obj->set_numeric_precision(length);
-        break;
-      }
-      case MYSQL_TYPE_DATETIME2:
-      case MYSQL_TYPE_TIMESTAMP2:
-      {
-        uint tmp= field_length > MAX_DATETIME_WIDTH ?
-                    (field_length - 1 - MAX_DATETIME_WIDTH) : 0;
-        col_obj->set_datetime_precision(tmp);
-        break;
-      }
-      case MYSQL_TYPE_TIME2:
-      {
-        uint tmp= field_length > MAX_TIME_WIDTH ?
-                    (field_length - 1 - MAX_TIME_WIDTH) : 0;
-        col_obj->set_datetime_precision(tmp);
-        break;
-      }
-      default:
-        break;
-    }
+    // Set result numeric precision.
+    if (get_field_numeric_precision(field, &value) == false)
+      col_obj->set_numeric_precision(value);
+
+    // Set result datetime precision.
+    if (get_field_datetime_precision(field, &value) == false)
+      col_obj->set_datetime_precision(value);
 
     col_obj->set_nullable(field->maybe_null);
 
@@ -2249,10 +2305,10 @@ bool create_dd_user_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return true;
 
-  // WL7743:/TODO: Consider pulling out commit/rollback code below
-  //               once partitioning DDL code is removed.
-  //
-  // QQ: Do we want to keep commits on this layer?
+  /*
+    TODO: Pull commits out of this layer. Should be simpler
+          once legacy partitioning DDL code is removed.
+  */
 
   Disable_gtid_state_update_guard disabler(thd);
 
@@ -2456,25 +2512,15 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
                 const T *table_def, bool commit_dd_changes)
 {
   /*
-    WL7743/TODO: Find out why do we need this (main.lock fails
-                 with out but why)?
+    Acquire lock on schema so assert in Dictionary_client::drop() checking
+    that we have proper MDL lock on the object deleted can safely get schema
+    name from the schema ID.
+
+    TODO: Change code to make this unnecessary.
   */
   dd::Schema_MDL_locker mdl_locker(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch= NULL;
-  if (mdl_locker.ensure_locked(schema_name) ||
-      thd->dd_client()->acquire<dd::Schema>(schema_name, &sch))
-  {
-    // Error is reported by the dictionary subsystem.
+  if (mdl_locker.ensure_locked(schema_name))
     return true;
-  }
-
-  if (!sch)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
-    return true;
-  }
-
 
   Disable_gtid_state_update_guard disabler(thd);
 
@@ -2870,11 +2916,8 @@ bool update_keys_disabled(THD *thd,
     return true;
   }
 
-  if (!tab_obj)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
-    return true;
-  }
+  // Rely on caller to check table existence.
+  DBUG_ASSERT(tab_obj != nullptr);
 
   // Update option keys_disabled
   tab_obj->options().set_uint32("keys_disabled",

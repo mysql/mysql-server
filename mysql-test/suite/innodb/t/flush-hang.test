@@ -5,7 +5,6 @@
 
 --source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 
 CREATE TABLE t1 (
 	c1 BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,

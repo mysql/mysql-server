@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
   Instrumentation helpers for statements.
 */
 
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "mysql/psi/psi_statement.h"
 #include "pfs_stage_provider.h"      // IWYU pragma: keep
 #include "pfs_statement_provider.h"  // IWYU pragma: keep

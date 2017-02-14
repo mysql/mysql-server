@@ -2,7 +2,6 @@
 # WL#6469: Optimizing CREATE/DROP performance for temporary tables
 #
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
 
 #########################################################################
 #									#

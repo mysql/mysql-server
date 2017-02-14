@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set redo log tablespace to be encrypted.");

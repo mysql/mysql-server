@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,7 +32,11 @@ class PFS_opaque_container_page;
 
 class THD;
 
+#include "my_config.h"
+
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_thread_os_id.h"
 #ifdef _WIN32
 #include <winsock2.h>
@@ -40,19 +44,19 @@ class THD;
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
+#include "lf.h"
+#include "mdl.h"
 #include "my_compiler.h"
-#include "pfs_lock.h"
-#include "pfs_stat.h"
-#include "pfs_instr_class.h"
-#include "pfs_events_waits.h"
+#include "pfs_column_types.h"
+#include "pfs_con_slice.h"
 #include "pfs_events_stages.h"
 #include "pfs_events_statements.h"
 #include "pfs_events_transactions.h"
+#include "pfs_events_waits.h"
+#include "pfs_instr_class.h"
+#include "pfs_lock.h"
 #include "pfs_server.h"
-#include "lf.h"
-#include "pfs_con_slice.h"
-#include "pfs_column_types.h"
-#include "mdl.h"
+#include "pfs_stat.h"
 #include "violite.h" /* enum_vio_type */
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;

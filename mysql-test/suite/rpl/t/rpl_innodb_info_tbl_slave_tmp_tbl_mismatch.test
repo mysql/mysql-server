@@ -12,7 +12,6 @@
 
 # No need to test RBR Since we dont replicate temp tables at slave with RBR
 --source include/have_binlog_format_statement.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 CREATE TEMPORARY TABLE TEMP1 (a int);

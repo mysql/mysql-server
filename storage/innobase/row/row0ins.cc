@@ -44,7 +44,9 @@ Created 4/20/1996 Heikki Tuuri
 #include "log0log.h"
 #include "m_string.h"
 #include "mach0data.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0ins.h"
@@ -1594,8 +1596,6 @@ row_ins_check_foreign_constraint(
 	}
 
 	rec_offs_init(offsets_);
-
-//	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	err = DB_SUCCESS;
 

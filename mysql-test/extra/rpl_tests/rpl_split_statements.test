@@ -104,6 +104,11 @@
 #     to see difference in splitting/combining. Notice that with GTID
 #     assigned even such failed DROP TABLE will consume GTID.
 #
+#     Note that two last tests also provide coverage for changes to binary
+#     logging and GTID handling for normal and failed DROP TABLES, which
+#     were implemented as part of WL#7743 "New data dictionary: changes to
+#     DDL-related parts of SE API".
+#
 #  3. DROP DATABASE. Tests for this statement were moved into
 #     rpl_split_statements_debug.test.
 #

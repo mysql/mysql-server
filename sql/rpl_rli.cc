@@ -106,6 +106,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
    cur_log_old_open_count(0), error_on_rli_init_info(false),
+   gtid_timestamps_warning_logged(false),
    group_relay_log_pos(0), event_relay_log_number(0),
    event_relay_log_pos(0), event_start_pos(0),
    group_master_log_pos(0),
@@ -1440,7 +1441,7 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos)
   return error;
 }
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+
 void Relay_log_info::cleanup_context(THD *thd, bool error)
 {
   DBUG_ENTER("Relay_log_info::cleanup_context");
@@ -1462,6 +1463,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   {
     trans_rollback_stmt(thd); // if a "statement transaction"
     trans_rollback(thd);      // if a "real transaction"
+    thd->variables.original_commit_timestamp= UNDEFINED_COMMIT_TIMESTAMP;
   }
   if (rows_query_ev)
   {
@@ -1652,7 +1654,6 @@ err:
 
   DBUG_RETURN(res);
 }
-#endif
 
 
 int Relay_log_info::rli_init_info()

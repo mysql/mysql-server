@@ -23,9 +23,15 @@
   of blocks.  For the differnet block types, look at _mi_get_block_info()
 */
 
+#include "my_config.h"
+
 #include <fcntl.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"

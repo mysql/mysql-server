@@ -30,6 +30,7 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld.h"      // select_errors
@@ -200,10 +201,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
     if (options & REFRESH_RELAY_LOG)
     {
-#ifdef HAVE_REPLICATION
       if (flush_relay_logs_cmd(thd))
         *write_to_binlog= -1;
-#endif
     }
     if (tmp_thd)
     {
@@ -336,7 +335,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();
-#ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
     DBUG_ASSERT(thd);
@@ -347,7 +345,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       result= 1;
     }
   }
-#endif
 #ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
@@ -360,7 +357,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
   if (options & REFRESH_OPTIMIZER_COSTS)
     reload_optimizer_cost_constants();
-#ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
@@ -370,7 +366,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
      result= 1;
    }
  }
-#endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd, nullptr, 0);             /* purecov: inspected */
  if (*write_to_binlog != -1)

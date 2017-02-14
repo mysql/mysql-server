@@ -1895,6 +1895,7 @@ DROP TABLE ta, tb;
 CREATE TABLE m (
   machineid VARCHAR(32) NOT NULL,
   orderid bigint unsigned DEFAULT NULL,
+  extra bigint unsigned DEFAULT NULL,
   PRIMARY KEY (machineid)
 );
 

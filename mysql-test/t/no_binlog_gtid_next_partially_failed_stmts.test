@@ -5,6 +5,10 @@
 # and mysql.gtid_executed table when binlog is disabled
 # if it did the same when binlog is enabled.
 #
+# Also provides coverage for changes to GTID handling for failed
+# DROP TABLES, which were implemented as part of WL#7743 "New data
+# dictionary: changes to DDL-related parts of SE API".
+#
 # ==== Implementation ====
 #
 # 1) SET SESSION GTID_NEXT='UUID:GNO'.

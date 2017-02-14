@@ -139,7 +139,7 @@ dd_table_open_on_dd_obj(
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
 
-		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		if (dd_part == NULL) {
 			ut_ad(innobase_strcasecmp(dd_table.name().c_str(),
 						  tbl_buf) == 0);
@@ -278,7 +278,7 @@ dd_table_open_on_id_low(
 	char	tbl_buf[NAME_LEN + 1];
 
 	if (tbl_name) {
-		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, NULL);
 		ut_ad(dd_mdl_verify(thd, db_buf, tbl_buf));
 	}
 #endif /* UNIV_DEBUG */
@@ -417,7 +417,7 @@ dd_check_corrupted(dict_table_t*& table)
 			char	db_buf[NAME_LEN + 1];
 			char	tbl_buf[NAME_LEN + 1];
 
-			innobase_parse_tbl_name(
+			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf, NULL);
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
@@ -515,7 +515,7 @@ dd_table_open_on_id(
 		mutex_exit(&dict_sys->mutex);
 	} else {
 		for (;;) {
-			innobase_parse_tbl_name(
+			dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf, NULL);
 			strcpy(full_name, ib_table->name.m_name);
 
@@ -691,7 +691,7 @@ dd_table_open_on_name(
 		DBUG_RETURN(table);
 	}
 
-	if (!innobase_parse_tbl_name(name, db_buf, tbl_buf, NULL)) {
+	if (!dd_parse_tbl_name(name, db_buf, tbl_buf, NULL)) {
 		DBUG_RETURN(nullptr);
 	}
 
@@ -770,12 +770,9 @@ dd_table_close(
 {
 	dict_table_close(table, dict_locked, false);
 
-	const bool is_temp = table->is_temporary();
-
-	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
-
-	if (!is_temp && mdl != nullptr
+	if (mdl != nullptr
 	    && (*mdl != reinterpret_cast<MDL_ticket*>(-1))) {
+		ut_ad(!table->is_temporary());
 		dd_mdl_release(thd, mdl);
 	}
 }
@@ -1389,7 +1386,6 @@ dd_copy_from_table_share(
 	const TABLE_SHARE*	table_share)
 {
 	if (table->is_temporary()) {
-		//table->set_persistent_stats(false);
 		dict_stats_set_persistent(table, false, true);
 	} else {
 		switch (table_share->db_create_options
@@ -1400,11 +1396,9 @@ dd_copy_from_table_share(
 			STATS_PERSISTENT=0 STATS_PERSISTENT=1,
 			it will be interpreted as STATS_PERSISTENT=1. */
 		case HA_OPTION_STATS_PERSISTENT:
-			//table->set_persistent_stats(true);
 			dict_stats_set_persistent(table, true, false);
 			break;
 		case HA_OPTION_NO_STATS_PERSISTENT:
-			//table->set_persistent_stats(false);
 			dict_stats_set_persistent(table, false, true);
 			break;
 		case 0:
@@ -1631,7 +1625,6 @@ dd_fill_dict_index(
 		ut_ad(!m_table->is_temporary()
 		      || !dict_table_page_size(m_table).is_compressed());
 		if (!m_table->is_temporary()) {
-			//m_table->stats_lock_create();
 			dict_table_stats_latch_create(m_table, true);
 		}
 	} else {
@@ -2275,7 +2268,7 @@ dd_table_check_for_child(
 		char    name_buf1[NAME_LEN + 1];
                 char    name_buf2[NAME_LEN + 1];
 
-		innobase_parse_tbl_name(m_table->name.m_name,
+		dd_parse_tbl_name(m_table->name.m_name,
 					name_buf1, name_buf2, NULL);
 
 		client->fetch_fk_children_uncached(name_buf1, name_buf2,
@@ -2297,8 +2290,7 @@ dd_table_check_for_child(
 			/* Load the foreign table first */
 			dict_table_t*	foreign_table =
 				dd_table_open_on_name_in_mem(
-					full_name, true,
-					DICT_ERR_IGNORE_NONE);
+					full_name, true);
 
 			if (foreign_table) {
 				/* TODO: WL6049 needs to fix this.
@@ -2472,7 +2464,7 @@ dd_get_first_path(
 		char		tbl_buf[NAME_LEN + 1];
 		const dd::Table*	table_def = nullptr;
 
-		if (!innobase_parse_tbl_name(
+		if (!dd_parse_tbl_name(
 			table->name.m_name,
 			db_buf, tbl_buf, NULL)) {
 			return(filepath);
@@ -2910,6 +2902,90 @@ dd_open_table_one(
 	return(m_table);
 }
 
+/** Open single table with name
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+static
+void
+dd_open_table_one_on_name(
+	dd::cache::Dictionary_client*	client,
+	const char*			name,
+	bool				dict_locked,
+	dict_names_t&			fk_list,
+	THD*				thd)
+{
+	dict_table_t*		table = nullptr;
+	const dd::Table*	dd_table = nullptr;
+
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	table = dict_table_check_if_in_cache_low(name);
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (!table) {
+		MDL_ticket*     mdl = nullptr;
+		char		db_buf[NAME_LEN + 1];
+		char		tbl_buf[NAME_LEN + 1];
+
+		if (!dd_parse_tbl_name(
+			name, db_buf, tbl_buf, NULL)) {
+			return;
+		}
+
+		dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf);
+
+		if (client->acquire(db_buf, tbl_buf, &dd_table)
+		    || dd_table == nullptr) {
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		ut_ad(dd_table->se_private_id()
+		      != dd::INVALID_OBJECT_ID);
+
+		TABLE_SHARE	ts;
+
+		init_tmp_table_share(thd,
+			&ts, db_buf, strlen(db_buf),
+			dd_table->name().c_str(),
+			""/* file name */, nullptr);
+
+		ulint error = open_table_def(thd, &ts, false,
+					     dd_table);
+
+		if (error) {
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		TABLE	td;
+
+		error = open_table_from_share(thd, &ts,
+			dd_table->name().c_str(),
+			0, OPEN_FRM_FILE_ONLY, 0,
+			&td, false, dd_table);
+
+		if (error) {
+			free_table_share(&ts);
+			dd_mdl_release(thd, &mdl);
+			return;
+		}
+
+		table = dd_open_table_one(
+			client, &td, name, table, dd_table,
+			false, thd, fk_list);
+
+		closefrm(&td, false);
+		free_table_share(&ts);
+		dd_table_close(table, thd, &mdl, false);
+	}
+}
 
 /** Open foreign tables reference a table.
 @param[in,out]	client		data dictionary client
@@ -2923,83 +2999,68 @@ dd_open_fk_tables(
 	THD*				thd)
 {
 	while (!fk_list.empty()) {
-		table_name_t		fk_table_name;
-		dict_table_t*		fk_table;
-		const dd::Table*	dd_table = nullptr;
+		const char*	name  = const_cast<char*>(fk_list.front());
 
-		fk_table_name.m_name =
-			const_cast<char*>(fk_list.front());
-		if (!dict_locked) {
-			mutex_enter(&dict_sys->mutex);
-		}
+		dd_open_table_one_on_name(client, name, dict_locked,
+					  fk_list, thd);
 
-		fk_table = dict_table_check_if_in_cache_low(
-			fk_table_name.m_name);
-		if (!dict_locked) {
-			mutex_exit(&dict_sys->mutex);
-		}
-
-		if (!fk_table) {
-			MDL_ticket*     fk_mdl = nullptr;
-			char		db_buf[NAME_LEN + 1];
-			char		tbl_buf[NAME_LEN + 1];
-
-			if (!innobase_parse_tbl_name(
-				fk_table_name.m_name,
-				db_buf, tbl_buf, NULL)) {
-				goto next;
-			}
-
-			dd_mdl_acquire(thd, &fk_mdl, db_buf, tbl_buf);
-
-			if (client->acquire(db_buf, tbl_buf, &dd_table)
-			    || dd_table == nullptr) {
-				dd_mdl_release(thd, &fk_mdl);
-				goto next;
-			}
-
-			ut_ad(dd_table->se_private_id()
-			      != dd::INVALID_OBJECT_ID);
-
-			TABLE_SHARE	ts;
-
-			init_tmp_table_share(thd,
-				&ts, db_buf, strlen(db_buf),
-				dd_table->name().c_str(),
-				""/* file name */, nullptr);
-
-			ulint error = open_table_def(thd, &ts, false,
-						     dd_table);
-
-			if (error) {
-				dd_mdl_release(thd, &fk_mdl);
-				goto next;
-			}
-
-			TABLE	td;
-
-			error = open_table_from_share(thd, &ts,
-				dd_table->name().c_str(),
-				0, OPEN_FRM_FILE_ONLY, 0,
-				&td, false, dd_table);
-
-			if (error) {
-				free_table_share(&ts);
-				dd_mdl_release(thd, &fk_mdl);
-				goto next;
-			}
-
-			fk_table = dd_open_table_one(
-				client, &td, fk_table_name.m_name,
-				fk_table, dd_table,
-				false, thd, fk_list);
-
-			closefrm(&td, false);
-			free_table_share(&ts);
-			dd_table_close(fk_table, thd, &fk_mdl, false);
-		}
-next:
 		fk_list.pop_front();
+	}
+}
+
+extern const char* fts_common_tables[];
+
+/** Open FTS AUX tables
+@param[in,out]	client		data dictionary client
+@param[in]	fk_list		foreign key name list
+@param[in]	thd		thread THD */
+static
+void
+dd_open_fts_aux_tables(
+	dd::cache::Dictionary_client*	client,
+	dict_table_t*			table,
+	bool				dict_locked,
+	THD*				thd)
+{
+        ulint           i;
+        fts_table_t     fts_table;
+	dict_names_t	fk_list;
+
+        FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+
+        /* Rename common auxiliary tables */
+        for (i = 0; fts_common_tables[i] != NULL; ++i) {
+                char    table_name[MAX_FULL_NAME_LEN];
+
+                fts_table.suffix = fts_common_tables[i];
+
+                fts_get_table_name(&fts_table, table_name);
+		dd_open_table_one_on_name(client, table_name,
+					  dict_locked, fk_list, thd);
+	}
+
+
+        fts_t*  fts = table->fts;
+
+        /* Rename index specific auxiliary tables */
+        for (i = 0; fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+             ++i) {
+                dict_index_t*   index;
+
+                index = static_cast<dict_index_t*>(
+                        ib_vector_getp(fts->indexes, i));
+
+                FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
+
+                for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
+                        char    table_name[MAX_FULL_NAME_LEN];
+
+                        fts_table.suffix = fts_get_suffix(j);
+
+                        fts_get_table_name(&fts_table, table_name);
+			dd_open_table_one_on_name(client, table_name,
+						  dict_locked, fk_list, thd);
+		}
 	}
 }
 
@@ -3042,6 +3103,10 @@ dd_open_table(
 			releaser(client);
 
 		dd_open_fk_tables(client, fk_list, false, thd);
+	}
+
+	if (m_table && m_table->fts) {
+		dd_open_fts_aux_tables(client, m_table, false, thd);
 	}
 
 	return(m_table);

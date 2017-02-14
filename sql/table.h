@@ -27,7 +27,10 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
 #include "sql_alloc.h"
@@ -48,17 +51,15 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 
-#ifndef MYSQL_CLIENT
-
 #include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
+#include "mem_root_array.h"
 #include "opt_costmodel.h" // Cost_model_table
 #include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
-#include "mem_root_array.h"
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -716,7 +717,6 @@ struct TABLE_SHARE
     (table->file!=nullptr).
   */
   uint tmp_handler_count;
-  uint temp_pool_slot;                         ///< Used by intern temp tables
 
   uint key_block_size;			/* create key_block_size, if used */
   uint stats_sample_pages;		/* number of pages to sample during
@@ -1091,16 +1091,18 @@ public:
 
 
 /**
-  Flags for TABLE::status (maximum 8 bits). Do NOT add new ones.
-  @todo: GARBAGE and NOT_FOUND could be unified. UPDATED and DELETED could be
-  changed to "bool current_row_has_already_been_modified" in the
-  multi_update/delete objects (one such bool per to-be-modified table).
-  @todo aim at removing the status. There should be more local ways.
+  Flags for TABLE::m_status (maximum 8 bits).
+  The flags define the state of the row buffer in TABLE::record[0].
 */
-#define STATUS_GARBAGE          1
+/**
+  STATUS_NOT_STARTED is set when table is not accessed yet.
+  Neither STATUS_NOT_FOUND nor STATUS_NULL_ROW can be set when this flag is set.
+*/
+#define STATUS_NOT_STARTED      1
 /**
    Means we were searching for a row and didn't find it. This is used by
-   storage engines (@see handler::index_read_map()) and the Server layer.
+   storage engines (@see handler::index_read_map()) and the executor, both
+   when doing an exact row lookup and advancing a scan (no more rows in range).
 */
 #define STATUS_NOT_FOUND        2
 /// Reserved for use by multi-table update. Means the row has been updated.
@@ -1217,9 +1219,10 @@ public:
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;
-  ORDER		*group;
-  const char	*alias;            	  /* alias or table name */
-  uchar		*null_flags;
+  ORDER	        *group;
+  const char    *alias;           ///< alias or table name
+  uchar         *null_flags;      ///< Pointer to the null flags of record[0]
+  uchar         *null_flags_saved;///< Saved null_flags while null_row is true
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
   /*
     Bitmap of fields that one or more query condition refers to. Only
@@ -1310,6 +1313,7 @@ private:
   */
   my_bool nullable;
 
+  uint8   m_status;                     /* What's in record[0] */
 public:
   /*
     If true, the current table row is considered to have all columns set to 
@@ -1318,7 +1322,6 @@ public:
   */
   my_bool null_row;
 
-  uint8   status;                       /* What's in record[0] */
   my_bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
@@ -1549,11 +1552,79 @@ public:
   /// @return true if table contains one or more generated columns
   bool has_gcol() const { return vfield; }
 
-  /// Set current row as "null row", for use in null-complemented outer join
+  /**
+   Life cycle of the row buffer is as follows:
+   - The initial state is "not started".
+   - When reading a row through the storage engine handler, the status is set
+     as "has row" or "no row", depending on whether a row was found or not.
+     The "not started" state is cleared, as well as the "null row" state,
+     the updated state and the deleted state.
+   - When making a row available in record[0], make sure to update row status
+     similarly to how the storage engine handler does it.
+   - If a NULL-extended row is needed in join execution, the "null row" state
+     is set. Note that this can be combined with "has row" if a row was read
+     but condition on it was evaluated to false (happens for single-row
+     lookup), or "no row" if no more rows could be read.
+     Note also that for the "null row" state, the NULL bits inside the
+     row are set to one, so the row inside the row buffer is no longer usable,
+     unless the NULL bits are saved in a separate buffer.
+   - The "is updated" and "is deleted" states are set when row is updated or
+     deleted, respectively.
+  */
+  /// Set status for row buffer as "not started"
+  void set_not_started()
+  {
+    m_status= STATUS_NOT_STARTED | STATUS_NOT_FOUND;
+    null_row= FALSE;
+  }
+
+  /// @return true if a row operation has been done
+  bool is_started() const { return !(m_status & STATUS_NOT_STARTED); }
+
+  /// Set status for row buffer: contains row
+  void set_found_row()
+  {
+    m_status= 0;
+    null_row= FALSE;
+  }
+
+  /**
+    Set status for row buffer: contains no row. This is set when
+     - A lookup operation finds no row
+     - A scan operation scans past the last row of the range.
+     - An error in generating key values before calling storage engine.
+  */
+  void set_no_row()
+  {
+    m_status= STATUS_NOT_FOUND;
+    null_row= FALSE;
+  }
+
+  /**
+    Set "row found" status from handler result
+
+    @param status 0 if row was found, <> 0 if row was not found
+  */
+  void set_row_status_from_handler(int status)
+  {
+    m_status= status ? STATUS_NOT_FOUND : 0;
+    null_row= FALSE;
+  }
+
+  /**
+    Set current row as "null row", for use in null-complemented outer join.
+    The row buffer may or may not contain a valid row.
+    set_null_row() and reset_null_row() are used by the join executor to
+    signal the presence or absence of a NULL-extended row for an outer joined
+    table. Null rows may also be used to specify rows that are all NULL in
+    grouing operations.
+    @note this is a destructive operation since the NULL value bit vector
+          is overwritten. Caching operations must be aware of this.
+  */
   void set_null_row()
   {
     null_row= TRUE;
-    status|= STATUS_NULL_ROW;
+    m_status|= STATUS_NULL_ROW;
     if (s->null_bytes > 0)
       memset(null_flags, 255, s->null_bytes);
   }
@@ -1562,11 +1633,48 @@ public:
   void reset_null_row()
   {
     null_row= FALSE;
-    status&= ~STATUS_NULL_ROW;
+    m_status&= ~STATUS_NULL_ROW;
   }
+
+  /// Set "updated" property for the current row
+  void set_updated_row()
+  {
+    DBUG_ASSERT(is_started() && has_row());
+    m_status|= STATUS_UPDATED;
+  }
+
+  /// Set "deleted" property for the current row
+  void set_deleted_row()
+  {
+    DBUG_ASSERT(is_started() && has_row());
+    m_status|= STATUS_DELETED;
+  }
+
+  /// @return true if there is a row in row buffer
+  bool has_row() const { return !(m_status & STATUS_NOT_FOUND); }
 
   /// @return true if current row is null-extended
   bool has_null_row() const { return null_row; }
+
+  /// @return true if current row has been updated (multi-table update)
+  bool has_updated_row() const { return m_status & STATUS_UPDATED; }
+
+  /// @return true if current row has been deleted (multi-table delete)
+  bool has_deleted_row() const { return m_status & STATUS_DELETED; }
+
+  /// Save the NULL flags of the current row into the designated buffer
+  void save_null_flags()
+  {
+    if (s->null_bytes > 0)
+      memcpy(null_flags_saved, null_flags, s->null_bytes);
+  }
+
+  /// Restore the NULL flags of the current row from the designated buffer
+  void restore_null_flags()
+  {
+    if (s->null_bytes > 0)
+      memcpy(null_flags, null_flags_saved, s->null_bytes);
+  }
 
   /**
     Initialize the optimizer cost model.
@@ -1793,7 +1901,6 @@ typedef struct	st_lex_user {
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
-  bool opt_if_not_exists;
   LEX_ALTER alter_status;
 
   static st_lex_user *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
@@ -2476,7 +2583,6 @@ private:
   */
   Item		*m_join_cond;
   Item          *m_sj_cond;               ///< Synthesized semijoin condition
-  bool          m_has_locking_clause;
 public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -2614,7 +2720,6 @@ public:
     tables. Unlike 'next_local', this in this list views are *not*
     leaves. Created in setup_tables() -> make_leaf_tables().
   */
-  bool allowed_show;
   TABLE_LIST    *next_leaf;
   Item          *derived_where_cond;    ///< WHERE condition from derived table
   Item          *check_option;          ///< WITH CHECK OPTION condition
@@ -3520,7 +3625,5 @@ bool create_table_share_for_upgrade(THD *thd,
                                     const char *table,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
-
-#endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

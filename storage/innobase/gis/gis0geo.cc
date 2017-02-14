@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,15 @@ InnoDB R-tree related functions.
 Created 2013/03/27 Allen Lai and Jimmy Yang
 *******************************************************/
 
-#include "page0types.h"
-#include "gis0geo.h"
-#include "page0cur.h"
-#include "ut0rnd.h"
-#include "mach0data.h"
-
 #include <spatial.h>
 #include <cmath>
+
+#include "gis0geo.h"
+#include "mach0data.h"
+#include "my_inttypes.h"
+#include "page0cur.h"
+#include "page0types.h"
+#include "ut0rnd.h"
 
 /* These definitions are for comparing 2 mbrs. */
 

@@ -21,6 +21,7 @@
 #include "field.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"

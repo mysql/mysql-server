@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,7 +331,10 @@ no_odirect:
       request->error = FsRef::fsErrInvalidFileSize;
     }
     if (request->error)
+    {
+      close(theFd);
       return;
+    }
   }
 
   if (flags & FsOpenReq::OM_INIT)
@@ -453,7 +456,10 @@ no_odirect:
 #endif
 
     if(lseek(theFd, 0, SEEK_SET) != 0)
+    {
       request->error = errno;
+      close(theFd);
+    }
   }
   else if (flags & FsOpenReq::OM_DIRECT)
   {
@@ -468,7 +474,10 @@ no_odirect:
     }
 
     if (request->error)
+    {
+      close(theFd);
       return;
+    }
 #endif
   }
 
@@ -534,6 +543,25 @@ no_odirect:
   }
 
   set_or_check_filetype(true);
+
+  if (flags & FsOpenReq::OM_READ_SIZE)
+  {
+    struct stat buf;
+    if ((fstat(theFd, &buf) == -1))
+    {
+      request->error = errno;
+      close(theFd);
+    }
+    Uint64 size = (Uint64)buf.st_size;
+    request->m_file_size_hi = Uint32(size >> 32);
+    request->m_file_size_lo = Uint32(size & 0xFFFFFFFF);
+  }
+  else
+  {
+    request->m_file_size_hi = Uint32(~0);
+    request->m_file_size_lo = Uint32(~0);
+  }
+
   request->m_fileinfo = get_fileinfo();
 }
 

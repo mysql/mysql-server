@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,17 @@
 #ifndef APPLIER_INCLUDE
 #define APPLIER_INCLUDE
 
+#include <mysql/group_replication_priv.h>
 #include <vector>
 
-#include "plugin_utils.h"
-#include "pipeline_factory.h"
-#include "handlers/pipeline_handlers.h"
+#include "applier_channel_state_observer.h"
 #include "handlers/applier_handler.h"
 #include "handlers/certification_handler.h"
-#include "applier_channel_state_observer.h"
+#include "handlers/pipeline_handlers.h"
+#include "my_inttypes.h"
+#include "pipeline_factory.h"
 #include "pipeline_stats.h"
-
-#include <mysql/group_replication_priv.h>
+#include "plugin_utils.h"
 
 
 //Define the applier packet types

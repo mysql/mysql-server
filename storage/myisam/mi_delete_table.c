@@ -19,6 +19,8 @@
 
 #include "fulltext.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 
 int mi_delete_table(const char *name)
 {

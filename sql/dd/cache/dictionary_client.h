@@ -416,8 +416,6 @@ private:
   void register_dropped_object(T* object);
 
 
-public:
-
   /**
     Remove the uncommitted objects from the client and (depending
     on the parameter) put them into the shared cache,
@@ -441,6 +439,7 @@ public:
   template <typename T>
   void remove_uncommitted_objects(bool commit_to_shared_cache);
 
+public:
 
   // Initialize an instance with a default auto releaser.
   explicit Dictionary_client(THD *thd);
@@ -513,9 +512,6 @@ public:
     When the object is read from the persistent tables, the transaction
     isolation level is READ UNCOMMITTED. This is necessary to be able to
     read uncommitted data from an earlier stage of the same session.
-
-    @note This is needed when acquiring tablespace objects during execution
-          of ALTER TABLE.
 
     @tparam       T       Dictionary object type.
     @param        id      Object id to retrieve.
@@ -814,7 +810,9 @@ public:
 
   /**
     Fetch Object ids of all the views referencing base table/ view/ stored
-    function name specified in "schema"."name".
+    function name specified in "schema"."name". The views are retrieved
+    using READ_UNCOMMITTED reads as the views could be changed by the same
+    statement (e.g. multi-table/-view RENAME TABLE).
 
     @tparam       T               Type of the object (View_table/View_routine)
                                   to retrieve view names for.

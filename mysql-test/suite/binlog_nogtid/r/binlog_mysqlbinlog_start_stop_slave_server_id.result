@@ -22,6 +22,9 @@ include/mysqlbinlog.inc
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
@@ -39,6 +42,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -47,6 +53,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -57,6 +66,9 @@ INSERT INTO t1 VALUES(3)
 COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # [empty]
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -65,6 +77,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -90,6 +105,9 @@ include/mysqlbinlog.inc
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
@@ -107,6 +125,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -115,6 +136,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -125,6 +149,9 @@ INSERT INTO t1 VALUES(3)
 COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # [empty]
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -133,6 +160,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN

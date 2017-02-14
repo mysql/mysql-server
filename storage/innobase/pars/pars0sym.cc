@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,14 +25,16 @@ Created 12/15/1997 Heikki Tuuri
 #include "current_thd.h"
 
 #include "pars0sym.h"
-#include "mem0mem.h"
-#include "data0type.h"
+
 #include "data0data.h"
 #include "dict0dd.h"
+#include "data0type.h"
+#include "eval0eval.h"
+#include "mem0mem.h"
+#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0pars.h"
 #include "que0que.h"
-#include "eval0eval.h"
 #include "row0sel.h"
 
 /******************************************************************//**
@@ -83,8 +85,8 @@ sym_tab_free_private(
 			if (sym->mdl) {
 				dd_table_close(sym->table, thd, &sym->mdl, true);
 			} else {
-				/* TODO: NewDD: Remove. This is only for the
-				InnoDB SYS TABLES */
+				/* TODO: NewDD: Remove with WL#9535. This is only
+				for the InnoDB SYS TABLES */
 				dd_table_close(sym->table, nullptr, nullptr, true);
 			}
 

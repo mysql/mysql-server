@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql_array.h"              // Bounds_checked_array
 #include "thr_lock.h"               // thr_lock_type

@@ -2,7 +2,6 @@
 # Bug#14007109 RECURSIVE ACQ OF BLOCK LOCK IN S MODE, STATS UPDATE ASRT !RW_LOCK_OWN(LOCK, 352)
 #
 
--- source include/have_innodb.inc
 # The assertion only fails in debug versions, so no need to test in non-debug
 -- source include/have_debug.inc
 

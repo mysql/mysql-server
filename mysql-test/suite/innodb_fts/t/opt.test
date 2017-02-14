@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 #  
 # Tests for optimizations for InnoDB fulltext search (WL#6043)

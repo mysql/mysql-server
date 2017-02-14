@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include <sys/types.h>
 
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
 
 class JOIN;
 class JOIN_TAB;

@@ -323,8 +323,10 @@ use test;
 create view v1 as select * from information_schema.routines;
 check table v1, information_schema.routines;
 Table	Op	Msg_type	Msg_text
-test.v1	check	status	OK
-information_schema.ROUTINES	check	note	The storage engine for the table doesn't support check
+test.v1	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
+test.v1	check	error	Corrupt
+information_schema.ROUTINES	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
+information_schema.ROUTINES	check	error	Corrupt
 drop view v1;
 End of 5.0 tests
 End of 5.1 tests

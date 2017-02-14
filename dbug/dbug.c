@@ -79,6 +79,8 @@
  *
  */
 
+#include "my_config.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <m_string.h>
@@ -86,7 +88,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1049,13 +1049,11 @@ static void get_grantor(THD *thd, char *grantor)
   const char *user= thd->security_context()->user().str;
   const char *host= thd->security_context()->host_or_ip().str;
 
-#if defined(HAVE_REPLICATION)
   if (thd->slave_thread && thd->has_invoker())
   {
     user= thd->get_invoker_user().str;
     host= thd->get_invoker_host().str;
   }
-#endif
   strxmov(grantor, user, "@", host, NullS);
 }
 
@@ -2709,7 +2707,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
   (tables+5)->next_local= (tables+5)->next_global= tables + 6;
   (tables+6)->next_local= (tables+6)->next_global= tables + 7;
 
-#ifdef HAVE_REPLICATION
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
@@ -2741,7 +2738,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
       tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 0;
   }
-#endif
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {                                             // This should never happen

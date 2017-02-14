@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,10 @@
   Events waits data structures (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
-#include "pfs_lock.h"
 #include "pfs_events.h"
+#include "pfs_lock.h"
 
 struct PFS_mutex;
 struct PFS_rwlock;

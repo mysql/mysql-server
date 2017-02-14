@@ -6,7 +6,6 @@
 # Partitions: crash if varchar length > 65530
 # BUG#48164 limited size to 3072 bytes
 #
--- source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;

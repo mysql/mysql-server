@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 RESET MASTER;
 SET @start_global_value = @@global.gtid_executed;

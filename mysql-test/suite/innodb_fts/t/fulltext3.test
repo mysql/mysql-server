@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 #
 # test of new fulltext search features

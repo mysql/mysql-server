@@ -51,6 +51,7 @@ Created July 18, 2007 Vasil Dimov
 #include "i_s.h"
 #include "ibuf0ibuf.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0zip.h"
 #include "pars0pars.h"
 #include "srv0mon.h"

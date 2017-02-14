@@ -24,7 +24,6 @@
   replication slave.
 */
 
-#ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
 
 #include "my_config.h"
@@ -73,7 +72,9 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_io.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread_local.h"                   // thread_local_key_t
@@ -11245,9 +11246,6 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
 
   return 0;
 }
-
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @} (end of group Replication)

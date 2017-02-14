@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 -- source include/not_embedded.inc
 # We want a page split in this test case, to make it easy, we specify the
 # page size as 16K only. This deadlock issue is not related to page size.

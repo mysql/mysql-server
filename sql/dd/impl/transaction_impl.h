@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "field.h"
 #include "handler.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "set_var.h"
 #include "sql_class.h"                // THD::killed_state
 #include "thr_lock.h"
@@ -157,7 +158,7 @@ private:
   ulonglong m_saved_binlog_options;
   sql_mode_t m_saved_mode;
   long long m_latest_auto_incr_id;
-  enum_check_fields m_saved_count_cuted_fields;
+  enum_check_fields m_saved_check_for_truncated_fields;
   uint m_saved_in_sub_stmt;
   bool m_saved_time_zone_used;
 

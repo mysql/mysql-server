@@ -467,36 +467,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 1C2A1C2A1C2A00000000000000000000000000000000000000
-select @@collation_connection;
-@@collation_connection
-utf8mb4_0900_ai_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-1C47
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-1C47
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-1C471C601C7A
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-1C471C60
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-1C471C601C7A
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-1C471C601C7A
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-7A1C601C471C
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-E3B8E39FE385
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-85E39FE3B8E3
 CREATE TABLE t1 AS SELECT repeat('a', 10) as c LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table

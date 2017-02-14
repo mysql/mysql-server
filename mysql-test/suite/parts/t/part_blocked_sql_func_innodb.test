@@ -32,7 +32,6 @@ let $debug= 0;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'INNODB';
 
 #------------------------------------------------------------------------------#

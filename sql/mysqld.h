@@ -16,11 +16,10 @@
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
 
-#include <atomic>
-
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -32,7 +31,10 @@
 #include "my_dbug.h"
 #include "my_getopt.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sqlcommand.h"                 // SQLCOM_END
 #include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
@@ -124,7 +126,6 @@ enum enum_server_operational_state
 };
 enum_server_operational_state get_server_state();
 
-extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
 extern my_bool opt_log_slave_updates;
@@ -143,7 +144,7 @@ extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
 extern my_bool opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_local_infile, opt_myisam_use_mmap;
-extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
@@ -162,9 +163,7 @@ enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
 extern ulonglong slave_rows_search_algorithms_options;
 extern my_bool opt_require_secure_transport;
 
-#ifdef HAVE_REPLICATION
 extern my_bool opt_slave_preserve_commit_order;
-#endif
 
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
@@ -391,10 +390,8 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 extern PSI_mutex_key key_LOCK_group_replication_handler;
 
-#ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
-#endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
@@ -423,10 +420,8 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
-#ifdef HAVE_REPLICATION
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
-#endif
 extern PSI_thread_key key_thread_bootstrap;
 extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;
@@ -511,14 +506,12 @@ extern PSI_stage_info stage_insert;
 extern PSI_stage_info stage_invalidating_query_cache_entries_table;
 extern PSI_stage_info stage_invalidating_query_cache_entries_table_list;
 extern PSI_stage_info stage_killing_slave;
-extern PSI_stage_info stage_locking_system_tables;
 extern PSI_stage_info stage_logging_slow_query;
 extern PSI_stage_info stage_making_temp_file_append_before_load_data;
 extern PSI_stage_info stage_making_temp_file_create_before_load_data;
 extern PSI_stage_info stage_manage_keys;
 extern PSI_stage_info stage_master_has_sent_all_binlog_to_slave;
 extern PSI_stage_info stage_opening_tables;
-extern PSI_stage_info stage_opening_system_tables;
 extern PSI_stage_info stage_optimizing;
 extern PSI_stage_info stage_preparing;
 extern PSI_stage_info stage_purging_old_relay_logs;

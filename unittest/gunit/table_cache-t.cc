@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
 
-#include "table_cache.h"
-
-#include "mysqld_thd_manager.h"
 #include "ha_example.h"
+#include "my_inttypes.h"
+#include "mysqld_thd_manager.h"
+#include "table_cache.h"
+#include "test_utils.h"
 
 /*
   We need example_hton to be able short-cut creation of example

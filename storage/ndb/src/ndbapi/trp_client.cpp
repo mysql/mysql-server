@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,62 +19,79 @@
 #include "TransporterFacade.hpp"
 
 trp_client::trp_client()
-  : m_blockNo(~Uint32(0)), m_facade(0)
+  : m_blockNo(~Uint32(0)),
+    m_facade(NULL),
+    m_locked_for_poll(false),
+    m_mutex(NULL),
+    m_poll(),
+    m_send_nodes_mask(),
+    m_send_nodes_cnt(0),
+    m_send_buffers(NULL),
+    m_flushed_nodes_mask()
 {
   m_mutex = NdbMutex_Create();
-
-  m_locked_for_poll = false;
-  m_send_nodes_cnt = 0;
   m_send_buffers = new TFBuffer[MAX_NODES];
 }
 
 trp_client::~trp_client()
 {
-  /**
-   * require that trp_client user
-   *  doesnt destroy object when holding any locks
-   */
-  m_poll.assert_destroy();
-
   close();
-  NdbCondition_Destroy(m_poll.m_condition);
-  m_poll.m_condition = NULL;
   NdbMutex_Destroy(m_mutex);
-  m_mutex = NULL;
 
+  m_mutex = NULL;
   assert(m_send_nodes_cnt == 0);
   assert(m_locked_for_poll == false);
   delete [] m_send_buffers;
 }
 
+trp_client::PollQueue::PollQueue()
+  : m_waiting(PQ_IDLE),
+    m_locked(false),
+    m_poll_owner(false),
+    m_poll_queue(false),
+    m_prev(NULL),
+    m_next(NULL),
+    m_condition(NULL)
+{
+  m_condition = NdbCondition_Create();
+}
+
+trp_client::PollQueue::~PollQueue()
+{
+  /**
+   * Require that trp_client user
+   * doesnt destroy object when holding any locks.
+   */
+  if (unlikely(
+      m_waiting != PQ_IDLE ||
+      m_locked == true ||
+      m_poll_owner == true ||
+      m_poll_queue == true ||
+      m_next != 0 ||
+      m_prev != 0))
+  {
+    ndbout << "ERR: ::~PollQueue: Deleting trp_clnt in use: waiting"
+           << m_waiting
+	   << " locked  " << m_locked
+	   << " poll_owner " << m_poll_owner
+	   << " poll_queue " << m_poll_queue
+	   << " next " << m_next
+	   << " prev " << m_prev
+           << endl;
+    require(false);
+  }
+  NdbCondition_Destroy(m_condition);
+  m_condition = NULL;
+}
+
 Uint32
-trp_client::open(TransporterFacade* tf, int blockNo,
-                 bool receive_thread)
+trp_client::open(TransporterFacade* tf, int blockNo)
 {
   Uint32 res = 0;
-  assert(m_facade == 0);
-  if (m_facade == 0)
+  assert(m_facade == NULL);
+  if (m_facade == NULL)
   {
     m_facade = tf;
-    /**
-      For user threads we only store up to 16 threads before waking
-      them up, for receiver threads we store up to 256 threads before
-      waking them up.
-    */
-    if (receive_thread)
-    {
-      m_poll.m_lock_array_size = 256;
-    }
-    else
-    {
-      m_poll.m_lock_array_size = 128;
-    }
-    m_poll.m_locked_clients =
-      (trp_client**) malloc(sizeof(trp_client**) * m_poll.m_lock_array_size);
-    if (m_poll.m_locked_clients == NULL)
-    {
-      return 0;
-    }
     res = tf->open_clnt(this, blockNo);
     if (res != 0)
     {
@@ -82,9 +99,7 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     }
     else
     {
-      free(m_poll.m_locked_clients);
-      m_poll.m_locked_clients = NULL;
-      m_facade = 0;
+      m_facade = NULL;
     }
   }
   return res;
@@ -103,28 +118,33 @@ trp_client::close()
   {
     m_facade->close_clnt(this);
 
-    m_facade = 0;
+    m_facade = NULL;
     m_blockNo = ~Uint32(0);
-    if (m_poll.m_locked_clients)
-    {
-      free(m_poll.m_locked_clients);
-      m_poll.m_locked_clients = NULL;
-    }
   }
 }
 
+/**
+ * The client has to 'poll' the transporter in order to receive
+ * its result. The call to ::do_poll() should be encapsulate with
+ * a ::prepare_poll() - ::complete_poll() pair.
+ */
 void
-trp_client::start_poll()
+trp_client::prepare_poll()
 {
   NdbMutex_Lock(m_mutex);
   assert(m_poll.m_locked == false);
+  assert(m_poll.m_poll_queue == false);
+  assert(m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
+  assert(has_unflushed_sends() == false); //Flushed prior to poll-wait
   m_poll.m_locked = true;
-  m_facade->start_poll(this);
 }
 
 void
 trp_client::do_poll(Uint32 to)
 {
+  assert(m_poll.m_locked == true);
+  assert(m_poll.m_poll_queue == false);
+  assert(m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
   m_facade->do_poll(this, to);
 }
 
@@ -132,45 +152,62 @@ void
 trp_client::complete_poll()
 {
   assert(m_poll.m_locked == true);
-  m_facade->complete_poll(this);
+  assert(m_poll.m_poll_queue == false);
+  assert(m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
+  /**
+   * Ensure any signals sent by receiver/poll owner has been
+   * flushed to the global Transporter buffers.
+   * The send thread will eventually send the transporter buffers.
+   */
+  assert(has_unflushed_sends() == false);
   m_poll.m_locked = false;
   NdbMutex_Unlock(m_mutex);
 }
 
+/**
+ * Send to the set of 'nodes' this client has produced messages to.
+ * We either try to do the send immediately ourself if 'forceSend',
+ * or we may choose an adaptive approach where (part of) the send
+ * may be ofloaded to the send thread.
+ */
 int
-trp_client::do_forceSend(int val)
+trp_client::do_forceSend(bool forceSend)
 {
-  /**
-   * since force send is disabled in this "version"
-   *   set forceSend=1 always...
-   */
-  val = 1;
+  flush_send_buffers();
 
-  if (val == 0)
+  if (forceSend)
   {
-    flush_send_buffers();
-    return 0;
+    m_facade->try_send_all(m_flushed_nodes_mask);
   }
-  else if (val == 1)
+  else
   {
-    for (Uint32 i = 0; i < m_send_nodes_cnt; i++)
-    {
-      Uint32 n = m_send_nodes_list[i];
-      TFBuffer* b = m_send_buffers + n;
-      TFBufferGuard g0(* b);
-      m_facade->flush_and_send_buffer(n, b);
-      b->clear();
-    }
-    m_send_nodes_cnt = 0;
-    m_send_nodes_mask.clear();
-    return 1;
+    m_facade->do_send_adaptive(m_flushed_nodes_mask);
   }
-  return 0;
+  m_flushed_nodes_mask.clear();
+
+  /**
+   * Note that independent of whether we 'forceSend' or not, we *did*
+   * send. Possibly with a small delay though, if we did the send
+   * with assist from the send thread. However, that is the same 
+   * whether the send was 'forced' or 'adaptive'
+   *
+   * So we always return '1' -> 'did_send'
+   */
+  return 1;
 }
 
+/**
+ * The 'safe' sendSignal() methods has to be used instead of the
+ * other sendSignal methods when a reply signal has to be
+ * sent by the client getting a signal 'delivered'.
+ *
+ * See 'is_poll_owner_thread()'-comments for more details.
+ */
 int
 trp_client::safe_noflush_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
 {
+  // This thread must be the poll owner
+  assert(m_facade->is_poll_owner_thread());
   return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
 }
 
@@ -289,6 +326,19 @@ trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
   return b->m_bytes_in_buffer;
 }
 
+/**
+ * Append the private client send buffers to the
+ * TransporterFacade lists of prepared send buffers.
+ * The TransporterFacade may then send these whenever
+ * it find convienient.
+ *
+ * Build an aggregated bitmap 'm_flushed_nodes_mask'
+ * of nodes this client has flushed messages to.
+ * Client must ensure that the messages to these nodes
+ * are force-sent before it starts waiting for any reply.
+ *
+ * Need to be called with the 'm_mutex' held
+ */
 void
 trp_client::flush_send_buffers()
 {
@@ -304,6 +354,7 @@ trp_client::flush_send_buffers()
     b->clear();
   }
 
+  m_flushed_nodes_mask.bitOR(m_send_nodes_mask);
   m_send_nodes_cnt = 0;
   m_send_nodes_mask.clear();
 }
@@ -321,7 +372,7 @@ PollGuard::PollGuard(NdbImpl& impl)
 {
   m_clnt = &impl;
   m_waiter= &impl.theWaiter;
-  m_clnt->start_poll();
+  m_clnt->prepare_poll();
   m_complete_poll_called = false;
 }
 
@@ -361,7 +412,7 @@ int PollGuard::wait_scan(int wait_time, Uint32 nodeId, bool forceSend)
 int PollGuard::wait_for_input_in_loop(int max_wait_ms, bool forceSend)
 {
   int ret_val;
-  m_clnt->do_forceSend(forceSend ? 1 : 0);
+  m_clnt->do_forceSend(forceSend);
 
   const NDB_TICKS start = NdbTick_getCurrentTicks();
   int remain_wait_ms = max_wait_ms;
@@ -419,10 +470,9 @@ int PollGuard::wait_for_input_in_loop(int max_wait_ms, bool forceSend)
       break;
     }
     /**
-     * Ensure any signals sent by receivers are sent by send thread
-     * eventually by flushing buffers to global area.
+     * Ensure no reply-signals sent by receivers remains unflushed.
      */
-    m_clnt->flush_send_buffers();
+    assert(m_clnt->has_unflushed_sends() == false);
   } while (1);
 #ifdef VM_TRACE
   if (verbose)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "dd/types/table.h"                    // dd:Table
 #include "dd/types/trigger.h"                  // dd::Trigger
 #include "my_global.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -329,6 +330,8 @@ public:
   virtual Column *add_column()
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
+  { return Abstract_table_impl::columns(); }
+  virtual Column_collection *columns()
   { return Abstract_table_impl::columns(); }
   const Column *get_column(Object_id column_id) const
   { return Abstract_table_impl::get_column(column_id); }

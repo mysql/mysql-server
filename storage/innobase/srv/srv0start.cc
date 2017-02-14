@@ -38,6 +38,7 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -57,8 +58,10 @@ Created 2/16/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysqld.h"

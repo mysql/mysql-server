@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "key.h"
 #include "mem_root_array.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -1072,7 +1073,7 @@ bool Query_result_delete::send_data(List<Item> &values)
     Unique *const tempfile= immediate ? NULL : tempfiles[unique_counter++];
 
     // Check if using outer join and no row found, or row is already deleted
-    if (table->status & (STATUS_NULL_ROW | STATUS_DELETED))
+    if (table->has_null_row() || table->has_deleted_row())
       continue;
 
     table->file->position(table->record[0]);
@@ -1085,7 +1086,7 @@ bool Query_result_delete::send_data(List<Item> &values)
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
         DBUG_RETURN(true);
-      table->status|= STATUS_DELETED;
+      table->set_deleted_row();
       if (map & non_transactional_table_map)
         non_transactional_deleted= true;
       if (!(error=table->file->ha_delete_row(table->record[0])))

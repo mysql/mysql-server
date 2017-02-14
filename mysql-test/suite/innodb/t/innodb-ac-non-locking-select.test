@@ -1,7 +1,6 @@
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc
 
---source include/have_innodb.inc
 
 CREATE TABLE t1 (c1 INT , c2 CHAR(10), PRIMARY KEY (c1)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0, "0");

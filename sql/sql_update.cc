@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,10 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -746,8 +749,8 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       Generate an error (in TRADITIONAL mode) or warning
       when trying to set a NOT NULL field to NULL.
     */
-    thd->count_cuted_fields= CHECK_FIELD_WARN;
-    thd->cuted_fields=0L;
+    thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+    thd->num_truncated_fields= 0L;
     THD_STAGE_INFO(thd, stage_updating);
 
     bool will_batch;
@@ -1071,7 +1074,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
           found_rows : updated_rows, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated_rows));
   }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
   thd->current_found_rows= found_rows;
   thd->current_changed_rows= updated_rows;
   // Following test is disabled, as we get RQG errors that are hard to debug
@@ -1574,8 +1577,8 @@ bool Query_result_update::prepare(List<Item> &not_used_values,
   SELECT_LEX *const select= unit->first_select();
   TABLE_LIST *const leaves= select->leaf_tables;
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
-  thd->cuted_fields=0L;
+  thd->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd->num_truncated_fields= 0L;
   THD_STAGE_INFO(thd, stage_updating_main_table);
 
   const table_map tables_to_update= get_table_map(fields);
@@ -2062,7 +2065,7 @@ void Query_result_update::cleanup()
   }
   if (copy_field)
     delete [] copy_field;
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
+  thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe ||
               updated_rows == 0 ||
               thd->get_transaction()->cannot_safely_rollback(
@@ -2095,12 +2098,12 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       The join algorithm guarantees that we will not find the a row in
       t1 several times.
     */
-    if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
+    if (table->has_null_row() || table->has_updated_row())
       continue;
 
     if (table == table_to_update)
     {
-      table->status|= STATUS_UPDATED;
+      table->set_updated_row();
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd,
                                                *fields_for_table[offset],
@@ -2451,7 +2454,7 @@ bool Query_result_update::do_updates()
         field_num++;
       } while((tbl= check_opt_it++));
 
-      table->status|= STATUS_UPDATED;
+      table->set_updated_row();
       store_record(table,record[1]);
 
       /* Copy data from temporary table to current table */

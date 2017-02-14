@@ -2,7 +2,6 @@
 # WL#6915: InnoDB: Undo logs for temp-tables (and related objects) should
 # reside in temp-tablespace
 #
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE

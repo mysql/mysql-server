@@ -71,7 +71,7 @@ release_lock('test_bug16407')
 1
 set global event_scheduler= off;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
-event_schema	event_name	sql_mode
+EVENT_SCHEMA	EVENT_NAME	SQL_MODE
 events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 "Let's check whether we change the sql_mode on ALTER EVENT"
 set sql_mode='traditional';
@@ -79,7 +79,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
-event_schema	event_name	sql_mode
+EVENT_SCHEMA	EVENT_NAME	SQL_MODE
 events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 drop event e_16407;
 set sql_mode="ansi";
@@ -122,7 +122,7 @@ select release_lock('ee_16407_2');
 insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
-event_schema	event_name	sql_mode
+EVENT_SCHEMA	EVENT_NAME	SQL_MODE
 events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
@@ -146,7 +146,7 @@ ee_16407_3	1980-02-29
 ee_16407_4	0000-00-00
 "OK, last check before we drop them"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
-event_schema	event_name	sql_mode
+EVENT_SCHEMA	EVENT_NAME	SQL_MODE
 events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
@@ -195,7 +195,7 @@ ev_name	a
 ee_16407_6	2004-02-29
 "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
-event_schema	event_name	sql_mode
+EVENT_SCHEMA	EVENT_NAME	SQL_MODE
 events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 drop event ee_16407_5;
@@ -223,7 +223,7 @@ NULL
 alter event events_test.mysqltest_user1 rename to mysqltest_user1;
 ERROR 3D000: No database selected
 select event_schema, event_name, definer, event_type, status from information_schema.events;
-event_schema	event_name	definer	event_type	status
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_TYPE	STATUS
 events_test	mysqltest_user1	mysqltest_user1@localhost	RECURRING	ENABLED
 drop event events_test.mysqltest_user1;
 drop user mysqltest_user1@localhost;
@@ -299,7 +299,7 @@ alter event e22830_4 on schedule every (select f22830() from dual) hour;
 end|
 "All events should be blocked in get_lock()"
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
-event_name	event_definition	interval_value	interval_field
+EVENT_NAME	EVENT_DEFINITION	INTERVAL_VALUE	INTERVAL_FIELD
 e22830_1	begin
 call p22830_wait();
 alter event e22830_1 on schedule every (select 8 from dual) hour;
@@ -321,7 +321,7 @@ release_lock('ee_22830')
 1
 set global event_scheduler=off;
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
-event_name	event_definition	interval_value	interval_field
+EVENT_NAME	EVENT_DEFINITION	INTERVAL_VALUE	INTERVAL_FIELD
 e22830_1	begin
 call p22830_wait();
 alter event e22830_1 on schedule every (select 8 from dual) hour;
@@ -353,47 +353,47 @@ CREATE USER mysqltest_u1@localhost;
 GRANT EVENT ON events_test.* TO mysqltest_u1@localhost;
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	root@localhost
 DROP EVENT e1;
 CREATE DEFINER=CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	root@localhost
 ALTER DEFINER=mysqltest_u1@localhost EVENT e1 ON SCHEDULE EVERY 1 HOUR;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 DROP EVENT e1;
 CREATE DEFINER=CURRENT_USER() EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	root@localhost
 DROP EVENT e1;
 CREATE DEFINER=mysqltest_u1@localhost EVENT e1 ON SCHEDULE EVERY 1 DAY DO
 SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 DROP EVENT e1;
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 DROP EVENT e1;
 CREATE DEFINER=CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 ALTER DEFINER=root@localhost EVENT e1 ON SCHEDULE EVERY 1 HOUR;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 DROP EVENT e1;
 CREATE DEFINER=CURRENT_USER() EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
-event_name	definer
+EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 DROP EVENT e1;
 CREATE DEFINER=root@localhost EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
@@ -697,7 +697,7 @@ last_executed IS NULL,
 definer
 FROM INFORMATION_SCHEMA.EVENTS
 WHERE event_schema = 'events_test';
-event_name	last_executed IS NULL	definer
+EVENT_NAME	last_executed IS NULL	DEFINER
 e1	1	mysqltest_u1@localhost
 e2	1	mysqltest_u1@localhost
 
@@ -721,7 +721,7 @@ last_executed IS NULL,
 definer
 FROM INFORMATION_SCHEMA.EVENTS
 WHERE event_schema = 'events_test';
-event_name	last_executed IS NULL	definer
+EVENT_NAME	last_executed IS NULL	DEFINER
 e2	0	mysqltest_u1@localhost
 
 DROP EVENT e1;
@@ -754,7 +754,8 @@ set @@sql_mode= @old_mode;
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select event_name from information_schema.events where event_name = 'e1' and sql_mode = @full_mode;
-event_name
+EVENT_NAME
+e1
 drop event e1;
 SET @old_server_id = @@GLOBAL.server_id;
 SET GLOBAL server_id = (1 << 32) - 1;
@@ -763,7 +764,7 @@ SELECT @@GLOBAL.server_id;
 4294967295
 CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 SELECT event_name, originator FROM INFORMATION_SCHEMA.EVENTS;
-event_name	originator
+EVENT_NAME	ORIGINATOR
 ev1	4294967295
 DROP EVENT ev1;
 SET GLOBAL server_id = @old_server_id;

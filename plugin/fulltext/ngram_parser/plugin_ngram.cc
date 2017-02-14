@@ -16,6 +16,7 @@
 #include <fts0tokenize.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 /* We are following InnoDB coding guidelines. */
 

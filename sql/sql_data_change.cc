@@ -30,6 +30,7 @@
 #include "item.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql_class.h"  // THD
 #include "sql_list.h"

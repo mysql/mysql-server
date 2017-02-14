@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 
 #ifndef _rt_index_h
 #define _rt_index_h
+
+#include "my_inttypes.h"
 
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
 #define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \

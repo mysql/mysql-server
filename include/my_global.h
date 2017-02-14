@@ -24,7 +24,6 @@
 */
 
 #include <assert.h>
-#include <errno.h>				/* Recommended by debian */
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -32,22 +31,5 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <time.h>
-
-#include "my_config.h"
-
-#if !defined(_WIN32)
-#include <netdb.h>
-#endif
-#ifdef MY_MSCRT_DEBUG
-#include <crtdbg.h>
-#endif
-
-#include "my_compiler.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_macros.h"
-#include "my_sharedlib.h"
-#include "my_shm_defaults.h"
-#include "my_table_map.h"
 
 #endif  // MY_GLOBAL_INCLUDED

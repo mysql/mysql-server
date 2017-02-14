@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 
 #include "m_ctype.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
 
 
 
@@ -10048,7 +10049,6 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10084,7 +10084,6 @@ CHARSET_INFO my_charset_euckr_bin=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

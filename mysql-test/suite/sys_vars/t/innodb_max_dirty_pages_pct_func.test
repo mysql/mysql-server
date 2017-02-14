@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 # safe initial value
 SET @innodb_max_dirty_pages_pct = @@global.innodb_max_dirty_pages_pct;

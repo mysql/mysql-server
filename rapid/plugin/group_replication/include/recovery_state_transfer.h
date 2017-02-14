@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef RECOVERY_STATE_TRANSFER_INCLUDE
 #define RECOVERY_STATE_TRANSFER_INCLUDE
 
-#include "channel_observation_manager.h"
-#include "replication_threads_api.h"
-#include "member_info.h"
 #include <mysql/group_replication_priv.h>
-
 #include <string>
 #include <vector>
+
+#include "channel_observation_manager.h"
+#include "member_info.h"
+#include "my_io.h"
+#include "replication_threads_api.h"
 
 
 class Recovery_state_transfer

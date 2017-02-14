@@ -18,7 +18,6 @@
 # current system codepage. (The characters < > are used here for visual
 # clarity and cannot be part of a valid path string.)"
 
---source include/have_innodb.inc
 --source include/windows.inc
 # This will test the limit of a filename in MySQL at 512 bytes.
 # We control that by making it a relative path starting with "./".

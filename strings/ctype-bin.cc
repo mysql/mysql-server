@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,6 +26,8 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 static const uchar ctype_bin[]=
 {
@@ -439,8 +441,8 @@ my_strnxfrm_8bit_bin(const CHARSET_INFO *cs,
   set_if_smaller(srclen, nweights);
   if (dst != src)
     memcpy(dst, src, srclen);
-  return my_strxfrm_pad_desc_and_reverse(cs, dst, dst + srclen, dst + dstlen,
-                                         (uint)(nweights - srclen), flags, 0);
+  return my_strxfrm_pad(cs, dst, dst + srclen, dst + dstlen,
+                        (uint)(nweights - srclen), flags);
 }
 
 
@@ -600,7 +602,6 @@ CHARSET_INFO my_charset_bin =
     0,                          /* pad char      */
     0,                          /* escape_with_backslash_is_dangerous */
     1,                          /* levels_for_compare */
-    1,                          /* levels_for_order   */
     &my_charset_handler,
     &my_collation_binary_handler
 };

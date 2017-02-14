@@ -4,7 +4,6 @@
 --echo # PAGE OF SYSTEM TABLESPACE
 --echo #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_embedded.inc
 

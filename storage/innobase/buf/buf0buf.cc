@@ -30,13 +30,17 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "my_config.h"
+
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "mem0mem.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0size.h"
 #ifndef UNIV_HOTBACKUP
 #include "btr0sea.h"
@@ -50,6 +54,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "trx0purge.h"
 #include "trx0undo.h"
 #endif /* !UNIV_HOTBACKUP */
+
+#include <errno.h>
 #include <map>
 #include <new>
 #include <sstream>
@@ -710,7 +716,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 
 # ifdef PFS_GROUP_BUFFER_SYNC
+
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern mysql_pfs_key_t	buffer_block_mutex_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 /********************************************************************//**
 This function registers mutexes and rwlocks in buffer blocks with
@@ -737,7 +746,11 @@ pfs_register_buffer_block(
 		BPageMutex*	mutex;
 
 		mutex = &block->mutex;
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		mutex->pfs_add(buffer_block_mutex_key);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
 #  endif /* UNIV_PFS_MUTEX */
 
 		rw_lock_t*	rwlock;
@@ -745,9 +758,16 @@ pfs_register_buffer_block(
 #  ifdef UNIV_PFS_RWLOCK
 		rwlock = &block->lock;
 		ut_a(!rwlock->pfs_psi);
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		rwlock->pfs_psi = (PSI_server)
 			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
 			: NULL;
+#else
+		rwlock->pfs_psi = (PSI_server)
+			? PSI_server->init_rwlock(PFS_NOT_INSTRUMENTED, rwlock)
+			: NULL;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 #   ifdef UNIV_DEBUG
 		rwlock = &block->debug_latch;

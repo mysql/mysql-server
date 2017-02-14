@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,6 @@
 
 #ifndef RPL_MSR_H
 #define RPL_MSR_H
-
-#ifdef HAVE_REPLICATION
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -428,5 +426,4 @@ static bool inline is_slave_configured()
   return (channel_map.get_default_channel_mi() != NULL);
 }
 
-#endif   /* HAVE_REPLICATION */
 #endif  /*RPL_MSR_H*/

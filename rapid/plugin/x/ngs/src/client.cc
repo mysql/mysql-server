@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,25 +18,26 @@
  */
 
 #include "ngs/client.h"
-#include "ngs/scheduler.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_monitor.h"
-#include "ngs/ngs_error.h"
-#include "ngs_common/operations_factory.h"
 
-#include <string.h>
-#include <algorithm>
-#include <functional>
 #ifndef WIN32
 #include <arpa/inet.h>
 #endif
+#include <errno.h>
+#include <string.h>
+#include <algorithm>
+#include <functional>
 
+#include "ngs/capabilities/handler_auth_mech.h"
+#include "ngs/capabilities/handler_readonly_value.h"
+#include "ngs/capabilities/handler_tls.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/interface/session_interface.h"
 #include "ngs/log.h"
+#include "ngs/ngs_error.h"
+#include "ngs/protocol/protocol_config.h"
+#include "ngs/protocol_monitor.h"
+#include "ngs/scheduler.h"
+#include "ngs_common/operations_factory.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 #include "ngs_common/protocol_protobuf.h"
@@ -80,9 +81,8 @@ ngs::chrono::time_point Client::get_accept_time() const
   return m_accept_time;
 }
 
-void Client::reset_accept_time(const Client_state new_state)
+void Client::reset_accept_time()
 {
-  m_state.exchange(new_state);
   m_accept_time = chrono::now();
   m_server.restart_client_supervision_timer();
 }
@@ -302,7 +302,6 @@ void Client::on_accept()
   m_state = Client_accepted;
 
   m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1), ngs::ref(m_protocol_monitor)));
-  reset_accept_time();
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state

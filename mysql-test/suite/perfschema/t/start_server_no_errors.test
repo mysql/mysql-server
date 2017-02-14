@@ -6,7 +6,6 @@
 # performance_schema_error-size is 0
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # Expect 0 for system variable digest
 SHOW GLOBAL VARIABLES LIKE "performance_schema_error_size";

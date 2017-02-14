@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,18 +70,20 @@ struct SectionSegment {
   };
   Uint32 theData[DataLength];
 };
+typedef CachedArrayPool<SectionSegment> SectionSegment_basepool;
 
 /**
  * Pool for SectionSegments
  */
-class SectionSegmentPool : public ArrayPool<SectionSegment> 
+
+class SectionSegmentPool : public SectionSegment_basepool
 {
 private:
   // Print an informative error message.
-  static void handleOutOfSegments(ArrayPool<SectionSegment>& pool);
+  static void handleOutOfSegments(SectionSegment_basepool& pool);
 public:
   SectionSegmentPool() : 
-    ArrayPool<SectionSegment>(&handleOutOfSegments){}
+    SectionSegment_basepool(&handleOutOfSegments){}
 };
 
 /**
@@ -141,9 +143,9 @@ Uint32* getLastWordPtr(Uint32 id);
 bool verifySection(Uint32 firstIVal, 
                    SectionSegmentPool& thePool= g_sectionSegmentPool);
 
-template<Uint32 sz>
+template<Uint32 sz, typename Pool>
 void
-append(DataBuffer<sz>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
+append(DataBuffer<sz,Pool>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
   Uint32 len = ptr.sz;
   while(len > SectionSegment::DataLength){
     dst.append(ptr.p->theData, SectionSegment::DataLength);

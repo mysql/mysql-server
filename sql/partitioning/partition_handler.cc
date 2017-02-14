@@ -35,6 +35,8 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                          // MI_MAX_MSG_BUF
@@ -2139,7 +2141,6 @@ int Partition_helper::ph_rnd_next(uchar *buf)
     {
       m_last_part= part_id;
       m_part_spec.start_part= part_id;
-      m_table->status= 0;
       DBUG_RETURN(0);
     }
 
@@ -2174,7 +2175,6 @@ int Partition_helper::ph_rnd_next(uchar *buf)
 end:
   m_part_spec.start_part= NO_CURRENT_PART_ID;
 end_dont_reset_start_part:
-  m_table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(result);
 }
 
@@ -2901,7 +2901,6 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
   if (part_id == MY_BIT_NONE)
   {
     /* No partition to scan. */
-    m_table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(error);
   }
 
@@ -2987,7 +2986,6 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
       key not found.
     */
     DBUG_PRINT("info", ("scan with no partition to scan"));
-    m_table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   if (m_part_spec.start_part == m_part_spec.end_part)
@@ -3012,7 +3010,6 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
     if (start_part == MY_BIT_NONE)
     {
       DBUG_PRINT("info", ("scan with no partition to scan"));
-      m_table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
     if (start_part > m_part_spec.start_part)
@@ -3359,7 +3356,6 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
     DBUG_ASSERT(!m_curr_key_info[1] || m_ref_usage == REF_NOT_USED);
     m_queue->assign(parts);
     return_top_record(buf);
-    m_table->status= 0;
     DBUG_PRINT("info", ("Record returned from partition %d", m_top_entry));
     DBUG_RETURN(0);
   }
@@ -3583,7 +3579,6 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
          return_top_record(buf);
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
                      m_top_entry));
-         m_table->status= 0;
          error= 0;
       }
     }
@@ -3695,7 +3690,6 @@ int Partition_helper::handle_ordered_prev(uchar *buf)
         DBUG_PRINT("info", ("Record returned from partition %d (2)",
                             m_top_entry));
         error= 0;
-        m_table->status= 0;
       }
     }
     DBUG_RETURN(error);

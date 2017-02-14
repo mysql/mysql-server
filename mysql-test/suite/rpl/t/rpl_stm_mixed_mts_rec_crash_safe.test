@@ -1,10 +1,9 @@
 --source include/big_test.inc
---source include/master-slave.inc
 --source include/have_slave_parallel_type_database.inc
 --source include/have_binlog_format_mixed.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
+--source include/master-slave.inc
 
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");

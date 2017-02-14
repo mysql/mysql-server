@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,15 +50,26 @@ Dbtup_client::disk_restart_undo(Signal* signal, Uint64 lsn,
 // TSMAN
 
 int
-Dbtup_client::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
-                                        const Local_key* key, Uint32 pages)
+Dbtup_client::disk_restart_alloc_extent(Uint32 tableId,
+                                        Uint32 fragId,
+                                        Uint32 create_table_version,
+                                        const Local_key* key,
+                                        Uint32 pages)
 {
   if (m_dbtup_proxy != 0) {
     return
-      m_dbtup_proxy->disk_restart_alloc_extent(tableId, fragId, key, pages);
+      m_dbtup_proxy->disk_restart_alloc_extent(tableId,
+                                               fragId,
+                                               create_table_version,
+                                               key,
+                                               pages);
   }
-  return m_dbtup->disk_restart_alloc_extent(m_jamBuf, tableId, 
-                                            fragId, key, pages);
+  return m_dbtup->disk_restart_alloc_extent(m_jamBuf,
+                                            tableId, 
+                                            fragId,
+                                            create_table_version,
+                                            key,
+                                            pages);
 }
 
 void

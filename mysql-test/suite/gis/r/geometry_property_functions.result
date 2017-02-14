@@ -1881,8 +1881,6 @@ SET @gc_geom = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                        'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
                                        'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))', srid);
 # GIS geometry property functions that do not depend on any SRS
-DO ST_ASWKT(@pt_geom);
-DO ST_ASTEXT(@pt_geom);
 DO ST_SRID(@pt_geom);
 DO ST_ISEMPTY(@pt_geom);
 DO ST_DIMENSION(@pt_geom);

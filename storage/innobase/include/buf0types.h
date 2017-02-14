@@ -150,7 +150,6 @@ typedef rw_lock_t BPageLock;
 /** Page identifier. */
 class page_id_t {
 public:
-
 	/** Default constructor */
 	page_id_t() : m_space(), m_page_no(), m_fold()
 	{

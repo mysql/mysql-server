@@ -34,9 +34,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
+#include "my_config.h"
+
 #include <current_thd.h>
 #include <debug_sync.h>
 #include <derror.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <gstream.h>
 #include <log.h>
@@ -90,6 +93,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -466,10 +471,10 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
-# define PSI_KEY(n) {&n##_key, #n, 0}
-# define PSI_MUTEX_KEY(n, P1, P2) {&n##_key, #n, P1, P2}
+# define PSI_KEY(n) {&(n##_key.m_value), #n, 0}
+# define PSI_MUTEX_KEY(n, P1, P2) {&(n##_key.m_value), #n, P1, P2}
 /* All RWLOCK used in Innodb are SX-locks */
-# define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
+# define PSI_RWLOCK_KEY(n) {&n##_key.m_value, #n, PSI_RWLOCK_FLAG_SX}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -621,8 +626,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(page_flush_coordinator_thread),
 	PSI_KEY(fts_optimize_thread),
 	PSI_KEY(fts_parallel_merge_thread),
-	PSI_KEY(fts_parallel_tokenization_thread),
-	PSI_KEY(srv_lock_timeout_thread)
+	PSI_KEY(fts_parallel_tokenization_thread)
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -1306,6 +1310,12 @@ innodb_remove_table_sdi(
         handlerton*,
         const dd::Table*        table,
         const dd::Schema*       schema);
+
+/** Perform post-commit/rollback cleanup after DDL statement. */
+static
+void
+innobase_post_ddl(
+	THD*		thd);
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
@@ -3617,12 +3627,13 @@ boot_tablespaces(THD* thd)
 		//ut_ad(dd_space_is_valid(*t));
 
 		/* There should be exactly one file name associated
-		with each InnoDB tablespace, except innodb_system,
-		which will already have been opened. */
+		with each InnoDB tablespace, except innodb_system */
 		fail = p.get_uint32(dd_space_key_strings[DD_SPACE_ID], &id)
 			|| p.get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
 					&flags)
-			|| t->files().size() != 1;
+			|| (t->files().size() != 1 &&
+			    strcmp(t->name().c_str(),
+				   dict_sys_t::sys_space_name) != 0);
 
 		if (fail) {
 			break;
@@ -4348,6 +4359,10 @@ innodb_init_params()
 
 	innobase_commit_concurrency_init_default();
 
+	if (srv_force_recovery == SRV_FORCE_NO_LOG_REDO) {
+		srv_read_only_mode = true;
+	}
+
 	high_level_read_only = srv_read_only_mode
 		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
 
@@ -4611,33 +4626,84 @@ innodb_init(
 	/* Register keys with MySQL performance schema */
 	int	count;
 
+#ifdef UNIV_DEBUG
+	/** Count of Performance Schema keys that have been registered. */
+	int	global_count = 0;
+#endif /* UNIV_DEBUG */
+
 	count = static_cast<int>(array_elements(all_pthread_mutexes));
 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 
 # ifdef UNIV_PFS_MUTEX
 	count = static_cast<int>(array_elements(all_innodb_mutexes));
 	mysql_mutex_register("innodb", all_innodb_mutexes, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_RWLOCK
 	count = static_cast<int>(array_elements(all_innodb_rwlocks));
 	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_THREAD
 	count = static_cast<int>(array_elements(all_innodb_threads));
 	mysql_thread_register("innodb", all_innodb_threads, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_THREAD */
+
 
 # ifdef UNIV_PFS_IO
 	count = static_cast<int>(array_elements(all_innodb_files));
 	mysql_file_register("innodb", all_innodb_files, count);
+
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_IO */
+
 
 	count = static_cast<int>(array_elements(all_innodb_conds));
 	mysql_cond_register("innodb", all_innodb_conds, count);
 
+#ifdef UNIV_DEBUG
+	global_count += count;
+#endif /* UNIV_DEBUG */
+
 	mysql_data_lock_register(& innodb_data_lock_inspector);
+
+#ifdef UNIV_DEBUG
+	if (mysql_pfs_key_t::get_count() != global_count) {
+
+		ib::error() << "You have created new InnoDB PFS key(s) but "
+			    << mysql_pfs_key_t::get_count() - global_count
+			    << " key(s) is/are not registered with PFS. Please"
+			    << " register the keys in PFS arrays in"
+			    << " ha_innodb.cc.";
+
+		DBUG_RETURN(HA_ERR_INITIALIZATION);
+	}
+#endif /* UNIV_DEBUG */
 
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -4890,12 +4956,12 @@ innobase_init_files(
 	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
-	mysql_mutex_init(innobase_share_mutex_key,
+	mysql_mutex_init(innobase_share_mutex_key.m_value,
 			 &innobase_share_mutex,
 			 MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(commit_cond_mutex_key,
+	mysql_mutex_init(commit_cond_mutex_key.m_value,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_cond_init(commit_cond_key, &commit_cond);
+	mysql_cond_init(commit_cond_key.m_value, &commit_cond);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
 	if (innobase_hton != p) {
@@ -5916,7 +5982,6 @@ innodb_remove_table_sdi(
         // TODO: implement WL#7053/WL#7069
         return(false);
 }
-
 
 /*************************************************************************//**
 ** InnoDB database tables
@@ -9869,19 +9934,16 @@ ha_innobase::index_read(
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
-		table->status = 0;
 		srv_stats.n_rows_read.add(
 			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
 		break;
 
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
-		table->status = STATUS_NOT_FOUND;
 		break;
 
 	case DB_END_OF_INDEX:
 		error = HA_ERR_KEY_NOT_FOUND;
-		table->status = STATUS_NOT_FOUND;
 		break;
 
 	case DB_TABLESPACE_DELETED:
@@ -9890,7 +9952,6 @@ ha_innobase::index_read(
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 
@@ -9901,7 +9962,6 @@ ha_innobase::index_read(
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
@@ -9909,7 +9969,6 @@ ha_innobase::index_read(
 		error = convert_error_code_to_mysql(
 			ret, m_prebuilt->table->flags, m_user_thd);
 
-		table->status = STATUS_NOT_FOUND;
 		break;
 	}
 
@@ -10163,16 +10222,13 @@ ha_innobase::general_fetch(
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
-		table->status = 0;
 		srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
-		table->status = STATUS_NOT_FOUND;
 		break;
 	case DB_END_OF_INDEX:
 		error = HA_ERR_END_OF_FILE;
-		table->status = STATUS_NOT_FOUND;
 		break;
 	case DB_TABLESPACE_DELETED:
 		ib_senderrf(
@@ -10180,7 +10236,6 @@ ha_innobase::general_fetch(
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
@@ -10190,14 +10245,12 @@ ha_innobase::general_fetch(
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
-		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 	default:
 		error = convert_error_code_to_mysql(
 			ret, m_prebuilt->table->flags, m_user_thd);
 
-		table->status = STATUS_NOT_FOUND;
 		break;
 	}
 
@@ -10695,7 +10748,6 @@ next_record:
 				innobase_fts_store_docid(
 					table, ranking->doc_id);
 			}
-			table->status= 0;
 			return(0);
 		}
 
@@ -10731,7 +10783,6 @@ next_record:
 		switch (ret) {
 		case DB_SUCCESS:
 			error = 0;
-			table->status = 0;
 			break;
 		case DB_RECORD_NOT_FOUND:
 			result->current = const_cast<ib_rbt_node_t*>(
@@ -10744,14 +10795,12 @@ next_record:
 				ha_innobase::general_fetch() and/or
 				ha_innobase::index_first() etc. */
 				error = HA_ERR_END_OF_FILE;
-				table->status = STATUS_NOT_FOUND;
 			} else {
 				goto next_record;
 			}
 			break;
 		case DB_END_OF_INDEX:
 			error = HA_ERR_END_OF_FILE;
-			table->status = STATUS_NOT_FOUND;
 			break;
 		case DB_TABLESPACE_DELETED:
 
@@ -10760,7 +10809,6 @@ next_record:
 				ER_TABLESPACE_DISCARDED,
 				table->s->table_name.str);
 
-			table->status = STATUS_NOT_FOUND;
 			error = HA_ERR_NO_SUCH_TABLE;
 			break;
 		case DB_TABLESPACE_NOT_FOUND:
@@ -10770,14 +10818,12 @@ next_record:
 				ER_TABLESPACE_MISSING,
 				table->s->table_name.str);
 
-			table->status = STATUS_NOT_FOUND;
 			error = HA_ERR_TABLESPACE_MISSING;
 			break;
 		default:
 			error = convert_error_code_to_mysql(
 				ret, 0, m_user_thd);
 
-			table->status = STATUS_NOT_FOUND;
 			break;
 		}
 
@@ -12949,7 +12995,7 @@ create_table_info_t::initialize_autoinc()
 
 	if (innobase_table == NULL) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 	} else {
 		innobase_table->acquire();
 		ut_ad(innobase_table->is_intrinsic());
@@ -13100,7 +13146,7 @@ create_table_info_t::create_table(
 
 		/* The table object should be in memory */
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 
 		ut_a(innobase_table);
 
@@ -13174,7 +13220,7 @@ create_table_info_t::create_table(
 	structure. They are used for FTS indexed column update handling. */
 	if (m_flags2 & DICT_TF2_FTS) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 
 		fts_t*          fts = innobase_table->fts;
 
@@ -13258,7 +13304,7 @@ create_table_info_t::create_table(
 
 	if (!is_intrinsic_temp_table()) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true, DICT_ERR_IGNORE_NONE);
+			m_table_name, true);
 
 		if (innobase_table != NULL) {
 			dd_table_close(innobase_table, NULL, NULL, true);
@@ -13290,7 +13336,7 @@ create_table_info_t::create_table_update_dict()
 
 	if (innobase_table == NULL) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, false, DICT_ERR_IGNORE_NONE);
+			m_table_name, false);
 		ut_ad(innobase_table);
 	} else {
 		innobase_table->acquire();
@@ -13444,15 +13490,12 @@ innobase_create_implicit_dd_tablespace(
 
 void
 create_table_info_t::set_table_options(
-	dd::Table&	dd_table,
+	dd::Table*	dd_table,
 	dict_table_t*	table)
 {
         enum row_type   type;
         dd::Table::enum_row_format      rf;
-        dd::Properties& options = dd_table.options();
-
-	dd::String_type	datadir;
-	options.get(data_file_name_key, datadir);
+        dd::Properties& options = dd_table->options();
 
         if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
                 uint32  old_size;
@@ -13463,6 +13506,15 @@ create_table_info_t::set_table_options(
                 }
         } else {
                 options.set_uint32("key_block_size", 0);
+		/* It's possible that InnoDB ignores the specified
+		key_block_size, so check the block_size for every index.
+		Server assumes if block_size = 0, there should be no
+		option found, so remove it when found */
+		for (auto dd_index : *dd_table->indexes()) {
+			if (dd_index->options().exists("block_size")) {
+				dd_index->options().remove("block_size");
+			}
+		}
         }
 
         switch (dict_tf_get_rec_format(table->flags)) {
@@ -13486,7 +13538,7 @@ create_table_info_t::set_table_options(
                 ut_ad(0);
         }
 
-        dd_table.set_row_format(rf);
+        dd_table->set_row_format(rf);
         if (options.exists("row_type")) {
                 options.set_uint32("row_type", type);
         }
@@ -13580,7 +13632,7 @@ create_table_info_t::create_table_update_global_dd(
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	dict_table_t*	table = dd_table_open_on_name_in_mem(
-		m_table_name, false, DICT_ERR_IGNORE_NONE);
+		m_table_name, false);
 	if (table == NULL) {
 		dd::Partition*	part =
 			dd_table->table().partition_type()
@@ -13660,7 +13712,7 @@ create_table_info_t::create_table_update_global_dd(
 			true);
 	}
 
-	set_table_options(dd_table->table(), table);
+	set_table_options(&(dd_table->table()), table);
 
 	innobase_write_dd_table(dd_space_id, dd_table, table);
 
@@ -13770,7 +13822,7 @@ innobase_get_dd_tablespace_id(
 	char	db_name[NAME_LEN + 1];
 	char	table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(parent_table->name.m_name, db_name,
+	dd_parse_tbl_name(parent_table->name.m_name, db_name,
 				table_name, NULL);
 
 	THD*	thd = current_thd;
@@ -13862,7 +13914,7 @@ innobase_fts_create_one_index_dd_table(
 	char	db_name[NAME_LEN + 1];
 	char	table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -14037,7 +14089,7 @@ innobase_fts_create_one_common_dd_table(
 	char	db_name[NAME_LEN + 1];
 	char	table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -14203,7 +14255,7 @@ innobase_fts_drop_dd_table(
 	char    db_name[NAME_LEN + 1];
 	char    table_name[NAME_LEN + 1];
 
-	innobase_parse_tbl_name(name, db_name, table_name, NULL);
+	dd_parse_tbl_name(name, db_name, table_name, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -14446,8 +14498,8 @@ ha_innobase::get_extra_columns_and_keys(
 
 		pk_elements.clear();
 		for (const dd::Index_element* e : primary->elements()) {
-			if (dd_index_element_is_prefix(e)
-			    || std::search_n(index->elements().begin(),
+			if (dd_index_element_is_prefix(e) ||
+				 std::search_n(index->elements().begin(),
 					     index->elements().end(), 1, e,
 					     [](const dd::Index_element* ie,
 						const dd::Index_element* e) {
@@ -14487,7 +14539,7 @@ ha_innobase::get_extra_columns_and_keys(
 	/* Add all non-virtual columns to the clustered index,
 	unless they already part of the PRIMARY KEY. */
 
-	for (const dd::Column* c : dd_table->columns()) {
+	for (const dd::Column* c : const_cast<const dd::Table*>(dd_table)->columns()) {
 		if (c->is_hidden() || c->is_virtual()) {
 			continue;
 		}
@@ -14534,7 +14586,8 @@ ha_innobase::get_se_private_data(
 	DBUG_ASSERT((dd_version == 0) == (n_tables == 0));
 	DBUG_ASSERT(n_tables < innodb_dd_table_size);
 
-	if ((*dd_table->columns().begin())->is_auto_increment()) {
+	if ((*(const_cast<const dd::Table*>(
+		dd_table))->columns().begin())->is_auto_increment()) {
 		dd_set_autoinc(dd_table->se_private_data(), 0);
 	}
 
@@ -14753,14 +14806,17 @@ ha_innobase::create(
 				 srv_file_per_table));
 }
 
-/*****************************************************************//**
-Discards or imports an InnoDB tablespace.
+/** Discards or imports an InnoDB tablespace.
+@param[in]	discard		TRUE if discard, else import
+@param[in,out]	table_def	dd::Table describing table which
+tablespace is to be imported or discarded. Can be adjusted by SE,
+the changes will be saved into the data-dictionary at statement
+commit time.
 @return 0 == success, -1 == error */
 
 int
 ha_innobase::discard_or_import_tablespace(
-/*======================================*/
-	my_bool		discard,	/*!< in: TRUE if discard, else import */
+	my_bool		discard,
 	dd::Table*	table_def)
 {
 
@@ -14978,7 +15034,7 @@ ha_innobase::truncate(dd::Table *table_def)
 		}
 
 		error = create_table_impl(name, table, &info, table_def,
-				file_per_table);
+					  file_per_table);
 	}
 
 	open(name, 0, 0, table_def);
@@ -15097,7 +15153,8 @@ ha_innobase::delete_table_impl(
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}
-	} else if (srv_read_only_mode) {
+	} else if (srv_read_only_mode
+		   || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 

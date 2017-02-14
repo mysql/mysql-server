@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,15 +18,17 @@
 #ifndef MYSQL_QUERY_RUNNER_INCLUDED
 #define MYSQL_QUERY_RUNNER_INCLUDED
 
-#include "my_global.h"
-#include "mysql.h"
-#include "mutex.h"
-#include "message_data.h"
-#include "atomic.h"
 #include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
+
+#include "atomic.h"
+#include "message_data.h"
+#include "mutex.h"
+#include "my_global.h"
+#include "my_inttypes.h"
+#include "mysql.h"
 
 namespace Mysql{
 namespace Tools{

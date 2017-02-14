@@ -21,6 +21,8 @@
 #include <fcntl.h>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"
 #ifdef _WIN32

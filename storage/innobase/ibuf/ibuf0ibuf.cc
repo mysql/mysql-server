@@ -26,7 +26,9 @@ Created 7/19/1997 Heikki Tuuri
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sync0sync.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

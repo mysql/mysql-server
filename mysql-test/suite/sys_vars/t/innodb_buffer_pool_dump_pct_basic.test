@@ -7,7 +7,6 @@
 # Range: 1-100
 ############################################
 
--- source include/have_innodb.inc
 
 # Check the default value
 SELECT @@global.innodb_buffer_pool_dump_pct;

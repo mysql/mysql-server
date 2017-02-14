@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_macros.h"
+#include "my_table_map.h"
 #include "opt_trace.h"      // Opt_trace_object
 #include "psi_memory_key.h" // key_memory_JOIN_CACHE
 #include "records.h"
@@ -1858,21 +1860,21 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       STATUS_NOT_FOUND in their status. However, now we are going to load
       table->record[0] from the join buffer so have to declare that there is a
       record. @See convert_constant_item().
-      We first need to save bits of table->status; STATUS_DELETED and
+      We first need to save bits of table status; STATUS_DELETED and
       STATUS_UPDATED cannot be on as multi-table DELETE/UPDATE never use join
       buffering. So we only have three bits to save.
     */
     TABLE_LIST * const tr= qep_tab[- cnt].table_ref;
-    const uint8 status= tr->table->status;
+    TABLE *const table= tr->table;
     const table_map map= tr->map();
-    DBUG_ASSERT((status & (STATUS_DELETED | STATUS_UPDATED)) == 0);
-    if (status & STATUS_GARBAGE)
+    DBUG_ASSERT(!table->has_updated_row() && !table->has_deleted_row());
+    if (!table->is_started())
       saved_status_bits[0]|= map;
-    if (status & STATUS_NOT_FOUND)
+    if (!table->has_row())
       saved_status_bits[1]|= map;
-    if (status & STATUS_NULL_ROW)
+    if (table->has_null_row())
       saved_status_bits[2]|= map;
-    tr->table->status= 0;                           // Record exists.
+    table->set_found_row();                           // Record exists.
   }
 
   const bool outer_join_first_inner= qep_tab->is_first_inner_for_outer_join();
@@ -1967,15 +1969,14 @@ finish:
       this function.
     */
     TABLE_LIST *const tr= qep_tab[- cnt].table_ref;
+    TABLE *const table= tr->table;
     const table_map map= tr->map();
-    uint8 status= 0;
     if (saved_status_bits[0] & map)
-      status|= STATUS_GARBAGE;
+      table->set_not_started();
     if (saved_status_bits[1] & map)
-      status|= STATUS_NOT_FOUND;
+      table->set_no_row();
     if (saved_status_bits[2] & map)
-      status|= STATUS_NULL_ROW;
-    tr->table->status= status;
+      table->set_null_row();
   }
   restore_last_record();
   reset_cache(true);
@@ -2015,8 +2016,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 {
   int error;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-
-  qep_tab->table()->reset_null_row();
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
@@ -2362,7 +2361,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       restore_record(qep_tab->table(), s->default_values);
       qep_tab->table()->set_null_row();
       rc= generate_full_extensions(get_curr_rec());
-      qep_tab->table()->set_null_row();
+      qep_tab->table()->reset_null_row();
       if (rc != NESTED_LOOP_OK)
         goto finish;
     }
@@ -2461,14 +2460,14 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
     object. The function returns TRUE if the record with this range_info
     is to be filtered out from the stream of records returned by
-    multi_range_read_next(). 
+    ha_multi_range_read_next().
 
   NOTE
     This function are used only as a callback function.
 
   RETURN
     1    record with this range_info is to be filtered out from the stream
-         of records returned by multi_range_read_next()
+         of records returned by ha_multi_range_read_next()
     0    the record is to be left in the stream
 */ 
 
@@ -2556,7 +2555,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   uchar *rec_ptr= NULL;
 
-  while (!(error= file->multi_range_read_next((char **) &rec_ptr)))
+  while (!(error= file->ha_multi_range_read_next((char **) &rec_ptr)))
   {
     if (join->thd->killed)
     {
@@ -2603,7 +2602,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
     The function passes as a parameter a structure of functions that
     implement the range sequence interface. This interface is used to
     enumerate all generated keys and optionally to filter the matching
-    records returned by the multi_range_read_next calls from the
+    records returned by the ha_multi_range_read_next calls from the
     intended invocation of the join_matching_records method. The
     multi_range_read_init function also receives the parameters for
     MRR buffer to be used and flags specifying the mode in which
@@ -2619,8 +2618,6 @@ bool
 JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
   handler *file= qep_tab->table()->file;
-
-  qep_tab->table()->reset_null_row();
 
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(!qep_tab->dynamic_range());
@@ -3270,14 +3267,14 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
     object. The function returns TRUE if the record with this range_info
     is to be filtered out from the stream of records returned by
-    multi_range_read_next(). 
+    ha_multi_range_read_next(). 
 
   NOTE
     This function are used only as a callback function.
 
   RETURN
     1    record with this range_info is to be filtered out from the stream
-         of records returned by multi_range_read_next()
+         of records returned by ha_multi_range_read_next()
     0    the record is to be left in the stream
 */ 
 
@@ -3437,7 +3434,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
   handler *file= qep_tab->table()->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
 
-  while (!(error= file->multi_range_read_next((char **) &key_chain_ptr)))
+  while (!(error= file->ha_multi_range_read_next((char **) &key_chain_ptr)))
   {
     TABLE *table= qep_tab->table();
     if (no_association)
@@ -3447,7 +3444,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
       KEY *keyinfo= table->key_info+ref->key;
       /* 
         Build the key value out of  the record returned by the call of
-        multi_range_read_next in the record buffer
+        ha_multi_range_read_next in the record buffer
       */ 
       key_copy(ref->key_buff, table->record[0], keyinfo, ref->key_length);
       /* Look for this key in the join buffer */

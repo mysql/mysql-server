@@ -30,6 +30,7 @@
 #include "dd/types/weak_object.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 
@@ -69,9 +70,11 @@ Parameter_impl::Parameter_impl()
   m_ordinal_position(0),
   m_char_length(0),
   m_numeric_precision(0),
+  m_numeric_precision_null(true),
   m_numeric_scale(0),
   m_numeric_scale_null(true),
   m_datetime_precision(0),
+  m_datetime_precision_null(true),
   m_elements(),
   m_options(new Properties_impl()),
   m_routine(NULL),
@@ -88,9 +91,11 @@ Parameter_impl::Parameter_impl(Routine_impl *routine)
   m_ordinal_position(0),
   m_char_length(0),
   m_numeric_precision(0),
+  m_numeric_precision_null(true),
   m_numeric_scale(0),
   m_numeric_scale_null(true),
   m_datetime_precision(0),
+  m_datetime_precision_null(true),
   m_elements(),
   m_options(new Properties_impl()),
   m_routine(routine),
@@ -203,6 +208,7 @@ bool Parameter_impl::restore_attributes(const Raw_record &r)
   restore_name(r, Parameters::FIELD_NAME);
   m_is_name_null= r.is_null(Parameters::FIELD_NAME);
 
+  m_data_type_utf8=    r.read_str(Parameters::FIELD_DATA_TYPE_UTF8);
   m_is_zerofill=       r.read_bool(Parameters::FIELD_IS_ZEROFILL);
   m_is_unsigned=       r.read_bool(Parameters::FIELD_IS_UNSIGNED);
 
@@ -214,9 +220,11 @@ bool Parameter_impl::restore_attributes(const Raw_record &r)
   m_ordinal_position=        r.read_uint(Parameters::FIELD_ORDINAL_POSITION);
   m_char_length=             r.read_uint(Parameters::FIELD_CHAR_LENGTH);
   m_numeric_precision=       r.read_uint(Parameters::FIELD_NUMERIC_PRECISION);
+  m_numeric_precision_null=  r.is_null(Parameters::FIELD_NUMERIC_PRECISION);
   m_numeric_scale=           r.read_uint(Parameters::FIELD_NUMERIC_SCALE);
   m_numeric_scale_null=      r.is_null(Parameters::FIELD_NUMERIC_SCALE);
   m_datetime_precision=      r.read_uint(Parameters::FIELD_DATETIME_PRECISION);
+  m_datetime_precision_null= r.is_null(Parameters::FIELD_DATETIME_PRECISION);
 
   m_collation_id= r.read_ref_id(Parameters::FIELD_COLLATION_ID);
 
@@ -234,6 +242,7 @@ bool Parameter_impl::store_attributes(Raw_record *r)
     store_name(r, Parameters::FIELD_NAME, m_is_name_null) ||
     r->store(Parameters::FIELD_ROUTINE_ID, m_routine->id()) ||
     r->store(Parameters::FIELD_ORDINAL_POSITION, m_ordinal_position) ||
+    r->store(Parameters::FIELD_DATA_TYPE_UTF8, m_data_type_utf8) ||
     r->store(Parameters::FIELD_MODE,
              m_parameter_mode,
              m_parameter_mode_null) ||
@@ -241,9 +250,15 @@ bool Parameter_impl::store_attributes(Raw_record *r)
     r->store(Parameters::FIELD_IS_ZEROFILL, m_is_zerofill) ||
     r->store(Parameters::FIELD_IS_UNSIGNED, m_is_unsigned) ||
     r->store(Parameters::FIELD_CHAR_LENGTH, static_cast<uint>(m_char_length)) ||
-    r->store(Parameters::FIELD_NUMERIC_PRECISION, m_numeric_precision) ||
-    r->store(Parameters::FIELD_NUMERIC_SCALE, m_numeric_scale, m_numeric_scale_null) ||
-    r->store(Parameters::FIELD_DATETIME_PRECISION, m_datetime_precision) ||
+    r->store(Parameters::FIELD_NUMERIC_PRECISION,
+             m_numeric_precision,
+             m_numeric_precision_null) ||
+    r->store(Parameters::FIELD_NUMERIC_SCALE,
+             m_numeric_scale,
+             m_numeric_scale_null) ||
+    r->store(Parameters::FIELD_DATETIME_PRECISION,
+             m_datetime_precision,
+             m_datetime_precision_null) ||
     r->store_ref_id(Parameters::FIELD_COLLATION_ID, m_collation_id) ||
     r->store(Parameters::FIELD_OPTIONS, *m_options);
 }
@@ -263,13 +278,16 @@ void Parameter_impl::debug_print(String_type &outb) const
     << "m_parameter_mode: " << m_parameter_mode << "; "
     << "m_parameter_mode_null: " << m_parameter_mode_null << "; "
     << "m_data_type: " << static_cast<int>(m_data_type) << "; "
+    << "m_data_type_utf8: " << m_data_type_utf8 << "; "
     << "m_is_zerofill: " << m_is_zerofill << "; "
     << "m_is_unsigned: " << m_is_unsigned << "; "
     << "m_char_length: " << m_char_length << "; "
     << "m_numeric_precision: " << m_numeric_precision << "; "
+    << "m_numeric_precision_null: " << m_numeric_precision_null << "; "
     << "m_numeric_scale: " << m_numeric_scale << "; "
     << "m_numeric_scale_null: " << m_numeric_scale_null << "; "
     << "m_datetime_precision: " << m_datetime_precision << "; "
+    << "m_datetime_precision_null: " << m_datetime_precision_null << "; "
     << "m_collation_id: {OID: " << m_collation_id << "}; "
     << "m_options: " << m_options->raw_string() << "; ";
 
@@ -317,14 +335,17 @@ Parameter_impl::Parameter_impl(const Parameter_impl &src,
     m_parameter_mode(src.m_parameter_mode),
     m_parameter_mode_null(src.m_parameter_mode_null),
     m_data_type(src.m_data_type),
+    m_data_type_utf8(src.m_data_type_utf8),
     m_is_zerofill(src.m_is_zerofill),
     m_is_unsigned(src.m_is_unsigned),
     m_ordinal_position(src.m_ordinal_position),
     m_char_length(src.m_char_length),
     m_numeric_precision(src.m_numeric_precision),
+    m_numeric_precision_null(src.m_numeric_precision_null),
     m_numeric_scale(src.m_numeric_scale),
     m_numeric_scale_null(src.m_numeric_scale_null),
     m_datetime_precision(src.m_datetime_precision),
+    m_datetime_precision_null(src.m_datetime_precision_null),
     m_elements(),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_routine(parent),

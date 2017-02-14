@@ -32,7 +32,6 @@
 
 # Windows platforms only
 --source include/windows.inc
---source include/have_perfschema.inc
 
 # The values in the performance_schema tables depend on how much communication
 # happens per SQL statement within our MTR tests. And there is a significant

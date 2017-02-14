@@ -27,13 +27,14 @@ Created 11/26/1995 Heikki Tuuri
 #ifndef mtr0mtr_h
 #define mtr0mtr_h
 
-#include "univ.i"
-#include "log0types.h"
-#include "mtr0types.h"
 #include "buf0types.h"
-#include "trx0types.h"
 #include "dyn0buf.h"
 #include "fil0fil.h"
+#include "log0types.h"
+#include "mtr0types.h"
+#include "my_compiler.h"
+#include "trx0types.h"
+#include "univ.i"
 
 /** Start a mini-transaction. */
 #define mtr_start(m)		(m)->start()

@@ -3,7 +3,6 @@
 # BUG#21508582 UNDO LOG DOES NOT CONTAIN ENOUGH INFORMATION ON SPATIAL COLUMNS
 #
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 connect (con1,localhost,root,,);

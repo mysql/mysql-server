@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
 
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "sql_string.h"                         /* String */
 
 typedef struct st_mysql_time MYSQL_TIME;
@@ -185,7 +187,7 @@ public:
 
   // Error reporting in server code only.
   int check_result(uint mask, int result) const
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   {
     return result;
   }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,11 +20,12 @@
 
 #include <functional>
 
-#include "i_chain_element.h"
 #include "abstract_progress_reporter.h"
 #include "base/message_data.h"
-#include "simple_id_generator.h"
+#include "i_chain_element.h"
 #include "item_processing_data.h"
+#include "my_inttypes.h"
+#include "simple_id_generator.h"
 
 namespace Mysql{
 namespace Tools{

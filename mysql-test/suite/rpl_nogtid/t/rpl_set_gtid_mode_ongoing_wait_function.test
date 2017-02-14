@@ -20,7 +20,6 @@
 #    gtid-mode=off.
 
 # Test sets GTID_MODE explicitly, so only meaningful to run in one GTID_MODE.
---source include/not_gtid_enabled.inc
 # Not meaningful to run in more than one binlog_format.
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc

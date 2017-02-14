@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,24 +21,27 @@
 #define _GNU_SOURCE
 #endif
 
-#include "x_platform.h"
-
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <sys/types.h>
+
+#include "x_platform.h"
 
 #ifndef WIN
 #include <sys/socket.h>
 #endif
 
-#include <errno.h>
 #include <assert.h>
-#include <string.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "simset.h"
-#include "task_debug.h"
-#include "xcom_proto_enum.h"
 #include "task.h"
+#include "task_debug.h"
 #include "task_os.h"
+#include "xcom_vp.h"
 
 /**
  * Wrapper function which retries and checks errors from socket

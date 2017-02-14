@@ -3049,36 +3049,6 @@ FFFD
 select hex(weight_string(_utf16 0xD800DC01 collate utf16_unicode_ci));
 hex(weight_string(_utf16 0xD800DC01 collate utf16_unicode_ci))
 FFFD
-select @@collation_connection;
-@@collation_connection
-utf16_unicode_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0E33
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0E33
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-0E330E4A0E60
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-0E330E4A
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-0E330E4A0E60
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-0E330E4A0E6002090209
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-09020902600E4A0E330E
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-F1CCF1B5F19FFDF6FDF6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-F6FDF6FD9FF1B5F1CCF1
 set @@collation_connection=utf16_czech_ci;
 select @@collation_connection;
 @@collation_connection

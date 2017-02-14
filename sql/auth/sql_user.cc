@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -27,6 +27,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
@@ -1463,7 +1464,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error())
   {
-      my_error(ER_CANNOT_USER, MYF(0), "CREATE USER",
+      my_error(ER_CANNOT_USER, MYF(0), (is_role ? "CREATE ROLE" :
+                                        "CREATE USER"),
                is_anonymous_user ?
                  "anonymous user" :
                  wrong_users.c_ptr_safe());

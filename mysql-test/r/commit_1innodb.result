@@ -14,6 +14,7 @@ drop procedure if exists dummy;
 create table t1 (a int);
 create table t2 (a int unique);
 create table t3 (a int);
+create trigger trg before insert on t1 for each row set @a:=1;
 set sql_mode=default;
 insert into t1 (a) values (1), (2);
 insert into t3 (a) values (1), (2);

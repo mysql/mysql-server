@@ -3,7 +3,6 @@
 #
 #
 
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 #Test 3 scenarios:

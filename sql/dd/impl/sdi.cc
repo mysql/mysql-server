@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
 #include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
+#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
+#include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -26,8 +28,10 @@
 
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
+#include "dd/impl/sdi.h"                // dd::sdi::Import_target
 #include "dd/impl/sdi_impl.h"           // sdi read/write functions
 #include "dd/impl/sdi_utils.h"          // dd::checked_return
+#include "dd/dd.h"                      // dd::create_object
 #include "dd/object_id.h"
 #include "dd/sdi_file.h"                // dd::sdi_file::store
 #include "dd/sdi_fwd.h"
@@ -38,21 +42,23 @@
 #include "dd/types/schema.h"            // dd::Schema
 #include "dd/types/table.h"             // dd::Table
 #include "dd/types/tablespace.h"        // dd::Tablespace
+#include "dd_sql_view.h"                // update_referencing_views_metadata()
+
 #include "handler.h"              // ha_resolve_by_name_raw
-#include "handler.h"              // ha_resolve_by_name_raw
-#include "m_string.h"             // STRING_WITH_LEN
 #include "m_string.h"             // STRING_WITH_LEN
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql_version.h"        // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "rapidjson/stringbuffer.h"
 #include "sql_class.h"            // THD
-#include "sql_class.h"            // THD
 #include "sql_plugin_ref.h"
 #include "strfunc.h"              // lex_cstring_handle
+#include "table.h"                // TABLE_LIST
 #include "template_utils.h"
 
 namespace dd {
@@ -173,16 +179,22 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   dd::Sdi_writer w(buf);
 
   w.StartObject();
-  w.String(STRING_WITH_LEN("sdi_version"));
-  w.Uint64(sdi_version);
+  w.String(STRING_WITH_LEN("mysqld_version_id"));
+  w.Uint64(MYSQL_VERSION_ID);
+
   w.String(STRING_WITH_LEN("dd_version"));
   w.Uint(Dictionary_impl::get_target_dd_version());
+
+  w.String(STRING_WITH_LEN("sdi_version"));
+  w.Uint64(sdi_version);
+
   w.String(STRING_WITH_LEN("dd_object_type"));
   w.String(dd_object_type, dd_object_type_size);
+
   w.String(STRING_WITH_LEN("dd_object"));
-#if 0//WL#7141 TODO: fix WL#7069 conflicts
+
   dd_obj.serialize(&wctx, &w);
-#endif
+
   w.EndObject();
 
   return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
@@ -191,6 +203,10 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
 
 const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
 {
+  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  return empty_;
+
+#if 0 // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
   if (wctx->m_thd == nullptr || id == INVALID_OBJECT_ID)
   {
     return empty_;
@@ -212,6 +228,7 @@ const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
   DBUG_ASSERT(tsp != nullptr);
 
   return tsp->name();
+#endif
 }
 
 /**
@@ -262,6 +279,8 @@ public:
     m_sdi_version(sdi_version),
     m_error(false)
   {}
+
+  String_type m_schema_name;
 
   bool error() const
   {
@@ -347,7 +366,9 @@ bool generic_lookup_ref(THD *thd, MDL_key::enum_mdl_namespace mdlns,
 bool lookup_schema_ref(Sdi_rcontext *sdictx, const String_type &name,
                        dd::Object_id *idp)
 {
-  return generic_lookup_ref<Schema>(sdictx->m_thd, MDL_key::SCHEMA, name, idp);
+  sdictx->m_schema_name= name;
+  *idp= INVALID_OBJECT_ID;
+  return false;
 }
 
 bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const String_type &name,
@@ -389,28 +410,58 @@ sdi_t serialize(const Tablespace &tablespace)
 
 template <class Dd_type>
 bool generic_deserialize(THD *thd, const sdi_t &sdi,
-                         const String_type &object_type_name, Dd_type *dst)
+                         const String_type &object_type_name, Dd_type *dst,
+                         String_type *schema_name_from_sdi= nullptr)
 {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
   if (doc.HasParseError())
   {
     my_error(ER_INVALID_JSON_DATA, MYF(0), "deserialize()",
-             doc.GetParseError());
+             rapidjson::GetParseError_En(doc.GetParseError()));
+    return true;
+  }
+
+  if (doc.HasMember("mysqld_version_id"))
+  {
+    RJ_Value &mysqld_version_id= doc["mysqld_version_id"];
+    DBUG_ASSERT(mysqld_version_id.IsUint64());
+    if (mysqld_version_id.GetUint64() > std::uint64_t(MYSQL_VERSION_ID))
+    {
+      // Cannot deserialize SDIs from newer versions. Required?
+      my_error(ER_IMP_INCOMPATIBLE_MYSQLD_VERSION, MYF(0),
+               mysqld_version_id.GetUint64(), std::uint64_t(MYSQL_VERSION_ID));
+      return true;
+    }
+  }
+  else
+  {
+    DBUG_ASSERT(false);
+  }
+
+  DBUG_ASSERT(doc.HasMember("dd_version"));
+  RJ_Value &dd_version_val= doc["dd_version"];
+  DBUG_ASSERT(dd_version_val.IsUint());
+  uint dd_version= dd_version_val.GetUint();
+  if (dd_version != Dictionary_impl::get_target_dd_version())
+  {
+    // Incompatible change
+    my_error(ER_IMP_INCOMPATIBLE_DD_VERSION, MYF(0),
+             dd_version, Dictionary_impl::get_target_dd_version());
     return true;
   }
 
   DBUG_ASSERT(doc.HasMember("sdi_version"));
   RJ_Value &sdi_version_val= doc["sdi_version"];
   DBUG_ASSERT(sdi_version_val.IsUint64());
-
   std::uint64_t sdi_version_= sdi_version_val.GetUint64();
-  DBUG_ASSERT(sdi_version_ == sdi_version);
-
-  DBUG_ASSERT(doc.HasMember("dd_version"));
-  RJ_Value &dd_version_val= doc["dd_version"];
-  DBUG_ASSERT(dd_version_val.IsUint());
-  uint dd_version= dd_version_val.GetUint();
+  if (sdi_version_ != sdi_version)
+  {
+    // Incompatible change
+    my_error(ER_IMP_INCOMPATIBLE_SDI_VERSION, MYF(0),
+             sdi_version_, sdi_version);
+    return true;
+  }
 
   DBUG_ASSERT(doc.HasMember("dd_object_type"));
   RJ_Value &dd_object_type_val= doc["dd_object_type"];
@@ -427,6 +478,10 @@ bool generic_deserialize(THD *thd, const sdi_t &sdi,
   {
     return checked_return(true);
   }
+  if (schema_name_from_sdi != nullptr)
+  {
+    *schema_name_from_sdi= std::move(rctx.m_schema_name);
+  }
 
   return false;
 }
@@ -436,9 +491,10 @@ bool deserialize(THD *thd, const sdi_t &sdi, Schema *dst_schema)
   return generic_deserialize(thd, sdi, "Schema", dst_schema);
 }
 
-bool deserialize(THD *thd, const sdi_t &sdi, Table *dst_table)
+bool deserialize(THD *thd, const sdi_t &sdi, Table *dst_table,
+                 String_type *deser_schema_name)
 {
-  return generic_deserialize(thd, sdi, "Table", dst_table);
+  return generic_deserialize(thd, sdi, "Table", dst_table, deser_schema_name);
 }
 
 bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *dst_tablespace)
@@ -696,57 +752,8 @@ bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t)
                                                               old_t, s));
                      });
 }
-}
 
-
-// WL#7524
-bool import_sdi(THD *thd, Schema *schema)
-{
-  cache::Dictionary_client &dc= *thd->dd_client();
-  cache::Dictionary_client::Auto_releaser releaser(&dc);
-
-  if (dc.store(schema))
-  {
-    return true;
-  }
-  return false;
-}
-
-
-// WL#7524
-bool import_sdi(THD *thd, Table *table)
-{
-  cache::Dictionary_client &dc= *thd->dd_client();
-  cache::Dictionary_client::Auto_releaser releaser(&dc);
-
-  const Schema *schema= nullptr;
-  if (dc.acquire(table->schema_id(), &schema))
-  {
-    return true;
-  }
-  if (mdl_lock(thd, MDL_key::TABLE, schema->name(), table->name()))
-  {
-    return true;
-  }
-  if (dc.store(table))
-  {
-    return true;
-  }
-  return false;
-}
-
-// WL#7524
-bool import_sdi(THD *thd, Tablespace *tablespace)
-{
-  cache::Dictionary_client &dc= *thd->dd_client();
-  cache::Dictionary_client::Auto_releaser releaser(&dc);
-
-  if (dc.store(tablespace))
-  {
-    return true;
-  }
-  return false;
-}
+} // namespace sdi
 } // namespace dd
 /** @} */ // end of group sdi_api
 
@@ -769,24 +776,24 @@ bool import_sdi(THD *thd, Tablespace *tablespace)
 
 namespace sdi_unittest {
 
-typedef void (*cb)(dd::Sdi_wcontext*, const dd::Weak_object*, dd::Sdi_writer*);
-void setup_wctx(cb fp, const dd::Weak_object *wo, dd::Sdi_writer *w)
-{
-  dd::String_type s("driver_schema");
-  dd::Sdi_wcontext wctx(nullptr, &s);
+dd::String_type drv_s= "driver_schema";
+dd::Sdi_wcontext drv_wctx(nullptr, &drv_s);
 
-  fp(&wctx, wo, w);
+dd::Sdi_wcontext* get_wctx()
+{
+  return &drv_wctx;
 }
 
-typedef void (*dcb)(dd::Sdi_rcontext*, dd::Weak_object*,
-                    dd::RJ_Document &doc);
-void setup_rctx(dcb fp, dd::Weak_object *wo, dd::RJ_Document &doc)
+
+dd::Sdi_rcontext drv_rctx(nullptr, 0, 0);
+dd::Sdi_rcontext* get_rctx()
 {
-  dd::Sdi_rcontext rctx(nullptr, 0, 0); // restore ids for comparison
-  fp(&rctx, wo, doc);
+  return &drv_rctx;
 }
 
-bool equal_prefix_chars_driver(const dd::String_type &a, const dd::String_type &b, size_t prefix)
+
+bool equal_prefix_chars_driver(const dd::String_type &a,
+                               const dd::String_type &b, size_t prefix)
 {
   return dd::equal_prefix_chars(a.begin(), a.end(), b.begin(), b.end(), prefix);
 }

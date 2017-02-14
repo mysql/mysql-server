@@ -1,7 +1,7 @@
 #ifndef KEYCACHES_INCLUDED
 #define KEYCACHES_INCLUDED
 
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "keycache.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"

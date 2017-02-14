@@ -42,6 +42,16 @@
 #   - On master with GTID_MODE!='AUTOMATIC' ('ANONYMOUS'/'UUID:NUMBER',
 #     depending on GTID_MODE).
 #   - On slave.
+#
+# We also run scenario with successful drop of database which contains one
+# InnoDB and one MyISAM table. In AUTOMATIC/ANONYMOUS mode such statement
+# is split into DROP TABLE IF EXISTS for MyISAM table and DROP DATABASE
+# statement. With GTID assigned it is logged as single DROP DATABASE
+# statement.
+#
+# This last scenario and scenario 3.6 also provide coverage for changes to
+# DROP DATABASE binary logging which were implemented as part of WL#7743
+# "New data dictionary: changes to DDL-related parts of SE API".
 
 # We use DBUG_EXECUTE_IF to simulate errors during DROP DATABASE.
 --source include/have_debug.inc
@@ -117,16 +127,22 @@ EOF
 
 --source include/rpl_sync.inc
 
---echo # db16, db17, db18: one MyISAM and one InnoDB table.
+--echo # db16, db17, db18, db19, db20: one MyISAM and one InnoDB table.
 CREATE DATABASE db16;
 CREATE DATABASE db17;
 CREATE DATABASE db18;
+CREATE DATABASE db19;
+CREATE DATABASE db20;
 CREATE TABLE db16.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db17.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db18.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db19.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db20.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db16.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db17.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db18.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db19.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db20.t2 (a INT) ENGINE=MyISAM;
 --source include/rpl_sync.inc
 
 --echo ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
@@ -217,6 +233,20 @@ if ($gtid_mode_on)
 if (!$gtid_mode_on)
 {
   --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)
+}
+--source include/assert_binlog_events.inc
+
+--echo # db19: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
+--source include/save_binlog_position.inc
+SET GTID_NEXT = 'AUTOMATIC';
+DROP DATABASE db19;
+if ($gtid_mode_on)
+{
+  --let $event_sequence= Gtid # !Q(DROP TABLE.*) # Gtid # !Q(DROP DATABASE.*)
+}
+if (!$gtid_mode_on)
+{
+  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)
 }
 --source include/assert_binlog_events.inc
 
@@ -348,6 +378,24 @@ if ($gtid_mode_on)
   --source include/assert_binlog_events.inc
 }
 SET GTID_NEXT = 'AUTOMATIC';
+
+--echo # db20: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
+--echo #       No splitting if GTID is assigned.
+--source include/save_binlog_position.inc
+--source include/set_gtid_next_gtid_mode_agnostic.inc
+DROP DATABASE db20;
+if ($gtid_mode_on)
+{
+  --let $event_sequence= Gtid # !Q(DROP DATABASE.*)
+}
+if (!$gtid_mode_on)
+{
+  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)
+}
+--source include/assert_binlog_events.inc
+SET GTID_NEXT = 'AUTOMATIC';
+
+--source include/rpl_sync.inc
 
 --echo ---- DROP DATABASE is split on slave ----
 

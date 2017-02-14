@@ -17,6 +17,7 @@
 
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			 ulong blength, my_bool print_status);

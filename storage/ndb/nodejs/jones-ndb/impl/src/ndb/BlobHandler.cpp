@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -73,7 +73,7 @@ int BlobReadHandler::runActiveHook(NdbBlob *b) {
     content = (char *) malloc(length);                        // here is malloc
     if(content) {
       int rv = ndbBlob->readData(content, nBytes);
-      DEBUG_PRINT("BLOB read: column %d, length %d, read %d/%d", 
+      DEBUG_PRINT("BLOB read: column %d, length %llu, read %d/%d", 
                   columnId, length, rv, nBytes);
     } else {
       return -1;
@@ -112,7 +112,7 @@ void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
     assert(false);
   }
 
-  DEBUG_PRINT("Prepare write for BLOB column %d, length %d", columnId, length);
+  DEBUG_PRINT("Prepare write for BLOB column %d, length %llu", columnId, length);
   ndbBlob->setValue(content, static_cast<uint32_t>(length));
   if(next) next->prepare(ndbop);
 }

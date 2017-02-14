@@ -354,6 +354,11 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   typedef Tup_page Page;
   typedef Ptr<Page> PagePtr;
+  typedef ArrayPool<Page> Page_pool;
+  typedef DLList<Page, Page_pool> Page_list;
+  typedef LocalDLList<Page, Page_pool> Local_Page_list;
+  typedef DLFifoList<Page, Page_pool> Page_fifo;
+  typedef LocalDLFifoList<Page, Page_pool> Local_Page_fifo;
 
   // Scan position
   struct ScanPos {
@@ -394,7 +399,11 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 prevList;
   };
   typedef Ptr<ScanLock> ScanLockPtr;
-  ArrayPool<ScanLock> c_scanLockPool;
+  typedef ArrayPool<ScanLock> ScanLock_pool;
+  typedef DLFifoList<ScanLock, ScanLock_pool> ScanLock_fifo;
+  typedef LocalDLFifoList<ScanLock, ScanLock_pool> Local_ScanLock_fifo;
+
+  ScanLock_pool c_scanLockPool;
 
   // Tup scan, similar to Tux scan.  Later some of this could
   // be moved to common superclass.
@@ -456,7 +465,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
     ScanPos m_scanPos;
 
-    DLFifoList<ScanLock>::Head m_accLockOps;
+    ScanLock_fifo::Head m_accLockOps;
 
     union {
     Uint32 nextPool;
@@ -465,7 +474,10 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 prevList;
   };
   typedef Ptr<ScanOp> ScanOpPtr;
-  ArrayPool<ScanOp> c_scanOpPool;
+  typedef ArrayPool<ScanOp> ScanOp_pool;
+  typedef DLList<ScanOp, ScanOp_pool> ScanOp_list;
+  typedef LocalDLList<ScanOp, ScanOp_pool> Local_ScanOp_list;
+  ScanOp_pool c_scanOpPool;
 
   void scanReply(Signal*, ScanOpPtr scanPtr);
   void scanFirst(Signal*, ScanOpPtr scanPtr);
@@ -498,9 +510,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 m_magic;
   }; // 32 bytes
   
-  typedef RecordPool<Page_request, WOPool> Page_request_pool;
-  typedef DLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
-  typedef LocalDLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
+  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
+  typedef DLFifoList<Page_request, Page_request_pool> Page_request_list;
+  typedef LocalDLFifoList<Page_request, Page_request_pool> Local_page_request_list;
 
   STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
   STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
@@ -538,12 +550,12 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     }
   }; // 40 bytes
 
-  typedef RecordPool<Extent_info, RWPool> Extent_info_pool;
-  typedef DLListImpl<Extent_info_pool, Extent_info> Extent_info_list;
-  typedef LocalDLListImpl<Extent_info_pool, Extent_info> Local_extent_info_list;
-  typedef DLHashTableImpl<Extent_info_pool, Extent_info> Extent_info_hash;
-  typedef SLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Fragment_extent_list;
-  typedef LocalSLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Local_fragment_extent_list;
+  typedef RecordPool<Extent_info, RWPool<Extent_info> > Extent_info_pool;
+  typedef DLList<Extent_info, Extent_info_pool> Extent_info_list;
+  typedef LocalDLList<Extent_info, Extent_info_pool> Local_extent_info_list;
+  typedef DLHashTable<Extent_info_pool, Extent_info> Extent_info_hash;
+  typedef SLList<Extent_info, Extent_info_pool, Extent_list_t> Fragment_extent_list;
+  typedef LocalSLList<Extent_info, Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;
   struct Disk_alloc_info 
   {
@@ -571,7 +583,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * Free list of pages in different size
      *   that are dirty
      */
-    DLList<Page>::Head m_dirty_pages[MAX_FREE_LIST];   // In real page id's
+    Page_list::Head m_dirty_pages[MAX_FREE_LIST];   // In real page id's
 
     /**
      * Requests (for update) that have sufficient space left after request
@@ -579,7 +591,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      */
     Page_request_list::Head m_page_requests[MAX_FREE_LIST];
 
-    DLList<Page>::Head m_unmap_pages;
+    Page_list::Head m_unmap_pages;
 
     /**
      * Current extent
@@ -640,7 +652,7 @@ struct Fragrecord {
   Uint32 m_max_page_cnt;
   Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
-  DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
+  Page_fifo::Head thFreeFirst;   // pages with atleast 1 free record
 
   Uint32 m_lcp_scan_op;
   Local_key m_lcp_keep_list_head;
@@ -660,11 +672,17 @@ struct Fragrecord {
   Uint32 partitionId;
   Uint32 nextfreefrag;
   // +1 is as "full" pages are stored last
-  DLList<Page>::Head free_var_page_array[MAX_FREE_LIST+1]; 
+  Page_list::Head free_var_page_array[MAX_FREE_LIST+1];
   
-  DLList<ScanOp>::Head m_scanList;
+  ScanOp_list::Head m_scanList;
 
-  enum { UC_LCP = 1, UC_CREATE = 2, UC_SET_LCP = 3 };
+  enum
+  {
+    UC_LCP = 1,
+    UC_CREATE = 2,
+    UC_SET_LCP = 3,
+    UC_DROP = 4
+  };
   Uint32 m_restore_lcp_id;
   Uint32 m_undo_complete;
   Uint32 m_tablespace_id;
@@ -823,6 +841,7 @@ struct Operationrec {
   };
 };
 typedef Ptr<Operationrec> OperationrecPtr;
+typedef ArrayPool<Operationrec> Operationrec_pool;
 
   /* ************* TRIGGER DATA ************* */
   /* THIS RECORD FORMS LISTS OF ACTIVE       */
@@ -910,11 +929,13 @@ struct TupTriggerData {
 };
 
 typedef Ptr<TupTriggerData> TriggerPtr;
-  
+typedef ArrayPool<TupTriggerData> TupTriggerData_pool;
+typedef DLList<TupTriggerData, TupTriggerData_pool> TupTriggerData_list;
+
 /**
  * Pool of trigger data record
  */
-ArrayPool<TupTriggerData> c_triggerPool;
+TupTriggerData_pool c_triggerPool;
 
   /* ************ TABLE RECORD ************ */
   /* THIS RECORD FORMS A LIST OF TABLE      */
@@ -934,7 +955,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
   STATIC_CONST( NO_DYNAMICS = 2 );
   
   struct Tablerec {
-    Tablerec(ArrayPool<TupTriggerData> & triggerPool) : 
+    Tablerec(TupTriggerData_pool & triggerPool) :
       afterInsertTriggers(triggerPool),
       afterDeleteTriggers(triggerPool),
       afterUpdateTriggers(triggerPool),
@@ -1082,19 +1103,19 @@ ArrayPool<TupTriggerData> c_triggerPool;
     } m_attributes[2];
     
     // Lists of trigger data for active triggers
-    DLList<TupTriggerData> afterInsertTriggers;
-    DLList<TupTriggerData> afterDeleteTriggers;
-    DLList<TupTriggerData> afterUpdateTriggers;
-    DLList<TupTriggerData> subscriptionInsertTriggers;
-    DLList<TupTriggerData> subscriptionDeleteTriggers;
-    DLList<TupTriggerData> subscriptionUpdateTriggers;
-    DLList<TupTriggerData> constraintUpdateTriggers;
-    DLList<TupTriggerData> deferredInsertTriggers;
-    DLList<TupTriggerData> deferredUpdateTriggers;
-    DLList<TupTriggerData> deferredDeleteTriggers;
+    TupTriggerData_list afterInsertTriggers;
+    TupTriggerData_list afterDeleteTriggers;
+    TupTriggerData_list afterUpdateTriggers;
+    TupTriggerData_list subscriptionInsertTriggers;
+    TupTriggerData_list subscriptionDeleteTriggers;
+    TupTriggerData_list subscriptionUpdateTriggers;
+    TupTriggerData_list constraintUpdateTriggers;
+    TupTriggerData_list deferredInsertTriggers;
+    TupTriggerData_list deferredUpdateTriggers;
+    TupTriggerData_list deferredDeleteTriggers;
 
     // List of ordered indexes
-    DLList<TupTriggerData> tuxCustomTriggers;
+    TupTriggerData_list tuxCustomTriggers;
     
     Uint32 fragid[MAX_FRAG_PER_LQH];
     Uint32 fragrec[MAX_FRAG_PER_LQH];
@@ -1208,8 +1229,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
   };
 
 typedef Ptr<storedProc> StoredProcPtr;
+typedef ArrayPool<storedProc> StoredProc_pool;
 
-ArrayPool<storedProc> c_storedProcPool;
+StoredProc_pool c_storedProcPool;
 RSS_AP_SNAPSHOT(c_storedProcPool);
 Uint32 c_storedProcCountNonAPI;
 void storedProcCountNonAPI(BlockReference apiBlockref, int add_del);
@@ -1344,8 +1366,10 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     Uint32 prevList;
   };
   typedef Ptr<BuildIndexRec> BuildIndexPtr;
-  ArrayPool<BuildIndexRec> c_buildIndexPool;
-  DLList<BuildIndexRec> c_buildIndexList;
+  typedef ArrayPool<BuildIndexRec> BuildIndexRec_pool;
+  typedef DLList<BuildIndexRec, BuildIndexRec_pool> BuildIndexRec_list;
+  BuildIndexRec_pool c_buildIndexPool;
+  BuildIndexRec_list c_buildIndexList;
   Uint32 c_noOfBuildIndexRec;
 
   int mt_scan_init(Uint32 tableId, Uint32 fragId, Local_key * pos, Uint32 * fragPtrI);
@@ -2629,7 +2653,7 @@ private:
 //------------------------------------------------------------------
 // Trigger handling routines
 //------------------------------------------------------------------
-  DLList<TupTriggerData>*
+  TupTriggerData_list*
   findTriggerList(Tablerec* table,
                   TriggerType::Value ttype,
                   TriggerActionTime::Value ttime,
@@ -2673,26 +2697,26 @@ private:
                              Uint32 diskPagePtrI);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
-                             DLList<TupTriggerData>& triggerList, 
+                             TupTriggerData_list& triggerList,
                              Operationrec* regOperPtr,
                              bool disk);
 
   void checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
-                                          DLList<TupTriggerData>& triggerList,
+                                          TupTriggerData_list& triggerList,
                                           Operationrec* const regOperPtr,
                                           bool disk);
   void fireDeferredTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList,
+                            TupTriggerData_list& triggerList,
                             Operationrec* const regOperPtr,
                             bool disk);
 
   void fireDeferredConstraints(KeyReqStruct *req_struct,
-                               DLList<TupTriggerData>& triggerList,
+                               TupTriggerData_list& triggerList,
                                Operationrec* const regOperPtr,
                                bool disk);
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList,
+                            TupTriggerData_list& triggerList,
                             Operationrec* regOperPtr,
                             bool disk,
                             Uint32 diskPagePtrI);
@@ -3204,9 +3228,9 @@ private:
 
   NdbMutex c_page_map_pool_mutex;
   DynArr256Pool c_page_map_pool;
-  ArrayPool<Operationrec> c_operation_pool;
+  Operationrec_pool c_operation_pool;
 
-  ArrayPool<Page> c_page_pool;
+  Page_pool c_page_pool;
 
   /* read ahead in pages during disk order scan */
   Uint32 m_max_page_read_ahead;
@@ -3386,7 +3410,10 @@ private:
   void drop_table_logsync_callback(Signal*, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
-  void restart_setup_page(Disk_alloc_info&, Ptr<Page>, Int32 estimate);
+  void restart_setup_page(Ptr<Fragrecord> fragPtr,
+                          Disk_alloc_info&,
+                          Ptr<Page>,
+                          Int32 estimate);
   void update_extent_pos(EmulatedJamBuffer* jamBuf, Disk_alloc_info&, 
                          Ptr<Extent_info>, Int32 delta);
 
@@ -3411,8 +3438,11 @@ public:
   void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count);
   
   int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
-                                Uint32 tableId, Uint32 fragId, 
-				const Local_key* key, Uint32 pages);
+                                Uint32 tableId,
+                                Uint32 fragId,
+                                Uint32 create_table_version,
+				const Local_key* key,
+                                Uint32 pages);
   void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
                               Uint32 tableId, Uint32 fragId,
 			      const Local_key*, Uint32 bits);
@@ -3801,8 +3831,11 @@ public:
 
   // TSMAN
 
-  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
-				const Local_key* key, Uint32 pages);
+  int disk_restart_alloc_extent(Uint32 tableId,
+                                Uint32 fragId,
+                                Uint32 create_table_version,
+				const Local_key* key,
+                                Uint32 pages);
 
   void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 			      const Local_key* key, Uint32 bits);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,6 +112,7 @@
 */
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,21 +122,13 @@
 #include <string>
 #include <vector>
 
-#if defined(MYSQL_SERVER)
-#include "m_string.h"		/* To get my_stpcpy() */
-#else
-/* when compiled as standalone */
-#include <string.h>
-
-#define my_stpcpy(a,b) stpcpy(a,b)
-#endif
-
-#include <ctype.h>
-
 #include "cpp11_lib_check.h"
+#include "m_string.h"		/* To get my_stpcpy() */
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql_com.h"
 #include "thr_mutex.h"
 

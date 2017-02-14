@@ -2,7 +2,6 @@
 # Test problem with characters < ' ' at end of strings (Bug #3152)
 #
 
--- source include/have_innodb.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

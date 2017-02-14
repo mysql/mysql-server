@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,13 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "x_platform.h"
+#include "my_compiler.h"
 #include "simset.h"
-
-#include "xcom_vp.h"
-
 #include "task.h"
 #include "task_debug.h"
-
+#include "x_platform.h"
 #include "xcom_statistics.h"
+#include "xcom_vp.h"
 #include "xcom_vp_str.h"
 
 #define M_F_SZ 19

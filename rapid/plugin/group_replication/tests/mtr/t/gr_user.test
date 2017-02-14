@@ -10,7 +10,8 @@
 # 4. Install GR plugin. Assert check the GR user '_gr_user' exists.
 # 5. Drop the user. Bootstrap start GR and check that user gets created again.
 #    Check that a warning is logged.
-# 6. Clean up.
+# 6. Install and uninstall plugin and verify that user don't exist
+# 7. Cleanup
 ################################################################################
 
 --let $rpl_skip_group_replication_start= 1
@@ -89,7 +90,29 @@ SET GLOBAL group_replication_group_seeds= @group_seeds;
 --source include/grep_pattern.inc
 
 --echo #
+--echo # Without start install and uninstall plugin and verify that user don't exist
+--echo #
+
+UNINSTALL PLUGIN group_replication;
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--let $assert_text= The group replication user should exist after install
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--source include/assert.inc
+
+UNINSTALL PLUGIN group_replication;
+
+--let $assert_text= The group replication user shouldn't exist after uninstall
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 0;
+--source include/assert.inc
+
+--echo #
 --echo # Cleaning
 --echo #
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
 
 --source ../inc/group_replication_end.inc

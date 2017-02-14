@@ -717,36 +717,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 41424320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-big5_chinese_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-41
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-414243
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-4142
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-414243
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-4142432020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020434241
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-BEBDBCDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDFBCBDBE
 select collation(cast(0xA1A1 as char));
 collation(cast(0xA1A1 as char))
 big5_chinese_ci
@@ -910,36 +880,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 61626320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-big5_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-61
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-616263
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-6162
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-616263
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-6162632020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020636261
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-9E9D9CDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDF9C9D9E
 select collation(cast(0xA1A1 as char));
 collation(cast(0xA1A1 as char))
 big5_bin

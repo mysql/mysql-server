@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef PFS_VISITOR_H
 #define PFS_VISITOR_H
 
-#include "pfs_stat.h"
+#include "my_compiler.h"
 #include "mysqld_error.h"
+#include "pfs_stat.h"
 
 struct System_status_var;
 

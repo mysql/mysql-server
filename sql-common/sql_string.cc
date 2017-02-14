@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "mysql_com.h"    // MAX_BIGINT_WIDTH
 

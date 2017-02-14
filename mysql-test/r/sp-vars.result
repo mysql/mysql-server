@@ -1203,7 +1203,7 @@ SET j= 1 + i;
 END|
 CALL ctest();
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'string          '
+Warning	1292	Truncated incorrect DOUBLE value: 'string'
 DROP PROCEDURE ctest;
 CREATE PROCEDURE vctest()
 BEGIN

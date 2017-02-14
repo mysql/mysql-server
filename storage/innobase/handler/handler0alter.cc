@@ -67,7 +67,10 @@ Smart ALTER TABLE
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "pars0pars.h"
 #include "partition_info.h"
 #include "rem0types.h"
@@ -4023,8 +4026,7 @@ prepare_inplace_alter_table_global_dd(
 
 		if (dict_table_is_file_per_table(old_table)) {
 			dd::Object_id	old_space_id =
-				(*old_dd_tab->indexes().begin())
-				->tablespace_id();
+				dd_first_index(old_dd_tab)->tablespace_id();
 
 			dd::Tablespace*	old_dd_space = NULL;
 			if (client->acquire_uncached_uncommitted(
@@ -4068,7 +4070,17 @@ prepare_inplace_alter_table_global_dd(
 		} else if (new_table->space == TRX_SYS_SPACE) {
 			dd_space_id = dict_sys_t::dd_sys_space_id;
 		} else {
-			dd_space_id = dd_get_space_id(*new_dd_tab);
+			/* Currently, even if specifying a new TABLESPACE
+			for partitioned table, existing partitions would not
+			be moved to new tablespaces. Thus, the old
+			tablespace id should still be used for new partition */
+			if (new_dd_tab->table().partition_type()
+			    != dd::Table::PT_NONE) {
+				dd_space_id = dd_first_index(old_dd_tab)
+					->tablespace_id();
+			} else {
+				dd_space_id = dd_get_space_id(*new_dd_tab);
+			}
 			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
 		}
 
@@ -4080,7 +4092,7 @@ prepare_inplace_alter_table_global_dd(
 		}
 
 		create_table_info_t::set_table_options(
-			new_dd_tab->table(), new_table);
+			&(new_dd_tab->table()), new_table);
 
 		innobase_write_dd_table(dd_space_id, new_dd_tab, new_table);
 
@@ -4572,8 +4584,7 @@ prepare_inplace_alter_table_dict(
 			the dict_sys->mutex. */
 			ut_ad(mutex_own(&dict_sys->mutex));
 			temp_table = dd_table_open_on_name_in_mem(
-				ctx->new_table->name.m_name,
-				true, DICT_ERR_IGNORE_NONE);
+				ctx->new_table->name.m_name, true);
 			ut_a(ctx->new_table == temp_table);
 			/* n_ref_count must be 1, because purge cannot
 			be executing on this very table as we are
@@ -6039,7 +6050,9 @@ of the table.
 table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement
 commit time.
-@retval true Failure */
+@retval true Failure
+@retval false Success
+*/
 template<typename Table>
 bool
 ha_innobase::inplace_alter_table_impl(
@@ -7456,7 +7469,9 @@ of the table.
 table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement
 commit time.
-@retval true Failure, false Success */
+@retval true Failure
+@retval false Success
+*/
 template<typename Table>
 bool
 ha_innobase::commit_inplace_alter_table_impl(
@@ -10525,7 +10540,8 @@ ha_innopart::prepare_inplace_alter_table(
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
-	ctx_parts->ctx_array[m_tot_parts] = NULL;
+	memset(ctx_parts->ctx_array, 0,
+	       sizeof(inplace_alter_handler_ctx*) * (m_tot_parts + 1));
 
 	ctx_parts->prebuilt_array = UT_NEW_ARRAY_NOKEY(row_prebuilt_t*,
 						       m_tot_parts);
@@ -10594,6 +10610,7 @@ ha_innopart::prepare_inplace_alter_table(
 
 		res = prepare_inplace_alter_table_impl<dd::Partition>(
 			altered_table, ha_alter_info, old_part, new_part);
+
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -10742,7 +10759,6 @@ ha_innopart::commit_inplace_alter_table(
 							commit,
 							old_table_def,
 							new_table_def);
-
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}

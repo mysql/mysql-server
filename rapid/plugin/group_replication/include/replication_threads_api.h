@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 #ifndef REPLICATION_THREADS_API_INCLUDE
 #define REPLICATION_THREADS_API_INCLUDE
 
-#include <string>
 #include <mysql/group_replication_priv.h>
+#include <string>
+
+#include "my_inttypes.h"
 
 #define DEFAULT_THREAD_PRIORITY 0
 //Applier thread InnoDB priority

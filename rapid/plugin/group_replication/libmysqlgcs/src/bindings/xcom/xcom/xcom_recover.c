@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,22 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "xcom_common.h"
-#include "simset.h"
-#include "xcom_vp.h"
-#include "task.h"
-#include "task_debug.h"
+#include "app_data.h"
+#include "my_compiler.h"
 #include "node_no.h"
 #include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "xcom_transport.h"
-#include "xcom_base.h"
-#include "synode_no.h"
-
-#include "xcom_recover.h"
-#include "app_data.h"
+#include "simset.h"
 #include "site_def.h"
+#include "site_struct.h"
+#include "synode_no.h"
+#include "task.h"
+#include "task_debug.h"
+#include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_detector.h"
+#include "xcom_recover.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
 
 extern task_env *boot;
 extern task_env *net_boot;

@@ -21,6 +21,7 @@
 #include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_table_map.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysqld.h"        // table_alias_charset

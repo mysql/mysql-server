@@ -531,14 +531,14 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: information_schema
+			[meta][field] db name: mysql
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
 			[meta][field] org col name: TRIGGER_NAME
 			[meta][field] length: 192
 			[meta][field] charsetnr: 33
-			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] flags: 20481 (NOT_NULL NO_DEFAULT_VALUE PART_KEY )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
 
@@ -563,14 +563,14 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: information_schema
+			[meta][field] db name: mysql
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
 			[meta][field] org col name: TRIGGER_NAME
 			[meta][field] length: 192
 			[meta][field] charsetnr: 33
-			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] flags: 20481 (NOT_NULL NO_DEFAULT_VALUE PART_KEY )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
 
@@ -1283,14 +1283,14 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: information_schema
+			[meta][field] db name: mysql
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
 			[meta][field] org col name: TRIGGER_NAME
 			[meta][field] length: 192
 			[meta][field] charsetnr: 33
-			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] flags: 20481 (NOT_NULL NO_DEFAULT_VALUE PART_KEY )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
 
@@ -1315,14 +1315,14 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: information_schema
+			[meta][field] db name: mysql
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
 			[meta][field] org col name: TRIGGER_NAME
 			[meta][field] length: 192
 			[meta][field] charsetnr: 33
-			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] flags: 20481 (NOT_NULL NO_DEFAULT_VALUE PART_KEY )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
 

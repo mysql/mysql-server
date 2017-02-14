@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "current_thd.h"
+#include "my_inttypes.h"
 #include "parsertest.h"
-#include "test_utils.h"
 #include "select_lex_visitor.h"
-#include "sql_optimizer.h"
 #include "sql_lex.h"
+#include "sql_optimizer.h"
+#include "test_utils.h"
 
 namespace select_lex_visitor_unittest {
 

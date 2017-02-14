@@ -22,6 +22,7 @@
 
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 void heap_clear(HP_INFO *info)
 {

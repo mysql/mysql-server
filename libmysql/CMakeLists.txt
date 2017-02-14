@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/libmysql
-  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
@@ -172,7 +172,7 @@ SET(CLIENT_SOURCES
   ../sql-common/client.cc
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
-  ../sql/net_serv.cc
+  ../sql-common/net_serv.cc
   ../sql/auth/password.c
 )
 

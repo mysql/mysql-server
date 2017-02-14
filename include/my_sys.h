@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,18 @@
   @file include/my_sys.h
 */
 
-#include "my_global.h"
-#include "my_psi_config.h"              /* IWYU pragma: keep */
+#include "my_config.h"
+
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */
+#include "my_compiler.h"
+#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
+#include "my_sharedlib.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -38,30 +45,31 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
 #include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-#include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
-
+#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
+#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
 #include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
 #include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
 #include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
 #include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
-#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 #include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
-#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
-#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
-#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
-#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 
 C_MODE_START
 
 #ifdef HAVE_VALGRIND
 # include <valgrind/valgrind.h>
+
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
 # define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
 # include <valgrind/memcheck.h>
+
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
@@ -802,50 +810,6 @@ extern my_bool my_compress(uchar *, size_t *, size_t *);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
-
-
-/**
-  This function takes the submitted serialized meta data and compresses it.
-
-  @param[in] meta_data                    The serialized meta data
-  @param[in] meta_data_length             The size of the meta data blob
-  @param[out] compressed_meta_data        The compressed serialized
-                                          meta data
-  @param[out] compressed_meta_data_length The size of the compressed
-                                          meta data blob
-
-  @retval 0 Success
-  @retval 1 Error
-*/
-
-extern my_bool compress_serialized_meta_data(uchar *meta_data,
-                                      size_t meta_data_length,
-                                      uchar **compressed_meta_data,
-                                      size_t *compressed_meta_data_length);
-
-
-/**
-  This function takes the submitted compressed serialized meta data and
-  uncompresses it.
-
-  @param[in] compressed_meta_data         The compressed serialized
-                                          meta data
-  @param[in] compressed_meta_data_length  The size of the compressed
-                                          meta data blob
-  @param[out] meta_data                   The uncompressed serialized
-                                          meta data
-  @param[out] meta_data_length            The size of the uncompressed
-                                          meta data blob
-
-  @retval 0 Success
-  @retval 1 Error
-*/
-
-extern my_bool uncompress_serialized_meta_data(uchar *compressed_meta_data,
-                                        size_t compressed_meta_data_length,
-                                        uchar **meta_data,
-                                        size_t *meta_data_length);
-
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
 
@@ -867,6 +831,7 @@ void my_free_open_file_info(void);
 
 extern time_t my_time(myf flags);
 extern ulonglong my_micro_time();
+extern ulonglong my_micro_time_ntp();
 extern my_bool my_gethwaddr(uchar *to);
 
 #ifdef HAVE_SYS_MMAN_H

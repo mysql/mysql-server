@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__ABSTRACT_TABLE_INCLUDED
 
 #include "my_global.h"
+#include "my_inttypes.h"
 
 #include "dd/collection.h"                // dd::Collection
 #include "dd/object_id.h"                 // dd::Object_id
@@ -146,6 +147,8 @@ public:
   virtual Column *add_column() = 0;
 
   virtual const Column_collection &columns() const = 0;
+
+  virtual Column_collection *columns() = 0;
 
   virtual const Column *get_column(const String_type name) const = 0;
 

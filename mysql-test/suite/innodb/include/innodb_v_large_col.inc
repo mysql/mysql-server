@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 eval CREATE TABLE `t` (
 `a` VARCHAR(10000),   `b` VARCHAR(3000),

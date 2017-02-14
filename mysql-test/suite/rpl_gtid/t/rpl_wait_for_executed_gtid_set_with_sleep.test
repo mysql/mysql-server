@@ -7,8 +7,6 @@
 # executes a statement which fulfils the waiting condition. That would
 # verify that the wait function does not return immediately.
 
---source include/have_log_bin.inc
---source include/have_gtid.inc
 --source include/master-slave.inc
 
 --connection slave

@@ -3,7 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET DEBUG = "d,set_commit_parent_100";
 #
 # Initialization the test
 #
@@ -42,6 +41,7 @@ c1
 10
 100
 [connection master]
+SET DEBUG = "+d,set_commit_parent_100";
 INSERT INTO db1.t1 VALUES(2, NULL);
 INSERT INTO db2.t1 VALUES(2, NULL);
 include/save_master_pos.inc
@@ -133,6 +133,7 @@ include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 include/start_slave_sql.inc
 [connection master]
+SET DEBUG = "-d,set_commit_parent_100";
 DROP DATABASE db1;
 DROP DATABASE db2;
 include/rpl_end.inc

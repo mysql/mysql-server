@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -112,7 +112,11 @@ if(WIN32)
 else()
   set(ADAPTER_REQUIRED_LIBS ndbclient_static)
   add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
+  remove_definitions(-Werror=undef)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x")
+  # Remove -Wundef from C++ compiler flags since there are several
+  # undefined identifiers which are evaluated in for example v8config.h
+  STRING(REPLACE "-Wundef " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 endif()
 
 add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})

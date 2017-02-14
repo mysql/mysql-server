@@ -18,8 +18,8 @@ connection default;
 # Reset history table.
 truncate table performance_schema.events_stages_history_long;
 connection con1;
-# Run some statements and see that we have different stage names for
-# opening and locking system and user tables.
+# Run some statements and see that we have no additional stage
+# events from opening and locking system tables.
 # Disable prepared statements since they cause extra attempts to open
 # tables.
 create table t1(a int);
@@ -27,8 +27,15 @@ insert into t1 values (1), (2), (3), (4), (5);
 drop table t1;
 connection default;
 # Checking the expected number of stages history entries:
-Open table	Lock table	Lock system
-WRONG	WRONG	OK
+select event_name from performance_schema.events_stages_history_long
+where thread_id = @con1_thread_id and
+event_name like '%Opening %tables' or
+event_name like '%Locking system tables' or
+event_name like '%System lock';
+event_name
+stage/sql/Opening tables
+stage/sql/Opening tables
+stage/sql/System lock
 connection con1;
 disconnect con1;
 connection default;

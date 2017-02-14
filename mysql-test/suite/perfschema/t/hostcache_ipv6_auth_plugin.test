@@ -11,7 +11,6 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_ipv6.inc
---source include/have_perfschema.inc
 --source include/have_plugin_auth.inc
 
 # Enforce a clean state

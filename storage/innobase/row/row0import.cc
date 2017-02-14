@@ -23,6 +23,7 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
+#include <errno.h>
 #include <my_aes.h>
 #include <vector>
 
@@ -32,7 +33,9 @@ Created 2012-02-08 by Sunny Bains.
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lob0lob.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0import.h"

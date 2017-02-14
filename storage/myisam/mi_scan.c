@@ -16,6 +16,7 @@
 /* Read through all rows sequntially */
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 int mi_scan_init(MI_INFO *info)

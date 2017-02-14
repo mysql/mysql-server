@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#include <mutex_lock.h>
 #include <scope_guard.h>
 #include <stdarg.h>
 #include <string.h>
@@ -24,7 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <utility>
 #include <vector>
 
-#include <mutex_lock.h>
 #include "../components/mysql_server/dynamic_loader.h"
 #include "../components/mysql_server/persistent_dynamic_loader.h"
 #include "../components/mysql_server/server_component.h"
@@ -40,9 +40,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "records.h"
 #include "sql_base.h"
@@ -52,7 +54,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "sql_string.h"
 #include "table.h"
 #include "thr_lock.h"
-#include "mysqld.h"
 #include "transaction.h"
 
 typedef std::string my_string;
@@ -184,7 +185,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     };
 
     int count= (int) array_elements(all_dyloader_mutexes);
-    PSI_MUTEX_CALL(register_mutex)("persistent_dynamic_loader",
+    PSI_MUTEX_CALL(register_mutex)("p_dyn_loader",
                                    all_dyloader_mutexes, count);
 
     mysql_mutex_init(key_component_id_by_urn_mutex,

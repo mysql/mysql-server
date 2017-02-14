@@ -191,7 +191,6 @@ set collation_connection=utf32_unicode_ci;
 --source include/weight_string_euro.inc
 select hex(weight_string(_utf32 0x10000 collate utf32_unicode_ci));
 select hex(weight_string(_utf32 0x10001 collate utf32_unicode_ci));
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf32_czech_ci;
 --source include/weight_string_chde.inc

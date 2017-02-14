@@ -2,7 +2,6 @@
 --echo # Basic test for innodb_buf_flush_list_now.
 --echo #
 
---source include/have_innodb.inc
 
 # The config variable is a debug variable for now
 -- source include/have_debug.inc

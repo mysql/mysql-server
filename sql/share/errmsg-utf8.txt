@@ -7569,10 +7569,10 @@ ER_DISABLED_STORAGE_ENGINE
   eng "Storage engine %s is disabled (Table creation is disallowed)."
 
 ER_USER_DOES_NOT_EXIST
-  eng "User %s does not exist."
+  eng "Authorization ID %s does not exist."
 
 ER_USER_ALREADY_EXISTS
-  eng "User %s already exists."
+  eng "Authorization ID %s already exists."
 
 ER_AUDIT_API_ABORT
   eng "Aborted by Audit API ('%-.48s';%d)."
@@ -7943,6 +7943,24 @@ ER_TABLESPACE_DUP_FILENAME
 
 ER_DB_DROP_RMDIR2
   eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
+
+ER_IMP_NO_FILES_MATCHED
+  eng "No SDI files matched the pattern '%s'"
+
+ER_IMP_SCHEMA_DOES_NOT_EXIST
+  eng "Schema '%.256s', referenced in SDI, does not exist."
+
+ER_IMP_TABLE_ALREADY_EXISTS
+  eng "Table '%.256s.%.256s', referenced in SDI, already exists."
+
+ER_IMP_INCOMPATIBLE_MYSQLD_VERSION
+  eng "Imported mysqld_version (%llu) is not compatible with current (%llu)"
+
+ER_IMP_INCOMPATIBLE_DD_VERSION
+  eng "Imported dd version (%u) is not compatible with current (%u)"
+
+ER_IMP_INCOMPATIBLE_SDI_VERSION
+  eng "Imported sdi version (%llu) is not compatible with current (%llu)"
 
 #
 #  End of 8.0 error messages.

@@ -66,8 +66,6 @@ TODO:
 
 */
 
-#define SLAP_VERSION "1.0"
-
 #define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
 
@@ -79,6 +77,8 @@ TODO:
 #define CREATE_TABLE_TYPE 4
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 #define DELETE_TYPE_REQUIRES_PREFIX 6
+
+#include "my_config.h"
 
 #include <fcntl.h>
 #include <my_dir.h>
@@ -100,9 +100,12 @@ TODO:
 #include "client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_systime.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
 #include "typelib.h"
 
 #ifdef _WIN32
@@ -111,7 +114,7 @@ TODO:
 #define snprintf _snprintf
 #endif
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -349,7 +352,7 @@ int main(int argc, char **argv)
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -434,7 +437,7 @@ int main(int argc, char **argv)
   statement_cleanup(post_statements);
   option_cleanup(engine_options);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
@@ -698,7 +701,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -724,14 +727,6 @@ static struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname, SLAP_VERSION,
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {

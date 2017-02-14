@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,13 @@
 
 #include <string>
 
-#include "i_options_provider.h"
 #include "composite_options_provider.h"
 #include "debug_options.h"
 #include "help_options.h"
+#include "i_options_provider.h"
 #include "message_data.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{

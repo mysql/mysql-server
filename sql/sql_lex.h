@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,8 +44,11 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/psi/psi_base.h"
@@ -98,10 +101,8 @@ class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 
-#ifdef MYSQL_SERVER
 #include "item_create.h"              // Cast_target
 #include "sql_udf.h"                  // Item_udftype
-#endif
 
 /* YACC and LEX Definitions */
 
@@ -124,7 +125,6 @@ const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 enum class partition_type; // from partition_element.h
 enum class enum_key_algorithm; // from partition_info.h
 
-#ifdef MYSQL_SERVER
 /*
   There are 8 different type of table access so there is no more than
   combinations 2^8 = 256:
@@ -169,7 +169,6 @@ extern uint binlog_unsafe_map[256];
   conditions.
 */
 void binlog_unsafe_map_init();
-#endif
 
 enum enum_yes_no_unknown
 {
@@ -199,8 +198,6 @@ typedef YYSTYPE *LEX_YYSTYPE;
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
-
-#ifdef MYSQL_SERVER
 
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
@@ -1658,8 +1655,6 @@ inline bool SELECT_LEX_UNIT::is_union() const
          first_select()->next_select()->linkage == UNION_TYPE;
 }
 
-#ifdef MYSQL_SERVER
-
 struct Cast_type
 {
   Cast_target target;
@@ -2072,9 +2067,12 @@ union YYSTYPE {
   Locked_row_action locked_row_action;
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
+  struct
+  {
+    LEX_STRING wild;
+    Item *where;
+  } wild_or_where;
 };
-
-#endif
 
 
 /**
@@ -3356,6 +3354,7 @@ public:
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
+  // Widcard from SHOW ... LIKE <wildcard> statements.
   String *wild;
   sql_exchange *exchange;
   Query_result *result;
@@ -3844,6 +3843,7 @@ public:
 
   bool accept(Select_lex_visitor *visitor);
 
+  bool set_wild(LEX_STRING);
 };
 
 
@@ -4108,5 +4108,4 @@ void print_derived_column_names(THD *thd, String *str,
   @} (End of group GROUP_PARSER)
 */
 
-#endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

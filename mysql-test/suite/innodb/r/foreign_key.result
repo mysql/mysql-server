@@ -91,8 +91,8 @@ a	b
 54	4
 55	5
 # Operations on child table
-INSERT INTO t2 VALUES (56, 6);
-UPDATE t2 SET b = 99 WHERE a = 51;
+TODO: NewDD: Waiting for WL#6049 fixes
+TODO: Waiting for Bug#24666169
 DELETE FROM t2 WHERE a = 53;
 SELECT id, b FROM t1 ORDER BY id;
 id	b
@@ -103,11 +103,10 @@ id	b
 5	84
 SELECT a, b FROM t2 ORDER BY a;
 a	b
-51	99
+51	1
 52	2
 54	4
 55	5
-56	6
 # Operations on parent table
 DELETE FROM t1 WHERE id = 1;
 UPDATE t1 SET id = 50 WHERE id = 5;
@@ -119,11 +118,10 @@ id	b
 50	84
 SELECT a, b FROM t2 ORDER BY a;
 a	b
-51	99
+51	1
 52	2
 54	4
 55	5
-56	6
 DROP TABLE t2, t1;
 #
 # Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC

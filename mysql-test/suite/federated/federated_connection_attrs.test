@@ -1,5 +1,4 @@
 --source suite/federated/include/federated.inc
---source include/have_perfschema.inc
 
 --echo #
 --echo # Bug #16555730: FEDERATED SHOULD DEFINE CONNECTION ATTRIBUTES 

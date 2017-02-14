@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -24,7 +24,7 @@
 
 //const int Gtid_specification::MAX_TEXT_LENGTH;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 enum_return_status Gtid_specification::parse(Sid_map *sid_map, const char *text)
 {
@@ -63,7 +63,7 @@ bool Gtid_specification::is_valid(const char *text)
     DBUG_RETURN(Gtid::is_valid(text));
 }
 
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER
 
 
 int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const

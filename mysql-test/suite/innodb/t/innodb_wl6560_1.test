@@ -2,7 +2,6 @@
 # WL#6560: InnoDB: separate tablespace for innodb-temp-tables.
 #
 
---source include/have_innodb.inc
 # Embedded server does not support crashing
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac

@@ -10,7 +10,6 @@
 # Test uses performance_schema.status_by_thread, not available in embedded
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
 # Different page sizes gives different query plans
 # results based on default 16k.
 --source include/have_innodb_16k.inc

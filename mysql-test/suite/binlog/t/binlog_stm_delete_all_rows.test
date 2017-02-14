@@ -12,7 +12,6 @@
 # WL#8313: Set ROW based binary log format by default
 #
 --source include/have_myisam.inc
---source include/have_innodb.inc
 --source include/have_binlog_format_statement.inc
 
 --let $storage_engine=MyISAM

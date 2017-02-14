@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/strings
   ${EDITLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -91,8 +91,7 @@ ADD_COMPILE_FLAGS(
   mysqlbinlog.cc
   ${MYSQLBINLOG_LIB_SOURCES}
   COMPILE_FLAGS
-  "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION" "-DDISABLE_PSI_MUTEX"
-  "-DMYSQL_CLIENT" "-UMYSQL_SERVER"
+  "-I${CMAKE_SOURCE_DIR}/sql" "-DDISABLE_PSI_MUTEX"
 )
 
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)

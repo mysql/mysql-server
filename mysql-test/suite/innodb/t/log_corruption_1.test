@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 
 # This test case tests if we handle the corrupted redo logs for dynamic metadata

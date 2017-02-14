@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "m_ctype.h"
 #include "my_base.h"          // ha_rows
 #include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"  // my_thread_id
 #include "rpl_gtid.h"         // Gitd_specification
@@ -173,9 +174,6 @@ struct System_variables
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
   ulong multi_range_count;
-  ulong myisam_repair_threads;
-  ulong myisam_sort_buff_size;
-  ulong myisam_stats_method;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -288,6 +286,8 @@ struct System_variables
     'COLUMN_TYPE' field.
   */
   my_bool show_old_temporals;
+  // Used for replication delay and lag monitoring
+  uint64 original_commit_timestamp;
 };
 
 

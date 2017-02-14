@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,11 @@
   Events transactions data structures (declarations).
 */
 
+#include "my_inttypes.h"
+#include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 #include "pfs_column_types.h"
 #include "pfs_events.h"
 #include "rpl_gtid.h"
-#include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 
 struct PFS_thread;
 struct PFS_account;

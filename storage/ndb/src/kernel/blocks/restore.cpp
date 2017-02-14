@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,84 +104,6 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-#if 0
-  Uint32 noBackups = 0, noTables = 0, noAttribs = 0;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &m_diskless));
-  ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
-  //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
-
-  noAttribs++; //RT 527 bug fix
-
-  c_backupPool.setSize(noBackups);
-  c_backupFilePool.setSize(3 * noBackups);
-  c_tablePool.setSize(noBackups * noTables);
-  c_attributePool.setSize(noBackups * noAttribs);
-  c_triggerPool.setSize(noBackups * 3 * noTables);
-
-  // 2 = no of replicas
-  c_fragmentPool.setSize(noBackups * NO_OF_FRAG_PER_NODE * noTables);
-  
-  Uint32 szMem = 0;
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
-  Uint32 noPages = (szMem + sizeof(Page32) - 1) / sizeof(Page32);
-  // We need to allocate an additional of 2 pages. 1 page because of a bug in
-  // ArrayPool and another one for DICTTAINFO.
-  c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2); 
-
-  Uint32 szDataBuf = (2 * 1024 * 1024);
-  Uint32 szLogBuf = (2 * 1024 * 1024);
-  Uint32 szWrite = 32768;
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
-  
-  c_defaults.m_logBufferSize = szLogBuf;
-  c_defaults.m_dataBufferSize = szDataBuf;
-  c_defaults.m_minWriteSize = szWrite;
-  c_defaults.m_maxWriteSize = szWrite;
-  
-  { // Init all tables
-    ArrayList<Table> tables(c_tablePool);
-    TablePtr ptr;
-    while(tables.seize(ptr)){
-      new (ptr.p) Table(c_attributePool, c_fragmentPool);
-    }
-    tables.release();
-  }
-
-  {
-    ArrayList<BackupFile> ops(c_backupFilePool);
-    BackupFilePtr ptr;
-    while(ops.seize(ptr)){
-      new (ptr.p) BackupFile(* this, c_pagePool);
-    }
-    ops.release();
-  }
-  
-  {
-    ArrayList<BackupRecord> recs(c_backupPool);
-    BackupRecordPtr ptr;
-    while(recs.seize(ptr)){
-      new (ptr.p) BackupRecord(* this, c_pagePool, c_tablePool, 
-			       c_backupFilePool, c_triggerPool);
-    }
-    recs.release();
-  }
-
-  // Initialize BAT for interface to file system
-  {
-    Page32Ptr p;
-    ndbrequire(c_pagePool.seizeId(p, 0));
-    c_startOfPages = (Uint32 *)p.p;
-    c_pagePool.release(p);
-    
-    NewVARIABLE* bat = allocateBat(1);
-    bat[0].WA = c_startOfPages;
-    bat[0].nrr = c_pagePool.getSize()*sizeof(Page32)/sizeof(Uint32);
-  }
-#endif
   m_file_pool.setSize(1);
   Uint32 cnt = 2*MAX_ATTRIBUTES_IN_TABLE;
   cnt += PAGES;
@@ -317,8 +239,8 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_outstanding_operations = 0;
   file_ptr.p->m_rows_restored = 0;
   file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();;
-  LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
+  LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   ndbassert(columns.isEmpty());
   columns.release();
@@ -371,8 +293,8 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
 void
 Restore::release_file(FilePtr file_ptr)
 {
-  LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
+  LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   List::Iterator it;
   for (pages.first(it); !it.isNull(); pages.next(it))
@@ -520,7 +442,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	 *   and since we have atleast 8 bytes left in buffer
 	 *   we can be sure that that's in buffer
 	 */
-	LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
 	m_global_page_pool.getPtr(next_page_ptr, * it.data);
@@ -567,7 +489,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
        */
       if(next_page_ptr.p == 0)
       {
-	LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
 	m_global_page_pool.getPtr(next_page_ptr, * it.data);
@@ -620,7 +542,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
           dst += GLOBAL_PAGE_SIZE_WORDS;
 
           {
-            LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+            LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
             Uint32 next_page = (file_ptr.p->m_current_page_index + 1) % page_count;
             pages.position(it, next_page % page_count);
             m_global_page_pool.getPtr(next_page_ptr, * it.data);
@@ -738,7 +660,7 @@ Restore::read_file(Signal* signal, FilePtr file_ptr)
 
   read_count -= file_ptr.p->m_outstanding_reads;
   Uint32 curr_page= file_ptr.p->m_current_page_index;
-  LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+  LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
   
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = file_ptr.p->m_fd;
@@ -911,7 +833,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
   const BackupFormat::CtlFile::TableDescription* fh= 
     (BackupFormat::CtlFile::TableDescription*)data;
   
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   SimplePropertiesLinearReader it(fh->DictTabInfo, len);
   it.first();
@@ -1061,7 +983,7 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
 		      const Uint32 *data, Uint32 len)
 {
   List::Iterator it;
-  LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);  
+  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);  
 
   Uint32 * const key_start = signal->getDataPtrSend()+24;
   Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;

@@ -11,8 +11,8 @@ SET SESSION information_schema_stats=latest;
 select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 TABLE_NAME	DATA_TYPE	COLUMN_TYPE
 COLUMNS	bigint	bigint(10) unsigned
-PARAMETERS	bigint	bigint(21)
-ROUTINES	bigint	bigint(21)
+PARAMETERS	int	int(10) unsigned
+ROUTINES	int	int(10) unsigned
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -290,7 +290,7 @@ select * from t2;
 end|
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
-parameter_style	sql_data_access	dtd_identifier
+PARAMETER_STYLE	SQL_DATA_ACCESS	DTD_IDENTIFIER
 SQL	CONTAINS SQL	int(11)
 SQL	CONTAINS SQL	NULL
 show procedure status where db='test';
@@ -301,21 +301,10 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	sub1	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8) AND b.SCHEMA_NAME='test';
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
 ROUTINE_NAME
 sub1
 sel2
-explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
-information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	#	Using index
-1	SIMPLE	#	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	#	NULL
-1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	#	Using index
-Warnings:
-Note	1003	#
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 count(*)
 2
@@ -326,22 +315,22 @@ routine_schema	routine_name
 test	sel2
 test	sub1
 drop view v1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
 ERROR 42000: FUNCTION sub1 does not exist
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 sub1	NULL
 sel2	NULL
 grant all privileges on test.* to mysqltest_1@localhost;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 sub1	NULL
 sel2	NULL
 create function sub2(i int) returns int
 return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 sub1	NULL
 sub2	return i+1
@@ -777,17 +766,21 @@ and data_type = 'longtext' order by table_name, column_name;
 TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
 information_schema	COLUMNS	DATA_TYPE
 information_schema	COLUMNS	GENERATION_EXPRESSION
+information_schema	EVENTS	EVENT_DEFINITION
+information_schema	PARAMETERS	DATA_TYPE
+information_schema	ROUTINES	DATA_TYPE
+information_schema	ROUTINES	DTD_IDENTIFIER
+information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
+information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
 and data_type = 'datetime'
   and table_name COLLATE utf8_general_ci not like 'innodb_%' order by table_name, column_name;
 TABLE_NAME	COLUMN_NAME	DATA_TYPE
-EVENTS	CREATED	datetime
 EVENTS	ENDS	datetime
 EVENTS	EXECUTE_AT	datetime
-EVENTS	LAST_ALTERED	datetime
 EVENTS	LAST_EXECUTED	datetime
 EVENTS	STARTS	datetime
 FILES	CHECK_TIME	datetime
@@ -799,11 +792,8 @@ FILES	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
 PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
-ROUTINES	CREATED	datetime
-ROUTINES	LAST_ALTERED	datetime
 TABLES_DYNAMIC	CHECK_TIME	datetime
 TABLES_DYNAMIC	UPDATE_TIME	datetime
-TRIGGERS	CREATED	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -1013,7 +1003,7 @@ create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines
 where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
-sql_data_access
+SQL_DATA_ACCESS
 MODIFIES SQL DATA
 CONTAINS SQL
 drop procedure p1;
@@ -1049,7 +1039,7 @@ create trigger tr1 after insert on t1 for each row set @test_var=42;
 use information_schema;
 select trigger_schema, trigger_name from triggers where
 trigger_name='tr1';
-trigger_schema	trigger_name
+TRIGGER_SCHEMA	TRIGGER_NAME
 test	tr1
 use test;
 drop table t1;
@@ -1174,7 +1164,7 @@ table_schema='information_schema' AND
 GROUP BY column_type ORDER BY num;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
-varchar(7)	information_schema.INNODB_TABLES,information_schema.INNODB_TABLESPACES,information_schema.INNODB_TABLESPACES,information_schema.ROUTINES,information_schema.VIEWS	5
+varchar(7)	information_schema.INNODB_TABLES,information_schema.INNODB_TABLESPACES,information_schema.INNODB_TABLESPACES,information_schema.VIEWS	4
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
@@ -1313,6 +1303,7 @@ group by c2.column_type order by num limit 1)
 and t.table_name not like 'INNODB_%'
 group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
 TABLE_NAME	group_concat(t.table_schema, '.', t.table_name)	num1
+CHARACTER_SETS	information_schema.CHARACTER_SETS	1
 COLLATIONS	information_schema.COLLATIONS	1
 COLUMNS	information_schema.COLUMNS	1
 COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
@@ -1320,6 +1311,7 @@ ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
 PLUGINS	information_schema.PLUGINS	1
@@ -1342,6 +1334,7 @@ TABLES_DYNAMIC	information_schema.TABLES_DYNAMIC	1
 TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
+USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
@@ -1367,7 +1360,7 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select trigger_name from information_schema.triggers
 where event_object_table='t1';
-trigger_name
+TRIGGER_NAME
 t1_ai
 show triggers from mysqltest;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
@@ -1382,7 +1375,7 @@ show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 select trigger_name from information_schema.triggers
 where event_object_table='t1';
-trigger_name
+TRIGGER_NAME
 drop user mysqltest_1@localhost;
 drop database mysqltest;
 create table t1 (
@@ -1698,7 +1691,7 @@ character_octet_length, numeric_precision,
 numeric_scale, character_set_name,
 collation_name, dtd_identifier
 from information_schema.routines where routine_schema='test';
-data_type	character_maximum_length	character_octet_length	numeric_precision	numeric_scale	character_set_name	collation_name	dtd_identifier
+DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER
 char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)
 	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 	NULL	NULL	NULL	NULL	NULL	NULL	NULL
@@ -1753,12 +1746,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	REFERENTIAL_CONSTRAINTS	NULL	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
 Warnings:
 Note	1003	/* select#1 */ select `information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_CATALOG` AS `CONSTRAINT_CATALOG`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_SCHEMA` AS `CONSTRAINT_SCHEMA`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_NAME` AS `CONSTRAINT_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_CATALOG` AS `UNIQUE_CONSTRAINT_CATALOG`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_SCHEMA` AS `UNIQUE_CONSTRAINT_SCHEMA`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_NAME` AS `UNIQUE_CONSTRAINT_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`MATCH_OPTION` AS `MATCH_OPTION`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UPDATE_RULE` AS `UPDATE_RULE`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`DELETE_RULE` AS `DELETE_RULE`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`REFERENCED_TABLE_NAME` AS `REFERENCED_TABLE_NAME` from `information_schema`.`REFERENTIAL_CONSTRAINTS` where (`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_SCHEMA` = 'test')
-EXPLAIN SELECT * FROM information_schema.TRIGGERS
-WHERE EVENT_OBJECT_SCHEMA='test';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	TRIGGERS	NULL	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 1 database
-Warnings:
-Note	1003	/* select#1 */ select `information_schema`.`TRIGGERS`.`TRIGGER_CATALOG` AS `TRIGGER_CATALOG`,`information_schema`.`TRIGGERS`.`TRIGGER_SCHEMA` AS `TRIGGER_SCHEMA`,`information_schema`.`TRIGGERS`.`TRIGGER_NAME` AS `TRIGGER_NAME`,`information_schema`.`TRIGGERS`.`EVENT_MANIPULATION` AS `EVENT_MANIPULATION`,`information_schema`.`TRIGGERS`.`EVENT_OBJECT_CATALOG` AS `EVENT_OBJECT_CATALOG`,`information_schema`.`TRIGGERS`.`EVENT_OBJECT_SCHEMA` AS `EVENT_OBJECT_SCHEMA`,`information_schema`.`TRIGGERS`.`EVENT_OBJECT_TABLE` AS `EVENT_OBJECT_TABLE`,`information_schema`.`TRIGGERS`.`ACTION_ORDER` AS `ACTION_ORDER`,`information_schema`.`TRIGGERS`.`ACTION_CONDITION` AS `ACTION_CONDITION`,`information_schema`.`TRIGGERS`.`ACTION_STATEMENT` AS `ACTION_STATEMENT`,`information_schema`.`TRIGGERS`.`ACTION_ORIENTATION` AS `ACTION_ORIENTATION`,`information_schema`.`TRIGGERS`.`ACTION_TIMING` AS `ACTION_TIMING`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_OLD_TABLE` AS `ACTION_REFERENCE_OLD_TABLE`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_NEW_TABLE` AS `ACTION_REFERENCE_NEW_TABLE`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_OLD_ROW` AS `ACTION_REFERENCE_OLD_ROW`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_NEW_ROW` AS `ACTION_REFERENCE_NEW_ROW`,`information_schema`.`TRIGGERS`.`CREATED` AS `CREATED`,`information_schema`.`TRIGGERS`.`SQL_MODE` AS `SQL_MODE`,`information_schema`.`TRIGGERS`.`DEFINER` AS `DEFINER`,`information_schema`.`TRIGGERS`.`CHARACTER_SET_CLIENT` AS `CHARACTER_SET_CLIENT`,`information_schema`.`TRIGGERS`.`COLLATION_CONNECTION` AS `COLLATION_CONNECTION`,`information_schema`.`TRIGGERS`.`DATABASE_COLLATION` AS `DATABASE_COLLATION` from `information_schema`.`TRIGGERS` where (`information_schema`.`TRIGGERS`.`EVENT_OBJECT_SCHEMA` = 'test')
 create table information_schema.t1 (f1 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.t1;
@@ -1800,7 +1787,7 @@ DROP TABLE t1;
 create function f1() returns int return 1;
 select routine_name, routine_type from information_schema.routines
 where routine_schema = 'test';
-routine_name	routine_type
+ROUTINE_NAME	ROUTINE_TYPE
 f1	FUNCTION
 drop function f1;
 SELECT *
@@ -1862,6 +1849,11 @@ drop view v1;
 # performance problems in cases when big number of tables (.FRMs
 # or .TRG files) were scanned as cost of new lock acquisition has
 # increased linearly.
+#
+# With WL#9494, queries using I_S.TRIGGERS will not open the under
+# lying tables. The I_S query will not take metadata locks on
+# table owning the triggers and hence the query will not be blocked.
+#
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
@@ -1887,8 +1879,10 @@ rename table t1 to t3, t2 to t1, t3 to t2;
 #
 # Wait while the above RENAME is blocked.
 SET SESSION information_schema_stats=latest;
-# Issue query to I_S which will open 't0' and get
-# blocked on 't1' because of RENAME.
+# Without WL9494, issuing a query to I_S will open 't0' and get
+# blocked on 't1' because of RENAME. With WL9494, I_S query is just
+# a scan over dictionary tables and do not really open the table,
+# so the below query does not block.
 select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest';
 #
 # Switching to connection 'con12828477_3'. 
@@ -1911,7 +1905,7 @@ unlock tables;
 # Switching to connection 'con12828477_2'. 
 #
 # Reap SELECT to I_S.
-event_object_table	trigger_name
+EVENT_OBJECT_TABLE	TRIGGER_NAME
 #
 # Switching to connection 'default'.
 #
@@ -2205,6 +2199,12 @@ SELECT CAN_ACCESS_COLUMN(NULL, NULL, NULL);
 ERROR HY000: Access to native function 'CAN_ACCESS_COLUMN' is rejected.
 SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
 ERROR HY000: Access to native function 'GET_DD_CREATE_OPTIONS' is rejected.
+SELECT CAN_ACCESS_TRIGGER(NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_TRIGGER' is rejected.
+SELECT CAN_ACCESS_ROUTINE(NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_ROUTINE' is rejected.
+SELECT CAN_ACCESS_EVENT(NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_EVENT' is rejected.
 CREATE TABLE t1(f1 INT);
 CREATE TABLE t3 AS SELECT CAN_ACCESS_TABLE("test", "t1");
 ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
@@ -2277,3 +2277,56 @@ def	test	t1	mpy	NULL	NULL	multipolygon
 def	test	t1	pt	NULL	NULL	point
 def	test	t1	py	NULL	NULL	polygon
 DROP TABLE t1;
+#
+# BUG#24751177: ASSERTION `STRLEN(DB_NAME) <= (64*3) &&
+#               STRLEN(TABLE_NAME) <= (64*3)' FAILED
+#
+# Without patch, the below queries triggers an assertion.
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`;
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long

@@ -31,10 +31,8 @@
 #               TABLES
 #
 --let $rpl_topology= 1->2->3
---source include/have_gtid.inc
 --source include/rpl_init.inc
 --source include/rpl_default_connections.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 
 --echo #

@@ -16,10 +16,13 @@
 
 /* Update an old row in a MyISAM table */
 
+#include <errno.h>
 #include <fcntl.h>
 
 #include "fulltext.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "rt_index.h"
 
 int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)

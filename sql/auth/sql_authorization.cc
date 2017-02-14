@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +49,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
@@ -96,8 +98,8 @@ class Abstract_table;
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/filtered_graph.hpp>
-#include <boost/graph/graphml.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graphml.hpp>
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/iterator/iterator_facade.hpp>
@@ -3490,10 +3492,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
         view_privs= get_column_grant(thd, grant, db_name, table_name, name);
       if (view_privs & VIEW_ANY_ACL)
       {
-        table_ref->belong_to_view->allowed_show= TRUE;
         DBUG_RETURN(false);
       }
-      table_ref->belong_to_view->allowed_show= FALSE;
       my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       DBUG_RETURN(true);
     }
@@ -5362,10 +5362,8 @@ err:
 bool
 is_privileged_user_for_credential_change(THD *thd)
 {
-#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
     return true;
-#endif /* HAVE_REPLICATION */
   return (!check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) ||
           thd->security_context()->check_access(CREATE_USER_ACL, false));
 }
@@ -5384,35 +5382,6 @@ is_privileged_user_for_credential_change(THD *thd)
 
 bool check_show_access(THD *thd, TABLE_LIST *table)
 {
-  switch (get_schema_table_idx(table->schema_table)) {
-  case SCH_TRIGGERS:
-  case SCH_EVENTS:
-
-  {
-    const char *dst_db_name= table->schema_select_lex->db;
-
-    DBUG_ASSERT(dst_db_name);
-
-    if (check_access(thd, SELECT_ACL, dst_db_name,
-                     &thd->col_access, NULL, FALSE, FALSE))
-      return TRUE;
-
-    if (!thd->col_access && check_grant_db(thd, dst_db_name))
-    {
-      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-               thd->security_context()->priv_user().str,
-               thd->security_context()->priv_host().str,
-               dst_db_name);
-      return TRUE;
-    }
-
-    return FALSE;
-  }
-
-  default:
-    break;
-  }
-
   // perform privilege checking for show statements on new dd tables
   switch(thd->lex->sql_command)
   {
@@ -5421,10 +5390,39 @@ bool check_show_access(THD *thd, TABLE_LIST *table)
       return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
         check_global_access(thd, SHOW_DB_ACL);
     }
+    case SQLCOM_SHOW_EVENTS:
+    {
+      const char *db= thd->lex->select_lex->db;
+      DBUG_ASSERT(db != NULL);
+      /*
+        Nobody has EVENT_ACL for I_S and P_S,
+        even with a GRANT ALL to *.*,
+        because these schemas have additional ACL restrictions:
+        see ACL_internal_schema_registry.
+
+        Yet there are no events in I_S and P_S to hide either,
+        so this check voluntarily does not enforce ACL for
+        SHOW EVENTS in I_S or P_S,
+        to return an empty list instead of an access denied error.
+
+        This is more user friendly, in particular for tools.
+
+        EVENT_ACL is not fine grained enough to differentiate:
+        - creating / updating / deleting events
+        - viewing existing events
+      */
+      if (! is_infoschema_db(db) &&
+          ! is_perfschema_db(db) &&
+          check_access(thd, EVENT_ACL, db, NULL, NULL, 0, 0))
+        return TRUE;
+    }
+    // Fall through
     case SQLCOM_SHOW_TABLES:
     case SQLCOM_SHOW_TABLE_STATUS:
+    case SQLCOM_SHOW_TRIGGERS:
     {
       const char *dst_db_name= thd->lex->select_lex->db;
+      DBUG_ASSERT(dst_db_name != NULL);
       if (!dst_db_name) break;
 
       if (check_access(thd, SELECT_ACL, dst_db_name,
@@ -5479,6 +5477,7 @@ bool check_show_access(THD *thd, TABLE_LIST *table)
 
   return FALSE;
 }
+
 /**
   check for global access and give descriptive error message if it fails.
 

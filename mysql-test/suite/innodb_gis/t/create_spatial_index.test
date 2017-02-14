@@ -15,7 +15,6 @@
 # Test spatial index with table have no auto_increment
 # Test spatial index with check constraint
 # **********************************************************
---source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 
 

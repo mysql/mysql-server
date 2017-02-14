@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,8 +94,10 @@ public:
     Uint32 m_magic;
     Uint32 m_file_no;
     Uint32 m_file_id;        // Used when talking to DICT
+    Uint32 m_ndb_version;    // Version of data file
     Uint32 m_fd; // NDBFS
-    
+    Uint64 m_file_size;
+
     Uint32 m_tablespace_ptr_i;
     Uint32 m_extent_size;   
     Uint16 m_state;
@@ -105,7 +107,8 @@ public:
     {
       FS_CREATING = 0x1,
       FS_ONLINE   = 0x2,
-      FS_DROPPING = 0x4
+      FS_DROPPING = 0x4,
+      FS_ERROR_CLOSE = 0x8
     };
     
     union {
@@ -128,6 +131,7 @@ public:
 	  Uint32 m_page_ptr_i;
 	  Uint32 m_loading_extent_page;
 	};
+        Uint32 m_error_code;
       } m_create;
     };
     
@@ -147,10 +151,10 @@ public:
     }
   };
 
-  typedef RecordPool<Datafile, RWPool> Datafile_pool;
-  typedef DLListImpl<Datafile_pool, Datafile> Datafile_list;
-  typedef LocalDLListImpl<Datafile_pool, Datafile> Local_datafile_list;
-  typedef DLHashTableImpl<Datafile_pool, Datafile> Datafile_hash;
+  typedef RecordPool<Datafile, RWPool<Datafile> > Datafile_pool;
+  typedef DLList<Datafile, Datafile_pool> Datafile_list;
+  typedef LocalDLList<Datafile, Datafile_pool> Local_datafile_list;
+  typedef DLHashTable<Datafile_pool, Datafile> Datafile_hash;
 
   struct Tablespace
   {
@@ -197,10 +201,10 @@ public:
     }
   };
 
-  typedef RecordPool<Tablespace, RWPool> Tablespace_pool;
-  typedef DLListImpl<Tablespace_pool, Tablespace> Tablespace_list;
-  typedef LocalDLListImpl<Tablespace_pool, Tablespace> Local_tablespace_list;
-  typedef KeyTableImpl<Tablespace_pool, Tablespace> Tablespace_hash;
+  typedef RecordPool<Tablespace, RWPool<Tablespace> > Tablespace_pool;
+  typedef DLList<Tablespace, Tablespace_pool> Tablespace_list;
+  typedef LocalDLList<Tablespace, Tablespace_pool> Local_tablespace_list;
+  typedef KeyTable<Tablespace_pool, Tablespace> Tablespace_hash;
 
 private:
   friend class Tablespace_client;
@@ -229,7 +233,7 @@ private:
 
   int get_page_free_bits(Signal*, Local_key*, unsigned*, unsigned*);
   int unmap_page(Signal*, Local_key*, unsigned uncommitted_bits);
-  int restart_undo_page_free_bits(Signal*, Uint32, Uint32, Local_key*, 
+  int restart_undo_page_free_bits(Signal*,Uint32,Uint32,Uint32,Local_key*, 
 				  unsigned committed_bits);
   
   int alloc_extent(Signal* signal, Uint32 tablespace, Local_key* key);
@@ -255,6 +259,10 @@ private:
   
   struct req lookup_extent(Uint32 page_no, const Datafile*) const;
   Uint32 calc_page_no_in_extent(Uint32 page_no, const struct req* val) const;
+  uint64 calculate_extent_pages_in_file(Uint64 extents,
+                                        Uint32 extent_size,
+                                        Uint64 data_pages,
+                                        bool v2);
 };
 
 inline
@@ -289,13 +297,19 @@ public:
   Signal* m_signal;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
+  Uint32 m_create_table_version;
   Uint32 m_tablespace_id;
   bool m_lock;
   DEBUG_OUT_DEFINES(TSMAN);
 
 public:
-  Tablespace_client(Signal* signal, SimulatedBlock* block, Tsman* tsman, 
-		    Uint32 table, Uint32 fragment, Uint32 tablespaceId,
+  Tablespace_client(Signal* signal,
+                    SimulatedBlock* block,
+                    Tsman* tsman, 
+                    Uint32 table,
+                    Uint32 fragment,
+                    Uint32 create_table_version,
+                    Uint32 tablespaceId,
                     bool lock = true) {
     Uint32 bno = block->number();
     Uint32 ino = block->instance();
@@ -304,6 +318,7 @@ public:
     m_signal= signal;
     m_table_id= table;
     m_fragment_id= fragment;
+    m_create_table_version = create_table_version;
     m_tablespace_id= tablespaceId;
     m_lock = lock;
 
@@ -401,6 +416,7 @@ Tablespace_client::alloc_extent(Local_key* key)
   req->request.table_id = m_table_id;
   req->request.fragment_id = m_fragment_id;
   req->request.tablespace_id = m_tablespace_id;
+  req->request.create_table_version = m_create_table_version;
   m_tsman->execALLOC_EXTENT_REQ(m_signal);
   
   if(req->reply.errorCode == 0){
@@ -486,6 +502,7 @@ Tablespace_client::restart_undo_page_free_bits(Local_key* key,
   return m_tsman->restart_undo_page_free_bits(m_signal,
 					      m_table_id,
 					      m_fragment_id,
+                                              m_create_table_version,
 					      key, 
 					      committed_bits);
 }

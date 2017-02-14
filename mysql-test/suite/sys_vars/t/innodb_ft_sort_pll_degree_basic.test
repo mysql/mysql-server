@@ -3,7 +3,6 @@
 #  2011-11-17 - Added 
 #
 
---source include/have_innodb.inc
 
 #
 # show the global and session values;

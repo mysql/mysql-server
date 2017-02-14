@@ -25,6 +25,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_global.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -592,9 +594,6 @@ void log_slow_do(THD *thd);
 */
 void log_slow_statement(THD *thd);
 
-
-#ifdef MYSQL_SERVER // Security_context not defined otherwise.
-
 /**
   @class Log_throttle
   @brief Base class for rate-limiting a log (slow query log etc.)
@@ -831,8 +830,6 @@ public:
 
 
 extern Slow_log_throttle log_throttle_qni;
-
-#endif // MYSQL_SERVER
 
 ////////////////////////////////////////////////////////////
 //

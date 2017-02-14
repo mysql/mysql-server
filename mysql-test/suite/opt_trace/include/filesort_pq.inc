@@ -14,7 +14,8 @@ SET optimizer_trace="enabled=on,one_line=off";
 --echo #
 
 
-CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200))
+charset latin1;
 INSERT INTO t1(f1, f2) VALUES 
 (0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
 (6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
@@ -131,7 +132,7 @@ set sort_buffer_size= 327680;
 set optimizer_trace_limit=1;
 set optimizer_trace_offset=-1;
 
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20)) charset latin1;
 INSERT INTO tmp SELECT f1, f2 FROM t1;
 INSERT INTO t1(f1, f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1, f2 FROM t1;
@@ -226,7 +227,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 ################
 ## Test stripping additional fields
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20) charset latin1);
 INSERT INTO tmp SELECT f1,f2 FROM t1;
 INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1,f2 FROM t1;

@@ -73,7 +73,7 @@ open(I_BIN,"<","$dir_docs/INFO_BIN") or print "Cannot open 'INFO_BIN' in '$dir_d
 while(defined ($line = <I_BIN>)) {
   # "generator" on Windows, "flags" on Unix:
   if (($line =~ m| Compiler / generator used: |) ||
-      ($line =~ m| Compiler flags used |))   {$found_compiler = "Found 'Compiler ... used' line";}
+      ($line =~ m| Compiler flags used:|))   {$found_compiler = "Found 'Compiler ... used' line";}
   if  ($line =~ m| Feature flags used:|)     {$found_features = "Found 'Feature flags' line";}
 }
 close I_BIN;
