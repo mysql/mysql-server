@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs298=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -61,7 +50,8 @@ drop table t1;
 #
 
 set names latin1;
-create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
+# Set latin1 explicitly since 0xE4 is invalid in utf8mb4.
+create table t1 (a enum(0xE4, '1', '2') not null default 0xE4) character set latin1;
 show columns from t1;
 
 #Replace default engine value with static engine string 
@@ -270,9 +260,37 @@ DROP TABLE t1;
 SET sql_mode = default;
 --echo End of 5.1 tests
 
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs298;
---enable_query_log
-########################################
+--echo #
+--echo # Bug #25481355: Handle long enum literals gracefully.
+--echo #
+
+--echo # Handle a column type element < 255 symbols but > 255 bytes.
+CREATE TABLE t1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'))
+CHARSET=utf8mb4;
+DROP TABLE t1;
+
+--echo # Fail if the element is > 255 symbols.
+--error ER_TOO_LONG_SET_ENUM_VALUE
+CREATE TABLE t1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ
+ zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'))
+CHARSET=utf8mb4;
+
+--echo # Handle a parameter type element < 255 symbols but > 255 bytes.
+CREATE PROCEDURE p1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ')
+CHARACTER SET utf8mb4)
+BEGIN
+END;
+DROP PROCEDURE p1;
+
+--echo # Fail if the element is > 255 symbols.
+--error ER_TOO_LONG_SET_ENUM_VALUE
+CREATE PROCEDURE p1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ
+ zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ')
+CHARACTER SET utf8mb4)
+BEGIN
+END;
+

@@ -19,5 +19,15 @@ call mtr.add_suppression("Upgrading redo log");
 MYSQL_TMP_DIR/bootstrap.log
 # Starting the DB server will fail since the data dir contains
 # tables with non native partitioning.
+# ------------------------------------------------------------------
+# Check upgrade of tables and stored programs using long enum elements.
+# ------------------------------------------------------------------
+# DB server which was started above is not running, no need for shutdown
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Remove innodb log files due to an existing bug
+# Starting the DB server will fail since the data dir contains
+# a table and a stored program with a too long enum literals.
 # Restart the server with default options.
 # restart

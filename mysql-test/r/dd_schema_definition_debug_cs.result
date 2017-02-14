@@ -198,7 +198,7 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 130	14	hidden	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 131	15	column_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 132	15	element_index	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-133	15	name	3	MYSQL_TYPE_VARCHAR	0	0	0	255	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
+133	15	name	3	MYSQL_TYPE_VARCHAR	0	0	0	1020	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
 134	16	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
 135	16	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 136	16	table_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL

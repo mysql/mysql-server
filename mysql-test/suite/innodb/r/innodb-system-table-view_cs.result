@@ -202,7 +202,7 @@ table_id	pos	mtype	prtype	len	name
 29	5	6	1281	1	hidden
 30	0	6	1800	8	column_id
 30	1	6	1795	4	element_index
-30	2	4	4130063	255	name
+30	2	4	4134159	1020	name
 31	0	6	1800	8	id
 31	1	6	1800	8	schema_id
 31	2	6	1800	8	table_id
@@ -323,7 +323,7 @@ table_id	pos	mtype	prtype	len	name
 40	14	5	5439740	11	options
 41	0	6	1800	8	parameter_id
 41	1	6	1795	4	element_index
-41	2	4	4130063	255	name
+41	2	4	4134159	1020	name
 42	0	6	1800	8	id
 42	1	6	1800	8	schema_id
 42	2	12	2162959	192	name

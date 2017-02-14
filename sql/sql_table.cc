@@ -4724,35 +4724,6 @@ static bool check_duplicates_in_interval(THD *thd,
 
 
 /**
-  Check TYPELIB (set or enum) length of individual values.
-
-  @param col_name   Name of column to be checked (for error msg)
-  @param cs         Charset + collation pair of the interval
-  @param interval   List of values for the column
-
-  @return           true if max length is exceeded (error reported),
-                    false otherwise
-*/
-
-static bool check_interval_length(const char *col_name,
-                                  const CHARSET_INFO *cs,
-                                  TYPELIB *interval)
-{
-  const char **pos;
-  uint *len= interval->type_lengths;
-  for (pos= interval->type_names; *pos; pos++, len++)
-  {
-    if (cs->cset->numchars(cs, *pos, *pos + *len) > MAX_INTERVAL_VALUE_LENGTH)
-    {
-      my_error(ER_TOO_LONG_SET_ENUM_VALUE, MYF(0), col_name);
-      return true;
-    }
-  }
-  return false;
-}
-
-
-/**
   Prepare a create_table instance for packing
 
   @param thd                    Thread handle
@@ -4813,10 +4784,6 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
       DBUG_RETURN(true);
-    if (check_interval_length(sql_field->field_name,
-                              sql_field->charset,
-                              sql_field->interval))
-      DBUG_RETURN(true);
     if (sql_field->interval->count > MAX_ENUM_VALUES)
     {
       my_error(ER_TOO_BIG_ENUM, MYF(0), sql_field->field_name);
@@ -4828,10 +4795,6 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
     if (check_duplicates_in_interval(thd, "SET", sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
-      DBUG_RETURN(true);
-    if (check_interval_length(sql_field->field_name,
-                              sql_field->charset,
-                              sql_field->interval))
       DBUG_RETURN(true);
     /* Check that count of unique members is not more then 64 */
     if (sql_field->interval->count - dup_val_count > sizeof(longlong) * 8)

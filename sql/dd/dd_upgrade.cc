@@ -3316,9 +3316,11 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   return false;
 
 err:
-   if (sp != nullptr)            // To be safe
-     sp_head::destroy(sp);
-   return true;
+  sql_print_error("Error in creating stored program '%s.%s'", sp_db_str.str,
+                                                              sp_name_str.str);
+  if (sp != nullptr)            // To be safe
+    sp_head::destroy(sp);
+  return true;
 }
 
 
