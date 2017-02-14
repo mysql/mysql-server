@@ -21,8 +21,7 @@ INSERT INTO t1 SELECT 0,b,c FROM t1;
 INSERT INTO t1 SELECT 0,b,c FROM t1;
 INSERT INTO t1 SELECT 0,b,c FROM t1;
 # restart: --innodb-force-recovery=6
-select count(*) from t1;
-count(*)
-8192
+insert into t1 values(0, 'y', 1);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 # restart
 DROP TABLE t1;
