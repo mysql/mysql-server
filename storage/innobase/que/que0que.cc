@@ -402,8 +402,6 @@ que_graph_free_recursive(
 	sel_node_t*	sel;
 	ins_node_t*	ins;
 	upd_node_t*	upd;
-	tab_node_t*	cre_tab;
-	ind_node_t*	cre_ind;
 	purge_node_t*	purge;
 
 	DBUG_ENTER("que_graph_free_recursive");
@@ -501,25 +499,6 @@ que_graph_free_recursive(
 			mem_heap_free(upd->heap);
 			upd->heap = NULL;
 		}
-
-		break;
-	case QUE_NODE_CREATE_TABLE:
-		cre_tab = static_cast<tab_node_t*>(node);
-
-		que_graph_free_recursive(cre_tab->tab_def);
-		que_graph_free_recursive(cre_tab->col_def);
-		que_graph_free_recursive(cre_tab->v_col_def);
-
-		mem_heap_free(cre_tab->heap);
-
-		break;
-	case QUE_NODE_CREATE_INDEX:
-		cre_ind = static_cast<ind_node_t*>(node);
-
-		que_graph_free_recursive(cre_ind->ind_def);
-		que_graph_free_recursive(cre_ind->field_def);
-
-		mem_heap_free(cre_ind->heap);
 
 		break;
 	case QUE_NODE_PROC:
@@ -941,10 +920,6 @@ que_node_type_string(
 		return("PURGE ROW");
 	case QUE_NODE_ROLLBACK:
 		return("ROLLBACK");
-	case QUE_NODE_CREATE_TABLE:
-		return("CREATE TABLE");
-	case QUE_NODE_CREATE_INDEX:
-		return("CREATE INDEX");
 	case QUE_NODE_FOR:
 		return("FOR LOOP");
 	case QUE_NODE_RETURN:
@@ -1052,12 +1027,6 @@ que_thr_step(
 		thr = exit_step(thr);
 	} else if (type == QUE_NODE_ROLLBACK) {
 		thr = trx_rollback_step(thr);
-	} else if (type == QUE_NODE_CREATE_TABLE) {
-	} else if (type == QUE_NODE_CREATE_INDEX) {
-		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
-				ind_node_t*	node = static_cast<ind_node_t*>(thr->run_node);
-				node->page_no = FIL_NULL;
-				trx->error_state = DB_OUT_OF_FILE_SPACE;);
 	} else {
 		ut_error;
 	}

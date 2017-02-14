@@ -58,6 +58,9 @@ static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[]= "InnoDB";
 
+/** Maximum table id of dd tables. */
+static const ulint DD_TABLE_ID_MAX = 70;
+
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
 	/** Auto-increment counter */

@@ -4664,7 +4664,7 @@ new_clustered_failed:
 	DBUG_ASSERT(ctx->new_table->id != 0);
 	ctx->trx->table_id = ctx->new_table->id;
 
-	/* Create the indexes in SYS_INDEXES and load into dictionary. */
+	/* Create the indexes and load into dictionary. */
 
 	for (ulint a = 0; a < ctx->num_to_add_index; a++) {
 
@@ -4674,6 +4674,11 @@ new_clustered_failed:
 						ctx->num_to_drop_vcol,
 						&index_defs[a]);
 		}
+
+		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
+			ctx->trx->error_state = DB_OUT_OF_FILE_SPACE;
+			error = ctx->trx->error_state;
+			goto error_handling;);
 
 		ctx->add_index[a] = row_merge_create_index(
 			ctx->trx, ctx->new_table,

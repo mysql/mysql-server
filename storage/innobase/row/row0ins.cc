@@ -1929,7 +1929,7 @@ row_ins_check_foreign_constraints(
 	ibool		got_s_lock	= FALSE;
 
 	/* Temporarily skip the FK check for DD tables */
-	if (table->id < 70) {
+	if (table->id < DD_TABLE_ID_MAX) {
 		return(DB_SUCCESS);
 	}
 
