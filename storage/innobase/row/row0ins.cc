@@ -2115,15 +2115,26 @@ row_ins_scan_sec_index_for_duplicate(
 			/* Set no locks when applying log
 			in online table rebuild. */
 		} else if (allow_duplicates) {
+
+#if 0 // TODO: Enable this assert after WL#9509. REPLACE will not be allowed on DD tables
 			/* This assert means DD tables should not use REPLACE
 			or INSERT INTO table.. ON DUPLCIATE KEY */
 			ut_ad(!index->table->is_dd_table);
+#endif
+
+#if 1 // TODO: Remove this code after WL#9509. REPLACE will not be allowed on DD tables
+			if (index->table->is_dd_table) {
+				/* Only GAP lock is possible on supremum. */
+				if (page_rec_is_supremum(rec)) {
+					continue;
+				}
+			}
+#endif
 
 			/* If the SQL-query will update or replace
 			duplicate key we will take X-lock for
 			duplicates ( REPLACE, LOAD DATAFILE REPLACE,
 			INSERT ON DUPLICATE KEY UPDATE). */
-
 			err = row_ins_set_exclusive_rec_lock(
 				lock_type, block, rec, index, offsets, thr);
 		} else {
