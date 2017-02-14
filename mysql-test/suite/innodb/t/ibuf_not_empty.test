@@ -67,7 +67,8 @@ INSERT INTO t1 SELECT 0,b,c FROM t1;
 # Turn off reconnect again
 --disable_reconnect
 
-select count(*) from t1;
+--error ER_CANT_LOCK
+insert into t1 values(0,'y',1);
 
 # Restart the server in force recovery mode
 --echo # Stop server

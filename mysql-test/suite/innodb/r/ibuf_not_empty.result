@@ -23,9 +23,8 @@ INSERT INTO t1 SELECT 0,b,c FROM t1;
 INSERT INTO t1 SELECT 0,b,c FROM t1;
 # Stop server
 # Restart server.
-select count(*) from t1;
-count(*)
-8114
+insert into t1 values(0,'y',1);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 # Stop server
 # Restart server.
 DROP TABLE t1;
