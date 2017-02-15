@@ -4970,10 +4970,13 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   char key[FN_REFLEN + 1];
   char ndb_file[FN_REFLEN + 1];
 
+  // This function need to be rewritten to check for "local table"
+  // by using Ndb_local_schema which will then access the DD
+
   DBUG_ENTER("ndbcluster_check_if_local_table");
   build_table_filename(key, sizeof(key)-1, dbname, tabname, reg_ext, 0);
   build_table_filename(ndb_file, sizeof(ndb_file)-1,
-                       dbname, tabname, ha_ndb_ext, 0);
+                       dbname, tabname, ".ndb", 0);
   /* Check that any defined table is an ndb table */
   DBUG_PRINT("info", ("Looking for file %s and %s", key, ndb_file));
   if ((! my_access(key, F_OK)) && my_access(ndb_file, F_OK))

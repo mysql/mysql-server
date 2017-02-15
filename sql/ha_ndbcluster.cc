@@ -16825,7 +16825,6 @@ int ndbcluster_make_pushed_join(handlerton *hton,
                                 const AQP::Join_plan* plan)
 {
   DBUG_ENTER("ndbcluster_make_pushed_join");
-  (void)ha_ndb_ext; // prevents compiler warning.
 
   if (THDVAR(thd, join_pushdown) &&
       // Check for online upgrade/downgrade.

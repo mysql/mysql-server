@@ -30,8 +30,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
-static const char *ha_ndb_ext=".ndb";
-
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
 extern HASH ndbcluster_open_tables;
