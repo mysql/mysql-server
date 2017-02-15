@@ -221,7 +221,6 @@ public:
   bool start_read_removal(void);
   ha_rows end_read_removal(void);
   int extra(enum ha_extra_function operation);
-  int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
   int external_lock(THD *thd, int lock_type);
   void unlock_row();

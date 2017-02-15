@@ -8206,14 +8206,6 @@ int ha_ndbcluster::end_bulk_insert()
 }
 
 
-int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
-{
-  DBUG_ENTER("extra_opt");
-  DBUG_PRINT("enter", ("cache_size: %lu", cache_size));
-  DBUG_RETURN(extra(operation));
-}
-
-
 /**
   How many seeks it will take to read through the table.
 
