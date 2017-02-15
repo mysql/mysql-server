@@ -2253,7 +2253,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
     // When returning HA_ERR_TABLE_DEF_CHANGED from handler::open()
     // the caller is intended to call ha_discover() in order to let
     // the engine install the correct table defnition in the
-    // data dictionary, then the open() will be retired and presumably
+    // data dictionary, then the open() will be retried and presumably
     // the table definition will be correct
     DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
   }
@@ -13479,8 +13479,8 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
   Try to discover one table from NDB. Return the "serialized
   table definition".
 
-  NOTE The caller does not check the erorr code itself,
-       just checking if it zero or not.
+  NOTE The caller does not check the error code itself,
+       just checking if it's zero or not.
 */
 static
 int ndbcluster_discover(handlerton*, THD* thd,
@@ -13491,7 +13491,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
-  // Check if the database directory for the table to discover existsq
+  // Check if the database directory for the table to discover exists
   // as otherwise there is no place to put the discovered .frm file.
   {
     char key[FN_REFLEN + 1];
