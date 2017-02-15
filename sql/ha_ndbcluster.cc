@@ -13941,6 +13941,38 @@ static int ndb_recv_thread_cpu_mask_update();
 handlerton* ndbcluster_hton;
 
 
+static
+bool store_schema_sdi_dummy(THD*, handlerton *, const LEX_CSTRING&,
+                            const dd::Schema*, const dd::Table*)
+{
+  return false; // Success
+}
+
+
+static
+bool remove_schema_sdi_dummy(THD*, handlerton*,
+                             const dd::Schema*, const dd::Table*)
+{
+  return false; // Success
+}
+
+
+static
+bool store_table_sdi_dummy(THD*, handlerton*, const LEX_CSTRING&,
+                           const dd::Table*, const dd::Schema*)
+{
+  return false; // Success
+}
+
+
+static
+bool remove_table_sdi_dummy(THD*, handlerton*,
+                            const dd::Table*, const dd::Schema*)
+{
+  return false; // Success
+}
+
+
 /*
   Handle failure from ndbcluster_init() by printing error
   message(s) and exit the MySQL Server.
@@ -14036,6 +14068,22 @@ int ndbcluster_init(void* p)
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
     h->make_pushed_join= ndbcluster_make_pushed_join;
     h->is_supported_system_table = is_supported_system_table;
+
+
+    {
+      // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
+      // in the data directory, those are just cumbersome having to delete
+      // and or rename on the other MySQL servers
+      //
+      // NOTE! Install also store_schema_sdi since setting it to NULL will
+      // cause default implementation for store_table_sdi and
+      // remove_table_sdi to be installed
+      h->store_schema_sdi = store_schema_sdi_dummy;
+      h->remove_schema_sdi = remove_schema_sdi_dummy;
+
+      h->store_table_sdi = store_table_sdi_dummy;
+      h->remove_table_sdi = remove_table_sdi_dummy;
+    }
   }
 
   // Initialize NdbApi
