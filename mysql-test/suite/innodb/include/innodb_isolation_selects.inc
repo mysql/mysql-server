@@ -1,6 +1,6 @@
-# These same selects are used many times in wl6742.test 
+# These same selects are used many times in innodb_isolation.test 
 
---echo ########## innodb_wl6742_selects.inc ##########
+--echo ########## innodb_isolation_selects.inc ##########
 SELECT * FROM t1;
 SELECT COUNT(*) FROM t1;         # Uses handler::records() and clustered index
 SELECT COUNT(*) FROM t3;         # Uses handler::records() and clustered index
