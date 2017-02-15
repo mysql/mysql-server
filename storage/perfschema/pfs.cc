@@ -1613,7 +1613,7 @@ build_prefix(const LEX_STRING *prefix,
   char *out_ptr = output;
   size_t prefix_length = prefix->length;
 
-  if (unlikely((prefix_length + len + 1) >= PFS_MAX_FULL_PREFIX_NAME_LENGTH))
+  if (unlikely((prefix_length + len + 2) >= PFS_MAX_FULL_PREFIX_NAME_LENGTH))
   {
     pfs_print_error("build_prefix: prefix+category is too long <%s> <%s>\n",
                     prefix->str,
