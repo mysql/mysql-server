@@ -1633,7 +1633,8 @@ static void test_locker_disabled()
   ok(socket_A1 != NULL, "instrumented");
   /* Socket thread owner has not been set */
   socket_locker= socket_service->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
-  ok(socket_locker == NULL, "no locker (no thread owner)");
+  ok(socket_locker != NULL, "locker (owner not used)");
+  socket_service->end_socket_wait(socket_locker, 10);
 
   /* Pretend the running thread is not instrumented */
   /* ---------------------------------------------- */
@@ -2265,10 +2266,10 @@ static void do_all_tests()
 
 int main(int, char **)
 {
-  plan(232);
+  plan(343);
 
   MY_INIT("pfs-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

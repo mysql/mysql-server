@@ -342,5 +342,5 @@ int main(int, char **)
     diag("skipping the cp1251 tests : missing character set");
   plan(59 + (cs_cp1251 ? 10 : 0));
   do_all_tests();
-  return 0;
+  return (exit_status());
 }

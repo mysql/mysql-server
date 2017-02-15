@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -230,10 +230,10 @@ static void test_noop()
 
 int main(int, char **)
 {
-  plan(34);
+  plan(35);
 
   MY_INIT("pfs_noop-t");
   test_noop();
-  return 0;
+  return (exit_status());
 }
 

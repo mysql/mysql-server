@@ -161,5 +161,5 @@ int main(int, char **)
   plan(12);
   MY_INIT("pfs_account-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
