@@ -3,8 +3,7 @@
 [cluster_config]
 TimeBetweenLocalCheckpoints=6
 MaxNoOfConcurrentOperations=400000
-DataMemory=500M
-IndexMemory=100M
+DataMemory=600M
 
 [cluster_config.1]
 ndbd=,,,

@@ -1,7 +1,7 @@
 !include ../my.cnf
 
 [cluster_config.1]
-DataMemory=80M
+DataMemory=100M
 BackupMemory=15M
 BackupDataBufferSize=11M
 BackupLogBufferSize = 3M

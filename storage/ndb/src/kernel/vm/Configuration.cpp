@@ -757,11 +757,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
   }
 
-  if(indexMem == 0){
-    BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_INDEX_MEM);
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
-  }
-
 #define DO_DIV(x,y) (((x) + (y - 1)) / (y))
 
   noOfDataPages = (Uint32)(dataMem / 32768);
