@@ -19,7 +19,6 @@
 #include <my_default.h>
 #include <my_dir.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql_version.h>
 #include <stdint.h>

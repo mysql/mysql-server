@@ -13,10 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "storage/perfschema/pfs_visitor.h"
+
 #include "my_config.h"
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "mysqld.h"
 #include "mysqld_thd_manager.h"
@@ -26,7 +27,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_user.h"
-#include "pfs_visitor.h"
 #include "sql_class.h"
 
 /**

@@ -16,14 +16,12 @@
 #ifndef DD_SDI_API_INCLUDED
 #define DD_SDI_API_INCLUDED
 
-#include "my_global.h"
 
 #include <memory>
 
-#include "strfunc.h"
-#include "mem_root_fwd.h"
-
 #include "dd/string_type.h"
+#include "mem_root_fwd.h"
+#include "strfunc.h"
 
 class THD;
 class MDL_request;

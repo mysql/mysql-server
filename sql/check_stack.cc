@@ -13,16 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/check_stack.h"
+
+#include "my_config.h"
+
 #include <algorithm>
 #include <new>
 
-#include "check_stack.h"
 #include "current_thd.h"
 #include "derror.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"

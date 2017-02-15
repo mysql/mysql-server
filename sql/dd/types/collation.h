@@ -16,10 +16,8 @@
 #ifndef DD__COLLATION_INCLUDED
 #define DD__COLLATION_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/types/dictionary_object.h"    // dd::Dictionary_object
+#include "my_inttypes.h"
 
 namespace dd {
 

@@ -15,16 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_dbug.h"
-#include "my_global.h" /* For config defines */
-#include "ndb_binlog_extra_row_info.h"
-#include "ndb_conflict.h"
-#include "ndb_table_guard.h"
-#include "mysqld.h"   // lower_case_table_names
-
-#include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
+#include "sql/ndb_conflict.h"
 
 #include "log.h"            // sql_print_*
+#include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
+#include "my_dbug.h"
+#include "mysqld.h"   // lower_case_table_names
+#include "ndb_binlog_extra_row_info.h"
+#include "ndb_table_guard.h"
 
 extern st_ndb_slave_state g_ndb_slave_state;
 

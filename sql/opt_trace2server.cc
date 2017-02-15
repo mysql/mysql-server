@@ -23,6 +23,8 @@
    are defined in opt_trace2server.cc.
 */
 
+#include "my_config.h"
+
 #include <string.h>
 #include <sys/types.h>
 
@@ -33,9 +35,7 @@
 #include "field.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/mysql_statement.h"

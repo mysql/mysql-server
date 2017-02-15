@@ -20,7 +20,7 @@
  *   o Flushing the tables every flush_time seconds.
  */
 
-#include "sql_manager.h"
+#include "sql/sql_manager.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -29,7 +29,6 @@
 #include "log.h"               // sql_print_warning
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_systime.h"
 #include "my_thread.h"         // my_thread_t

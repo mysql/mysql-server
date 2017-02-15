@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/rpl_channel_service_interface.h"
+
 #include <string.h>
 #include <sys/types.h>
 
@@ -22,7 +24,6 @@
 #include "log_event.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"
@@ -34,7 +35,6 @@
 #include "mysqld.h"          // opt_mts_slave_parallel_workers
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h" // Global_THD_manager
-#include "rpl_channel_service_interface.h"
 #include "rpl_gtid.h"
 #include "rpl_info_factory.h"
 #include "rpl_info_handler.h"

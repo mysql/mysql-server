@@ -15,6 +15,7 @@
 
 #include <errno.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "heapdef.h"
 #include "my_dbug.h"

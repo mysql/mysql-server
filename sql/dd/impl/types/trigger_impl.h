@@ -17,6 +17,7 @@
 #define DD__TRIGGER_IMPL_INCLUDED
 
 #include "my_config.h"
+
 #include "my_inttypes.h"
 
 #if HAVE_SYS_TIME_H
@@ -33,7 +34,6 @@
 #include "dd/object_id.h"
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/trigger.h"                  // dd::Trigger
-#include "my_global.h"
 
 namespace dd {
 

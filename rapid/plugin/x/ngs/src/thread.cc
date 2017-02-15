@@ -19,6 +19,8 @@
 
 #include "ngs/thread.h"
 
+#include <time.h>
+
 #include "my_sys.h"                             // my_thread_stack_size
 #include "my_systime.h"
 #include "my_thread.h"

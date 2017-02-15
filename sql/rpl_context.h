@@ -20,7 +20,6 @@
 
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class Gtid_set;

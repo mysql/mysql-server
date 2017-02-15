@@ -23,7 +23,6 @@
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"

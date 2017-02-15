@@ -28,7 +28,6 @@
 #include <string>
 
 #include "my_compiler.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/mysql_lex_string.h"

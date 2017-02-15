@@ -22,7 +22,6 @@
 #include "dd/object_id.h"
 #include "dd/string_type.h"                 // dd::String_type
 #include "handler.h"                        // ha_statistics
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_string.h"                     // String
 

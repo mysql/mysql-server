@@ -18,12 +18,13 @@
   Performance schema tables (implementation).
 */
 
+#include "storage/perfschema/pfs_engine_table.h"
+
 #include "current_thd.h"
 #include "derror.h"
 #include "lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_thread.h"
 #include "mysqld.h" /* lower_case_table_names */
@@ -31,7 +32,6 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_digest.h"
-#include "pfs_engine_table.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"

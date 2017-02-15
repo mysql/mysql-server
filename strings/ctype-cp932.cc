@@ -16,7 +16,6 @@
 /* This file is for cp932 charaset (Windows Japanese),
    and created based on ctype-sjis.c file  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 

@@ -31,7 +31,6 @@
 #include <stdexcept>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql41_hash.h"
 #include "password_hasher.h"

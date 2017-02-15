@@ -16,7 +16,6 @@
 #ifndef MYSQL_CHECKER_H
 #define MYSQL_CHECKER_H
 
-#include <my_global.h>
 
 #include "digest.h"
 #include "keyring_memory.h"

@@ -32,7 +32,6 @@
 #include "dd/types/parameter.h"               // dd::Parameter
 #include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
 #include "my_dbug.h"
-#include "my_global.h"
 
 namespace dd {
 

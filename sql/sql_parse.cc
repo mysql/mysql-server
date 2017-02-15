@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_parse.h"
+#include "sql/sql_parse.h"
+
+#include "my_config.h"
 
 #include <limits.h>
 #include <stdlib.h>
@@ -51,9 +53,7 @@
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

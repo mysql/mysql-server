@@ -16,11 +16,9 @@
 #ifndef DD__ROUTINE_INCLUDED
 #define DD__ROUTINE_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 #include "dd/types/view.h"                // dd::Column::enum_security_type
+#include "my_inttypes.h"
 
 namespace dd {
 

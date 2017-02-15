@@ -23,7 +23,6 @@
 
 #include <stddef.h>
 
-#include "my_global.h"
 #include "pfs_buffer_container.h"
 #include "pfs_instr.h"
 

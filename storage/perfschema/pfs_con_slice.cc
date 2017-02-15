@@ -13,12 +13,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include "storage/perfschema/pfs_con_slice.h"
+
 #include "my_thread.h"
-#include "pfs_con_slice.h"
-#include "pfs_stat.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
+#include "pfs_stat.h"
 
 /**
   @file storage/perfschema/pfs_con_slice.cc

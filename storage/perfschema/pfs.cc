@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <time.h>
 
 /**
   @file storage/perfschema/pfs.cc
@@ -28,7 +29,6 @@
 #include "mdl.h" /* mdl_key_init */
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

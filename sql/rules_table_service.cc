@@ -27,7 +27,6 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/service_rules_table.h"
 #include "sql_base.h"

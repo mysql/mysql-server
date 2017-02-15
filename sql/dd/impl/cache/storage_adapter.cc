@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "storage_adapter.h"
+#include "sql/dd/impl/cache/storage_adapter.h"
 
 #include <memory>
 #include <string>
@@ -46,7 +46,6 @@
 #include "mutex_lock.h"                       // Mutex_lock
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql_class.h"                        // THD

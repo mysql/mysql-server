@@ -16,6 +16,7 @@
 
 #include "semisync_slave.h"
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include "current_thd.h"

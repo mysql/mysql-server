@@ -28,11 +28,13 @@
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
 
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 
 #include <fcntl.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 #include <algorithm>
 #include <map>
 #include <utility>

@@ -32,6 +32,7 @@ Created 12/9/1995 Heikki Tuuri
 
 #include <debug_sync.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "ha_prototypes.h"
 #include "log0log.h"

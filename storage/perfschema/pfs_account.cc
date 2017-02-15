@@ -19,13 +19,13 @@
   Performance schema account (implementation).
 */
 
+#include "storage/perfschema/pfs_account.h"
+
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "mysqld.h"  // global_status_var
 #include "pfs.h"
-#include "pfs_account.h"
 #include "pfs_buffer_container.h"
 #include "pfs_global.h"
 #include "pfs_host.h"

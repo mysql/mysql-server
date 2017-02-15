@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "my_alloc.h"
-#include "my_global.h"                  // uchar
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "sql_alloc.h"                  // Sql_alloc

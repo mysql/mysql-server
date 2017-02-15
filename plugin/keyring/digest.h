@@ -16,7 +16,6 @@
 #ifndef MYSQL_DGST_H
 #define MYSQL_DGST_H
 
-#include <my_global.h>
 #include <algorithm>
 
 #include "my_inttypes.h"

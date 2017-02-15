@@ -16,14 +16,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "my_sys.h"
-#include "print_version.h"
 #include <welcome_copyright_notice.h>
 
+#include "my_sys.h"
+#include "print_version.h"
 #include "zlib.h"
 
 static void usage()

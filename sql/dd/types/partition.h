@@ -16,11 +16,9 @@
 #ifndef DD__PARTITION_INCLUDED
 #define DD__PARTITION_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
 #include "dd/types/entity_object.h"   // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 

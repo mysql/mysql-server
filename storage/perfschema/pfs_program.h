@@ -24,6 +24,8 @@
 #include <sys/types.h>
 
 #include "pfs_column_types.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
 #include "pfs_stat.h"
 
 #define PROGRAM_HASH_KEY_LENGTH                         \

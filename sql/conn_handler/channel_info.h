@@ -20,7 +20,6 @@
 
 #include <sys/types.h>
 
-#include "my_global.h"         // uint
 #include "my_inttypes.h"
 #include "my_sys.h"            // my_micro_time
 

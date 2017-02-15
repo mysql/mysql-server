@@ -31,7 +31,6 @@
 #include "json_dom.h"           // Json_wrapper
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql_class.h"          // THD

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <my_global.h>
 #include <mysql.h>
 #include <my_sys.h>
 

@@ -25,7 +25,6 @@
 #include <memory>
 #include <vector>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "ngs/client_list.h"
 #include "ngs/interface/server_delegate.h"

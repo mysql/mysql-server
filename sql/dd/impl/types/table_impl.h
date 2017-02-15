@@ -35,7 +35,6 @@
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/table.h"                    // dd:Table
 #include "dd/types/trigger.h"                  // dd::Trigger
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

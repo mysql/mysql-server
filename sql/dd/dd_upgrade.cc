@@ -15,6 +15,7 @@
 
 #include "sql/dd/dd_upgrade.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>

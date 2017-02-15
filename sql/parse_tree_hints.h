@@ -25,7 +25,6 @@
 
 #include "mem_root_array.h"
 #include "my_compiler.h"
-#include "my_global.h"
 #include "opt_hints.h"
 #include "parse_tree_node_base.h"
 #include "sql_plugin.h"

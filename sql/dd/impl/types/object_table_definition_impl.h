@@ -25,7 +25,6 @@
 #include "dd/types/table.h"                   // dd::Table
 #include "m_string.h"                         // my_stpcpy
 #include "my_dbug.h"
-#include "my_global.h"
 #include "mysqld.h"                           // lower_case_table_names
 #include "table.h"                            // MYSQL_TABLESPACE_NAME
 

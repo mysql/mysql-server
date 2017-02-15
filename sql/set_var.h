@@ -20,13 +20,13 @@
   "public" interface to sys_var - server configuration variables.
 */
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <vector>
 
-#include "my_config.h"
 #include "my_getopt.h"        // get_opt_arg_type
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
 #include "mysql_com.h"        // Item_result

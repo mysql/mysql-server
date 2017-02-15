@@ -28,7 +28,6 @@
 #include "lf.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
 #include "my_atomic.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"

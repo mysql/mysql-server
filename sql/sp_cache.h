@@ -19,7 +19,6 @@
 
 #include <sys/types.h>
 
-#include "my_global.h"                          /* ulong */
 #include "my_inttypes.h"
 
 /*

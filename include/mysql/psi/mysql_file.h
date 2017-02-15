@@ -34,7 +34,6 @@
 
 /* For MY_STAT */
 #include <my_dir.h>
-#include <my_global.h>
 /* For my_chsize */
 #include <my_sys.h>
 /* For strlen() */

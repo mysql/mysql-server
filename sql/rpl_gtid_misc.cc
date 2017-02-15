@@ -20,7 +20,6 @@
 
 #include "control_events.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "rpl_gtid.h"
 #include "typelib.h"

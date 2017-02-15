@@ -15,6 +15,8 @@
 
 #include "gcs_view_modification_notifier.h"
 
+#include <time.h>
+
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin_psi.h"

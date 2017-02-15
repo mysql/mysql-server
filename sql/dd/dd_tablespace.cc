@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_tablespace.h"
+#include "sql/dd/dd_tablespace.h"
 
 #include <stddef.h>
 #include <memory>
@@ -33,7 +33,6 @@
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "handler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"

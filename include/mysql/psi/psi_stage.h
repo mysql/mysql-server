@@ -25,9 +25,6 @@
   @{
 */
 
-#ifndef MYSQL_ABI_CHECK
-#include "my_global.h"
-#endif  // MYSQL_ABI_CHECK
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"

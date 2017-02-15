@@ -19,7 +19,6 @@
 #include "filesort_utils.h"   // Filesort_buffer
 #include "my_base.h"          // ha_rows
 #include "my_dbug.h"
-#include "my_global.h"
 
 class Addon_fields;
 

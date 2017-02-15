@@ -21,6 +21,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <sys/types.h>
+#include <time.h>
 #include <chrono>
 #include <functional>
 #include <sstream>

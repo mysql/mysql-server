@@ -18,7 +18,7 @@
 #ifndef NDB_REPL_TAB_H
 #define NDB_REPL_TAB_H
 
-#include "my_global.h"
+#include <assert.h>
 
 #include "mysql_com.h"  /* NAME_CHAR_LEN */
 #include "ndbapi/NdbApi.hpp"

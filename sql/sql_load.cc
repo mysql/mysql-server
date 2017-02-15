@@ -18,7 +18,7 @@
 /* Copy data from a textfile to table */
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
-#include "sql_load.h"
+#include "sql/sql_load.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -46,7 +46,6 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

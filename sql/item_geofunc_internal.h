@@ -34,7 +34,6 @@
 
 #include "gis_bg_traits.h"
 #include "item_geofunc.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "spatial.h"
 

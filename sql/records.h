@@ -18,7 +18,6 @@
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "my_global.h"                /* for uint typedefs */
 #include "my_inttypes.h"
 
 class QEP_TAB;

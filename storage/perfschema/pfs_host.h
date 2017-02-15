@@ -27,9 +27,11 @@
 #include "lf.h"
 #include "my_inttypes.h"
 #include "pfs_con_slice.h"
+#include "pfs_global.h"
 #include "pfs_lock.h"
 
 struct PFS_global_param;
+struct PFS_memory_stat_delta;
 struct PFS_thread;
 
 /**

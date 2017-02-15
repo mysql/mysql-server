@@ -24,7 +24,6 @@
 #include "lex_symbol.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 const Lex_hash Lex_hash::sql_keywords(sql_keywords_map, sql_keywords_max_len);

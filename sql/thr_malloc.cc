@@ -16,14 +16,13 @@
 
 /* Mallocs for used in threads */
 
-#include "thr_malloc.h"
+#include "sql/thr_malloc.h"
 
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
 
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"

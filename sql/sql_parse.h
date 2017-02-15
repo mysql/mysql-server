@@ -23,7 +23,6 @@
 #include "key.h"
 #include "m_string.h"
 #include "my_command.h"
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command

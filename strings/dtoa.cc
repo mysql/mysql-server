@@ -37,6 +37,7 @@
  ***************************************************************/
 
 #include "my_config.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
@@ -47,7 +48,6 @@
 #include <errno.h>
 #include <float.h>
 #include <m_string.h>  /* for memcpy and NOT_FIXED_DEC */
-#include <my_global.h>
 #include <stdlib.h>
 #include <string.h>
 

@@ -16,8 +16,8 @@
 #include "my_config.h"
 
 #include <errno.h>
-#include <my_global.h>
 #include <mysql/psi/mysql_file.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <sstream>
 #include <utility>

@@ -26,7 +26,6 @@
 #include "hash.h"               // HASH
 #include "my_atomic.h"          // my_atomic_add32
 #include "my_dbug.h"
-#include "my_global.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
 #include "template_utils.h"

@@ -13,14 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_group_replication.h"
+#include "sql/rpl_group_replication.h"
 
 #include <stdlib.h>
 #include <sys/types.h>
 
 #include "log.h"                  // sql_print_error
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"

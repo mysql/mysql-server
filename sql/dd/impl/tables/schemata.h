@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/object_id.h"
-#include "my_global.h"
 
 namespace dd {
 

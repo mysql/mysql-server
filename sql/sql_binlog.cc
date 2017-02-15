@@ -27,7 +27,6 @@
 #include "log_event.h"                          // Format_description_log_event
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"

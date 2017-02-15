@@ -23,7 +23,6 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 
 /**
   @page PAGE_PFS_DATA_LOCKS Performance schema data locks

@@ -15,12 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "init_net_server_extension.h"
+#include "sql/conn_handler/init_net_server_extension.h"
 
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_idle.h"       // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"

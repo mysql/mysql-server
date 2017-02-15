@@ -30,7 +30,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array

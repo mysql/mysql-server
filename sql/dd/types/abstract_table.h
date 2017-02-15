@@ -16,12 +16,10 @@
 #ifndef DD__ABSTRACT_TABLE_INCLUDED
 #define DD__ABSTRACT_TABLE_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/collection.h"                // dd::Collection
 #include "dd/object_id.h"                 // dd::Object_id
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "my_inttypes.h"
 
 namespace dd {
 

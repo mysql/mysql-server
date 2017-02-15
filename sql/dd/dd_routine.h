@@ -18,7 +18,6 @@
 #ifndef DD_ROUTINE_INCLUDED
 #define DD_ROUTINE_INCLUDED
 
-#include "my_global.h"
 #include "sql_lex.h"
 
 class THD;

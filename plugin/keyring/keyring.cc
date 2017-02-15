@@ -15,7 +15,6 @@
 
 #include "my_config.h"
 
-#include <my_global.h>
 #include <mysql/plugin_keyring.h>
 #include <memory>
 

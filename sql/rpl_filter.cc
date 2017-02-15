@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_filter.h"
+#include "sql/rpl_filter.h"
 
 #include <string.h>
 #include <map>
@@ -27,7 +27,6 @@
 #include "m_string.h"
 #include "mf_wcomp.h"                   // wild_one, wild_many
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"

@@ -21,10 +21,11 @@
   Table replication_connection_status (implementation).
 */
 
+#include "storage/perfschema/table_replication_connection_status.h"
+
+#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
-#include "log.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_group_replication.h"
@@ -34,7 +35,6 @@
 #include "rpl_rli.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"
-#include "table_replication_connection_status.h"
 
 /*
   Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.

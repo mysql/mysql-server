@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,17 +18,20 @@
  */
 
 #include "ngs/server.h"
+
+#include <time.h>
+
+#include "mysqlx_version.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs/interface/server_task_interface.h"
-#include "ngs/server_acceptors.h"
-#include "ngs/scheduler.h"
-#include "ngs/protocol_monitor.h"
 #include "ngs/protocol/protocol_config.h"
+#include "ngs/protocol_monitor.h"
+#include "ngs/scheduler.h"
+#include "ngs/server_acceptors.h"
 #include "ngs/server_client_timeout.h"
 #include "ngs_common/connection_vio.h"
 #include "xpl_log.h"
-#include "mysqlx_version.h"
 
 
 using namespace ngs;

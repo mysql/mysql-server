@@ -18,16 +18,16 @@
   TABLE THREADS.
 */
 
+#include "storage/perfschema/table_threads.h"
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "sql_parse.h"
-#include "table_threads.h"
 
 THR_LOCK table_threads::m_table_lock;
 

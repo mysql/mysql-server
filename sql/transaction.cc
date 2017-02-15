@@ -16,6 +16,7 @@
 
 #include "sql/transaction.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "auth_common.h"      // SUPER_ACL
@@ -27,7 +28,6 @@
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"

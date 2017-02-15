@@ -13,14 +13,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_alter_instance.h"         /* Alter_instance class */
+#include "sql/sql_alter_instance.h"         /* Alter_instance class */
 
 #include "auth_acls.h"
 #include "derror.h"                     /* ER_THD */
 #include "handler.h"                    /* ha_resolve_by_legacy_type */
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                     /* my_error */
 #include "mysqld_error.h"

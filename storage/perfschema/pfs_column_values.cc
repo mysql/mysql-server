@@ -19,8 +19,7 @@
   schema tables (implementation).
 */
 
-#include "my_global.h"
-#include "pfs_column_values.h"
+#include "storage/perfschema/pfs_column_values.h"
 
 LEX_STRING PERFORMANCE_SCHEMA_str = {C_STRING_WITH_LEN("performance_schema")};
 

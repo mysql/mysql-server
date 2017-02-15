@@ -65,7 +65,7 @@
   user where to cut & paste it without filling in the real password.
 */
 
-#include "sql_rewrite.h"
+#include "sql/sql_rewrite.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -79,7 +79,6 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/service_my_snprintf.h"

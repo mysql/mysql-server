@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "session_tracker.h"
+#include "sql/session_tracker.h"
 
 #include <string.h>
 #include <new>
@@ -26,7 +26,6 @@
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"

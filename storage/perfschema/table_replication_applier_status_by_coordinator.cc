@@ -21,9 +21,10 @@
   Table replication_applier_status_by_coordinator (implementation).
 */
 
+#include "storage/perfschema/table_replication_applier_status_by_coordinator.h"
+
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_info.h"
@@ -33,7 +34,6 @@
 #include "rpl_slave.h"
 #include "sql_parse.h"
 #include "table_helper.h"
-#include "table_replication_applier_status_by_coordinator.h"
 
 THR_LOCK table_replication_applier_status_by_coordinator::m_table_lock;
 

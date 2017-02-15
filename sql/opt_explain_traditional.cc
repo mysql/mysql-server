@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "opt_explain_traditional.h"
+#include "sql/opt_explain_traditional.h"
 
 #include <sys/types.h>
 
@@ -21,7 +21,6 @@
 #include "item.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "query_result.h"
 #include "sql_class.h"

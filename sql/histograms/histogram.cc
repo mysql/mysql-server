@@ -18,7 +18,7 @@
   Histogram base class (implementation).
 */
 
-#include "histogram.h"   // Histogram, Histogram_comparator
+#include "sql/histograms/histogram.h"   // Histogram, Histogram_comparator
 
 #include <new>
 
@@ -27,7 +27,6 @@
 #include "json_dom.h"    // Json_*
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"      // my_micro_time
 #include "singleton.h"   // Singleton<T>

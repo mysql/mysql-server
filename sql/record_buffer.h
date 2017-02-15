@@ -21,7 +21,6 @@
 
 #include "my_base.h"                            // ha_rows
 #include "my_dbug.h"
-#include "my_global.h"
 
 /**
   This class represents a buffer that can be used for multi-row reads. It is

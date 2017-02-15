@@ -6,9 +6,9 @@
    Modifications copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights
    reserved. */
 
+#include <assert.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <stdlib.h>
 #ifdef _WIN32
 #include  <limits.h>

@@ -15,7 +15,6 @@
     02110-1301  USA */
 
 #include <ctype.h>
-#include <my_global.h>
 #include <my_thread.h> // my_thread_handle needed by mysql_memory.h
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>

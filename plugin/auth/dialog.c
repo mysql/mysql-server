@@ -40,10 +40,10 @@
 # define RTLD_DEFAULT GetModuleHandle(NULL)
 #endif
 
-#include <my_global.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <mysql/plugin_auth.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

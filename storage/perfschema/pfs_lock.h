@@ -22,7 +22,6 @@
 */
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "pfs_atomic.h"
 
 /* to cause bugs, testing */

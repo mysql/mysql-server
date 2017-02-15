@@ -27,7 +27,6 @@
 #include "dd/sdi_fwd.h"
 #include "dd/types/object_type.h"           // dd::Object_type
 #include "dd/types/tablespace_file.h"       // dd::Tablespace_file
-#include "my_global.h"
 
 namespace dd {
 

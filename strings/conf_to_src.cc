@@ -24,10 +24,10 @@
 #include <unistd.h>
 #endif
 
-#include "my_compiler.h"
 #include "my_config.h"
+
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
@@ -356,7 +356,6 @@ main(int argc, char **argv  MY_ATTRIBUTE((unused)))
   fprint_copyright(f);
   fprintf(f,"#include <stddef.h>\n\n");
   fprintf(f,"#include \"m_ctype.h\"\n");
-  fprintf(f,"#include \"my_global.h\"\n");
   fprintf(f,"#include \"my_inttypes.h\"\n\n");
   
   

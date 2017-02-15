@@ -20,7 +20,6 @@
 #include <new>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql_com.h"

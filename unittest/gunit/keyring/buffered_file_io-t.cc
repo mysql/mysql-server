@@ -15,7 +15,6 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <my_global.h>
 #include <mysql/plugin_keyring.h>
 #include <sql_plugin_ref.h>
 

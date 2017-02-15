@@ -27,7 +27,6 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_info.h"

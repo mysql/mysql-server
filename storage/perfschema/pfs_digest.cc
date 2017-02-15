@@ -22,14 +22,14 @@
   This code needs extra visibility in the lexer structures
 */
 
+#include "storage/perfschema/pfs_digest.h"
+
 #include <string.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "pfs_builtin_memory.h"
-#include "pfs_digest.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "sql_get_diagnostics.h"

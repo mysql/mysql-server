@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,15 @@
 #ifndef AUTH_INTERNAL_INCLUDED
 #define AUTH_INTERNAL_INCLUDED
 
-#include "my_global.h"
-#include "violite.h"                    /* SSL_type */
-#include "mysql_time.h"                 /* MYSQL_TIME */
-#include "partitioned_rwlock.h"
-#include "auth_common.h"
-#include "table.h"                      /* LEX_ALTER */
-
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <string>
+
+#include "auth_common.h"
+#include "mysql_time.h"                 /* MYSQL_TIME */
+#include "partitioned_rwlock.h"
+#include "table.h"                      /* LEX_ALTER */
+#include "violite.h"                    /* SSL_type */
 
 
 

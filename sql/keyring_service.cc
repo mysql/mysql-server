@@ -17,7 +17,6 @@
 #include <stddef.h>
 
 #include "current_thd.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_keyring.h" /* keyring plugin */

@@ -18,11 +18,12 @@
   Table EVENTS_WAITS_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_waits.h"
+
 #include "field.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_events_waits.h"
@@ -30,7 +31,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "table_events_waits.h"
 
 bool
 PFS_index_events_waits::match(PFS_thread *pfs)

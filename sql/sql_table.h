@@ -21,7 +21,6 @@
 #include <set>
 
 #include "binary_log_types.h"  // enum_field_types
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/psi/mysql_mutex.h"

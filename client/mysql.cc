@@ -35,12 +35,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>
+#include <math.h>
 #include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <time.h>
 #include <violite.h>
 
 #include "client_priv.h"

@@ -26,6 +26,7 @@
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_events.h"
+#include "pfs_global.h"
 #include "pfs_lock.h"
 
 struct PFS_mutex;

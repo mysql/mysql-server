@@ -25,7 +25,6 @@
 #include <sys/types.h>
 
 #include "my_alloc.h"                   // MEM_ROOT
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"                    // interval_type

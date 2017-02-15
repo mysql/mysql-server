@@ -1,5 +1,4 @@
 #include "mysql/psi/psi_rwlock.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;

@@ -28,7 +28,6 @@
 #include "dd/types/tablespace.h"
 #include "element_map.h"                      // Element_map
 #include "my_dbug.h"
-#include "my_global.h"                        // DBUG_ASSERT() etc.
 
 namespace dd {
 namespace cache {

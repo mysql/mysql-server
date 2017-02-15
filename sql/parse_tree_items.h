@@ -30,7 +30,6 @@
 #include "item_timefunc.h"      // Item_func_now_local
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"

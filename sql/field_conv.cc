@@ -36,7 +36,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"

@@ -26,6 +26,7 @@ Created 2012-09-23 Sunny Bains
 #include "os0event.h"
 
 #include <errno.h>
+#include <time.h>
 
 #include "ha_prototypes.h"
 #include "ut0mutex.h"

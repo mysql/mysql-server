@@ -21,6 +21,7 @@
   Events data structures (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 
 struct PFS_instr_class;

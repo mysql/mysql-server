@@ -30,7 +30,6 @@
 #include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
 #include "dd/types/weak_object.h"
 #include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class THD;

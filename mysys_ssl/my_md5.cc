@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
   to make available YaSSL's MD5 implementation.
 */
 
-#include <my_global.h>
 #include <my_md5.h>
 
 #if defined(HAVE_YASSL)

@@ -17,7 +17,6 @@
 #include "my_config.h"
 
 #include <my_atomic.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>

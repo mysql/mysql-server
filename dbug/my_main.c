@@ -7,7 +7,6 @@
 #undef DBUG_OFF
 #endif
 
-#include <my_global.h>	/* This includes dbug.h */
 #include <my_thread.h>
 
 int main (argc, argv)

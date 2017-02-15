@@ -20,7 +20,6 @@
 
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
 #include "dd/object_id.h"                    // dd::Object_id
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class THD;

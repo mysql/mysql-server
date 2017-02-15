@@ -17,8 +17,9 @@
 /* UTF8 according RFC 2279 */
 /* Written by Alexander Barkov <bar@udm.net> */
 
+#include "my_config.h"
+
 #include <errno.h>
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -28,7 +29,6 @@
 #include "mb_wc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"

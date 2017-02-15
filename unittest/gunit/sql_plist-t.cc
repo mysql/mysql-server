@@ -19,7 +19,6 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "sql_plist.h"
 #include "test_utils.h"
 

@@ -18,7 +18,8 @@
   Performance schema instruments (implementation).
 */
 
-#include <my_global.h>
+#include "storage/perfschema/pfs_instr.h"
+
 #include <string.h>
 
 #include "my_compiler.h"
@@ -32,7 +33,6 @@
 #include "pfs_builtin_memory.h"
 #include "pfs_global.h"
 #include "pfs_host.h"
-#include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_stat.h"
 #include "pfs_user.h"

@@ -18,11 +18,12 @@
   Performance schema instruments meta data (implementation).
 */
 
+#include "storage/perfschema/pfs_instr_class.h"
+
 #include <string.h>
 
 #include "lf.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
@@ -34,7 +35,6 @@
 #include "pfs_events_waits.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "pfs_program.h"
 #include "pfs_setup_object.h"
 #include "pfs_timer.h"

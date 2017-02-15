@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <time.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif

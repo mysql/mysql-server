@@ -19,7 +19,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_md5_size.h"       // MD5_HASH_SIZE
 

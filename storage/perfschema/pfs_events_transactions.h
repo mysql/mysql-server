@@ -27,6 +27,7 @@
 #include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 #include "pfs_column_types.h"
 #include "pfs_events.h"
+#include "pfs_global.h"
 #include "rpl_gtid.h"
 
 struct PFS_thread;

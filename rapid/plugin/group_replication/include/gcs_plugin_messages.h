@@ -20,7 +20,6 @@
   Since this file is used on unit tests, through member_info.h,
   includes must set here and not through plugin_server_include.h.
 */
-#include <my_global.h>
 #include <string>
 #include <vector>
 

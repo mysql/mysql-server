@@ -16,9 +16,10 @@
 #include "my_config.h"
 
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
+#include <math.h>
 #include <my_sys.h>
 #include <my_time.h>
 #include <mysys_err.h>

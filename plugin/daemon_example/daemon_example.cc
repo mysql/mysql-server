@@ -16,11 +16,11 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"

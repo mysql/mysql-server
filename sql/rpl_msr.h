@@ -25,7 +25,6 @@
 #include <utility>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "mysqld.h"                        // key_rwlock_channel_map_lock
 #include "rpl_channel_service_interface.h" // enum_channel_type

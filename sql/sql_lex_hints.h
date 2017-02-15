@@ -26,7 +26,6 @@
 #include "lex_symbol.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_statement.h"
 #include "sql_alloc.h"

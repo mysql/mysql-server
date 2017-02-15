@@ -26,7 +26,6 @@
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"

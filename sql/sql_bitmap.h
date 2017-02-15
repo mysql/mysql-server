@@ -26,7 +26,6 @@
 #include "my_bitmap.h"        // MY_BITMAP
 #include "my_byteorder.h"     // int8store
 #include "my_dbug.h"
-#include "my_global.h"
 
 
 template <uint default_width> class Bitmap

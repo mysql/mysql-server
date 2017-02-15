@@ -16,7 +16,9 @@
 
 /* Write some debug info */
 
-#include "sql_test.h"
+#include "sql/sql_test.h"
+
+#include "my_config.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -33,9 +35,7 @@
 #include "keycaches.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_list.h"

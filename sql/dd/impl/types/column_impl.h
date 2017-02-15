@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
-#include "my_global.h"
 
 namespace dd {
 

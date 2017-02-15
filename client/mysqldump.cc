@@ -47,7 +47,6 @@
 #include <hash.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <my_user.h>
 #include <stdarg.h>

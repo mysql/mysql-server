@@ -21,6 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
+#include <assert.h>
 #include <debug_sync.h>
 #include <key_spec.h>
 #include <log.h>

@@ -19,10 +19,12 @@
 
 #include "my_config.h"
 
+#include <math.h>
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,7 +39,6 @@
 #include "common/utils_string_parsing.h"
 #include "dummy_stream.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
-#include "my_global.h"
 #include "my_loglevel.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"

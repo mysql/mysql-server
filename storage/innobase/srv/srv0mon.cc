@@ -25,6 +25,9 @@ Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
+
+#include <time.h>
+
 #include "buf0buf.h"
 #include "dict0mem.h"
 #include "ibuf0ibuf.h"

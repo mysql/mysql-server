@@ -21,7 +21,6 @@
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/object_id.h"                               // dd::Object_id
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

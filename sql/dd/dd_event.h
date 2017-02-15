@@ -18,7 +18,6 @@
 
 #include "dd/string_type.h"      // dd::String_type
 #include "dd/types/event.h"      // dd::Event::enum_event_status
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_time.h"             // interval_type
 

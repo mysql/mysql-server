@@ -20,8 +20,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-// Hack needed due to mysql_com.h not including my_global.h.
-#include "my_global.h"  // IWYU pragma: keep
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql_com.h"

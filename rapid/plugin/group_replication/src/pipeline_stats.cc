@@ -15,6 +15,8 @@
 
 #include "pipeline_stats.h"
 
+#include <time.h>
+
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin.h"

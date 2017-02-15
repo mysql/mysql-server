@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "mdl.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_hset.h"        // Hash_set
 

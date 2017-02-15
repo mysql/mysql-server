@@ -24,6 +24,8 @@
   Historically this file contained "Classes in mysql". 
 */
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -46,9 +48,7 @@
 #include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

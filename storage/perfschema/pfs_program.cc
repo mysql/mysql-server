@@ -22,18 +22,18 @@
   This code needs extra visibility in the lexer structures
 */
 
+#include "storage/perfschema/pfs_program.h"
+
 #include <string.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld.h"  //system_charset_info
 #include "pfs_buffer_container.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "pfs_program.h"
 #include "pfs_setup_object.h"
 #include "sql_string.h"
 

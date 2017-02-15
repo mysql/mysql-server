@@ -16,7 +16,6 @@
 #ifndef MEMBER_VERSION_INCLUDED
 #define	MEMBER_VERSION_INCLUDED
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class Member_version

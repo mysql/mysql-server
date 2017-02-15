@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/auth/sql_user_table.h"
+
 #include "my_config.h"
 
 #include <stddef.h>
@@ -20,6 +22,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+
 #include <sys/types.h>
 #include <set>
 
@@ -41,7 +44,6 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql_com.h"
@@ -66,7 +68,6 @@
 #include "sql_string.h"
 #include "sql_table.h"                  /* write_bin_log */
 #include "sql_update.h"                 /* compare_records */
-#include "sql_user_table.h"
 #include "system_variables.h"
 #include "table.h"                      /* TABLE_FIELD_TYPE */
 #include "thr_lock.h"

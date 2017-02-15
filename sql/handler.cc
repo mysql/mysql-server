@@ -19,8 +19,9 @@
   Handler-calling-functions
 */
 
-#include "handler.h"
+#include "sql/handler.h"
 
+#include <assert.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
 #include <boost/iterator/iterator_facade.hpp>

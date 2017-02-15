@@ -21,7 +21,6 @@
 #include <sys/types.h>
 #include <string>
 
-#include "my_global.h"
 #include "mysql.h"
 
 namespace Mysql{

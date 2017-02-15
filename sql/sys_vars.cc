@@ -30,11 +30,12 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
-#include "sys_vars.h"
+#include "sql/sys_vars.h"
 
 #include "my_config.h"
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>

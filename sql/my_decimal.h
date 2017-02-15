@@ -34,7 +34,6 @@
 #include <algorithm>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "sql_string.h"                         /* String */

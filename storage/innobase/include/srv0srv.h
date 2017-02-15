@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -41,20 +41,18 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef srv0srv_h
 #define srv0srv_h
 
-#include "my_global.h"
 
 #include "mysql/psi/mysql_stage.h"
-
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
+#include "buf0checksum.h"
+#include "fil0fil.h"
 #include "log0log.h"
 #include "os0event.h"
 #include "que0types.h"
-#include "trx0types.h"
 #include "srv0conc.h"
-#include "buf0checksum.h"
+#include "trx0types.h"
 #include "ut0counter.h"
-#include "fil0fil.h"
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {

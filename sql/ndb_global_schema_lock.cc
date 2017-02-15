@@ -15,16 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_global.h>
 #include <my_sys.h>               // my_sleep.h
 #include <mysql/plugin.h>
 #include <ndbapi/NdbApi.hpp>
 
 #include "my_dbug.h"
+#include "ndb_sleep.h"
 #include "portlib/NdbTick.h"
 #include "sql_class.h"
 #include "sql_thd_internal_api.h" // thd_query_unsafe
-#include "ndb_sleep.h"
 
 
 /**
@@ -521,7 +520,7 @@ ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
 }
 
 
-#include "ndb_global_schema_lock.h"
+#include "sql/ndb_global_schema_lock.h"
 
 void ndbcluster_global_schema_lock_init(handlerton *hton)
 {

@@ -19,6 +19,7 @@
 #include <m_ctype.h>                    /* my_charset_bin */
 #include <mysql/psi/mysql_thread.h>
 #include <sql_class.h>                  /* THD, Security context */
+#include <time.h>
 
 #include "connection_control.h"
 #include "connection_delay.h"

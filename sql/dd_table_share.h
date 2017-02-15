@@ -20,7 +20,6 @@
 #include "binary_log_types.h"        // enum_field_types
 #include "dd/object_id.h"            // dd::Object_id
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                  // get_charset
 

@@ -61,7 +61,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"

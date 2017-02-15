@@ -30,7 +30,6 @@
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/partition_index.h"          // dd::Partition_index
 #include "dd/types/partition_value.h"          // dd::Partition_value
-#include "my_global.h"
 
 namespace dd {
 

@@ -18,11 +18,11 @@
 #ifndef NDB_NDBAPI_UTIL_H
 #define NDB_NDBAPI_UTIL_H
 
-#include "my_global.h"
+#include <stddef.h>
 
-#include "ndbapi/NdbRecAttr.hpp"
 #include "ndbapi/NdbBlob.hpp"
 #include "ndbapi/NdbDictionary.hpp"
+#include "ndbapi/NdbRecAttr.hpp"
 
 union NdbValue
 {

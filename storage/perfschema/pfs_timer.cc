@@ -24,7 +24,6 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_rdtsc.h"
 
 enum_timer_name idle_timer = TIMER_NAME_MICROSEC;

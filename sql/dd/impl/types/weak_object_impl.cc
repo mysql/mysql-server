@@ -26,7 +26,6 @@
 #include "dd/types/object_table.h"        // Object_table
 #include "log.h"                          // sql_print_error
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                 // ER_*

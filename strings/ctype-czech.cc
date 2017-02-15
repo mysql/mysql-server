@@ -59,7 +59,6 @@
  * .configure. strxfrm_multiply_czech=4
  */
 
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 

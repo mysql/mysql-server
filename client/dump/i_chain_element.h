@@ -19,7 +19,6 @@
 #define I_CHAIN_ELEMENT_INCLUDED
 
 #include "i_progress_reporter.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

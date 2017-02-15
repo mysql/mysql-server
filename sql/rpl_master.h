@@ -18,7 +18,6 @@
 
 #include <stddef.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"   // HOSTNAME_LENGTH
 #include "sql_const.h"   // MAX_PASSWORD_LENGTH

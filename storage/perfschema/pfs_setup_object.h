@@ -24,6 +24,9 @@
 #include <sys/types.h>
 
 #include "lf.h"
+#include "pfs_column_types.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
 #include "pfs_lock.h"
 
 class String;

@@ -23,6 +23,8 @@
   of sys_var variables (sys_vars.cc).
 */
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,10 +38,8 @@
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bit.h"               // my_count_bits
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_getopt.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"

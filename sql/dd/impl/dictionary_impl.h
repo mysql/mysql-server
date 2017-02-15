@@ -26,7 +26,6 @@
 #include "dd/object_id.h"            // dd::Object_id
 #include "dd/string_type.h"          // dd::String_type
 #include "m_string.h"
-#include "my_global.h"
 #include "table.h"                   // MYSQL_SCHEMA_NAME
 
 class THD;

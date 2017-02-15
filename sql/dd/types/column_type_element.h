@@ -16,11 +16,9 @@
 #ifndef DD__COLUMN_TYPE_ELEMENT_INCLUDED
 #define DD__COLUMN_TYPE_ELEMENT_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/sdi_fwd.h"                // dd::Sdi_rcontext
 #include "dd/types/weak_object.h"      // dd::Weak_object
+#include "my_inttypes.h"
 
 namespace dd {
 

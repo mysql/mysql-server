@@ -1,13 +1,13 @@
-#include <stdio.h>
-#include <my_global.h>
 #include <m_ctype.h>
 #include <m_string.h>
+#include <stdio.h>
 #include <sys/types.h>
 
 #include "my_regex.h"
-#include "utils.h"
 #include "regex2.h"
-#include "debug.ih"
+#include "utils.h"
+
+#include "debug.ih"  // Must come after all other headers.
 
 /* Added extra paramter to regchar to remove static buffer ; Monty 96.11.27 */
 

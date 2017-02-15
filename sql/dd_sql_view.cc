@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_sql_view.h"
+#include "sql/dd_sql_view.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -34,7 +34,6 @@
 #include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

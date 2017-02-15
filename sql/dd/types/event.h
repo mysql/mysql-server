@@ -16,10 +16,8 @@
 #ifndef DD__EVENT_INCLUDED
 #define DD__EVENT_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "my_inttypes.h"
 
 typedef long my_time_t;
 

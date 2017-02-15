@@ -23,7 +23,6 @@
 #include "handler.h"
 #include "mem_root_array.h"    // Mem_root_array
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"

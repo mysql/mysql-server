@@ -21,10 +21,13 @@ Code for native partitioning in InnoDB.
 
 Created Nov 22, 2013 Mattias Jonsson */
 
+#include "storage/innobase/handler/ha_innopart.h"
+
 /* Include necessary SQL headers */
 #include <debug_sync.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <log.h>
 #include <my_check_opt.h>
 #include <mysqld.h>
@@ -41,7 +44,6 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "dict0stats.h"
 #include "fsp0sysspace.h"
 #include "ha_innodb.h"
-#include "ha_innopart.h"
 #include "key.h"
 #include "lock0lock.h"
 #include "my_dbug.h"

@@ -29,7 +29,6 @@
 #include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
 #include "my_dbug.h"
-#include "my_global.h"            // uint etc.
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"

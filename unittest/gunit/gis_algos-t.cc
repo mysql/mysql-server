@@ -19,7 +19,6 @@
 
 #include "gstream.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "spatial.h"
 

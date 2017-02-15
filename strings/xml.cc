@@ -18,7 +18,6 @@
 #include <sys/types.h>
 
 #include "m_string.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_xml.h"
 

@@ -25,7 +25,6 @@
  * .configure. mbmaxlen_ujis=3
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 

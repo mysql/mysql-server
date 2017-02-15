@@ -27,7 +27,6 @@
 #ifndef _mysql_h
 #define _mysql_h
 
-#ifndef MY_GLOBAL_INCLUDED                /* If not standard header */
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h>
 #include <sys/types.h>
@@ -54,7 +53,6 @@ typedef unsigned long long my_ulonglong;
 typedef int my_socket;
 #endif /* _WIN32 */
 #endif /* my_socket_defined */
-#endif /* MY_GLOBAL_INCLUDED */
 
 // Small extra definition to avoid pulling in my_compiler.h in client code.
 // IWYU pragma: no_include "my_compiler.h"

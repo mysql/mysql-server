@@ -15,6 +15,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
 

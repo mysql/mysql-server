@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,31 +15,31 @@
 
 #include "gcs_xcom_communication_interface.h"
 
-#include "gcs_message_stages.h"
-#include "gcs_logging.h"
-
-#include "simset.h"
-#include "task.h"
-#include "xcom_vp.h"
-#include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "xcom_common.h"
-#include "node_list.h"
-#include "node_set.h"
-#include "xcom_base.h"
-#include "app_data.h"
-#include "synode_no.h"
-#include "node_no.h"
-#include "pax_msg.h"
-#include "xcom_transport.h"
-
-#include <sys/types.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <assert.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 #include <iostream>
+
+#include "app_data.h"
+#include "gcs_logging.h"
+#include "gcs_message_stages.h"
+#include "node_list.h"
+#include "node_no.h"
+#include "node_set.h"
+#include "pax_msg.h"
+#include "server_struct.h"
+#include "simset.h"
+#include "site_struct.h"
+#include "synode_no.h"
+#include "task.h"
+#include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_detector.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
 
 #define NUMBER_OF_XCOM_SOCKET_RETRIES 1000
 

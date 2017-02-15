@@ -20,11 +20,12 @@
   functions.
 */
 
+#include "sql/string_service.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -32,7 +33,6 @@
 /* key_memory_string_iterator */
 #include "mysqld.h"
 #include "sql_string.h"
-#include "string_service.h"
 
 PSI_memory_key key_memory_string_iterator;
 

@@ -16,7 +16,6 @@
 
 #include <boost/optional/optional.hpp>
 #include <current_thd.h>
-#include <my_global.h>
 #include <sql_class.h> // THD
 #include <stdio.h>
 #include <sys/types.h>

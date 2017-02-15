@@ -18,10 +18,10 @@
 */
 
 #include <errno.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <mysys_err.h>
 #include <stdio.h>
 #include <stdlib.h>

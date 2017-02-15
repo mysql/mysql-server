@@ -13,12 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
-#include <string.h>                             // strncpy
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
 #include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <string.h>                             // strncpy
 #include <tap.h>
 
 static void test_no_registration()

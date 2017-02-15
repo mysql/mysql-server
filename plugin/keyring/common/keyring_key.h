@@ -16,7 +16,6 @@
 #ifndef KEYRING_KEY_INCLUDED
 #define KEYRING_KEY_INCLUDED
 
-#include <my_global.h>
 #include <memory>
 
 #include "i_keyring_key.h"

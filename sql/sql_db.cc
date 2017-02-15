@@ -17,7 +17,7 @@
 
 /* create and drop of databases */
 
-#include "sql_db.h"
+#include "sql/sql_db.h"
 
 #include "my_config.h"
 
@@ -56,7 +56,6 @@
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"

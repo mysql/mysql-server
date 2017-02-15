@@ -24,7 +24,6 @@
 #include <string>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "rpl_gtid.h"

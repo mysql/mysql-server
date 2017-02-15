@@ -19,7 +19,6 @@
 #include <string>
 
 #include "bootstrap_impl.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class Compiled_in_command_iterator : public bootstrap::Command_iterator

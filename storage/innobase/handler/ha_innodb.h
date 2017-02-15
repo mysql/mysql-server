@@ -16,6 +16,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#ifndef ha_innodb_h
+#define ha_innodb_h
+
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
 #include <sys/types.h>
@@ -1101,3 +1104,4 @@ innobase_build_v_templ_callback(
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 
+#endif /* ha_innodb_h */

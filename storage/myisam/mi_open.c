@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <m_ctype.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "fulltext.h"
 #include "my_compiler.h"

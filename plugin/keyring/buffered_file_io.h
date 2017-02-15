@@ -16,7 +16,6 @@
 #ifndef BUFFEREDFILEIO_INCLUDED
 #define BUFFEREDFILEIO_INCLUDED
 
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <stddef.h>
 

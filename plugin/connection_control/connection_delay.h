@@ -18,7 +18,6 @@
 
 #include <lf.h>                         /* LF Hash */
 #include <my_atomic.h>                  /* my_atomic_* */
-#include <my_global.h>
 #include <mysql_com.h>                  /* USERNAME_LENGTH */
 
 #include "connection_control_data.h"    /* variables and status */

@@ -21,7 +21,6 @@
 
 #include "my_base.h"                            /* ha_rows */
 #include "my_dbug.h"
-#include "my_global.h"                          /* uint, uchar */
 #include "my_inttypes.h"
 #include "sql_alloc.h"                          /* Sql_alloc */
 

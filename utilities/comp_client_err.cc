@@ -18,7 +18,6 @@
 #include <fcntl.h>
 #include <m_string.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
 #include <sys/types.h>

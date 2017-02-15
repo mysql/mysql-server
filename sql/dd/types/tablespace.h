@@ -16,13 +16,12 @@
 #ifndef DD__TABLESPACE_INCLUDED
 #define DD__TABLESPACE_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
 #include <vector>
 
 #include "dd/collection.h"                // dd::Collection
 #include "dd/sdi_fwd.h"                   // RJ_Document
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "my_inttypes.h"
 
 class THD;
 

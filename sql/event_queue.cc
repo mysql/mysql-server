@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "event_queue.h"
+#include "sql/event_queue.h"
 
 #include <stdio.h>
 #include <new>
@@ -26,7 +26,6 @@
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_systime.h"
 #include "mysql/psi/mysql_sp.h"
 #include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param

@@ -23,7 +23,6 @@
 #include "handler.h"     // ha_rollback_trans
 #include "log.h"         // sql_print_warning
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

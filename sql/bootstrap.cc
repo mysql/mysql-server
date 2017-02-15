@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "bootstrap.h"
+#include "sql/bootstrap.h"
+
+#include "my_config.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -25,9 +27,7 @@
 #include "error_handler.h"       // Internal_error_handler
 #include "log.h"                 // sql_print_warning
 #include "m_string.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread.h"

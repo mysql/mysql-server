@@ -17,12 +17,11 @@
   This code needs extra visibility in the lexer structures
 */
 
-#include "sql_digest.h"
+#include "sql/sql_digest.h"
 
 #include "item_create.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_md5.h"                 // compute_md5_hash
 #include "my_sys.h"

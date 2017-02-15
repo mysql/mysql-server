@@ -31,7 +31,6 @@
 #include "dd/types/view.h"                     // dd::View
 #include "dd/types/view_routine.h"             // dd::View_routine
 #include "dd/types/view_table.h"               // dd::View_table
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

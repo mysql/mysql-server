@@ -41,7 +41,6 @@
   hooks within libmysql code.
 */
 
-#include <my_global.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

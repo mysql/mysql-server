@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,12 @@
 #ifndef NDB_SLEEP_H
 #define NDB_SLEEP_H
 
-#include "my_global.h"
+#if defined(_WIN32)
+#include <winbase.h>
+#else
+#include <sys/select.h>
+#include <time.h>
+#endif
 
 /* Wait a given number of milliseconds */
 static inline

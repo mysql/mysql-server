@@ -18,9 +18,10 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM (implementation).
 */
 
+#include "storage/perfschema/table_esms_by_program.h"
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
@@ -31,7 +32,6 @@
 #include "pfs_program.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "table_esms_by_program.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
 

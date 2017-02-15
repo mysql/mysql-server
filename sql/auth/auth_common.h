@@ -28,7 +28,6 @@
 #include "m_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_string.h"                         /* String */
 #include "template_utils.h"

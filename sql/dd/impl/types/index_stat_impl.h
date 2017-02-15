@@ -25,7 +25,6 @@
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/index_stat.h"              // dd::Index_stats
 #include "dd/types/object_type.h"             // dd::Object_type
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

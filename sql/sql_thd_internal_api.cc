@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_thd_internal_api.h"
+#include "sql/sql_thd_internal_api.h"
 
 #include "my_config.h"
 
@@ -27,7 +27,6 @@
 #include "current_thd.h"          // current_thd
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

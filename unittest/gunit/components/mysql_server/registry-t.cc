@@ -15,7 +15,6 @@
 
 #include <gtest/gtest.h>
 #include <m_ctype.h>
-#include <my_global.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>

@@ -30,6 +30,7 @@
 #define CONTROL_EVENT_INCLUDED
 
 #include <sys/types.h>
+#include <time.h>
 #include <list>
 #include <map>
 #include <vector>

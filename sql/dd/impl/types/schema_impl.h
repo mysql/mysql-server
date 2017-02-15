@@ -27,7 +27,6 @@
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd:Schema
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class THD;

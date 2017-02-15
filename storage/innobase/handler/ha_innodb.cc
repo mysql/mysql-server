@@ -34,6 +34,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
+#include "storage/innobase/handler/ha_innodb.h"
+
 #include "my_config.h"
 
 #include <current_thd.h>
@@ -44,7 +46,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include <fcntl.h>
 #include <gstream.h>
+#include <limits.h>
 #include <log.h>
+#include <math.h>
 #include <my_bitmap.h>
 #include <my_check_opt.h>
 #include <mysql/service_thd_alloc.h>
@@ -60,8 +64,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include <stdlib.h>
 #include <strfunc.h>
-#include "dd/dictionary.h"
-#include "dd/dd.h"
+#include <time.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -75,6 +78,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0stats.h"
+#include "dd/dd.h"
+#include "dd/dictionary.h"
 #include "dd/properties.h"
 #include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
 #include "dd/types/index.h"
@@ -93,8 +98,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0plugin.h"
 #include "fts0priv.h"
 #include "fts0types.h"
+#include "ha_innopart.h"
 #include "ha_prototypes.h"
+#include "i_s.h"
 #include "ibuf0ibuf.h"
+#include "lob0lob.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "mem0mem.h"
@@ -104,11 +112,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "mysql/psi/mysql_data_lock.h"
 #include "os0file.h"
 #include "os0thread.h"
+#include "p_s.h"
 #include "page0zip.h"
 #include "pars0pars.h"
 #include "rem0types.h"
+#include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
 #include "row0merge.h"
@@ -119,22 +130,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "univ.i"
+#include "sync0sync.h"
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "i_s.h"
-#include "lob0lob.h"
-#include "mysql/psi/mysql_data_lock.h"
-#include "p_s.h"
-#include "row0ext.h"
-#include "sync0sync.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "trx0xa.h"
+#include "univ.i"
 #include "ut0mem.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,

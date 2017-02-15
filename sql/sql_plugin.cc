@@ -16,6 +16,9 @@
 
 #include "sql_plugin.h"
 
+#include "my_config.h"
+
+#include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -38,7 +41,6 @@
 #include "mutex_lock.h"        // Mutex_lock
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"        // free_defaults
 #include "my_getopt.h"

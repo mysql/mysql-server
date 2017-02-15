@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "dd_routine.h"                        // Routine methods
+#include "sql/dd/dd_routine.h"                        // Routine methods
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -36,7 +36,6 @@
 #include "key.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"

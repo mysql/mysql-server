@@ -16,6 +16,10 @@
 #ifndef DD_SERIALIZE_IMPL_H_INCLUDED
 #define	DD_SERIALIZE_IMPL_H_INCLUDED
 
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+
+#include <rapidjson/document.h>     // rapidjson::GenericValue
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
 #include <memory>
 
 #include "base64.h"           // base64_encode
@@ -23,12 +27,7 @@
 #include "dd/object_id.h"                   // Object_id typedef
 #include "m_string.h"         // STRING_WITH_LEN
 #include "my_dbug.h"
-#include "my_global.h"
 #include "prealloced_array.h" // Prealloced_array
-
-#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
-#include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
 
 /**
   @file

@@ -15,7 +15,6 @@
 
 #include <assert.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
 #include <sys/types.h>

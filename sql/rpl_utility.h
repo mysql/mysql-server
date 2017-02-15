@@ -24,7 +24,6 @@
 
 #include "binary_log_types.h"   // enum_field_types
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 

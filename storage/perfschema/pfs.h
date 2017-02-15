@@ -23,7 +23,6 @@
 
 #define HAVE_PSI_1
 
-#include <my_global.h>
 #include <my_thread.h>
 #include <my_thread_local.h>
 #include <mysql/psi/psi_base.h>

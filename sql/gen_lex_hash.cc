@@ -87,7 +87,6 @@ So, we can read full search-structure as 32-bit word
 
 #include "lex.h"
 #include "lex_symbol.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

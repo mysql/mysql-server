@@ -16,7 +16,6 @@
 #include <float.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>

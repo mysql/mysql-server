@@ -18,7 +18,6 @@
 
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "query_result.h"
 #include "sql_select.h"

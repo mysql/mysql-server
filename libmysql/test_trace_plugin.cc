@@ -39,7 +39,6 @@
 */
 
 #include <ctype.h>                              /* isprint() */
-#include <my_global.h>
 #include <mysql/service_my_snprintf.h>          /* my_snprintf() */
 #include <string.h>                             /* memset() */
 

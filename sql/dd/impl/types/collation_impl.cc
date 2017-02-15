@@ -19,7 +19,6 @@
 #include "dd/impl/raw/raw_record.h"      // Raw_record
 #include "dd/impl/tables/collations.h"   // Collations
 #include "dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                // ER_*

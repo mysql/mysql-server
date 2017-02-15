@@ -29,15 +29,14 @@
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
+#include <kernel/ndb_limits.h>
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/ndbapi_limits.h>
-#include <kernel/ndb_limits.h>
 
-#include "my_global.h"
 #include "ndb_conflict.h"
+#include "ndb_table_map.h"
 #include "partitioning/partition_handler.h"
 #include "table.h"
-#include "ndb_table_map.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 

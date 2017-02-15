@@ -16,11 +16,9 @@
 #ifndef DD__SCHEMA_INCLUDED
 #define DD__SCHEMA_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 #include "dd/sdi_fwd.h"                   // RJ_Document
+#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "my_inttypes.h"
 
 class THD;
 

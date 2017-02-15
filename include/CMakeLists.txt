@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ SET(HEADERS
   errmsg.h
   my_double2ulonglong.h
   my_getopt.h
-  my_global.h
   my_inttypes.h
   my_io.h
   my_loglevel.h

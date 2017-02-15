@@ -24,7 +24,6 @@
 #include "dd/object_id.h"
 #include "handler.h"                         // enum_tx_isolation
 #include "my_dbug.h"
-#include "my_global.h"                       // DBUG_ASSERT() etc.
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "mysql/psi/psi_base.h"

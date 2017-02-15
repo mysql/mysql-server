@@ -19,12 +19,13 @@
   Performance schema table helpers (implementation).
 */
 
+#include "storage/perfschema/table_helper.h"
+
 #include "my_config.h"
 
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_thread.h"
 #include "pfs_account.h"
@@ -40,7 +41,6 @@
 #include "pfs_setup_object.h"
 #include "pfs_user.h"
 #include "pfs_variable.h"
-#include "table_helper.h"
 
 void
 set_field_long(Field *f, long value)

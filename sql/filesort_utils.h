@@ -22,7 +22,6 @@
 
 #include "my_base.h"                   // ha_rows
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h" // my_free
 #include "sql_array.h"                 // Bounds_checked_array

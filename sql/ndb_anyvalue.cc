@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_anyvalue.h"
+#include "sql/ndb_anyvalue.h"
 
 /*
    AnyValue carries ServerId or Reserved codes
@@ -75,7 +75,8 @@
         reserved code.
 */
 
-#include "my_global.h"
+#include <assert.h>
+
 #include "my_inttypes.h"
 
 extern ulong opt_server_id_mask;

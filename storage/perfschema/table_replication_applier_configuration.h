@@ -23,6 +23,7 @@
 */
 
 #include <sys/types.h>
+#include <time.h>
 
 #include "mysql_com.h"
 #include "pfs_column_types.h"

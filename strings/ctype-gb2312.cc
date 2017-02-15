@@ -23,7 +23,6 @@
  * .configure. mbmaxlen_gb2312=2
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 

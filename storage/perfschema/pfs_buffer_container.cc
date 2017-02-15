@@ -18,10 +18,10 @@
   Generic buffer container.
 */
 
+#include "storage/perfschema/pfs_buffer_container.h"
+
 #include "my_compiler.h"
-#include "my_global.h"
 #include "pfs_account.h"
-#include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_error.h"
 #include "pfs_global.h"

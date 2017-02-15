@@ -14,11 +14,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/sql_component.h"
+
 #include <stddef.h>
 #include <vector>
 
 #include "../components/mysql_server/server_component.h" // imp_*
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
@@ -27,7 +28,6 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
 #include "sql_class.h"         // THD
-#include "sql_component.h"
 
 bool Sql_cmd_install_component::execute(THD *thd)
 {

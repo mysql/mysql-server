@@ -23,7 +23,6 @@
 #include "binary_log_types.h"        // enum_field_types
 #include "dd/types/column.h"         // dd::enum_column_types
 #include "handler.h"                 // legacy_db_type
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql_alter.h"               // Alter_info::enum_enable_or_disable

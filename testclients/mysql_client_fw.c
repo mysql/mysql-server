@@ -13,16 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include "my_default.h"
-#include <mysql.h>
 #include <errmsg.h>
-#include <my_getopt.h>
 #include <m_string.h>
+#include <my_getopt.h>
+#include <my_sys.h>
+#include <mysql.h>
+#include <mysql/client_plugin.h>
 #include <mysqld_error.h>
 #include <sql_common.h>
-#include <mysql/client_plugin.h>
+
+#include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */

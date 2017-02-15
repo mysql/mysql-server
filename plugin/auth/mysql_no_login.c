@@ -25,7 +25,6 @@
   with DEFINER = [sys account] SQL SECURITY DEFINER.
 */
 
-#include <my_global.h>
 #include <mysql/plugin_auth.h>
 #include <stdio.h>
 #include <stdlib.h>

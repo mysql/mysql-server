@@ -18,7 +18,6 @@
 #ifndef SQL_FORMATTER_OPTIONS_INCLUDED
 #define SQL_FORMATTER_OPTIONS_INCLUDED
 
-#include <my_global.h>
 #include <stddef.h>
 
 #include "base/abstract_options_provider.h"

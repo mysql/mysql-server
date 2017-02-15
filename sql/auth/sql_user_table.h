@@ -21,6 +21,7 @@
 #include "log.h"                        /* error_log_print */
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "mysqld_error.h"
 #include "sql_connect.h"
 #include "table.h"
 

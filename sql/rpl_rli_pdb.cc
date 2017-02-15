@@ -13,13 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/rpl_rli_pdb.h"
+
 #include "my_config.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+
 #include <algorithm>
 
 #include "binlog.h"
@@ -47,7 +51,6 @@
 #include "psi_memory_key.h"
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
-#include "rpl_rli_pdb.h"
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "sql_error.h"
 #include "sql_lex.h"

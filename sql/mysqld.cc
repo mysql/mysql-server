@@ -353,7 +353,9 @@
   - @ref AGGREGATE_CHECKS
 */
 
-#include "mysqld.h"
+#include "sql/mysqld.h"
+
+#include "my_config.h"
 
 #include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
 #include "auth_common.h"                // grant_init
@@ -391,7 +393,6 @@
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_default.h"                 // print_defaults
@@ -508,6 +509,7 @@
 #ifdef MY_MSCRT_DEBUG
 #include <crtdbg.h>
 #endif
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>

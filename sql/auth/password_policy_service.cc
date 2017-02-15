@@ -19,7 +19,6 @@
 #include "m_ctype.h"  /* my_charset_utf8_bin */
 #include "m_string.h"
 #include "my_dbug.h"   /* DBUG_ASSERT */
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"

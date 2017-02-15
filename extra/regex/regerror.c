@@ -1,6 +1,6 @@
+#include <assert.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <stdio.h>
 
 #include "my_regex.h"

@@ -16,6 +16,8 @@
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
 
+#include "my_config.h"
+
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
@@ -27,10 +29,8 @@
 #include "my_bitmap.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_getopt.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"

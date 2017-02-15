@@ -15,7 +15,6 @@
 
 #include <gtest/gtest.h>
 #include <my_atomic.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <atomic>
 

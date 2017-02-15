@@ -33,7 +33,6 @@
 #include "dd/types/weak_object.h"
 #include "error_handler.h"                           // Internal_error_handler
 #include "m_string.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                            // ER_*

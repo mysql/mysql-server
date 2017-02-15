@@ -20,7 +20,6 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_time.h"                 // interval_type
 #include "mysql/mysql_lex_string.h"  // LEX_STRING

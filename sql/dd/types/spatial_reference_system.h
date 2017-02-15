@@ -16,11 +16,9 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-#include "gis/srs/srs.h"                  // srid_t
-
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "gis/srs/srs.h"                  // srid_t
+#include "my_inttypes.h"
 
 class THD;
 

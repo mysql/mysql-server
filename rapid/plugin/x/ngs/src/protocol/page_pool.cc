@@ -23,7 +23,6 @@
 #include <list>
 #include <new>
 
-#include "my_global.h"
 #include "ngs/log.h"
 #include "ngs/memory.h"
 #include "ngs/protocol/page_pool.h"

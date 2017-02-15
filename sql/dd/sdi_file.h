@@ -18,9 +18,8 @@
 
 #include <utility>
 
-#include "my_global.h"
-#include "prealloced_array.h"   // Prealloced_array
 #include "dd/string_type.h"     // dd::String_type
+#include "prealloced_array.h"   // Prealloced_array
 
 class THD;
 struct st_mysql_const_lex_string;

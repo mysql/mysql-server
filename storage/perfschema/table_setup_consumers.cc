@@ -24,7 +24,6 @@
 
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_digest.h"
 #include "pfs_events_waits.h"

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_schema.h"
+#include "sql/dd/dd_schema.h"
 
 #include <memory>                             // unique_ptr
 
@@ -28,7 +28,6 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld.h"                           // lower_case_table_names

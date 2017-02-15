@@ -22,7 +22,6 @@
 #include "handler.h"
 #include "lock.h"                             // Tablespace_hash_set
 #include "my_bitmap.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "partition_element.h"
 #include "sql_alloc.h"

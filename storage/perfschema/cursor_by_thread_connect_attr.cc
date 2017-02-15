@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "my_global.h"
 #include "pfs_buffer_container.h"
 
 ha_rows

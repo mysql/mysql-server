@@ -21,7 +21,6 @@
 
 #include "handler.h"
 #include "heap.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "table.h"
 

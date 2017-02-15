@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"       // LEX_STRING

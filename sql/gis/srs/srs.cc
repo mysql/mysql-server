@@ -15,7 +15,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "srs.h"
+#include "sql/gis/srs/srs.h"
 
 #include <boost/variant/get.hpp>
 #include <stddef.h>
@@ -28,7 +28,6 @@
 
 #include "m_ctype.h"                       // my_strcasecmp
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*

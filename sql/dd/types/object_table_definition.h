@@ -16,12 +16,10 @@
 #ifndef DD__OBJECT_TABLE_DEFINITION_INCLUDED
 #define DD__OBJECT_TABLE_DEFINITION_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
+#include <vector>
 
 #include "dd/string_type.h"                    // dd::String_type
-
-#include <vector>
+#include "my_inttypes.h"
 
 namespace dd {
 

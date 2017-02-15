@@ -29,7 +29,6 @@
 #include "item.h"           // Item
 #include "mem_root_array.h"
 #include "my_base.h"        // ha_rows
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "table.h"
 

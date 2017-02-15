@@ -17,13 +17,13 @@
 #define RPL_RLI_PDB_H
 
 #include <stdarg.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include "binlog_event.h"
 #include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"

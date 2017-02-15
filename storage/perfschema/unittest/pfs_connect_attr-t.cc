@@ -14,7 +14,6 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <my_global.h>
 #include <my_thread.h>
 #include <pfs_global.h>
 #include <pfs_instr.h>

@@ -19,7 +19,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "rpl_info_handler.h"      // Rpl_info_handler
 

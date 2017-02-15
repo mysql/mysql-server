@@ -111,6 +111,8 @@
 **
 */
 
+#include "my_config.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -125,8 +127,6 @@
 #include "cpp11_lib_check.h"
 #include "m_string.h"		/* To get my_stpcpy() */
 #include "my_compiler.h"
-#include "my_config.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql_com.h"

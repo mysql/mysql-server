@@ -17,12 +17,12 @@
 #define RPL_REPORTING_H
 
 #include <stdarg.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include "my_compiler.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"                   // my_time

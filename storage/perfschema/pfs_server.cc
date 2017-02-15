@@ -18,8 +18,9 @@
   Private interface for the server (implementation).
 */
 
+#include "storage/perfschema/pfs_server.h"
+
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -40,7 +41,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_prepared_stmt.h"
 #include "pfs_program.h"
-#include "pfs_server.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_timer.h"

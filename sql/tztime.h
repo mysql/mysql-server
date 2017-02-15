@@ -17,13 +17,13 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_config.h"
+
 #include "my_inttypes.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
-#include "my_global.h"
 #include "mysql_time.h"     // MYSQL_TIME
 #include "sql_alloc.h"      // Sql_alloc
 

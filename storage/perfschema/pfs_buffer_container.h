@@ -25,7 +25,6 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_instr.h"

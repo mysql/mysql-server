@@ -18,7 +18,6 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/service_mysql_alloc.h"

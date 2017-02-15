@@ -24,6 +24,7 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include <sys/types.h>
+#include <time.h>
 #include <new>
 #include <set>
 

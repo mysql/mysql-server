@@ -35,7 +35,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h" // string2my_decimal
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"

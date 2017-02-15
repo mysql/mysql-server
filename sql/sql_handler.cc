@@ -51,7 +51,7 @@
   cursor points at the first record).
 */
 
-#include "sql_handler.h"
+#include "sql/sql_handler.h"
 
 #include <limits.h>
 #include <string.h>
@@ -72,7 +72,6 @@
 #include "mdl.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"

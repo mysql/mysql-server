@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #include "event_data_objects.h"                 // Event_queue_element
 #include "event_parse_data.h"                   // Event_parse_data
 #include "malloc_allocator.h"                   // Malloc_allocator, IWYU pragma: keep
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_cond.h"

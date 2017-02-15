@@ -18,7 +18,6 @@
 #ifndef NDB_MI_H
 #define NDB_MI_H
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 /*

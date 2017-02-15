@@ -19,7 +19,7 @@
   Multi-table updates were introduced by Sinisa & Monty
 */
 
-#include "sql_update.h"
+#include "sql/sql_update.h"
 
 #include <string.h>
 
@@ -38,7 +38,6 @@
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"

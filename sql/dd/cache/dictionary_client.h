@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 
 #include "dd/object_id.h"
 #include "my_dbug.h"
-#include "my_global.h"                        // DBUG_ASSERT() etc.
 #include "object_registry.h"                  // Object_registry
 
 class THD;

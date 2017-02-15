@@ -36,7 +36,6 @@
 #include "handler.h"                     /* handler */
 #include "my_base.h"                     /* ha_rows */
 #include "my_compiler.h"
-#include "my_global.h"                   /* ulonglong */
 #include "my_inttypes.h"
 #include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */
 

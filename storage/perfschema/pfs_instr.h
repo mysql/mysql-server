@@ -35,8 +35,8 @@ class THD;
 #include "my_config.h"
 
 #include <sys/types.h>
+#include <time.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_thread_os_id.h"

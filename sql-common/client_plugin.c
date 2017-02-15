@@ -30,11 +30,11 @@
 #include "my_config.h"
 
 #include <m_string.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <my_thread.h>
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 

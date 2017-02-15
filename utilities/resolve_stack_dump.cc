@@ -23,9 +23,9 @@
 #include <m_string.h>
 #include <my_config.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql_version.h>
+#include <stdarg.h>
 #include <stdio.h>                              // Needed on SunOS 5.10
 #include <stdlib.h>
 #include <sys/types.h>

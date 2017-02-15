@@ -24,7 +24,6 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_md5.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"

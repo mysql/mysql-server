@@ -20,7 +20,6 @@
 #include <string>
 
 #include "dd/object_id.h"     // Object_id
-#include "my_global.h"
 
 class MDL_ticket;
 class THD;

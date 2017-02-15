@@ -21,7 +21,6 @@
   Performance schema instrumentation (declarations).
 */
 
-#include <my_global.h>
 #include <mysql/psi/psi_data_lock.h>
 #include <unordered_set>
 #include <vector>

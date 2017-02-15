@@ -16,7 +16,6 @@
 /* This file is for Shift JIS charset, and created by tommy@valley.ne.jp.
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 

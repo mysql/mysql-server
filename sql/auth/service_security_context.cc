@@ -21,7 +21,6 @@
 #include "auth_acls.h"
 #include "auth_common.h"
 #include "current_thd.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"

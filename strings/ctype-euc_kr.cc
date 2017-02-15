@@ -25,7 +25,6 @@
  * .configure. mbmaxlen_euc_kr=2
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 

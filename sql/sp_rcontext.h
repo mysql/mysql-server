@@ -21,7 +21,6 @@
 
 #include "item.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "prealloced_array.h"             // Prealloced_array

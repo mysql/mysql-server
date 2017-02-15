@@ -33,7 +33,7 @@
   currently running transactions etc will not be disrupted.
 */
 
-#include "sql_servers.h"
+#include "sql/sql_servers.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +48,6 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"

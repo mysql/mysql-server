@@ -24,7 +24,6 @@
 
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_global.h"
 #include "pfs_timer.h"

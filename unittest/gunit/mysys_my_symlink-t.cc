@@ -16,7 +16,6 @@
 #include <fcntl.h>
 #include <gtest/gtest.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <stddef.h>
 

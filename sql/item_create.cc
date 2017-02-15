@@ -20,7 +20,7 @@
   Functions to create an item. Used by sql_yacc.yy
 */
 
-#include "item_create.h"
+#include "sql/item_create.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -46,7 +46,6 @@
 #include "item_xmlfunc.h"        // Item_func_xml_extractvalue
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"

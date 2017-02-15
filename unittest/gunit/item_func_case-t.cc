@@ -17,7 +17,6 @@
 #include <stddef.h>
 
 #include "item_cmpfunc.h"
-#include "my_global.h"
 #include "test_utils.h"
 
 namespace item_func_case_unittest {

@@ -18,7 +18,7 @@
   Atomic rename of table;  RENAME TABLE t1 to t2, tmp to t1 [,...]
 */
 
-#include "sql_rename.h"
+#include "sql/sql_rename.h"
 
 #include <string.h>
 
@@ -28,7 +28,6 @@
 #include "dd_sql_view.h"      // View_metadata_updater
 #include "log.h"              // query_logger
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names

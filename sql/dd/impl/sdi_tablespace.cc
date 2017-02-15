@@ -26,7 +26,6 @@
 #include "handler.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_class.h"                   // THD
 

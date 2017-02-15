@@ -18,8 +18,8 @@
 
 #include <gtest/gtest.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <mysql/service_my_snprintf.h>
+#include <stdarg.h>
 #include <stddef.h>
 
 namespace mysys_my_vsnprintf_unittest {

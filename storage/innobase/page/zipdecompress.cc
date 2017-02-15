@@ -28,6 +28,7 @@ Created June 2005 by Marko Makela
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include <stdarg.h>
 #include <sys/types.h>
 
 #include "btr0btr.h"

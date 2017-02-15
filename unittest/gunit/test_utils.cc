@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include "unittest/gunit/test_utils.h"
+
 #include <gtest/gtest.h>
 #include <new>
 #include <ostream>
@@ -24,7 +26,6 @@
 #include "m_string.h"
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "mysqld.h"                             // set_remaining_args
@@ -33,7 +34,6 @@
 #include "set_var.h"
 #include "sql_class.h"
 #include "sql_lex.h"
-#include "test_utils.h"
 #include "xa.h"
 
 

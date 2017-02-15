@@ -21,7 +21,6 @@
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "multi_map_base.h"                   // Multi_map_base
 #include "my_dbug.h"
-#include "my_global.h"                        // DBUG_ASSERT() etc.
 
 namespace dd {
 namespace cache {

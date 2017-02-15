@@ -26,7 +26,6 @@
 #include "dd/sdi_fwd.h"
 #include "dd/types/index_element.h"         // dd::Index_element
 #include "dd/types/object_type.h"           // dd::Object_type
-#include "my_global.h"
 
 namespace dd {
 

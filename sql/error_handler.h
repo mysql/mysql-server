@@ -19,7 +19,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql_error.h"     // Sql_condition
 

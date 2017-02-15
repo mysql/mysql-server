@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "my_global.h"
 #include "my_io.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type
 #include "rpl_info_handler.h"              // enum_return_check

@@ -18,12 +18,11 @@
   Performance schema storage engine (implementation).
 */
 
-#include "ha_perfschema.h"
+#include "storage/perfschema/ha_perfschema.h"
 
 #include "hostname.h"
 #include "my_atomic.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
 #include "mysqld.h"

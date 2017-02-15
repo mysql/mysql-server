@@ -33,6 +33,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.h"
 
 #include <sys/types.h>
+#include <time.h>
 
 #include "ha_prototypes.h"
 #include "lock0lock.h"

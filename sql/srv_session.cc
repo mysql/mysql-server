@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "srv_session.h"
+#include "sql/srv_session.h"
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -32,7 +32,6 @@
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"

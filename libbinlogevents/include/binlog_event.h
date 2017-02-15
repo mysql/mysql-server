@@ -149,7 +149,7 @@ const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
 
 /**
   In case the variable is updated,
-  make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.
+  make sure to update it in $MYSQL_SOURCE_DIR/my_io.h.
 */
 #ifndef FN_REFLEN
 #define FN_REFLEN       512     /* Max length of full path-name */

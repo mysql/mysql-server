@@ -23,7 +23,6 @@
 #include <stddef.h>
 
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace skip_trailing_space_unittest {

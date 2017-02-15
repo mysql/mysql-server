@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd_trigger.h"
+#include "sql/dd/dd_trigger.h"
 
 #include <string.h>
 #include <memory>
@@ -29,7 +29,6 @@
 #include "dd/types/trigger.h"            // dd::Trigger
 #include "dd_table_share.h"              // dd_get_mysql_charset
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                      // my_error, resolve_collation

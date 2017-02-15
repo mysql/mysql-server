@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,12 @@ InnoDB Native API
 #ifndef api0api_h
 #define api0api_h
 
-#include "config.h"
-#include "db0err.h"
 #include <stdio.h>
 
-/* Define uint32 outside my_global.h, because my_global.h would not allow
+#include "config.h"
+#include "db0err.h"
+
+/* Define uint32 outside my_inttypes.h, because my_inttypes.h would not allow
 Memcached C code to use the bool data type. */
 #if SIZEOF_INT == 4
 typedef unsigned int uint32;

@@ -30,6 +30,7 @@ Created July 18, 2007 Vasil Dimov
 #include <sql_show.h>
 #include <sql_time.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "btr0btr.h"
 #include "btr0pcur.h"

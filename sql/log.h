@@ -17,6 +17,7 @@
 #define LOG_H
 
 #include <stdarg.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -24,7 +25,6 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"

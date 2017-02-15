@@ -16,7 +16,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <example_services.h>
 #include <gtest/gtest.h>
 #include <m_ctype.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>

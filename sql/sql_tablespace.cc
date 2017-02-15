@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_tablespace.h"
+#include "sql/sql_tablespace.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -27,7 +27,6 @@
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"

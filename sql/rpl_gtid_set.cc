@@ -30,7 +30,6 @@
 #include "m_string.h"                  // my_strtoll
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_stacktrace.h"             // my_safe_printf_stderr
 #include "my_sys.h"

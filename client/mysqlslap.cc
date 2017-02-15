@@ -80,6 +80,7 @@ TODO:
 
 #include "my_config.h"
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
 #include <mysqld_error.h>
@@ -94,7 +95,7 @@ TODO:
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <ctype.h>
+#include <time.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"

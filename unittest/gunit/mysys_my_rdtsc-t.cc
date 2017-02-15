@@ -41,7 +41,6 @@
 
 #include <gtest/gtest.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_rdtsc.h"
 

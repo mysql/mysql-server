@@ -13,11 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <stdarg.h>
 #include <string.h>
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 

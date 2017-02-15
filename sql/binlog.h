@@ -26,7 +26,6 @@
 #include "m_string.h"                  // llstr
 #include "my_atomic.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"

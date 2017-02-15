@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <my_bit.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "ftdefs.h"
 #include "my_dbug.h"

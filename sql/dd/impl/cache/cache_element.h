@@ -19,7 +19,6 @@
 #include "dd/impl/raw/object_keys.h"      // Primary_id_key
 #include "dd/string_type.h"               // dd::String_type
 #include "my_dbug.h"
-#include "my_global.h"                    // DBUG_ASSERT() etc.
 
 namespace dd_cache_unittest {
   class CacheTestHelper;

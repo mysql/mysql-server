@@ -21,7 +21,6 @@
 #include "control_events.h" // enum_incidents
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_plugin_ref.h"
 #include "table.h"          // TABLE

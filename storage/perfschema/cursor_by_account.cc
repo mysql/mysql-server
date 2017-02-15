@@ -24,7 +24,6 @@
 #include <stddef.h>
 
 #include "current_thd.h"
-#include "my_global.h"
 #include "pfs_buffer_container.h"
 
 ha_rows

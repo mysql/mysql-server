@@ -15,7 +15,9 @@
 
 #include "gcs_xcom_utils.h"
 
+#include <assert.h>
 #include <errno.h>
+#include <time.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif

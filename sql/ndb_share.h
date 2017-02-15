@@ -19,13 +19,12 @@
 #define NDB_SHARE_H
 
 #include <stdio.h>           // FILE, stderr
-#include <my_global.h>
-#include <my_alloc.h>        // MEM_ROOT
-#include <thr_lock.h>        // THR_LOCK
-#include <my_bitmap.h>       // MY_BITMAP
-#include <mysql/psi/mysql_thread.h>
 
-#include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
+#include "my_alloc.h"        // MEM_ROOT
+#include "my_bitmap.h"       // MY_BITMAP
+#include "mysql/psi/mysql_thread.h"
+#include "ndbapi/Ndb.hpp"    // Ndb::TupleIdRange
+#include "thr_lock.h"        // THR_LOCK
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,

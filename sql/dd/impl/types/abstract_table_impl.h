@@ -31,7 +31,6 @@
 #include "dd/types/abstract_table.h"          // dd::Abstract_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

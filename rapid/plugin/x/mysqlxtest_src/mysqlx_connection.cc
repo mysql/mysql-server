@@ -30,7 +30,6 @@
 #include <sys/un.h>
 #endif // HAVE_SYS_UN_H
 
-#include "my_global.h"
 
 #ifdef WIN32
 #  define snprintf _snprintf

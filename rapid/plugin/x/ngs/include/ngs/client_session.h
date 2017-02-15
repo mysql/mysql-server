@@ -20,6 +20,8 @@
 #ifndef _NGS_CLIENT_SESSION_H_
 #define _NGS_CLIENT_SESSION_H_
 
+#include <assert.h>
+
 #include "interface/session_interface.h"
 #include "my_inttypes.h"
 #include "ngs/protocol_authentication.h"

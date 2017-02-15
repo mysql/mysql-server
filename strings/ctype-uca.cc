@@ -31,7 +31,6 @@
 */
 
 
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>

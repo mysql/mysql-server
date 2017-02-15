@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "my_global.h"
 #include "pfs.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"

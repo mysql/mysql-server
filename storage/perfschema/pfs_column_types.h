@@ -16,7 +16,7 @@
 #ifndef PFS_COLUMN_TYPES_H
 #define PFS_COLUMN_TYPES_H
 
-#include "my_global.h"
+#include <stddef.h>
 
 /**
   @file storage/perfschema/pfs_column_types.h

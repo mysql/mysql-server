@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/sql_initialize.h"
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +29,6 @@
 #include "log.h"
 #include "m_ctype.h"
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_io.h"
 #include "my_rnd.h"
 #include "my_sys.h"
@@ -36,7 +37,6 @@
 #include "sql_bootstrap.h"
 #include "sql_class.h"
 #include "sql_error.h"
-#include "sql_initialize.h"
 
 static const char *initialization_cmds[] =
 {

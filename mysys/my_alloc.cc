@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
   Routines to handle mallocing of results which will be freed the same time.
 */
 
+#include <stdarg.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>

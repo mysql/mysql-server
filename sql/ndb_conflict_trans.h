@@ -18,7 +18,6 @@
 #ifndef NDB_CONFLICT_TRANS_H
 #define NDB_CONFLICT_TRANS_H
 
-#include "my_global.h"
 
 #include "ndbapi/NdbApi.hpp"
 #include "util/HashMap2.hpp"

@@ -23,7 +23,6 @@ The r-tree define from MyISAM
 #ifndef _gis0geo_h
 #define _gis0geo_h
 
-#include "my_global.h"
 #include "page0types.h"
 #include "string.h"
 

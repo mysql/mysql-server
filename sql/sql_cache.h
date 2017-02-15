@@ -22,7 +22,6 @@
 #include <sys/types.h>
 
 #include "hash.h"         // HASH
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_thread_local.h"
 #include "mysql/mysql_lex_string.h"

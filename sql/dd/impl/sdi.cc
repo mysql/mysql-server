@@ -18,20 +18,19 @@
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
 #include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
-#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
+#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <vector>
 
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "dd/dd.h"                      // dd::create_object
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
-#include "dd/impl/sdi.h"                // dd::sdi::Import_target
 #include "dd/impl/sdi_impl.h"           // sdi read/write functions
 #include "dd/impl/sdi_utils.h"          // dd::checked_return
-#include "dd/dd.h"                      // dd::create_object
 #include "dd/object_id.h"
 #include "dd/sdi_file.h"                // dd::sdi_file::store
 #include "dd/sdi_fwd.h"
@@ -43,12 +42,10 @@
 #include "dd/types/table.h"             // dd::Table
 #include "dd/types/tablespace.h"        // dd::Tablespace
 #include "dd_sql_view.h"                // update_referencing_views_metadata()
-
 #include "handler.h"              // ha_resolve_by_name_raw
 #include "m_string.h"             // STRING_WITH_LEN
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_version.h"        // MYSQL_VERSION_ID

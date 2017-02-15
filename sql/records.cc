@@ -20,7 +20,7 @@
   Functions for easy reading of records, possible through a cache
 */
 
-#include "records.h"
+#include "sql/records.h"
 
 #include <string.h>
 
@@ -30,7 +30,6 @@
 #include "item.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_thread_local.h"

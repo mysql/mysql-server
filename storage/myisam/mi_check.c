@@ -43,12 +43,15 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"

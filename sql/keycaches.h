@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "keycache.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"

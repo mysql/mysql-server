@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "locking_service.h"
+#include "sql/locking_service.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -21,7 +21,6 @@
 #include "current_thd.h"   // current_thd
 #include "error_handler.h" // Internal_error_handler
 #include "mdl.h"           // MDL_request_list
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"

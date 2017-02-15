@@ -24,7 +24,7 @@
 #define DISABLE_PSI_FILE 1
 #endif
 
-#include "tztime.h"
+#include "sql/tztime.h"
 
 #include <fcntl.h>
 #include <math.h>
@@ -44,7 +44,6 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

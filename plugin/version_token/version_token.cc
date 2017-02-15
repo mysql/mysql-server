@@ -19,7 +19,6 @@
 #include <hash.h>
 #include <locking_service.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_memory.h>
 #include <mysql/psi/mysql_rwlock.h>

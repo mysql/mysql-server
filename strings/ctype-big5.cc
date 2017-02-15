@@ -26,7 +26,6 @@
  * .configure. mbmaxlen_big5=2
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 

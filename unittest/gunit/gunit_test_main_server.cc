@@ -21,7 +21,6 @@
 #include <stdlib.h>
 
 #include "my_getopt.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "test_utils.h"

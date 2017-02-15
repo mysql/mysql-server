@@ -26,8 +26,9 @@
 #endif
 
 #include <errno.h>
+#include <math.h>
+#include <stddef.h>
 #include <stdio.h>
-#include <my_global.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_systime.h"

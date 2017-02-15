@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_cmd_ddl_table.h"
+#include "sql/sql_cmd_ddl_table.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -25,7 +25,6 @@
 #include "error_handler.h"      // Ignore_error_handler
 #include "handler.h"
 #include "item.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

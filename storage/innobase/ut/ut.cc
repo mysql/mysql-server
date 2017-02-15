@@ -28,6 +28,7 @@ other files in library. The code in this file is used to make a library for
 external tools. */
 
 #include <sys/types.h>
+#include <time.h>
 
 #include "my_inttypes.h"
 #include "univ.i"

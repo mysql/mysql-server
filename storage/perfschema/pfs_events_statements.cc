@@ -18,16 +18,16 @@
   Events statements data structures (implementation).
 */
 
+#include "storage/perfschema/pfs_events_statements.h"
+
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "pfs_account.h"
 #include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
-#include "pfs_events_statements.h"
 #include "pfs_global.h"
 #include "pfs_host.h"
 #include "pfs_instr.h"

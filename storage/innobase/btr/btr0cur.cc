@@ -44,6 +44,8 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "btr0cur.h"
 
+#include <assert.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "row0upd.h"

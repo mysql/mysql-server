@@ -15,7 +15,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "wkt_parser.h"
+#include "sql/gis/srs/wkt_parser.h"
 
 #include <boost/concept/usage.hpp>
 #include <boost/fusion/adapted/struct/adapt_struct.hpp>
@@ -38,7 +38,6 @@
 
 #include "gis/srs/srs.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*

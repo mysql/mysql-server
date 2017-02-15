@@ -24,7 +24,6 @@
 #include <stddef.h>
 
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 static const uchar ctype_dec8_swedish_ci[] = {

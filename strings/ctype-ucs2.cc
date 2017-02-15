@@ -18,7 +18,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <stdarg.h>
 #include <string.h>

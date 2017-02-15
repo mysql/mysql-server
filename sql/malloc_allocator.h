@@ -20,7 +20,6 @@
 #include <new>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 

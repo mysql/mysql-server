@@ -19,7 +19,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "mysql/mysql_lex_string.h" // LEX_STRING
 #include "thr_lock.h"               // thr_lock_type
 

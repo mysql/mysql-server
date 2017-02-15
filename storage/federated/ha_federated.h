@@ -25,7 +25,6 @@
 
 #include "handler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "prealloced_array.h"
 #include "thr_lock.h"

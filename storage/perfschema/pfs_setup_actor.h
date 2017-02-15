@@ -24,10 +24,12 @@
 #include <sys/types.h>
 
 #include "lf.h"
+#include "pfs_global.h"
 #include "pfs_lock.h"
 #include "sql_string.h"
 
 struct PFS_global_param;
+struct PFS_thread;
 class PFS_opaque_container_page;
 
 /* WL#988 Roles Not implemented yet */

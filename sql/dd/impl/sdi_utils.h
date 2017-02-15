@@ -17,11 +17,10 @@
 #define DD__SDI_UTILS_INCLUDED
 
 #include "current_thd.h"             // inline_current_thd
-#include "error_handler.h"           // Internal_error_handler
 #include "dd/string_type.h"          // dd::String_type
+#include "error_handler.h"           // Internal_error_handler
 #include "mdl.h"                     // MDL_request
 #include "my_dbug.h"
-#include "my_global.h"
 #include "sql_class.h"               // THD
 
 /**

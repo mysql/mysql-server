@@ -24,7 +24,6 @@ Created 3/14/2011 Jimmy Yang
 
 #include "handler_api.h"
 
-#include <my_global.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>

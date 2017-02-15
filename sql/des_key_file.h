@@ -20,7 +20,6 @@
 #include <openssl/des.h>
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "violite.h"                /* DES_cblock, DES_key_schedule */
 
 struct st_des_keyblock

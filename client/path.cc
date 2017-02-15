@@ -14,14 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#include "path.h"
+#include "client/path.h"
 
 #include <stddef.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include "hash.h"             // HASH
 #include "kernel/ndb_limits.h" // MAX_NDB_NODES
 #include "my_base.h"          // ha_rows
-#include "my_global.h"
 #include "ndb_share.h"
 #include "sql_list.h"         // List<>
 

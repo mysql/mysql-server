@@ -17,14 +17,17 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "fulltext.h"
 #include "my_compiler.h"

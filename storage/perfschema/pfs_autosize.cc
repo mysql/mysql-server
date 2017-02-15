@@ -23,7 +23,6 @@
 #include <algorithm>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "pfs_server.h"
 #include "sql_const.h"

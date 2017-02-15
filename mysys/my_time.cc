@@ -22,7 +22,6 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_systime.h"
 #include "myisampack.h"
 

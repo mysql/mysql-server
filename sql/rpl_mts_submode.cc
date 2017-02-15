@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/rpl_mts_submode.h"
+
+#include <assert.h>
 #include <limits.h>
 #include <string.h>
 #include <time.h>
@@ -36,7 +39,6 @@
 #include "mysqld_error.h"
 #include "query_options.h"
 #include "rpl_filter.h"
-#include "rpl_mts_submode.h"
 #include "rpl_rli.h"                        // Relay_log_info
 #include "rpl_rli_pdb.h"                    // db_worker_hash_entry
 #include "rpl_slave.h"

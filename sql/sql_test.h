@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include "enum_query_type.h"    // enum_query_type
 #include "mem_root_array.h"     // Mem_root_array
-#include "my_global.h"
 #include "sql_select.h"
 #include "thr_lock.h"           // TL_WRITE_ONLY
 

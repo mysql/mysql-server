@@ -17,6 +17,9 @@
 
 #include "semisync_master.h"
 
+#include <assert.h>
+#include <time.h>
+
 #include "my_compiler.h"
 #include "my_systime.h"
 #include "mysqld.h"                             // max_connections

@@ -16,7 +16,6 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdlib.h>

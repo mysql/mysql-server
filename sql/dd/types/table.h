@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
@@ -16,12 +16,10 @@
 #ifndef DD__TABLE_INCLUDED
 #define DD__TABLE_INCLUDED
 
-#include "my_global.h"
-#include "prealloced_array.h"
-
+#include "dd/sdi_fwd.h"                // Sdi_wcontext
 #include "dd/types/abstract_table.h"   // dd::Abstract_table
 #include "dd/types/trigger.h"          // dd::Trigger::enum_*
-#include "dd/sdi_fwd.h"                // Sdi_wcontext
+#include "prealloced_array.h"
 
 namespace dd {
 

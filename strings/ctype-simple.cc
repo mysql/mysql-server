@@ -15,7 +15,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <my_global.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>

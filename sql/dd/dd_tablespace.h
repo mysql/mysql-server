@@ -18,7 +18,6 @@
 
 #include "lock.h"                    // Tablespace_hash_set
 #include "my_alloc.h"
-#include "my_global.h"
 
 
 class THD;

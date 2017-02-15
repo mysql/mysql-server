@@ -20,7 +20,6 @@
 #include <limits>
 
 #include "my_byteorder.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace byteorder_unittest {

@@ -1,5 +1,4 @@
 #include "mysql/psi/psi_error.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"

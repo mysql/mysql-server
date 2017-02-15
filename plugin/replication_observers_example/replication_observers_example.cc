@@ -20,6 +20,7 @@
   - Server state
  */
 
+#include <assert.h>
 #include <current_thd.h>
 #include <mysql/group_replication_priv.h>
 #include <mysql/plugin.h>

@@ -14,6 +14,8 @@
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
   */
 
+#include "storage/perfschema/pfs_variable.h"
+
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "derror.h"
@@ -23,13 +25,11 @@
   Performance schema system variable and status variable (implementation).
 */
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld.h"
 #include "pfs.h"
 #include "pfs_global.h"
-#include "pfs_variable.h"
 #include "pfs_visitor.h"
 #include "sql_audit.h"  // audit_global_variable_get
 #include "sql_class.h"

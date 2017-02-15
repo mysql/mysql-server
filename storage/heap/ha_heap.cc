@@ -16,9 +16,10 @@
 
 
 #define MYSQL_SERVER 1
-#include "ha_heap.h"
+#include "storage/heap/ha_heap.h"
 
 #include <errno.h>
+#include <limits.h>
 
 #include "current_thd.h"
 #include "heapdef.h"

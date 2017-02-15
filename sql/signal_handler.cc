@@ -25,7 +25,6 @@
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "current_thd.h"                 // my_thread_get_THR_THD
 #include "keycache.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_stacktrace.h"

@@ -30,7 +30,6 @@
 #include "dd/types/routine.h"                  // dd::Routine
 #include "dd/types/view.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_authentication.h"
+#include "sql/auth/sql_authentication.h"
+
+#include "my_config.h"
 
 #include <string.h>
 #include <fstream>                     // IWYU pragma: keep
@@ -37,10 +39,8 @@
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"

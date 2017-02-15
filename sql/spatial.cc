@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "spatial.h"
+#include "sql/spatial.h"
 
 #include <cmath>                                // isfinite
 #include <map>
@@ -27,7 +27,6 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

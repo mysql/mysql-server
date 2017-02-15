@@ -17,8 +17,9 @@
 
 /* Insert of records */
 
-#include "sql_insert.h"
+#include "sql/sql_insert.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <map>

@@ -32,7 +32,6 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"

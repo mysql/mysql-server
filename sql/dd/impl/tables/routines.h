@@ -22,7 +22,6 @@
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/object_id.h"
 #include "dd/types/routine.h"                           // dd::Routine
-#include "my_global.h"
 
 namespace dd {
 class Object_key;

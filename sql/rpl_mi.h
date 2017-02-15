@@ -35,7 +35,6 @@ class THD;
 
 #include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "log_event.h"               // Format_description_log_event
-#include "my_global.h"
 #include "rpl_gtid.h"                // Gtid
 #include "rpl_info.h"                // Rpl_info
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser

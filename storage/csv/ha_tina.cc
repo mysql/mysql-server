@@ -41,7 +41,7 @@ TODO:
  -Brian
 */
 
-#include "ha_tina.h"
+#include "storage/csv/ha_tina.h"
 
 #include <fcntl.h>
 #include <mysql/plugin.h>
@@ -51,7 +51,6 @@ TODO:
 #include "field.h"
 #include "hash.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql_class.h"

@@ -15,7 +15,6 @@
 
 #include <fcntl.h>
 #include <gtest/gtest.h>
-#include <my_global.h>
 
 #include "current_thd.h"
 #include "file_io.h"

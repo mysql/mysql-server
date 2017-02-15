@@ -19,7 +19,6 @@
 */
 
 #include <ctype.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
 

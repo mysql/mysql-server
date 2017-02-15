@@ -19,8 +19,8 @@
   schema tables (implementation).
 */
 
-#include "my_global.h"
-#include "pfs_column_types.h"
+#include "storage/perfschema/pfs_column_types.h"
+
 #include "m_string.h" /* LEX_STRING */
 
 struct s_object_type_map

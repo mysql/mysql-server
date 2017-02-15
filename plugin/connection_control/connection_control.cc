@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_atomic.h>
-#include <my_global.h>
 #include <mysql/plugin_audit.h>         /* mysql_event_connection */
 #include <stddef.h>
 

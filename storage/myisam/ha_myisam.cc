@@ -16,7 +16,10 @@
 
 
 #define MYSQL_SERVER 1
+#include "storage/myisam/ha_myisam.h"
+
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
@@ -26,7 +29,6 @@
 
 #include "current_thd.h"
 #include "derror.h"
-#include "ha_myisam.h"
 #include "key.h"                                // key_copy
 #include "log.h"
 #include "my_compiler.h"

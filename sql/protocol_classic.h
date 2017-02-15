@@ -22,7 +22,6 @@
 #include "binary_log_types.h"
 #include "my_command.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql_com.h"

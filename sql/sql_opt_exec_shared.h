@@ -23,7 +23,6 @@
 
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "sql_alloc.h"          // Sql_alloc
 
 class JOIN;

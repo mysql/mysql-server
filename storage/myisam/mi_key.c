@@ -15,6 +15,7 @@
 
 /* Functions to handle keys */
 
+#include <math.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"

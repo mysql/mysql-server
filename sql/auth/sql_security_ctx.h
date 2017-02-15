@@ -23,7 +23,6 @@
 #include "auth/auth_common.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sharedlib.h"
 #include "mysql_com.h"
 #include "sql_const.h"
