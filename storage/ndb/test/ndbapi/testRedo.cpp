@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1624,6 +1624,10 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
   g_info << "get_redo_logpart_maxusage returns: nodeid " << nodeid
         << " lp " << logpart_with_maxusage
         << " usage " << max_usage << endl;
+
+  if (max_usage <= 0)
+    g_err << " Redo log usage before SR : usage " << usage
+          << " max usage " << max_usage << endl;
   return max_usage;
 }
 
@@ -1725,9 +1729,9 @@ runCheckLCPStartsAfterSR(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 nodeid = 0;
 
   usage_before_SR = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
-  CHK3(usage_before_SR > 0, "Redo log usage <= 0");
-  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
   CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+  CHK3(usage_before_SR > 0, "Redo log usage <= 0");
 
   NdbRestarter restarter;
   // Perform a system restart
@@ -1820,9 +1824,9 @@ runCheckLCPStartsAfterNR(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 nodeid = 0; // The node with full redo logpart
   Uint32 full_logpart = UINT32_MAX;
   usage_before = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
-  CHK3(usage_before > 0, "Redo log usage <= 0");
-  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
   CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+  CHK3(usage_before > 0, "Redo log usage <= 0");
 
    // The node with full redo logpart. Same as nodeid but of type 'int'.
   int victim = (int)nodeid;
