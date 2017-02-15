@@ -1634,6 +1634,6 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
   where config_param = 112 /* DataMemory */
   order by node_id;
 node_id	DataMemory
-1	20M
-2	20M
+1	30M
+2	30M
 
