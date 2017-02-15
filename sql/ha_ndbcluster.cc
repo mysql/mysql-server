@@ -8216,11 +8216,6 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
   DBUG_RETURN(extra(operation));
 }
 
-static const char *ha_ndbcluster_exts[] = {
- ha_ndb_ext,
- NullS
-};
-
 
 /**
   How many seeks it will take to read through the table.
@@ -14116,7 +14111,6 @@ int ndbcluster_init(void* p)
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
     h->make_pushed_join= ndbcluster_make_pushed_join;
     h->is_supported_system_table = is_supported_system_table;
-    h->file_extensions= ha_ndbcluster_exts;
   }
 
   // Initialize NdbApi
