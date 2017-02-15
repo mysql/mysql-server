@@ -84,9 +84,6 @@
 #include "ndb_dd.h"
 #include "dd/types/table.h"
 
-using std::min;
-using std::max;
-
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal(Uint32);
 extern "C" void ndb_end_internal(Uint32);
@@ -16053,8 +16050,9 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
     else
     {
       uint max_ranges= (n_ranges > 0) ? n_ranges : MRR_MAX_RANGES;
-      *bufsz= min(save_bufsize,
-                  (uint)(n_rows * entry_size + multi_range_fixed_size(max_ranges)));
+      *bufsz= std::min(save_bufsize,
+                       (uint)(n_rows * entry_size +
+                              multi_range_fixed_size(max_ranges)));
     }
     DBUG_PRINT("info", ("MRR bufsize set to %u", *bufsz));
   }
