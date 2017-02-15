@@ -181,7 +181,6 @@ st_parsing_options::reset()
 {
   allows_variable= TRUE;
   allows_select_into= TRUE;
-  allows_select_procedure= TRUE;
 }
 
 /**
@@ -483,7 +482,6 @@ void LEX::reset()
   sphead= NULL;
   set_sp_current_parsing_ctx(NULL);
   m_sql_cmd= NULL;
-  proc_analyse= NULL;
   query_tables= NULL;
   reset_query_tables_list(false);
   expr_allows_subselect= true;
@@ -713,11 +711,6 @@ SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct,
   if (outer_most && result)
   {
     my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-    DBUG_RETURN(NULL);
-  }
-  if (proc_analyse)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "SELECT ... PROCEDURE ANALYSE()");
     DBUG_RETURN(NULL);
   }
 

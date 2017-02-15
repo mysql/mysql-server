@@ -59,7 +59,6 @@
 #include "query_options.h"
 #include "query_result.h"
 #include "records.h"             // init_read_record, end_read_record
-#include "sql_analyse.h"         // Query_result_analyse
 #include "sql_base.h"
 #include "sql_cache.h"           // query_cache
 #include "sql_do.h"
@@ -443,14 +442,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd)
         return true;                          /* purecov: inspected */
     }
     result= lex->result;
-    Query_result *analyse_result= NULL;
-    if (lex->proc_analyse)
-    {
-      if ((result= analyse_result=
-           new (thd->mem_root) Query_result_analyse(thd, result,
-                                                    lex->proc_analyse)) == NULL)
-        return true;                      /* purecov: inspected */
-    }
   }
 
   SELECT_LEX_UNIT *const unit= lex->unit;

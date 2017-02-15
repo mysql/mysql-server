@@ -868,8 +868,6 @@ create view v1 as select 5 into @w;
 -- error ER_VIEW_SELECT_CLAUSE
 create view v1 as select 5 into outfile 'ttt';
 create table t1 (a int);
--- error ER_VIEW_SELECT_CLAUSE
-create view v1 as select a from t1 procedure analyse();
 create view v1 as select 1 from (select 1) as d1;
 drop view v1;
 drop table t1;

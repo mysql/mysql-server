@@ -389,7 +389,6 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"                             // my_localhost
-#include "sql_analyse.h"         // append_escaped
 #include "sql_class.h"
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"

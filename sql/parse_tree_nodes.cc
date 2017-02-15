@@ -903,12 +903,6 @@ bool PT_insert::contextualize(Parse_context *pc)
     lex->bulk_insert_row_cnt= row_value_list->get_many_values().elements;
   }
 
-  if (lex->proc_analyse)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
-    return true;
-  }
-
   if (opt_on_duplicate_column_list != NULL)
   {
     DBUG_ASSERT(!is_replace);
@@ -1520,7 +1514,8 @@ bool PT_create_union_option::contextualize(Parse_context *pc)
   HA_CREATE_INFO * const create_info= lex->create_info;
   const Yacc_state *yyps= &thd->m_parser_state->m_yacc;
 
-  lex->select_lex->table_list.save_and_clear(&lex->save_list);
+  SQL_I_List<TABLE_LIST> save_list;
+  lex->select_lex->table_list.save_and_clear(&save_list);
   if (pc->select->add_tables(thd, tables, TL_OPTION_UPDATING,
                              yyps->m_lock_type, yyps->m_mdl_type))
     return true;
@@ -1529,7 +1524,7 @@ bool PT_create_union_option::contextualize(Parse_context *pc)
     from the global list.
   */
   create_info->merge_list= lex->select_lex->table_list;
-  lex->select_lex->table_list= lex->save_list;
+  lex->select_lex->table_list= save_list;
   /*
     When excluding union list from the global list we assume that
     elements of the former immediately follow elements which represent
@@ -1766,12 +1761,6 @@ bool PT_create_table_stmt::contextualize(Parse_context *pc)
 
       if (opt_query_expression->contextualize(pc))
         return true;
-
-      if (opt_query_expression->has_procedure())
-      {
-        my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
-        return true;
-      }
 
       /*
         The following work only with the local list, the global list

@@ -815,44 +815,6 @@ public:
 };
 
 
-class PT_procedure_analyse : public Parse_tree_node
-{
-  typedef Parse_tree_node super;
-
-  Proc_analyse_params params;
-
-public:
-  PT_procedure_analyse(const Proc_analyse_params &params_arg)
-  : params(params_arg)
-  {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-          
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-
-    if (!lex->parsing_options.allows_select_procedure)
-    {
-      my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "PROCEDURE");
-      return true;
-    }
-
-    if (lex->select_lex != pc->select)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
-      return true;
-    }
-
-    lex->proc_analyse= &params;
-    lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    return false;
-  }
-};
-
-
 class PT_locking_clause : public Parse_tree_node
 {
 public:
@@ -1962,23 +1924,29 @@ class PT_query_expression : public Parse_tree_node
 {
 public:
 
-  PT_query_expression(PT_query_expression_body *body,
+  PT_query_expression(PT_with_clause *with_clause,
+                      PT_query_expression_body *body,
                       PT_order *order,
                       PT_limit_clause *limit,
-                      PT_procedure_analyse *procedure_analyse,
                       PT_locking_clause_list *locking_clauses)
     : contextualized(false),
       m_body(body),
       m_order(order),
       m_limit(limit),
-      m_procedure_analyse(procedure_analyse),
       m_locking_clauses(locking_clauses),
       m_parentheses(false),
-      m_with_clause(NULL)
+      m_with_clause(with_clause)
+  {}
+
+  PT_query_expression(PT_query_expression_body *body,
+                      PT_order *order,
+                      PT_limit_clause *limit,
+                      PT_locking_clause_list *locking_clauses)
+    : PT_query_expression(nullptr, body, order, limit, locking_clauses)
   {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
-    : PT_query_expression(body, NULL, NULL, NULL, NULL)
+    : PT_query_expression(body, NULL, NULL, NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -1996,12 +1964,6 @@ public:
     if (!contextualized && contextualize_order_and_limit(pc))
         return true;
 
-    if (contextualize_safe(pc, m_procedure_analyse))
-      return true;
-
-    if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
-      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
-
     if (contextualize_safe(pc, m_locking_clauses))
       return true;
 
@@ -2009,8 +1971,6 @@ public:
   }
 
   PT_query_expression_body *body() { return m_body; }
-
-  bool has_procedure() const { return m_procedure_analyse != NULL; }
 
   bool has_order() const { return m_order != NULL; }
 
@@ -2085,11 +2045,8 @@ private:
   PT_query_expression_body *m_body;
   PT_order *m_order;
   PT_limit_clause *m_limit;
-  PT_procedure_analyse *m_procedure_analyse;
   PT_locking_clause_list *m_locking_clauses;
   bool m_parentheses;
-
-public:
   PT_with_clause *m_with_clause;
 };
 

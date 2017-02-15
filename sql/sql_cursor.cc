@@ -414,13 +414,7 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
                                                         uint)
 {
   DBUG_ASSERT(table == 0);
-  /*
-    PROCEDURE ANALYSE installs a result filter that has a different set
-    of input and output column Items:
-  */
-  List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
-                             &list : unit->get_field_list());
-  if (create_result_table(unit->thd, column_types,
+  if (create_result_table(unit->thd, unit->get_field_list(),
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", FALSE, TRUE))

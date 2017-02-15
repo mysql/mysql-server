@@ -98,7 +98,6 @@
 #include "sp_head.h"          // sp_head
 #include "sql_admin.h"        // mysql_assign_to_keycache
 #include "sql_alter.h"
-#include "sql_analyse.h"      // Query_result_analyse
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
 #include "sql_binlog.h"       // mysql_client_binlog_statement
@@ -4847,15 +4846,7 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables)
       if (!result && !(result= new Query_result_send(thd)))
         DBUG_RETURN(true);                            /* purecov: inspected */
       Query_result *save_result= result;
-      Query_result *analyse_result= NULL;
-      if (lex->proc_analyse)
-      {
-        if ((result= analyse_result=
-             new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
-          DBUG_RETURN(true);
-      }
       res= handle_query(thd, lex, result, 0, 0);
-      delete analyse_result;
       if (save_result != lex->result)
         delete save_result;
     }

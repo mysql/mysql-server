@@ -1683,22 +1683,6 @@ struct Query_options {
 
 
 /**
-  Argument values for PROCEDURE ANALYSE(...)
-*/
-
-struct Proc_analyse_params
-{
-  /** Maximum number of distinct values per column. */
-  uint max_tree_elements;
-  /** Maximum amount of memory to allocate per column. */
-  uint max_treemem;
-
-  static const uint default_max_tree_elements= 256;
-  static const uint default_max_treemem= 8192;
-};
-
-
-/**
   Helper for the sql_exchange class
 */
 
@@ -1921,8 +1905,6 @@ union YYSTYPE {
   enum olap_type olap_type;
   class PT_group *group;
   class PT_order *order;
-  struct Proc_analyse_params procedure_analyse_params;
-  class PT_procedure_analyse *procedure_analyse;
   class PT_table_reference *table_reference;
   class PT_joined_table *join_table;
   enum PT_joined_table_type join_type;
@@ -2786,7 +2768,6 @@ struct st_parsing_options
 {
   bool allows_variable;
   bool allows_select_into;
-  bool allows_select_procedure;
 
   st_parsing_options() { reset(); }
   void reset();
@@ -3476,11 +3457,6 @@ public:
   */
   List<Name_resolution_context> context_stack;
 
-  /**
-    Argument values for PROCEDURE ANALYSE(); is NULL for other queries
-  */
-  Proc_analyse_params *proc_analyse;
-  SQL_I_List<TABLE_LIST> save_list;
   Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
