@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -340,13 +340,8 @@ int opt_sum_query(THD *thd,
           if (!is_exact_count)
           {
             /*
-              Don't get exact record count for EXPLAIN since it wouldn't be
-              shown anyway. The reason is that storage engine's records()
-              could be slow, and while for execution it would be faster than
-              counting all rows, it still could be a significant performance
-              regression for EXPLAIN. This could block some optimizations
-              done in this function from showing in EXPLAIN, that's ok as
-              real query will be executed faster than one shown by EXPLAIN.
+              We will skip calling record count for explain query,
+	      since it might take long time to compute.
             */
             if (!thd->lex->describe &&
                 (count= get_exact_record_count(tables)) == ULLONG_MAX)

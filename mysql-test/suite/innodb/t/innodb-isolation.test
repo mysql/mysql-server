@@ -1,3 +1,9 @@
+
+#Note:- WL6742 has been removed from 5.7 (Bug 23046302),
+#       but we are keeping this test since it tests
+#       count(*) correctness for various isolation
+#       levels.
+
 --echo #
 --echo # WL#6742 - Test the interaction of multiple transactions using
 --echo # different isolation levels to make sure that the value returned
@@ -45,7 +51,7 @@ CREATE TABLE t3 (
 INSERT INTO t3 (SELECT * FROM t1);
 --disable_info
 
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Do some DML in the default connection and leave the transaction pending.
@@ -58,7 +64,7 @@ UPDATE t3 SET c2 = c2 * 3 WHERE c1 = 1;
 DELETE FROM t1 WHERE c1 = 6;
 DELETE FROM t3 WHERE c1 = 6;
 --disable_info
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Start transactions of Repeatable Read, Read Committed, and Read Uncommitted
@@ -68,7 +74,7 @@ DELETE FROM t3 WHERE c1 = 6;
 connect (con1,localhost,root,,);
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 BEGIN;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 --enable_info
 UPDATE t1 SET c2 = c2 * 5 WHERE c1 = 2;
 UPDATE t3 SET c2 = c2 * 5 WHERE c1 = 2;
@@ -77,7 +83,7 @@ DELETE FROM t3 WHERE c1 = 7;
 INSERT INTO t1(c2,c3,c4) VALUES (100, 1, 1);
 INSERT INTO t3(c2,c3,c4) VALUES (100, 1, 1);
 --disable_info
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Test a lock wait timeout during COUNT(*)
@@ -93,7 +99,7 @@ SELECT COUNT(*) FROM t1 FOR UPDATE;
 connect (con2,localhost,root,,);
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 --enable_info
 UPDATE t1 SET c2 = c2 * 7 WHERE c1 = 3;
 DELETE FROM t1 WHERE c1 = 8;
@@ -101,7 +107,7 @@ DELETE FROM t3 WHERE c1 = 8;
 INSERT INTO t1(c2,c3,c4) VALUES (1000, 1, 1);
 INSERT INTO t3(c2,c3,c4) VALUES (1000, 1, 1);
 --disable_info
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection 3  READ UNCOMMITTED
@@ -109,7 +115,7 @@ INSERT INTO t3(c2,c3,c4) VALUES (1000, 1, 1);
 connect (con3,localhost,root,,);
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 BEGIN;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 --enable_info
 UPDATE t1 SET c2 = c2 * 11 WHERE c1 = 4;
 UPDATE t3 SET c2 = c2 * 11 WHERE c1 = 4;
@@ -118,13 +124,13 @@ INSERT INTO t3(c2,c3,c4) VALUES (10000, 1, 1);
 DELETE FROM t1 WHERE c1 in(9);
 DELETE FROM t3 WHERE c1 in(9);
 --disable_info
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection default REPEATABLE READ
 --echo #
 connection default;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Commit the 3 extra connections
@@ -132,35 +138,35 @@ connection default;
 --echo # Connection 1 REPEATABLE READ
 --echo #
 connection con1;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection 2 READ COMMITTED
 --echo #
 connection con2;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection 3  READ UNCOMMITTED
 --echo #
 connection con3;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 COMMIT;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection 2 READ COMMITTED
 --echo #
 connection con2;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 COMMIT;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection 1 REPEATABLE READ
 --echo #
 connection con1;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Select the first 5 records FOR UPDATE using count(*) in a subquery.
@@ -172,7 +178,7 @@ SELECT c1, c2 FROM t1 WHERE c1 < ((SELECT COUNT(*) FROM t1) / 2) FOR UPDATE;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT COUNT(*) FROM t1 FOR UPDATE;
 COMMIT;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Show The EXPLAIN output for these queries;
@@ -221,12 +227,12 @@ ALTER TABLE t2 row_format=redundant;
 --echo # Do more DML in the default REPEATABLE READ transaction in order to use recently committed records.
 --echo #
 connection default;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 --enable_info
 UPDATE t1 SET c4 = c2 * 10;
 UPDATE t3 SET c4 = c2 * 10;
 --disable_info
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Table t2 has been altered to a new row format.
@@ -239,13 +245,13 @@ SELECT * FROM t2;
 
 COMMIT;
 SELECT COUNT(*) FROM t2;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Connection 2
 --echo #
 connection con2;
---source suite/innodb/include/innodb_wl6742_selects.inc
+--source suite/innodb/include/innodb_isolation_selects.inc
 
 --echo #
 --echo # Try COUNT(*) on a DISCARDED table.
