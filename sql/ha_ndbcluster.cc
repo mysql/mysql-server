@@ -10835,7 +10835,7 @@ int ha_ndbcluster::create(const char *name,
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
-  int result= 0, ret= 0;
+  int result= 0;
   NdbDictionary::ObjectId objId;
   Ndb_fk_list fk_list_for_truncate;
 
@@ -10898,12 +10898,7 @@ int ha_ndbcluster::create(const char *name,
     /*
       Table already exists in NDB and frm file has been created by 
       caller.
-      Do Ndb specific stuff, such as create a .ndb file
     */
-    set_my_errno(write_ndb_file(name));
-    if (my_errno())
-      DBUG_RETURN(my_errno());
-
     ndbcluster_create_binlog_setup(thd, ndb, name,
                                    m_dbname, m_tabname, form);
     if (my_errno() == HA_ERR_TABLE_EXIST)
@@ -11608,7 +11603,7 @@ int ha_ndbcluster::create(const char *name,
      */
     if (dict->endSchemaTrans() == -1)
       goto err_return;
-    ret = write_ndb_file(name);
+
     Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
     ndbtab_g.invalidate();
@@ -11671,8 +11666,7 @@ err_return:
    */
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   m_table= ndbtab_g.get_table();
-
-  if (ret || m_table == NULL)
+  if (m_table == NULL)
   {
     /*
       Failed to create an index,
@@ -15772,31 +15766,6 @@ retry:
   DBUG_RETURN(reterr);
 }
 
-/**
-  Create a .ndb file to serve as a placeholder indicating 
-  that the table with this name is a ndb table.
-*/
-
-int ha_ndbcluster::write_ndb_file(const char *name) const
-{
-  File file;
-  bool error=1;
-  char path[FN_REFLEN];
-  
-  DBUG_ENTER("write_ndb_file");
-  DBUG_PRINT("enter", ("name: %s", name));
-
-  (void)strxnmov(path, FN_REFLEN-1, 
-                 mysql_data_home,"/",name,ha_ndb_ext,NullS);
-
-  if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
-  {
-    // It's an empty file
-    error=0;
-    my_close(file,MYF(0));
-  }
-  DBUG_RETURN(error);
-}
 
 void ha_ndbcluster::check_read_before_write_removal()
 {

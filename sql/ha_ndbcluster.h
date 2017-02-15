@@ -582,8 +582,6 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
-  int write_ndb_file(const char *name) const;
-
   int check_ndb_connection(THD* thd) const;
 
   void set_rec_per_key();
