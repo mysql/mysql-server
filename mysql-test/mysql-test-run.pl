@@ -6573,12 +6573,11 @@ sub start_servers($) {
     {
       clean_dir($datadir);
       mysql_install_db($mysqld, $datadir, $bootstrap_opts);
-      my $vardir_path= ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
 
       # Remove the bootstrap.sql file so that a duplicate set of
       # SQL statements do not get written to the same file.
-      unlink("$vardir_path/tmp/bootstrap.sql")
-        if (-f "$vardir_path/tmp/bootstrap.sql");
+      unlink("$opt_vardir/tmp/bootstrap.sql")
+        if (-f "$opt_vardir/tmp/bootstrap.sql");
     }
 
     # Create the servers tmpdir
