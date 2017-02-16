@@ -1076,8 +1076,8 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if (run_mysqlcheck_views() || run_mysqlcheck_fixnames() ||
-      run_mysqlcheck_upgrade() || run_sql_fix_privilege_tables())
+  if (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade() ||
+      run_mysqlcheck_views() || run_sql_fix_privilege_tables())
   {
     /*
       The upgrade failed to complete in some way or another,
