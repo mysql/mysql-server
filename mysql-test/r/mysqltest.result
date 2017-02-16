@@ -373,12 +373,12 @@ var3 two columns with same name
 var4 from query that returns NULL
 var5 from query that returns no row
 failing query in let
-create table t1 (a varchar(100));
+create table t1 (a varchar(100)) charset utf8mb4;
 insert into t1 values ('`select 42`');
 `select 42`
 insert into t1 values ('$dollar');
-$dollar
 `select 42`
+$dollar
 drop table t1;
 mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
@@ -1206,7 +1206,7 @@ DROP TABLE t1;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 COUNT(*)
 0
-CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT);
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 COUNT(*)
 1
@@ -1214,7 +1214,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TEMPORARY TABLE t1;
 #
 # Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS

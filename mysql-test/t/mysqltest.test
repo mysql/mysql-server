@@ -1023,7 +1023,7 @@ let $var2= `failing query`;
 echo $var2;
 EOF
 
-create table t1 (a varchar(100));
+create table t1 (a varchar(100)) charset utf8mb4;
 insert into t1 values ('`select 42`');
 let $a= `select * from t1`;
 # This should output `select 42`, not evaluate it again to 42
@@ -3237,7 +3237,7 @@ DROP TABLE t1;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 
 # Should create a temporary table
-CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT);
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
 
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 SHOW CREATE TABLE t1;
