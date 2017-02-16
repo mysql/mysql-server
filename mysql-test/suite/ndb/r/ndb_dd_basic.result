@@ -15,7 +15,8 @@ ERROR 42000: Unknown storage engine 'XYZ'
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 12M;
+INITIAL_SIZE 12M
+ENGINE=MYISAM;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'

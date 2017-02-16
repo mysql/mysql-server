@@ -79,6 +79,7 @@ DROP TABLE t2;
 
 --echo Now check bulk insert using create .. as select.
 SHOW VARIABLES LIKE 'default_storage_engine';
+# Change default_storage_engine to NDB
 SET default_storage_engine="ndb";
 
 --disable_warnings
@@ -89,7 +90,8 @@ SELECT COUNT(*) FROM t2;
 
 DROP TABLE t2;
 
-SET default_storage_engine="MyIsam";
+# Reset default_storage_engine to InnoDB
+SET default_storage_engine="InnoDB";
 
 --echo Now check Alter table to Ndb
 ALTER TABLE t1 ENGINE= Ndb;
