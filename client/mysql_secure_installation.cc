@@ -35,7 +35,7 @@ static my_bool g_expire_password_on_exit= FALSE;
 static my_bool opt_use_default= FALSE;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-static char *shared_memory_base_name= default_shared_memory_base_name;
+static char *shared_memory_base_name= (char*)default_shared_memory_base_name;
 #endif
 
 #include "sslopt-vars.h"
