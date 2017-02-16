@@ -127,7 +127,7 @@ private:
 };
 
 
-class Item_func_spatial_operation;
+class Item_func_st_union;
 
 /**
   A utility class to flatten any hierarchy of geometry collection into one
@@ -197,7 +197,7 @@ public:
   void merge_components(bool *pnull_value);
 private:
   template<typename Coordsys>
-  bool merge_one_run(Item_func_spatial_operation *ifso,
+  bool merge_one_run(Item_func_st_union *ifsu,
                      bool *pnull_value);
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);
@@ -1064,9 +1064,25 @@ protected:
 /**
   Spatial operations
 */
-class Item_func_spatial_operation final : public Item_geometry_func
+class Item_func_spatial_operation : public Item_geometry_func
 {
+public:
+  String *val_str(String *) override;
+
 protected:
+  enum op_type
+  {
+    op_union= 0x10000000,
+    op_intersection= 0x20000000,
+    op_symdifference= 0x30000000,
+    op_difference= 0x40000000,
+  };
+
+  Item_func_spatial_operation(const POS &pos, Item *a, Item *b, op_type sp_op)
+    : Item_geometry_func(pos, a, b), m_spatial_op(sp_op)
+  {}
+
+private:
   // It will call the protected member functions in this class,
   // no data member accessed directly.
   template<typename Geotypes>
@@ -1088,9 +1104,6 @@ protected:
                                               String *result);
 
   Geometry *empty_result(String *str, uint32 srid);
-
-  String tmp_value1,tmp_value2;
-  BG_result_buf_mgr bg_resbuf_mgr;
 
   bool assign_result(Geometry *geo, String *result);
 
@@ -1118,34 +1131,56 @@ protected:
   Geometry *geocol_union(const BG_geometry_collection &bggc1,
                          const BG_geometry_collection &bggc2,
                          String *result);
-public:
-  enum op_type
-  {
-    op_shape= 0,
-    op_not= 0x80000000,
-    op_union= 0x10000000,
-    op_intersection= 0x20000000,
-    op_symdifference= 0x30000000,
-    op_difference= 0x40000000,
-    op_backdifference= 0x50000000,
-    op_any= 0x70000000
-  };
 
-  Item_func_spatial_operation(const POS &pos, Item *a, Item *b,
-                              Item_func_spatial_operation::op_type sp_op) :
-    Item_geometry_func(pos, a, b), spatial_op(sp_op)
-  {
-  }
-  virtual ~Item_func_spatial_operation();
-  String *val_str(String *) override;
-  const char *func_name() const override;
-  void print(String *str, enum_query_type query_type) override
-  {
-    Item_func::print(str, query_type);
-  }
-private:
-  op_type spatial_op;
+  op_type m_spatial_op;
   String m_result_buffer;
+  String m_tmp_value1;
+  String m_tmp_value2;
+  BG_result_buf_mgr m_bg_resbuf_mgr;
+};
+
+
+class Item_func_st_difference final : public Item_func_spatial_operation
+{
+public:
+  Item_func_st_difference(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_operation(pos, a, b, op_difference)
+  {}
+  const char *func_name() const override
+  { return "st_difference"; }
+};
+
+
+class Item_func_st_intersection final : public Item_func_spatial_operation
+{
+public:
+  Item_func_st_intersection(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_operation(pos, a, b, op_intersection)
+  {}
+  const char *func_name() const override
+  { return "st_intersection"; }
+};
+
+
+class Item_func_st_symdifference final : public Item_func_spatial_operation
+{
+public:
+  Item_func_st_symdifference(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_operation(pos, a, b, op_symdifference)
+  {}
+  const char *func_name() const override
+  { return "st_symdifference"; }
+};
+
+
+class Item_func_st_union final : public Item_func_spatial_operation
+{
+public:
+  Item_func_st_union(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_operation(pos, a, b, op_union)
+  {}
+  const char *func_name() const override
+  { return "st_union"; }
 };
 
 

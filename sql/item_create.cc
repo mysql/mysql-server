@@ -627,29 +627,6 @@ using Mbr_within_instantiator=
 using Mbr_crosses_instantiator=
   Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
 
-template<Item_func_spatial_operation::op_type Op_type>
-class Spatial_instantiator
-{
-public:
-  static const uint Min_argcount= 2;
-  static const uint Max_argcount= 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    return new (thd->mem_root)
-      Item_func_spatial_operation(POS(), (*args)[0], (*args)[1], Op_type);
-  }
-};
-
-using Intersection_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_intersection>;
-using Difference_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_difference>;
-using Union_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_union>;
-using Symdifference_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_symdifference>;
-
 
 template<Item_func::Functype Functype>
 using Spatial_rel_instantiator=
@@ -1778,7 +1755,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_CONTAINS", SQL_FACTORY(St_contains_instantiator) },
   { "ST_CONVEXHULL", SQL_FN(Item_func_convex_hull, 1) },
   { "ST_CROSSES", SQL_FACTORY(St_crosses_instantiator) },
-  { "ST_DIFFERENCE", SQL_FACTORY(Difference_instantiator) },
+  { "ST_DIFFERENCE", SQL_FN(Item_func_st_difference, 2) },
   { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
   { "ST_DISJOINT", SQL_FACTORY(St_disjoint_instantiator) },
   { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
@@ -1802,7 +1779,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_GEOMFROMWKB", SQL_FACTORY(Geomfromwkb_instantiator) },
   { "ST_INTERIORRINGN", SQL_FACTORY(Sp_interiorringn_instantiator) },
   { "ST_INTERSECTS", SQL_FACTORY(St_intersects_instantiator) },
-  { "ST_INTERSECTION", SQL_FACTORY(Intersection_instantiator) },
+  { "ST_INTERSECTION", SQL_FN(Item_func_st_intersection, 2) },
   { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
   { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
   { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
@@ -1843,10 +1820,10 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_SIMPLIFY", SQL_FN(Item_func_simplify, 2) },
   { "ST_SRID", SQL_FACTORY(Srid_instantiator) },
   { "ST_STARTPOINT", SQL_FACTORY(Startpoint_instantiator) },
-  { "ST_SYMDIFFERENCE", SQL_FACTORY(Symdifference_instantiator) },
+  { "ST_SYMDIFFERENCE", SQL_FN(Item_func_st_symdifference, 2) },
   { "ST_SWAPXY", SQL_FN(Item_func_swap_xy, 1) },
   { "ST_TOUCHES", SQL_FACTORY(St_touches_instantiator) },
-  { "ST_UNION", SQL_FACTORY(Union_instantiator) },
+  { "ST_UNION", SQL_FN(Item_func_st_union, 2) },
   { "ST_VALIDATE", SQL_FN(Item_func_validate, 1) },
   { "ST_WITHIN", SQL_FACTORY(St_within_instantiator) },
   { "ST_X", SQL_FACTORY(X_instantiator) },

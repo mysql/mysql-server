@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,8 +163,7 @@ merge_components(bool *pnull_value)
     return;
 
   POS pos;
-  Item_func_spatial_operation ifso(pos, NULL, NULL,
-                                   Item_func_spatial_operation::op_union);
+  Item_func_st_union ifsu(pos, NULL, NULL);
   bool do_again= true;
   uint32 last_composition[6]= {0}, num_unchanged_composition= 0;
   size_t last_num_geos= 0;
@@ -201,7 +200,7 @@ merge_components(bool *pnull_value)
   */
   while (!*pnull_value && do_again)
   {
-    do_again= merge_one_run<Coordsys>(&ifso, pnull_value);
+    do_again= merge_one_run<Coordsys>(&ifsu, pnull_value);
     if (!*pnull_value && do_again)
     {
       const size_t num_geos= m_geos.size();
@@ -392,13 +391,13 @@ public:
 
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param ifso the Item_func_spatial_operation object, we here rely on it to
+  @param ifsu the Item_func_spatial_operation object, we here rely on it to
          do union operation.
   @param[out] pnull_value takes back null_value set during the operation.
   @return whether need another call of this function.
  */
 template<typename Coordsys>
-bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
+bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
                                            bool *pnull_value)
 {
   Geometry *gres= NULL;
@@ -538,9 +537,9 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           break;
         }
 
-        gres= ifso->bg_geo_set_op<Coordsys>(*i, geom2,
+        gres= ifsu->bg_geo_set_op<Coordsys>(*i, geom2,
                                                         &wkbres);
-        null_value= ifso->null_value;
+        null_value= ifsu->null_value;
 
         if (null_value)
         {
