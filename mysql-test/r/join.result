@@ -1465,7 +1465,7 @@ col_date_key date DEFAULT NULL,
 col_datetime datetime DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_date_key (col_date_key)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 INSERT INTO t1 VALUES
 (8,9,'h','FDUMQ',-1356726272,'2007-09-02 05:48:23','she','2002-04-02','2002-12-20 17:54:07');
 CREATE TABLE t2
@@ -1473,21 +1473,21 @@ CREATE TABLE t2
 col_int INT DEFAULT NULL,
 col_int_key INT DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 CREATE TABLE t3
 (col_int INT DEFAULT NULL,
 col_int_key INT DEFAULT NULL,
 pk INT,
 PRIMARY KEY (pk),
 KEY test_idx (col_int_key,pk,col_int)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 INSERT INTO t3 VALUES
 (NULL,9, 41), (NULL,-1596719104, 48), (-1068105728,9, 49);
 CREATE TABLE t4
 (col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
 pk INT,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 INSERT INTO t4 VALUES ('RUXDY',8);
 ANALYZE TABLE t1, t2, t3, t4;
 Table	Op	Msg_type	Msg_text
