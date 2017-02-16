@@ -91,9 +91,10 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
-    @param[in] length the received data size
+    @param[in] end    the end of buffer
   */
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer,
+                      const unsigned char* end);
 
 private:
   /**The message type*/

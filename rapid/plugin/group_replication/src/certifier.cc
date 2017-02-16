@@ -1668,6 +1668,7 @@ void Certifier::enable_conflict_detection()
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable= true;
+  local_member_info->enable_conflict_detection();
   mysql_mutex_unlock(&LOCK_certification_info);
 
   log_message(MY_INFORMATION_LEVEL,
@@ -1684,6 +1685,7 @@ void Certifier::disable_conflict_detection()
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable= false;
+  local_member_info->disable_conflict_detection();
   mysql_mutex_unlock(&LOCK_certification_info);
 
   log_message(MY_INFORMATION_LEVEL,
@@ -1735,7 +1737,8 @@ Gtid_Executed_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Gtid_Executed_Message::decode_payload(const unsigned char* buffer, size_t length)
+Gtid_Executed_Message::decode_payload(const unsigned char* buffer,
+                                      const unsigned char* length)
 {
   DBUG_ENTER("Gtid_Executed_Message::decode_payload");
   const unsigned char *slider= buffer;

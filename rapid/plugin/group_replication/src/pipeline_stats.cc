@@ -163,7 +163,7 @@ Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer
 
 void
 Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
-                                              size_t length)
+                                              const unsigned char *end)
 {
   DBUG_ENTER("Pipeline_stats_member_message::decode_payload");
   const unsigned char *slider= buffer;

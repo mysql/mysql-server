@@ -97,8 +97,11 @@ public:
     // length of the configuration flags: 4 bytes
     PIT_CONFIGURATION_FLAGS= 12,
 
+    // length of the conflict detection enabled: 1 byte
+    PIT_CONFLICT_DETECTION_ENABLE= 13,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 13
+    PIT_MAX= 14
   };
 
   /*
@@ -314,9 +317,24 @@ public:
    */
   bool is_unreachable();
 
+  /**
+    Update this member conflict detection to true
+   */
+  void enable_conflict_detection();
+
+  /**
+    Update this member conflict detection to false
+   */
+  void disable_conflict_detection();
+
+  /**
+    Return true if conflict detection is enable on this member
+   */
+  bool is_conflict_detection_enabled();
+
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char* end);
 
 private:
   std::string hostname;
@@ -332,6 +350,7 @@ private:
   bool unreachable;
   Group_member_role role;
   uint32 configuration_flags;
+  bool conflict_detection_enable;
 };
 
 
@@ -446,6 +465,13 @@ public:
    */
   virtual std::vector<Group_member_info*>* decode(const uchar* to_decode,
                                                   size_t length)= 0;
+
+  /**¬
+  Check if some member of the group has the conflict detection enable
+
+  @return true if at least one member has  conflict detection enabled
+  */
+  virtual bool is_conflict_detection_enabled()= 0;
 };
 
 
@@ -491,6 +517,8 @@ public:
 
   std::vector<Group_member_info*>* decode(const uchar* to_decode,
                                           size_t length);
+
+  bool is_conflict_detection_enabled();
 
 private:
   void clear_members();
@@ -580,7 +608,7 @@ public:
 
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char* end);
 
 private:
   /**

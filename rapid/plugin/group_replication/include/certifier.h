@@ -764,7 +764,7 @@ protected:
    Implementation of the template methods of Gcs_plugin_message
    */
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char* end);
 
 private:
   std::vector<uchar> data;

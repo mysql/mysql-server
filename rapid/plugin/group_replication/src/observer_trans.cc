@@ -830,7 +830,8 @@ Transaction_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Transaction_Message::decode_payload(const unsigned char* buffer, size_t length)
+Transaction_Message::decode_payload(const unsigned char* buffer,
+                                    const unsigned char* end)
 {
   DBUG_ENTER("Transaction_Message::decode_payload");
   const unsigned char *slider= buffer;

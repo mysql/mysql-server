@@ -33,7 +33,8 @@ Single_primary_message::Single_primary_message(const uchar* buf, size_t len)
   decode(buf, len);
 }
 
-void Single_primary_message::decode_payload(const unsigned char* buffer, size_t length)
+void Single_primary_message::decode_payload(const unsigned char* buffer,
+                                            const unsigned char* end)
 {
   DBUG_ENTER("Single_primary_message::decode_payload");
   const unsigned char *slider= buffer;
