@@ -629,28 +629,6 @@ using Mbr_crosses_instantiator=
 
 
 template<Item_func::Functype Functype>
-using Spatial_rel_instantiator=
-  Instantiator_with_functype<Item_func_spatial_rel, Functype, 2>;
-
-using St_contains_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
-using St_crosses_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
-using St_disjoint_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_DISJOINT_FUNC>;
-using St_equals_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_EQUALS_FUNC>;
-using St_intersects_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>;
-using St_overlaps_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_OVERLAPS_FUNC>;
-using St_touches_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
-using St_within_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_WITHIN_FUNC>;
-
-
-template<Item_func::Functype Functype>
 using Spatial_decomp_instantiator=
   Instantiator_with_functype<Item_func_spatial_decomp, Functype, 1>;
 
@@ -1752,17 +1730,17 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5) },
   { "ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2) },
   { "ST_CENTROID", SQL_FN(Item_func_centroid, 1) },
-  { "ST_CONTAINS", SQL_FACTORY(St_contains_instantiator) },
+  { "ST_CONTAINS", SQL_FN(Item_func_st_contains, 2) },
   { "ST_CONVEXHULL", SQL_FN(Item_func_convex_hull, 1) },
-  { "ST_CROSSES", SQL_FACTORY(St_crosses_instantiator) },
+  { "ST_CROSSES", SQL_FN(Item_func_st_crosses, 2) },
   { "ST_DIFFERENCE", SQL_FN(Item_func_st_difference, 2) },
   { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
-  { "ST_DISJOINT", SQL_FACTORY(St_disjoint_instantiator) },
+  { "ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2) },
   { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
   { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
   { "ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator) },
   { "ST_ENVELOPE", SQL_FN(Item_func_envelope, 1) },
-  { "ST_EQUALS", SQL_FACTORY(St_equals_instantiator) },
+  { "ST_EQUALS", SQL_FN(Item_func_st_equals, 2) },
   { "ST_EXTERIORRING", SQL_FACTORY(Exteriorring_instantiator) },
   { "ST_GEOHASH", SQL_FN_V(Item_func_geohash, 2, 3) },
   { "ST_GEOMCOLLFROMTEXT", SQL_FACTORY(Geomcollfromtext_instantiator) },
@@ -1778,7 +1756,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_GEOMFROMTEXT", SQL_FACTORY(Geomfromtext_instantiator) },
   { "ST_GEOMFROMWKB", SQL_FACTORY(Geomfromwkb_instantiator) },
   { "ST_INTERIORRINGN", SQL_FACTORY(Sp_interiorringn_instantiator) },
-  { "ST_INTERSECTS", SQL_FACTORY(St_intersects_instantiator) },
+  { "ST_INTERSECTS", SQL_FN(Item_func_st_intersects, 2) },
   { "ST_INTERSECTION", SQL_FN(Item_func_st_intersection, 2) },
   { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
   { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
@@ -1808,7 +1786,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_NUMINTERIORRING", SQL_FN(Item_func_numinteriorring, 1) },
   { "ST_NUMINTERIORRINGS", SQL_FN(Item_func_numinteriorring, 1) },
   { "ST_NUMPOINTS", SQL_FN(Item_func_numpoints, 1) },
-  { "ST_OVERLAPS", SQL_FACTORY(St_overlaps_instantiator) },
+  { "ST_OVERLAPS", SQL_FN(Item_func_st_overlaps, 2) },
   { "ST_POINTFROMGEOHASH", SQL_FN(Item_func_pointfromgeohash, 2) },
   { "ST_POINTFROMTEXT", SQL_FACTORY(Pointfromtext_instantiator) },
   { "ST_POINTFROMWKB", SQL_FACTORY(Pointfromwkb_instantiator) },
@@ -1822,10 +1800,10 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_STARTPOINT", SQL_FACTORY(Startpoint_instantiator) },
   { "ST_SYMDIFFERENCE", SQL_FN(Item_func_st_symdifference, 2) },
   { "ST_SWAPXY", SQL_FN(Item_func_swap_xy, 1) },
-  { "ST_TOUCHES", SQL_FACTORY(St_touches_instantiator) },
+  { "ST_TOUCHES", SQL_FN(Item_func_st_touches, 2) },
   { "ST_UNION", SQL_FN(Item_func_st_union, 2) },
   { "ST_VALIDATE", SQL_FN(Item_func_validate, 1) },
-  { "ST_WITHIN", SQL_FACTORY(St_within_instantiator) },
+  { "ST_WITHIN", SQL_FN(Item_func_st_within, 2) },
   { "ST_X", SQL_FACTORY(X_instantiator) },
   { "ST_Y", SQL_FACTORY(Y_instantiator) },
   { "SUBSTRING_INDEX", SQL_FN(Item_func_substr_index, 3) },

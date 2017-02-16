@@ -239,8 +239,8 @@ public:
 #endif
     Geometry *retgeo= NULL;
 
-    bool is_out= !Ifsr::bg_geo_relation_check<Coordsys>
-      (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
+    bool is_out= !Ifsr::bg_geo_relation_check(g1, g2, Ifsr::SP_DISJOINT_FUNC,
+                                              &null_value);
 
     DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
                 gt2 == Geometry::wkb_polygon ||
@@ -330,8 +330,9 @@ public:
     for (TYPENAME Point_set::iterator i= ptset.begin(); i != ptset.end(); ++i)
     {
       Point &pt= const_cast<Point&>(*i);
-      if (!Ifsr::bg_geo_relation_check<Coordsys>
-          (&pt, g2, Ifsr::SP_DISJOINT_FUNC, &null_value) && !null_value)
+      if (!Ifsr::bg_geo_relation_check(&pt, g2, Ifsr::SP_DISJOINT_FUNC,
+                                       &null_value) &&
+          !null_value)
       {
         mpts2->push_back(pt);
       }
@@ -795,8 +796,9 @@ public:
                 gt2 == Geometry::wkb_polygon ||
                 gt2 == Geometry::wkb_multilinestring ||
                 gt2 == Geometry::wkb_multipolygon);
-    if (Ifsr::bg_geo_relation_check<Coordsys>
-        (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value) && !null_value)
+    if (Ifsr::bg_geo_relation_check(g1, g2, Ifsr::SP_DISJOINT_FUNC,
+                                    &null_value) &&
+        !null_value)
     {
       Gis_geometry_collection *geocol= new Gis_geometry_collection(g2, result);
       null_value= (geocol == NULL || geocol->append_geometry(g1, result));
@@ -1124,8 +1126,8 @@ public:
     for (TYPENAME Point_set::iterator i= ptset.begin(); i != ptset.end(); ++i)
     {
       Point &pt= const_cast<Point&>(*i);
-      if (Ifsr::bg_geo_relation_check<Coordsys>
-          (&pt, g2, Ifsr::SP_DISJOINT_FUNC, &null_value))
+      if (Ifsr::bg_geo_relation_check(&pt, g2, Ifsr::SP_DISJOINT_FUNC,
+                                      &null_value))
       {
         if (null_value || (null_value= geocol->append_geometry(&pt, result)))
           break;
@@ -1318,8 +1320,8 @@ public:
                                       String *result)
   {
     Geometry *retgeo= NULL;
-    bool is_out= Ifsr::bg_geo_relation_check<Coordsys>
-      (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
+    bool is_out= Ifsr::bg_geo_relation_check(g1, g2, Ifsr::SP_DISJOINT_FUNC,
+                                             &null_value);
 
     if (!null_value)
     {
@@ -1353,8 +1355,8 @@ public:
     for (TYPENAME Multipoint::iterator i= mpts1.begin();
          i != mpts1.end(); ++i)
     {
-      if (Ifsr::bg_geo_relation_check<Coordsys>
-          (&(*i), g2, Ifsr::SP_DISJOINT_FUNC, &null_value))
+      if (Ifsr::bg_geo_relation_check(&(*i), g2, Ifsr::SP_DISJOINT_FUNC,
+                                      &null_value))
       {
         if (null_value)
           return 0;
@@ -2652,8 +2654,9 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
   for (TYPENAME Multipoint::iterator i= mpts.begin();
        i != mpts.end(); ++i)
   {
-    isin= !Item_func_spatial_rel::bg_geo_relation_check<
-      Coordsys>(&(*i), geo1, SP_DISJOINT_FUNC, &had_error);
+    isin= !Item_func_spatial_rel::bg_geo_relation_check(&(*i), geo1,
+                                                        SP_DISJOINT_FUNC,
+                                                        &had_error);
 
     if (had_error)
     {

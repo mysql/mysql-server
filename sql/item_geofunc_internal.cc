@@ -256,7 +256,7 @@ bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
     ones can be accepted by BG and the cross check would be considered true,
     we should reject such result and return false in this case.
   */
-  if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+  if (Item_func_spatial_rel::bg_geo_relation_check
       (g1, g2, Item_func::SP_CROSSES_FUNC, pnull_value) && !*pnull_value)
   {
     Geometry::wkbType g2_type= g2->get_type();
@@ -450,7 +450,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
         continue;
 
       // Equals is much easier and faster to check, so check it first.
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+      if (Item_func_spatial_rel::bg_geo_relation_check
           (geom2, *i, Item_func::SP_EQUALS_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
@@ -463,7 +463,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
         break;
       }
 
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+      if (Item_func_spatial_rel::bg_geo_relation_check
           (*i, geom2, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
@@ -476,7 +476,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
         break;
       }
 
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+      if (Item_func_spatial_rel::bg_geo_relation_check
           (geom2, *i, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
         m_geos[j->second]= NULL;
@@ -523,7 +523,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
         check the inner rings.
       */
       if ((!is_linear_areal &&
-           Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+           Item_func_spatial_rel::bg_geo_relation_check
            (*i, geom2, Item_func::SP_INTERSECTS_FUNC, &null_value) &&
            !null_value) ||
           (is_linear_areal && linear_areal_intersect_infinite

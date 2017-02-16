@@ -965,50 +965,21 @@ public:
 };
 
 
-class Item_func_spatial_rel final : public Item_bool_func2
+class Item_func_spatial_rel : public Item_bool_func2
 {
-  enum Functype spatial_rel;
-  String tmp_value1,tmp_value2;
 public:
-  Item_func_spatial_rel(const POS &pos, Item *a,Item *b, enum Functype sp_rel);
-  virtual ~Item_func_spatial_rel();
+  Item_func_spatial_rel(const POS &pos, Item *a, Item *b)
+    : Item_bool_func2(pos, a, b)
+  {}
   longlong val_int() override;
-  enum Functype functype() const override
-  {
-    return spatial_rel;
-  }
-  enum Functype rev_functype() const override
-  {
-    switch (spatial_rel)
-    {
-      case SP_CONTAINS_FUNC:
-        return SP_WITHIN_FUNC;
-      case SP_WITHIN_FUNC:
-        return SP_CONTAINS_FUNC;
-      default:
-        return spatial_rel;
-    }
-  }
 
-  const char *func_name() const override;
-  void print(String *str, enum_query_type query_type) override
-  {
-    Item_func::print(str, query_type);
-  }
-
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    return false;
-  }
-  bool is_null() override { val_int(); return null_value; }
-
-  template<typename CoordinateSystemType>
+  // Use is not restricted to subclasses. Also used by setops,
+  // BG_geometry_collection::merge_one_run() and
+  // linear_areal_intersect_infinite().
   static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
                                    Functype relchk_type, bool *);
 
-protected:
-
+private:
   template<typename Geom_types>
   friend class BG_wrap;
 
@@ -1043,7 +1014,6 @@ protected:
 
   template<typename Coordsys>
   int geocol_relation_check(Geometry *g1, Geometry *g2);
-  template<typename Coordsys>
   int geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
                                          Geometry_list *gv1,
                                          const typename BG_geometry_collection::
@@ -1052,12 +1022,205 @@ protected:
   int geocol_relcheck_within(const typename BG_geometry_collection::
                              Geometry_list *gv1,
                              const typename BG_geometry_collection::
-                             Geometry_list *gv2);
+                             Geometry_list *gv2,
+                             Functype spatial_rel);
   template<typename Coordsys>
   int geocol_equals_check(const typename BG_geometry_collection::
                           Geometry_list *gv1,
                           const typename BG_geometry_collection::
                           Geometry_list *gv2);
+};
+
+
+class Item_func_st_contains final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_contains(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_CONTAINS_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_WITHIN_FUNC; }
+  const char *func_name() const override
+  { return "st_contains"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_crosses final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_crosses(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_CROSSES_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_CROSSES_FUNC; }
+  const char *func_name() const override
+  { return "st_crosses"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_disjoint final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_disjoint(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_DISJOINT_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_DISJOINT_FUNC; }
+  const char *func_name() const override
+  { return "st_disjoint"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_equals final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_equals(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_EQUALS_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_EQUALS_FUNC; }
+  const char *func_name() const override
+  { return "st_equals"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_intersects final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_intersects(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_INTERSECTS_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_INTERSECTS_FUNC; }
+  const char *func_name() const override
+  { return "st_intersects"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_overlaps final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_overlaps(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_OVERLAPS_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_OVERLAPS_FUNC; }
+  const char *func_name() const override
+  { return "st_overlaps"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_touches final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_touches(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_TOUCHES_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_TOUCHES_FUNC; }
+  const char *func_name() const override
+  { return "st_touches"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+};
+
+
+class Item_func_st_within final : public Item_func_spatial_rel
+{
+public:
+  Item_func_st_within(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_rel(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_WITHIN_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_CONTAINS_FUNC; }
+  const char *func_name() const override
+  { return "st_within"; }
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
 };
 
 
