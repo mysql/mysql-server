@@ -259,13 +259,7 @@ Ndb_local_schema::Table::remove_table(void) const
 
   if (m_has_triggers)
   {
-    // Copy to buffers since 'drop_all_triggers' want char*
-    //              ^^^^^^^^^^^^^^^^^ not any more
-    char db_name_buf[FN_REFLEN + 1], table_name_buf[FN_REFLEN + 1];
-    my_stpcpy(db_name_buf, m_db);
-    my_stpcpy(table_name_buf, m_name);
-
-    if (drop_all_triggers(m_thd, db_name_buf, table_name_buf))
+    if (drop_all_triggers(m_thd, m_db, m_name))
     {
       log_warning("Failed to drop all triggers");
     }
