@@ -1161,7 +1161,7 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
 {
   size_t clen= 1;
   int flag;
-  uchar *s, *beg;
+  uchar *s, *beg= nullptr;
   MY_CONTRACTION tofind;
   memset(&tofind, 0, sizeof(tofind));
   tofind.ch[0]= wc0;
