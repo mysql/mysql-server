@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 skip Bug #14677850     BINLOG_MULTI_ENGINE DEPENDS ON NDB;
 # Test to test how logging is done depending on the capabilities of
 # the engines. Unfortunately, we don't have a good row-only logging

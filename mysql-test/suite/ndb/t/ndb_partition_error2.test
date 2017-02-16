@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 disable_query_log;
 --require r/true.require
 select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
