@@ -1,7 +1,7 @@
 call mtr.add_suppression("Message of size .* received, exceeding the limit of"); 
 
 --echo Setup
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 USE `test`;
 SET GLOBAL Mysqlx_max_allowed_packet=1024;
 CREATE TABLE IF NOT EXISTS `first_table`(`column_name` INTEGER DEFAULT 0 NOT NULL);

@@ -14,7 +14,7 @@
 # --let $dont_load_plugin=1|0
 # --let $wait_for_tcpsocket_status = valid_value|undefined_value|no_wait
 # --let $wait_for_unixsocket_status = valid_value|undefined_value|no_wait
-# --source ../include/xplugin_preamble.inc
+# --source include/xplugin_preamble.inc
 #
 
 source include/have_mysqlx_plugin.inc;

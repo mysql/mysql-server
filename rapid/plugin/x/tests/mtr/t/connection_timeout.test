@@ -1,7 +1,7 @@
 --source ../include/is_local_machine.inc
 
 --echo Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 --sleep 1
 SHOW VARIABLES LIKE 'mysqlx_connect_timeout';
 show status like 'Mysqlx_conn%';

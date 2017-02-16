@@ -3,7 +3,7 @@
 --let $dont_load_plugin = 1
 --let $wait_for_unixsocket_status = no_wait
 --let $wait_for_tcpsocket_status = no_wait
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 call mtr.add_suppression("option 'mysqlx-port-open-timeout': value -1 adjusted to 0");
 call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 10000 adjusted to 120");

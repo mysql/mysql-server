@@ -1,4 +1,4 @@
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test starts here
 --let $mysqlxscript_success= $MYSQL_TMP_DIR/connection_mysqlxsys_success.tmp

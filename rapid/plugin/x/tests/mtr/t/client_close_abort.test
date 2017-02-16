@@ -1,5 +1,5 @@
 --source include/restart_mysqld.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ##Pipelining the message after closing the pipe leads to undefined behaviour hence is not suppoerted on Windows OS
 --source include/not_windows.inc

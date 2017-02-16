@@ -1,7 +1,7 @@
 ## generated
 ## Rel: Find on a table as document
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/find_table_find_as_doc.tmp
 ## Test data

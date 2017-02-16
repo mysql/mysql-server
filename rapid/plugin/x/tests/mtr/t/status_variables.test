@@ -1,5 +1,5 @@
 ## Preamle
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test case
 

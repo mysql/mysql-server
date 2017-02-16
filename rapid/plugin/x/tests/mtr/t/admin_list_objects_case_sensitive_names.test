@@ -1,7 +1,7 @@
 ## Simple list objects with case sensitive names
 
 --source include/have_case_sensitive_file_system.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_table_names.tmp

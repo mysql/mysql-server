@@ -26,7 +26,7 @@
 #       13) Mysqlx_stmt_list_objects
 #
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 --disable_query_log
 --disable_warnings

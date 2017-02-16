@@ -1,7 +1,7 @@
 ## generated
 ## Invalid admin command
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_bogus_mysqlx.tmp
 --write_file $xtest_file

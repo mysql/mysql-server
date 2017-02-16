@@ -1,7 +1,7 @@
 ## This is test file for connection authentication using mysqlx.
 ##
 --source include/not_windows.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
  
 create user nonblank@localhost identified by 'nonblank';
 

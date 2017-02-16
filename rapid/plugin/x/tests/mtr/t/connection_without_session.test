@@ -3,7 +3,7 @@
 
 #--source include/have_mysql_no_login_plugin.inc
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-connection_close.tmp
 Mysqlx.Connection.Close {

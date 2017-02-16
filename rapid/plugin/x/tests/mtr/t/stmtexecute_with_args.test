@@ -4,7 +4,7 @@
 ## Preamble
 
 ## SETUP DB
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 CREATE DATABASE xtest;
 USE xtest;
 CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);

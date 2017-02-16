@@ -20,7 +20,7 @@
 --echo ================================================================================
 --echo PREAMBLE
 --echo ================================================================================
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user updateitemremove@localhost identified by 'updateitemremove';
 grant all on *.* to updateitemremove@localhost;
 

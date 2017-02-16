@@ -20,7 +20,7 @@
 --echo PREAMBLE
 --echo ================================================================================
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user upditemreplace@localhost identified by 'upditemreplace';
 grant all on *.* to upditemreplace@localhost;
 

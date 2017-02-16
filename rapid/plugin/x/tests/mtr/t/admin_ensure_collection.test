@@ -1,6 +1,6 @@
 ## Admin command: ensure_collection
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 

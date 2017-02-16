@@ -1,6 +1,6 @@
 ## Deleting and placeholders  
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test data
 DROP SCHEMA IF EXISTS xtest;

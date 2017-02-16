@@ -2,7 +2,7 @@
 
 ## Preamble
 --source include/not_windows.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 --write_file $MYSQL_TMP_DIR/check_plain_connection.tmp
 Mysqlx.Session.AuthenticateStart {

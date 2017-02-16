@@ -16,7 +16,7 @@
 #  Close_aborted
 
 --source include/restart_mysqld.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
 call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');

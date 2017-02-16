@@ -1,6 +1,6 @@
 call mtr.add_suppression("Capability expired password failed with error: Invalid data, expected numeric type");
 --sleep 2
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
 Mysqlx.Connection.CapabilitiesGet {

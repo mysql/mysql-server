@@ -1,7 +1,7 @@
 ## This is test file for verification of disabiling warning,password_expired,generated_insert_id,rows_affected,produced_message notices and their functionality
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
 --write_file $xtest_result 

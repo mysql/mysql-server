@@ -1,7 +1,7 @@
 ## Put records in order using members of json doc 
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/crud_order_by.tmp
 ## Test data

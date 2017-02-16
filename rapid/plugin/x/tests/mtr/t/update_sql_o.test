@@ -18,7 +18,7 @@
 --echo PREAMBLE
 --echo ================================================================================
 --replace_regex /\.dll/.so/
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user user2@localhost identified by 'user2';
 grant all on *.* to user2@localhost;
 

@@ -1,7 +1,7 @@
 ## generated
 ## Doc: Find using complex docpaths in expression
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/find_docpath_expr.tmp
 ## Test data

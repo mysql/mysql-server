@@ -20,7 +20,7 @@
 # binary log.
 --source include/not_log_bin.inc
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 
 ## Test starts here
